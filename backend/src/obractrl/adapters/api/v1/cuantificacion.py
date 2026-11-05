@@ -913,6 +913,11 @@ class EnlaceDeTrazoRespuesta(BaseModel):
     cantidad: Decimal = Field(description="`medida_valor × factor`.")
 
 
+class ConexionDeMuro(BaseModel):
+    extremo: Literal["ini", "fin"]
+    con_trazo_id: UUID
+
+
 class TrazoPropiedades(BaseModel):
     trazo_id: UUID
     version_plano: int
@@ -930,6 +935,10 @@ class TrazoPropiedades(BaseModel):
     alineacion: Literal["centro", "izquierda", "derecha"] | None = None
     pendiente_pct: Decimal | None = Field(
         default=None, description="Pendiente en % de una línea inclinada; `null` = horizontal."
+    )
+    conexiones: list[ConexionDeMuro] = Field(
+        default_factory=list,
+        description="Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo.",
     )
     medicion_id: UUID | None = Field(
         default=None, description="La medición a la que pertenece el trazo (0088); `null` = suelto."
@@ -1077,6 +1086,7 @@ async def trazos_de_plano(
                     grosor_m=trazo.get("grosor_m"),
                     alineacion=trazo.get("alineacion"),
                     pendiente_pct=trazo.get("pendiente_pct"),
+                    conexiones=[ConexionDeMuro(**c) for c in trazo.get("conexiones", [])],
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),
                     n_huecos=int(trazo.get("n_huecos") or 0),

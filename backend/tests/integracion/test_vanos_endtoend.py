@@ -227,6 +227,10 @@ async def test_las_uniones_de_muro_recortan_el_largo_y_la_fusion_junta_dos_muros
     r = await control.put(f"/api/v1/trazos/{a}/uniones/fin", json={"op": "conexion", "con_trazo_id": b})
     assert r.status_code == 200, r.text
     assert _total(r) == Decimal("20").quantize(cuatro)  # los dos muros; la conexión no cambia el eje
+    # El plano recibe la conexión para dibujar el cuerpo continuo.
+    feat = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"]
+    de_a = next(f for f in feat if f["id"] == a)["properties"]["conexiones"]
+    assert de_a == [{"extremo": "fin", "con_trazo_id": b}]
     r = await control.put(f"/api/v1/trazos/{a}/uniones/fin", json={"op": "union", "con_trazo_id": b})
     assert r.status_code == 200, r.text
     total_union = _total(r)

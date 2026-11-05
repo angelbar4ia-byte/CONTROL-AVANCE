@@ -1152,11 +1152,32 @@ class RepositorioTrazosSQL:
         for enlace in enlaces:
             por_trazo.setdefault(enlace["trazo_id"], []).append(dict(enlace))
 
+        # Las conexiones de muro (0111): el cuerpo continúa en ese extremo; el plano cierra la esquina.
+        conexiones: dict[Any, list[dict[str, Any]]] = {}
+        if await _hay_tabla(self._sesion, "trazo_union"):
+            for u in (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select u.trazo_id, u.extremo, u.con_trazo_id
+                          from trazo_union u join trazo t on t.id = u.trazo_id
+                         where t.plano_id = :plano_id and u.op = 'conexion'
+                         order by u.trazo_id, u.extremo
+                        """
+                    ),
+                    {"plano_id": str(plano_id)},
+                )
+            ).mappings().all():
+                conexiones.setdefault(u["trazo_id"], []).append(
+                    {"extremo": u["extremo"], "con_trazo_id": u["con_trazo_id"]}
+                )
+
         return [
             {
                 **{k: v for k, v in trazo.items() if k != "geojson"},
                 "geometria": json.loads(trazo["geojson"]),
                 "enlaces": por_trazo.get(trazo["id"], []),
+                "conexiones": conexiones.get(trazo["id"], []),
             }
             for trazo in trazos
         ]
