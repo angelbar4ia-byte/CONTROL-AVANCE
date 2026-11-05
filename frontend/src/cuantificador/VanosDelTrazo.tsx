@@ -12,6 +12,7 @@ import {
   useColocarVanoApiV1TrazosTrazoIdVanosPost,
   useListarVanosApiV1TrazosTrazoIdVanosGet,
   useQuitarVanoApiV1VanosVanoIdDelete,
+  useVerMuroApiV1TrazosTrazoIdMuroGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
 import { queryClient } from '@/app/queryClient';
 
@@ -32,6 +33,8 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
   const vanos = useListarVanosApiV1TrazosTrazoIdVanosGet(trazoId);
   const colocar = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const quitar = useQuitarVanoApiV1VanosVanoIdDelete<ErrorApi>();
+  // Los vanos descuentan por las caras que suma el muro (D-627).
+  const caras = useVerMuroApiV1TrazosTrazoIdMuroGet(trazoId).data?.caras ?? CARAS_POR_DEFECTO;
   const [tipo, setTipo] = useState<TipoDeVano>('puerta');
   const [ancho, setAncho] = useState(String(TIPOS_DE_VANO.puerta.ancho));
   const [alto, setAlto] = useState(String(TIPOS_DE_VANO.puerta.alto));
@@ -99,7 +102,7 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
             </span>
             <span className="text-mute text-xs">
               {Number(v.ancho_m)} × {Number(v.alto_m)} m · −
-              {descuentoDelVano(Number(v.ancho_m), Number(v.alto_m), v.piezas, CARAS_POR_DEFECTO).toFixed(2)} m²
+              {descuentoDelVano(Number(v.ancho_m), Number(v.alto_m), v.piezas, caras).toFixed(2)} m²
             </span>
             {puedeEditar && (
               <button

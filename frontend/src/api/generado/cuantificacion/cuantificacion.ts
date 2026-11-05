@@ -33,6 +33,8 @@ import type {
   HuecoPeticion,
   HuecoRespuesta,
   MatricesDeActividadRespuesta,
+  MuroDelTrazoPeticion,
+  MuroDelTrazoRespuesta,
   NodoCuantificadoRespuesta,
   NotaPlanoDetalleRespuesta,
   NotaPlanoPeticion,
@@ -4233,6 +4235,449 @@ export const useQuitarVanoApiV1VanosVanoIdDelete = <
 > => {
   const mutationOptions =
     getQuitarVanoApiV1VanosVanoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Cómo cuenta un muro: altura, caras y partes
+ */
+export const verMuroApiV1TrazosTrazoIdMuroGet = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<MuroDelTrazoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}/muro`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getVerMuroApiV1TrazosTrazoIdMuroGetInfiniteQueryKey = (
+  trazoId?: string,
+) => {
+  return ["infinite", `/api/v1/trazos/${trazoId}/muro`] as const;
+};
+
+export const getVerMuroApiV1TrazosTrazoIdMuroGetQueryKey = (
+  trazoId?: string,
+) => {
+  return [`/api/v1/trazos/${trazoId}/muro`] as const;
+};
+
+export const getVerMuroApiV1TrazosTrazoIdMuroGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVerMuroApiV1TrazosTrazoIdMuroGetInfiniteQueryKey(trazoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  > = ({ signal }) =>
+    verMuroApiV1TrazosTrazoIdMuroGet(trazoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trazoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VerMuroApiV1TrazosTrazoIdMuroGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+>;
+export type VerMuroApiV1TrazosTrazoIdMuroGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useVerMuroApiV1TrazosTrazoIdMuroGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+          TError,
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerMuroApiV1TrazosTrazoIdMuroGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+          TError,
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerMuroApiV1TrazosTrazoIdMuroGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo cuenta un muro: altura, caras y partes
+ */
+
+export function useVerMuroApiV1TrazosTrazoIdMuroGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getVerMuroApiV1TrazosTrazoIdMuroGetInfiniteQueryOptions(
+    trazoId,
+    options,
+  );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVerMuroApiV1TrazosTrazoIdMuroGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVerMuroApiV1TrazosTrazoIdMuroGetQueryKey(trazoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+  > = ({ signal }) =>
+    verMuroApiV1TrazosTrazoIdMuroGet(trazoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trazoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VerMuroApiV1TrazosTrazoIdMuroGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+>;
+export type VerMuroApiV1TrazosTrazoIdMuroGetQueryError =
+  void | HTTPValidationError;
+
+export function useVerMuroApiV1TrazosTrazoIdMuroGet<
+  TData = Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+          TError,
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerMuroApiV1TrazosTrazoIdMuroGet<
+  TData = Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+          TError,
+          Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerMuroApiV1TrazosTrazoIdMuroGet<
+  TData = Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo cuenta un muro: altura, caras y partes
+ */
+
+export function useVerMuroApiV1TrazosTrazoIdMuroGet<
+  TData = Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verMuroApiV1TrazosTrazoIdMuroGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getVerMuroApiV1TrazosTrazoIdMuroGetQueryOptions(
+    trazoId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Rehace el factor de los enlaces de largo en m² del muro (altura × caras) y recalcula lo que alimenta.
+ * @summary Fijar cómo cuenta un muro: altura única o por partes y una o dos caras
+ */
+export const fijarMuroApiV1TrazosTrazoIdMuroPut = (
+  trazoId: string,
+  muroDelTrazoPeticion: MuroDelTrazoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/muro`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: muroDelTrazoPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarMuroApiV1TrazosTrazoIdMuroPutMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fijarMuroApiV1TrazosTrazoIdMuroPut>>,
+    TError,
+    { trazoId: string; data: MuroDelTrazoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fijarMuroApiV1TrazosTrazoIdMuroPut>>,
+  TError,
+  { trazoId: string; data: MuroDelTrazoPeticion },
+  TContext
+> => {
+  const mutationKey = ["fijarMuroApiV1TrazosTrazoIdMuroPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fijarMuroApiV1TrazosTrazoIdMuroPut>>,
+    { trazoId: string; data: MuroDelTrazoPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return fijarMuroApiV1TrazosTrazoIdMuroPut(trazoId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FijarMuroApiV1TrazosTrazoIdMuroPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof fijarMuroApiV1TrazosTrazoIdMuroPut>>
+>;
+export type FijarMuroApiV1TrazosTrazoIdMuroPutMutationBody =
+  MuroDelTrazoPeticion;
+export type FijarMuroApiV1TrazosTrazoIdMuroPutMutationError = void;
+
+/**
+ * @summary Fijar cómo cuenta un muro: altura única o por partes y una o dos caras
+ */
+export const useFijarMuroApiV1TrazosTrazoIdMuroPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof fijarMuroApiV1TrazosTrazoIdMuroPut>>,
+      TError,
+      { trazoId: string; data: MuroDelTrazoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof fijarMuroApiV1TrazosTrazoIdMuroPut>>,
+  TError,
+  { trazoId: string; data: MuroDelTrazoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarMuroApiV1TrazosTrazoIdMuroPutMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

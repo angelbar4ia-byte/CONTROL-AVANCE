@@ -158,6 +158,7 @@ import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
 import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
+import { MuroDelTrazo } from './MuroDelTrazo';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
@@ -2029,6 +2030,18 @@ export function EspacioDeTrazo({
               onCambio={(aviso) => setAviso(aviso)}
               onError={(m) => setAviso(m)}
             />
+            {seleccionado.geometry.type === 'LineString' &&
+              seleccionado.properties.enlaces.some((e) => e.vigente && e.medida === 'longitud' && Number(e.factor) !== 1) && (
+                <MuroDelTrazo
+                  trazoId={seleccionado.id as string}
+                  puedeEditar
+                  onCambio={(aviso) => {
+                    setAviso(aviso);
+                    invalidarTrazos();
+                  }}
+                  onError={(m) => setAviso(m)}
+                />
+              )}
             {seleccionado.geometry.type === 'LineString' && (
               <VanosDelTrazo
                 trazoId={seleccionado.id as string}

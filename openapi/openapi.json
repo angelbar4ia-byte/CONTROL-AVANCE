@@ -10938,6 +10938,113 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/muro": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cómo cuenta un muro: altura, caras y partes",
+        "operationId": "ver_muro_api_v1_trazos__trazo_id__muro_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MuroDelTrazoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Fijar cómo cuenta un muro: altura única o por partes y una o dos caras",
+        "description": "Rehace el factor de los enlaces de largo en m² del muro (altura × caras) y recalcula lo que alimenta.",
+        "operationId": "fijar_muro_api_v1_trazos__trazo_id__muro_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MuroDelTrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es una línea o las partes no valen."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/vanos": {
       "get": {
         "tags": [
@@ -27903,6 +28010,129 @@
         "title": "ModoPago",
         "description": "``actividad.modo_pago`` y ``estimacion.modo`` comparten valores (§8.2)."
       },
+      "MuroDelTrazoPeticion": {
+        "properties": {
+          "altura_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura M",
+            "description": "Altura única; ignorada si hay partes."
+          },
+          "caras": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Caras",
+            "default": 2
+          },
+          "cara": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "exterior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara",
+            "description": "Con una sola cara, cuál."
+          },
+          "partes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ParteDeAlturaModelo-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partes",
+            "description": "Altura por partes."
+          }
+        },
+        "type": "object",
+        "title": "MuroDelTrazoPeticion"
+      },
+      "MuroDelTrazoRespuesta": {
+        "properties": {
+          "altura_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura M"
+          },
+          "caras": {
+            "type": "integer",
+            "title": "Caras"
+          },
+          "cara": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara"
+          },
+          "partes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ParteDeAlturaModelo-Output"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partes"
+          },
+          "altura_efectiva_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Altura Efectiva M",
+            "description": "La altura que suma a la cantidad."
+          }
+        },
+        "type": "object",
+        "required": [
+          "altura_m",
+          "caras",
+          "cara",
+          "partes",
+          "altura_efectiva_m"
+        ],
+        "title": "MuroDelTrazoRespuesta"
+      },
       "NivelDeLaEtapaPeticion": {
         "properties": {
           "nivel_id": {
@@ -29661,6 +29891,86 @@
         "type": "object",
         "title": "ParametrosReporte",
         "description": "Lo que puede necesitar un reporte del catálogo.\n\nUn solo modelo con todo opcional en vez de uno por tipo: el borde valida\ncontra `TipoDeReporte.requiere`, que es la lista que de verdad manda, y\nasí agregar un reporte no agrega un DTO. Lo que se pierde —que OpenAPI no\ndiga *para este tipo, este campo es obligatorio*— se compensa con\n`GET /reportes/tipos`, que publica la tabla.\n\n**Ningún campo de alcance.** No hay `usuario_id` ni `org_id`: el alcance\nsale del token y lo aplica RLS (§12.4). `proyecto_id` y `cluster_id` son\nfoco dentro de lo visible, no permiso."
+      },
+      "ParteDeAlturaModelo-Input": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Nombre",
+            "default": ""
+          },
+          "desde_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Hasta M"
+          },
+          "suma": {
+            "type": "boolean",
+            "title": "Suma",
+            "description": "Si no suma, cuenta para la altura pero no para la cantidad.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "ParteDeAlturaModelo"
+      },
+      "ParteDeAlturaModelo-Output": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Nombre",
+            "default": ""
+          },
+          "desde_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hasta M"
+          },
+          "suma": {
+            "type": "boolean",
+            "title": "Suma",
+            "description": "Si no suma, cuenta para la altura pero no para la cantidad.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "ParteDeAlturaModelo"
       },
       "ParteIndependientePeticion": {
         "properties": {

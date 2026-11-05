@@ -163,6 +163,19 @@ class RepositorioTrazos(Protocol):
 
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]: ...
 
+    async def muro_de_trazo(self, trazo_id: UUID) -> dict[str, Any]: ...
+
+    async def fijar_muro(
+        self,
+        *,
+        trazo_id: UUID,
+        altura_m: Decimal | None,
+        caras: int,
+        cara: str | None,
+        partes: list[dict[str, Any]] | None,
+        factor: Decimal,
+    ) -> int: ...
+
     async def crear_hueco(self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID) -> UUID:
         """Un hueco es un trazo hijo (`hueco_de`) que resta del área del padre; sin enlaces."""
         ...
