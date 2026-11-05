@@ -14449,7 +14449,7 @@
             "description": "El concepto no existe o está fuera de tu alcance."
           },
           "422": {
-            "description": "El concepto ya mide con algo que la unidad nueva no admite, o la unidad no existe."
+            "description": "La unidad no existe o cruza de tipo de medición (eso pide una equivalencia)."
           }
         }
       }
@@ -38084,6 +38084,12 @@
               }
             ],
             "title": "Tipo Nuevo"
+          },
+          "enlaces_por_revisar": {
+            "type": "integer",
+            "title": "Enlaces Por Revisar",
+            "description": "Enlaces cuya medida ya no cabe en la unidad nueva: quedan marcados por revisar (D-601).",
+            "default": 0
           }
         },
         "type": "object",

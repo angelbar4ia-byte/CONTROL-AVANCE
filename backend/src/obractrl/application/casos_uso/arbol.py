@@ -21,7 +21,6 @@ from typing import Any
 from uuid import UUID
 
 from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
-from obractrl.application.casos_uso.cuantificar import ErrorDeCuantificacion
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.casos_uso.gestionar_programacion import ActividadNoProgramable
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
@@ -47,6 +46,8 @@ class UnidadCambiada:
     unidad_nueva: str
     tipo_anterior: str | None
     tipo_nuevo: str | None
+    enlaces_por_revisar: int = 0
+    """Cuántos enlaces quedaron marcados por revisar porque su medida ya no cabe en la unidad nueva (D-601)."""
 
 
 def _clave(texto: str, que: str) -> str:
@@ -116,20 +117,28 @@ class ArmarArbol:
             )
         if concepto["unidad_id"] != unidad_id:
             caben = medidas_que_caben(tipo_nuevo)
+            ajenas: list[str] = []
             if caben is not None:
                 ajenas = sorted(
-                    m
-                    for m in await self._arbol.medidas_vigentes_del_concepto(concepto_id)
-                    if m not in caben
+                    m for m in await self._arbol.medidas_vigentes_del_concepto(concepto_id) if m not in caben
                 )
-                if ajenas:
-                    raise ErrorDeCuantificacion(
-                        f"{concepto['clave']} ya se mide con {', '.join(ajenas)} y la unidad {unidad['clave']} no lo admite: "
-                        "quita o reemplaza esos trazos antes de cambiarla."
-                    )
             async with self._uow:
                 await self._arbol.poner_unidad(concepto_id, unidad_id)
+                # Sin bloquear (decisión del usuario, F-12): lo medido que ya no cabe queda marcado por revisar.
+                por_revisar = (
+                    await self._arbol.marcar_enlaces_que_no_caben(
+                        concepto_id=concepto_id,
+                        unidad_anterior_id=concepto["unidad_id"],
+                        unidad_nueva_id=unidad_id,
+                        tipo_anterior=tipo_anterior,
+                        tipo_nuevo=str(tipo_nuevo),
+                        ajenas=ajenas,
+                    )
+                    if ajenas and tipo_nuevo is not None
+                    else 0
+                )
                 await self._uow.commit()
+            return UnidadCambiada(concepto_id, anterior, unidad["clave"], tipo_anterior, tipo_nuevo, por_revisar)
         return UnidadCambiada(
             concepto_id, anterior, unidad["clave"], tipo_anterior, tipo_nuevo
         )

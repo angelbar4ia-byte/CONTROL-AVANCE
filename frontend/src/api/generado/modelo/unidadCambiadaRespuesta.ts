@@ -16,4 +16,6 @@ export interface UnidadCambiadaRespuesta {
   /** area, lineal, conteo, volumen o derivada. */
   tipo_anterior?: UnidadCambiadaRespuestaTipoAnterior;
   tipo_nuevo?: UnidadCambiadaRespuestaTipoNuevo;
+  /** Enlaces cuya medida ya no cabe en la unidad nueva: quedan marcados por revisar (D-601). */
+  enlaces_por_revisar?: number;
 }
