@@ -1311,6 +1311,22 @@ class GestionarVanos(AgregarHuecoATrazo):
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, borrar)
 
+    async def cambiar_ancho(
+        self, vano_id: UUID, ancho_m: Decimal, *, autor_id: UUID, rol: Rol, detectada_en: datetime
+    ) -> VanoCambiado:
+        """Ensancha o angosta un vano: cambia lo que descuenta, así que recalcula lo que alimenta la línea."""
+        trazo_id = await self._trazos.trazo_del_vano(vano_id)
+        if trazo_id is None:
+            raise TrazoNoEncontrado(f"El vano {vano_id} no existe o está fuera de tu alcance.")
+        if ancho_m <= 0:
+            raise ErrorDeCuantificacion("El ancho del vano debe ser mayor que cero.")
+
+        async def guardar() -> UUID:
+            await self._trazos.fijar_ancho_vano(vano_id, ancho_m)
+            return vano_id
+
+        return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
+
     async def del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
         return await self._trazos.vanos_del_plano(plano_id)
 

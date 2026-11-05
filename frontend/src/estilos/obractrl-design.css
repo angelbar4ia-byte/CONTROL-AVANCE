@@ -2963,6 +2963,11 @@ a { color: inherit; text-decoration: none; }
 /* Vanos (puertas, ventanas, pasos) dibujados sobre su muro en el visor del cuantificador. */
 .visor__vanos { pointer-events: none; }
 .visor__vano { fill: var(--panel, #fff); fill-opacity: .85; stroke: var(--accent, #2563eb); stroke-width: 1.5; pointer-events: none; }
+.visor__vano-zona { fill: transparent; stroke: none; pointer-events: all; }
+.visor__vano-grupo.is-elegido .visor__vano { stroke-width: 2.5; }
+.visor__asas { pointer-events: all; }
+.visor__asa { fill: var(--panel, #fff); stroke: var(--accent, #2563eb); stroke-width: 1.5; cursor: ew-resize; pointer-events: all; }
+.visor__asa--centro { cursor: grab; fill: var(--accent, #2563eb); }
 .visor__vano--ventana { fill-opacity: .35; stroke-dasharray: 3 2; }
 
 /* Ventana de selección del visor: azul y sólida si solo elige lo que cubre por completo; verde y punteada si elige lo que toca. */

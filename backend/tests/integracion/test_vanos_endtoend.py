@@ -332,3 +332,21 @@ async def test_el_catalogo_de_versiones_nace_con_las_de_partida_y_se_edita_sin_t
     async with _cliente(contexto_residente) as residente:
         assert len((await residente.get("/api/v1/vanos-version")).json()) >= 8
         assert (await residente.post("/api/v1/vanos-version", json={"tipo": "puerta"})).status_code == 403
+
+
+async def test_cambiar_el_ancho_de_un_vano_recalcula_lo_que_descuenta(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    plano, muro = await _muro(control, escenario, "longitud", "5.2")
+    vano = (await control.post(f"/api/v1/trazos/{muro}/vanos", json=PUERTA)).json()["vano_id"]
+
+    # Resuelta la posición: sin guardar va a la mitad del muro y el plano lo dice en metros.
+    en_plano = next(v for v in (await control.get(f"/api/v1/planos/{plano}/vanos")).json() if v["id"] == vano)
+    assert Decimal(str(en_plano["posicion_m"])) == Decimal("5")
+
+    r = await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "1.0"})
+    assert r.status_code == 200, r.text
+    assert _total(r) == (Decimal("52") - Decimal("4.2")).quantize(Decimal("0.0001"))
+    en_plano = next(v for v in (await control.get(f"/api/v1/planos/{plano}/vanos")).json() if v["id"] == vano)
+    assert en_plano["ancho_plano"] == pytest.approx(1.0)
+
+    assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/ancho", json={"ancho_m": "1"})).status_code == 404
+    assert (await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "0"})).status_code == 422

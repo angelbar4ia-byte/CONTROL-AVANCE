@@ -172,6 +172,11 @@ interface Props {
   readonly onMover?: (p: Punto | null) => void;
   /** Los vanos del plano, dibujados sobre sus muros. */
   readonly vanos?: readonly VanoVisible[];
+  /** El vano elegido (Seleccionar): lleva asas para correrlo por su muro y para cambiarle el ancho. */
+  readonly vanoElegidoId?: string | null;
+  readonly onElegirVano?: (id: string | null) => void;
+  /** Se soltó un asa: `desplazamiento` (unidades de plano, a lo largo del muro) o el nuevo `anchoPlano`. */
+  readonly onAjustarVano?: (id: string, cambio: { desplazamiento?: number; anchoPlano?: number }) => void;
   /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
   readonly onCoordenadas?: (p: Punto | null) => void;
   /**
@@ -257,6 +262,9 @@ export function Visor({
   cotas = [],
   onMover,
   vanos = [],
+  vanoElegidoId = null,
+  onElegirVano,
+  onAjustarVano,
   onCoordenadas,
   onMenu,
   asistir,
@@ -360,6 +368,35 @@ export function Visor({
   // Unidades de plano por píxel de pantalla: lo que mantiene los marcadores y la
   // tolerancia del clic del mismo tamaño visual a cualquier zoom.
   const porPixel = vista.ancho / anchoPantalla;
+
+  // Las asas de un vano: lo que se arrastra se ve al instante y se manda al soltar.
+  const [arrastreVano, setArrastreVano] = useState<{ id: string; modo: 'mover' | 'ini' | 'fin'; d: number } | null>(null);
+  function empezarArrastreVano(e: React.PointerEvent, v: VanoVisible, modo: 'mover' | 'ini' | 'fin') {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rad = (v.angulo * Math.PI) / 180;
+    const [ux, uy] = [Math.cos(rad), Math.sin(rad)];
+    const origen = aPlano(e.clientX, e.clientY);
+    const minimo = 4 * porPixel;
+    let d = 0;
+    const limitar = (x: number) => (modo === 'mover' ? x : Math.max(x, -(v.anchoPlano - minimo) / 2));
+    const alMover = (ev: PointerEvent) => {
+      const q = aPlano(ev.clientX, ev.clientY);
+      const bruto = (q[0] - origen[0]) * ux + (q[1] - origen[1]) * uy;
+      d = limitar(modo === 'ini' ? -bruto : bruto);
+      setArrastreVano({ id: v.id, modo, d });
+    };
+    const alSoltar = () => {
+      window.removeEventListener('pointermove', alMover);
+      window.removeEventListener('pointerup', alSoltar);
+      setArrastreVano(null);
+      if (Math.abs(d) < 1e-9) return;
+      onAjustarVano?.(v.id, modo === 'mover' ? { desplazamiento: d } : { anchoPlano: v.anchoPlano + 2 * d });
+    };
+    window.addEventListener('pointermove', alMover);
+    window.addEventListener('pointerup', alSoltar);
+  }
 
   function alPresionar(e: React.PointerEvent<SVGSVGElement>) {
     if (e.button > 2) return;
@@ -488,6 +525,7 @@ export function Visor({
       // Una nota es un punto diminuto sobre trazos que suelen ser polígonos
       // grandes: si se probara el trazo primero, dentro de un polígono siempre
       // ganaría el trazo y la nota nunca se podría elegir.
+      if (herramienta === 'seleccionar') onElegirVano?.(null);
       const nota = notaEnPunto(notas, p, tolerancia);
       const trazo = nota === null ? trazoEnPunto(trazos, p, tolerancia) : null;
       onSeleccionar(
@@ -669,20 +707,36 @@ export function Visor({
           const direccion = Math.cos((v.angulo * Math.PI) / 180);
           const haciaDerecha = direccion > 1e-9 || (Math.abs(direccion) <= 1e-9 && Math.sin((v.angulo * Math.PI) / 180) > 0);
           const corrimiento = (v.ladoMuro ?? 0) * ((v.grosorPlano ?? 0) / 2) * (haciaDerecha ? 1 : -1);
+          const elegido = vanoElegidoId === v.id;
+          const enArrastre = arrastreVano?.id === v.id ? arrastreVano : null;
+          // Mientras se arrastra, el vano ya se ve en su lugar nuevo (a lo largo del muro) o con el ancho nuevo.
+          const desvio = enArrastre?.modo === 'mover' ? enArrastre.d : 0;
+          const ancho = enArrastre && enArrastre.modo !== 'mover' ? v.anchoPlano + 2 * enArrastre.d : v.anchoPlano;
           return (
-            <g key={v.id} data-vano-id={v.id} data-tipo={v.tipo}>
-              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo}) translate(0 ${corrimiento})`}>
+            <g
+              key={v.id}
+              data-vano-id={v.id}
+              data-tipo={v.tipo}
+              className={elegido ? 'visor__vano-grupo is-elegido' : 'visor__vano-grupo'}
+              onPointerDown={(e) => {
+                if (herramienta !== 'seleccionar' || e.button !== 0) return;
+                e.stopPropagation();
+                onElegirVano?.(v.id);
+              }}
+            >
+              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo}) translate(${desvio} ${corrimiento})`}>
+                <rect className="visor__vano-zona" x={-ancho / 2} y={-alto / 2} width={ancho} height={alto} />
                 <rect
                   className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : 'visor__vano'}
-                  x={-v.anchoPlano / 2}
+                  x={-ancho / 2}
                   y={-alto / 2}
-                  width={v.anchoPlano}
+                  width={ancho}
                   height={alto}
                   vectorEffect="non-scaling-stroke"
                 />
                 {v.tipo === 'puerta' && (v.aperturaGrados ?? 90) > 0 && (() => {
                   // La hoja: del eje de las bisagras gira `apertura` hacia el lado en que abre, con el arco que barre.
-                  const w = v.anchoPlano;
+                  const w = ancho;
                   const sentido = (v.bisagra ?? 1) === 1 ? 1 : -1;
                   const lado = (v.ladoHoja ?? 1) === 1 ? 1 : -1;
                   const rad = ((v.aperturaGrados ?? 90) * Math.PI) / 180;
@@ -698,6 +752,13 @@ export function Visor({
                     </g>
                   );
                 })()}
+                {elegido && herramienta === 'seleccionar' && (
+                  <g className="visor__asas">
+                    <circle className="visor__asa" data-asa="ini" cx={-ancho / 2} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'ini')} />
+                    <circle className="visor__asa" data-asa="fin" cx={ancho / 2} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'fin')} />
+                    <circle className="visor__asa visor__asa--centro" data-asa="mover" cx={0} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'mover')} />
+                  </g>
+                )}
               </g>
               <text
                 className="visor__rotulo"

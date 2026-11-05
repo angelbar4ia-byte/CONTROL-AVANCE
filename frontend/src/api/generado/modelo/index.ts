@@ -1310,6 +1310,8 @@ export type * from "./valuacionDeParteRespuesta";
 export type * from "./valuacionDeParteRespuestaDesviacionPct";
 export type * from "./valuacionRespuesta";
 export type * from "./valuacionRespuestaDesviacionPct";
+export type * from "./vanoAnchoPeticion";
+export type * from "./vanoAnchoPeticionAnchoM";
 export type * from "./vanoCambiadoRespuesta";
 export type * from "./vanoEnPlanoRespuesta";
 export * from "./vanoEnPlanoRespuestaBisagra";

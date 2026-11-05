@@ -11654,6 +11654,68 @@
         }
       }
     },
+    "/api/v1/vanos/{vano_id}/ancho": {
+      "patch": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cambiar el ancho de un vano",
+        "description": "Cambia lo que descuenta el vano: sus nodos se recalculan.",
+        "operationId": "cambiar_ancho_del_vano_api_v1_vanos__vano_id__ancho_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VanoAnchoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vanos/{vano_id}/posicion": {
       "patch": {
         "tags": [
@@ -38255,6 +38317,29 @@
           "medido"
         ],
         "title": "ValuacionRespuesta"
+      },
+      "VanoAnchoPeticion": {
+        "properties": {
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Ancho M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ancho_m"
+        ],
+        "title": "VanoAnchoPeticion"
       },
       "VanoCambiadoRespuesta": {
         "properties": {

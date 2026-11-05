@@ -37,6 +37,8 @@ import {
   useEliminarTrazoApiV1TrazosTrazoIdDelete,
   useTransformarTrazosApiV1TrazosTransformarPost,
   useColocarVanoApiV1TrazosTrazoIdVanosPost,
+  useCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch,
+  useMoverVanoApiV1VanosVanoIdPosicionPatch,
   useVanosDelPlanoApiV1PlanosPlanoIdVanosGet,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
@@ -880,6 +882,9 @@ export function EspacioDeTrazo({
   const quitarHueco = useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete<ErrorApi>();
   const transformar = useTransformarTrazosApiV1TrazosTransformarPost<ErrorApi>();
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
+  const moverVano = useMoverVanoApiV1VanosVanoIdPosicionPatch<ErrorApi>();
+  const cambiarAnchoDelVano = useCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch<ErrorApi>();
+  const [vanoElegidoId, setVanoElegidoId] = useState<string | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
   /** Por línea: el primer clic (sobre qué trazo y a qué distancia de su inicio, en unidades de plano). */
   const [vanoIni, setVanoIni] = useState<{ trazoId: string; distancia: number } | null>(null);
@@ -1302,6 +1307,29 @@ export function EspacioDeTrazo({
       );
     } catch (err) {
       setAviso(`No se pudo colocar el vano: ${err instanceof Error ? err.message : 'error'}`);
+    }
+  }
+
+  /** Se soltó un asa del vano elegido: correrlo por su muro, o ensancharlo / angostarlo (recalcula lo que descuenta). */
+  async function ajustarVano(id: string, cambio: { desplazamiento?: number; anchoPlano?: number }) {
+    const v = (vanosConsulta.data ?? []).find((x) => x.id === id);
+    if (!v || !(v.ancho_plano > 0)) return;
+    const metrosPorUnidad = Number(v.ancho_m) / v.ancho_plano;
+    try {
+      if (cambio.desplazamiento !== undefined) {
+        const posicion = Math.max(0, Number(v.posicion_m ?? 0) + cambio.desplazamiento * metrosPorUnidad);
+        await moverVano.mutateAsync({ vanoId: id, data: { posicion_m: Number(posicion.toFixed(3)) } });
+        setAviso(`${v.clave} corrido a ${posicion.toFixed(2)} m desde el inicio del muro.`);
+      }
+      if (cambio.anchoPlano !== undefined) {
+        const ancho = Math.max(0.05, Number((cambio.anchoPlano * metrosPorUnidad).toFixed(3)));
+        await cambiarAnchoDelVano.mutateAsync({ vanoId: id, data: { ancho_m: ancho } });
+        setAviso(`${v.clave} ahora mide ${ancho.toFixed(2)} m de ancho; lo que descuenta se recalculó.`);
+        invalidarTrazos();
+      }
+      void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/vanos') });
+    } catch (err) {
+      setAviso(`No se pudo ajustar el vano: ${err instanceof Error ? err.message : 'error'}`);
     }
   }
 
@@ -2956,6 +2984,9 @@ export function EspacioDeTrazo({
                 onCoordenadas={ponerCoordenadas}
                 onMenu={abrirMenuDelTrazo}
                 vanos={vanosVisibles}
+                vanoElegidoId={vanoElegidoId}
+                onElegirVano={setVanoElegidoId}
+                onAjustarVano={(id, cambio) => void ajustarVano(id, cambio)}
                 onPunto={alPunto}
                 onSeleccionar={alElegirEnElPlano}
               />

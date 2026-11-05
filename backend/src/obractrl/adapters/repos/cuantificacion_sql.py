@@ -617,7 +617,8 @@ class RepositorioTrazosSQL:
                              ST_LineInterpolatePoint(g, greatest(0.0, fr - 0.001)) as a
                         from f
                     )
-                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas, posicion_m, bisagra, lado_hoja, apertura_grados,
+                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas,
+                           coalesce(posicion_m, round((fr * largo * escala)::numeric, 3)) as posicion_m, bisagra, lado_hoja, apertura_grados,
                            lado_muro, grosor_plano,
                            ST_X(c) as x, ST_Y(c) as y,
                            degrees(atan2(ST_Y(d) - ST_Y(a), ST_X(d) - ST_X(a))) as angulo,
@@ -633,6 +634,11 @@ class RepositorioTrazosSQL:
     async def mover_vano(self, vano_id: UUID, posicion_m: Decimal) -> None:
         await self._sesion.execute(
             text("update vano set posicion_m = :p where id = :id"), {"p": posicion_m, "id": str(vano_id)}
+        )
+
+    async def fijar_ancho_vano(self, vano_id: UUID, ancho_m: Decimal) -> None:
+        await self._sesion.execute(
+            text("update vano set ancho_m = :a where id = :id"), {"a": ancho_m, "id": str(vano_id)}
         )
 
     async def trazo_del_vano(self, vano_id: UUID) -> UUID | None:

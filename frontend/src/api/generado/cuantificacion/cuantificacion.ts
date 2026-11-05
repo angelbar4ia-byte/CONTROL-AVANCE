@@ -62,6 +62,7 @@ import type {
   TrazosDePlanoRespuesta,
   UnionPeticion,
   UnionesDelMuroRespuesta,
+  VanoAnchoPeticion,
   VanoCambiadoRespuesta,
   VanoEnPlanoRespuesta,
   VanoPeticion,
@@ -6444,6 +6445,105 @@ export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
   return query;
 }
 
+/**
+ * Cambia lo que descuenta el vano: sus nodos se recalculan.
+ * @summary Cambiar el ancho de un vano
+ */
+export const cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch = (
+  vanoId: string,
+  vanoAnchoPeticion: VanoAnchoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/vanos/${vanoId}/ancho`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: vanoAnchoPeticion,
+    },
+    options,
+  );
+};
+
+export const getCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+    TError,
+    { vanoId: string; data: VanoAnchoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+  TError,
+  { vanoId: string; data: VanoAnchoPeticion },
+  TContext
+> => {
+  const mutationKey = ["cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+    { vanoId: string; data: VanoAnchoPeticion }
+  > = (props) => {
+    const { vanoId, data } = props ?? {};
+
+    return cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch(
+      vanoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>
+  >;
+export type CambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationBody =
+  VanoAnchoPeticion;
+export type CambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar el ancho de un vano
+ */
+export const useCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+      TError,
+      { vanoId: string; data: VanoAnchoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+  TError,
+  { vanoId: string; data: VanoAnchoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Dónde está el vano no cambia lo que mide la línea: no recalcula cantidades.
  * @summary Correr un vano por su muro

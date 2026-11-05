@@ -55,5 +55,20 @@ test.describe('Cuantificador · vanos con un clic', () => {
     await expect(page.getByTestId('vanos')).toBeVisible();
     await expect(page.locator('[data-vano-id]')).toHaveCount(1);
     await expect(page.getByText(/V-01 1\.2 × 1\.2 m descontado de el muro/)).toBeVisible();
+
+    // Con Seleccionar el vano muestra sus asas: la del extremo lo ensancha y la del centro lo corre.
+    await page.keyboard.press('Escape');
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    const vano = page.locator('[data-vano-id] .visor__vano-zona');
+    const v = (await vano.boundingBox())!;
+    await page.mouse.click(v.x + v.width / 2, v.y + v.height / 2);
+    const asa = page.locator('[data-asa="fin"]');
+    await expect(asa).toBeVisible();
+    const a = (await asa.boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 12, a.y + a.height / 2, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.getByText(/V-01 ahora mide .* m de ancho/)).toBeVisible();
   });
 });
