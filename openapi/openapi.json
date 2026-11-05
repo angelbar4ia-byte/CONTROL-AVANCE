@@ -10885,6 +10885,61 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/matriz-que-cuenta": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Qué matriz da la cantidad del concepto",
+        "description": "Con una matriz puesta, la cantidad medida del concepto es la de esa matriz (D-636); sin ella, la suma de sus\ntrazos propios. Se recalcula al cambiar.",
+        "operationId": "poner_matriz_que_cuenta_api_v1_actividades__actividad_id__matriz_que_cuenta_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrizQueCuentaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrizQueCuentaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La matriz no es de este concepto o es de otra unidad."
+          }
+        }
+      }
+    },
     "/api/v1/trazos/{trazo_id}/vanos": {
       "get": {
         "tags": [
@@ -29488,6 +29543,19 @@
             "type": "integer",
             "title": "Medidas"
           },
+          "matriz_cuenta_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Cuenta Id",
+            "description": "La matriz que da la cantidad del concepto (D-636); null = cuentan sus trazos propios."
+          },
           "matrices": {
             "items": {
               "$ref": "#/components/schemas/MatrizRespuesta"
@@ -29574,6 +29642,58 @@
           "cantidad"
         ],
         "title": "MatrizPuestaRespuesta"
+      },
+      "MatrizQueCuentaPeticion": {
+        "properties": {
+          "matriz_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Concepto Id",
+            "description": "La matriz que da la cantidad del concepto; null = cuentan sus trazos propios."
+          }
+        },
+        "type": "object",
+        "title": "MatrizQueCuentaPeticion"
+      },
+      "MatrizQueCuentaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "matriz_cuenta_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Cuenta Id"
+          },
+          "cantidad_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "matriz_cuenta_id",
+          "cantidad_total"
+        ],
+        "title": "MatrizQueCuentaRespuesta"
       },
       "MatrizRespuesta": {
         "properties": {

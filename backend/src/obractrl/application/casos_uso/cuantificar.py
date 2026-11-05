@@ -130,6 +130,7 @@ __all__ = [
     "GobiernoDeCuantificacionInvalido",
     "HuecoAgregado",
     "IntencionEnlace",
+    "MatrizQueCuenta",
     "NodoCuantificado",
     "NotaPlanoRegistrada",
     "NuevoEnlace",
@@ -447,7 +448,34 @@ async def _recalcular_nodo(
                 concepto_id=matriz_concepto_id,
                 cantidad=cantidad_total if any(m.vigente for m in medidas) else None,
             )
+            # Si es la matriz que cuenta para el concepto (D-636), la cantidad de la actividad se rehace con ella.
+            cuenta = await matrices.la_que_cuenta(actividad_id)  # type: ignore[arg-type]
+            if cuenta is not None and UUID(str(cuenta["concepto_id"])) == UUID(str(matriz_concepto_id)):
+                de_la_actividad = await _recalcular_nodo(
+                    tipo_nodo=TipoNodoCuantificacion.ACTIVIDAD,
+                    actividad_id=actividad_id,
+                    prototipo_nodo_id=None,
+                    enlaces=enlaces,
+                    actividades=actividades,
+                    prototipo_nodos=prototipo_nodos,
+                    desviaciones=desviaciones,
+                    detectada_en=detectada_en,
+                    umbral=umbral,
+                    matrices=matrices,
+                    proponer_desviacion=proponer_desviacion,
+                )
+                return ResultadoDeRecalculo(
+                    cantidad_total=cantidad_total,
+                    desviacion_id=de_la_actividad.desviacion_id,
+                    reapertura=de_la_actividad.reapertura,
+                )
         return ResultadoDeRecalculo(cantidad_total=cantidad_total)
+
+    if tipo_nodo is TipoNodoCuantificacion.ACTIVIDAD and matrices is not None:
+        # Con una matriz que cuenta (D-636) la actividad toma su cantidad, no la suma de sus trazos propios.
+        cuenta = await matrices.la_que_cuenta(actividad_id)  # type: ignore[arg-type]
+        if cuenta is not None:
+            cantidad_total = Decimal(str(cuenta["cantidad"])) if cuenta["cantidad"] is not None else Decimal(0)
 
     if tipo_nodo is TipoNodoCuantificacion.ACTIVIDAD:
         actividad = await actividades.obtener(actividad_id)  # type: ignore[arg-type]
@@ -1970,8 +1998,53 @@ class ConsultarMatrices:
             "importe_ajuste": ajuste.importe_ajuste,
             "importe_ajustado": importe + ajuste.importe_ajuste,
             "medidas": ajuste.medidas,
+            "matriz_cuenta_id": arbol.get("matriz_cuenta_id"),
             "matrices": matrices,
         }
+
+
+class MatrizQueCuenta(AgregarHuecoATrazo):
+    """Qué matriz da la cantidad del concepto (D-636): con una puesta, la actividad toma la cantidad de esa matriz y no
+    la suma de sus trazos propios; sin ella (`None`) cuentan los trazos propios. Debe ser de la misma unidad que el
+    concepto. Cambiar de quién viene la cantidad la recalcula, con el mismo gobierno que enlazar."""
+
+    async def poner(
+        self,
+        actividad_id: UUID,
+        matriz_id: UUID | None,
+        *,
+        rol: Rol,
+        detectada_en: datetime,
+    ) -> ResultadoDeRecalculo:
+        if self._matrices is None:
+            raise ErrorDeCuantificacion("Las matrices de la actividad no están disponibles.")
+        arbol = await self._matrices.arbol_de_actividad(actividad_id)
+        if arbol is None:
+            raise ActividadNoEncontrada(f"La actividad {actividad_id} no existe o está fuera de tu alcance.")
+        if matriz_id is not None:
+            if not any(UUID(str(m["concepto_id"])) == matriz_id for m in arbol["matrices"]):
+                raise ErrorDeCuantificacion("Esa matriz no es de este concepto.")
+            de_la_matriz, del_concepto = await self._matrices.unidades(actividad_id, matriz_id)
+            if not coincide_la_unidad(de_la_matriz or "", del_concepto):
+                raise ErrorDeCuantificacion(
+                    f"La matriz se mide en {de_la_matriz or '—'} y el concepto en {del_concepto or '—'}: "
+                    "para que cuente debe ser de la misma unidad."
+                )
+        async with self._uow:
+            await self._matrices.fijar_la_que_cuenta(actividad_id, matriz_id)
+            resultado = await _recalcular_nodo(
+                tipo_nodo=TipoNodoCuantificacion.ACTIVIDAD,
+                actividad_id=actividad_id,
+                prototipo_nodo_id=None,
+                enlaces=self._enlaces,
+                actividades=self._actividades,
+                prototipo_nodos=self._prototipo_nodos,
+                desviaciones=self._desviaciones,
+                detectada_en=detectada_en,
+                matrices=self._matrices,
+            )
+            await self._uow.commit()
+        return resultado
 
 
 class TransformarTrazos:

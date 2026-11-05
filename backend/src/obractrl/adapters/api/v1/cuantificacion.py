@@ -56,6 +56,7 @@ from obractrl.adapters.api.casos_uso import (
     EliminarTrazoDep,
     FijarVistaDePlanoDep,
     GestionarVanosDep,
+    MatrizQueCuentaDep,
     QuitarHuecoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
@@ -1215,6 +1216,9 @@ class MatricesDeActividadRespuesta(BaseModel):
     )
     importe_ajustado: Decimal
     medidas: int
+    matriz_cuenta_id: UUID | None = Field(
+        default=None, description="La matriz que da la cantidad del concepto (D-636); null = cuentan sus trazos propios."
+    )
     matrices: list[MatrizRespuesta]
 
 
@@ -1231,6 +1235,39 @@ async def matrices_de_la_actividad(
     bastones), a cualquier profundidad (D-583). Medirlas ajusta el importe de la actividad sin
     tocar su cantidad base ni el catálogo."""
     return MatricesDeActividadRespuesta(**await caso_uso.ejecutar(actividad_id))
+
+
+class MatrizQueCuentaPeticion(BaseModel):
+    matriz_concepto_id: UUID | None = Field(
+        default=None, description="La matriz que da la cantidad del concepto; null = cuentan sus trazos propios."
+    )
+
+
+class MatrizQueCuentaRespuesta(BaseModel):
+    actividad_id: UUID
+    matriz_cuenta_id: UUID | None
+    cantidad_total: Decimal
+
+
+@router.put(
+    "/actividades/{actividad_id}/matriz-que-cuenta",
+    response_model=MatrizQueCuentaRespuesta,
+    summary="Qué matriz da la cantidad del concepto",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        404: {"description": "La actividad no existe o está fuera de tu alcance."},
+        422: {"description": "La matriz no es de este concepto o es de otra unidad."},
+    },
+)
+async def poner_matriz_que_cuenta(
+    actividad_id: UUID, peticion: MatrizQueCuentaPeticion, ctx: ContextoActual, caso_uso: MatrizQueCuentaDep
+) -> MatrizQueCuentaRespuesta:
+    """Con una matriz puesta, la cantidad medida del concepto es la de esa matriz (D-636); sin ella, la suma de sus
+    trazos propios. Se recalcula al cambiar."""
+    r = await caso_uso.poner(actividad_id, peticion.matriz_concepto_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC))
+    return MatrizQueCuentaRespuesta(
+        actividad_id=actividad_id, matriz_cuenta_id=peticion.matriz_concepto_id, cantidad_total=r.cantidad_total
+    )
 
 
 class VanoPeticion(BaseModel):

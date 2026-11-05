@@ -38,6 +38,8 @@ import {
   useTransformarTrazosApiV1TrazosTransformarPost,
   useColocarVanoApiV1TrazosTrazoIdVanosPost,
   useVerMuroApiV1TrazosTrazoIdMuroGet,
+  usePonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut,
+  useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet,
   useVanosDelPlanoApiV1PlanosPlanoIdVanosGet,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
@@ -1170,6 +1172,11 @@ export function EspacioDeTrazo({
   }
 
   function cambiarHerramienta(nueva: Herramienta) {
+    const esDeTrazo = !['seleccionar', 'mano', 'zoom', 'copiar', 'mover', 'vano', 'hueco', 'borrar', 'nota', 'escala', 'enlace', 'conteo_auto'].includes(nueva);
+    if (esDeTrazo && matrizQueCuenta !== null && !sustitucionConfirmada.current) {
+      setPidiendoSustituir(nueva);
+      return;
+    }
     if (nueva === 'hueco' && areaElegida === null) {
       setAviso('Para abrir un hueco, primero elige el área con la herramienta Seleccionar.');
       return;
@@ -1817,6 +1824,32 @@ export function EspacioDeTrazo({
     ? (estado.data ?? []).find((n) => n.nodo_id === conceptoEnFoco)
     : undefined;
   const actividadDeFoco = conceptoEnFoco ? porActividad.get(conceptoEnFoco) : undefined;
+  // La matriz que da la cantidad del concepto en foco (D-636): trazar directo sobre él pide confirmar que el trazo la sustituye.
+  const matricesDelFoco = useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet(conceptoEnFoco ?? '', {
+    query: { enabled: !!conceptoEnFoco && matrizActiva === null, retry: false },
+  });
+  const matrizQueCuenta = matrizActiva === null ? (matricesDelFoco.data?.matriz_cuenta_id ?? null) : null;
+  const [pidiendoSustituir, setPidiendoSustituir] = useState<Herramienta | null>(null);
+  const sustitucionConfirmada = useRef(false);
+  const ponerMatrizQueCuenta = usePonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut<ErrorApi>();
+  async function sustituirYTrazar() {
+    const herramientaPedida = pidiendoSustituir;
+    setPidiendoSustituir(null);
+    if (herramientaPedida === null || !conceptoEnFoco) return;
+    try {
+      await ponerMatrizQueCuenta.mutateAsync({ actividadId: conceptoEnFoco, data: { matriz_concepto_id: null } });
+      void queryClient.invalidateQueries({
+        predicate: (q) => /\/matrices|\/cuantificacion|\/trazos|\/mediciones/.test(JSON.stringify(q.queryKey)),
+      });
+      sustitucionConfirmada.current = true;
+      cambiarHerramienta(herramientaPedida);
+      setAviso('El concepto cuenta ahora con su propio trazo; la matriz conserva los suyos.');
+    } catch (err) {
+      setAviso(`No se pudo sustituir la matriz: ${err instanceof Error ? err.message : 'error'}`);
+    } finally {
+      sustitucionConfirmada.current = false;
+    }
+  }
   /** El tipo de medición que pide el concepto en foco (por su unidad) y el bloque de herramientas que le toca. */
   const tipoDelConcepto = tipoDeMedicion(matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad);
   const unidadEnFoco = matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad;
@@ -3437,6 +3470,24 @@ export function EspacioDeTrazo({
             </button>
           </div>
         </div>
+      )}
+      {pidiendoSustituir !== null && (
+        <Modal titulo="Ya hay una matriz que cuenta" onCerrar={() => setPidiendoSustituir(null)}>
+          <div className="sheet__body col gap-12" role="alertdialog" aria-label="Sustituir la matriz que cuenta para el concepto">
+            <p className="text-sm">
+              Este concepto ya cuenta con la cantidad de una de sus matrices. Si trazas directo sobre el concepto,{' '}
+              <strong>el trazo nuevo sustituye</strong> a lo de la matriz para su cantidad (la matriz conserva sus trazos). ¿Sustituir y trazar?
+            </p>
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button type="button" className="btn" onClick={() => setPidiendoSustituir(null)}>
+                No, cancelar
+              </button>
+              <button type="button" className="btn btn--primary" onClick={() => void sustituirYTrazar()}>
+                Sí, sustituir y trazar
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
       {porBorrar !== null && (
         <Modal titulo="Borrar trazo" onCerrar={() => setPorBorrar(null)}>

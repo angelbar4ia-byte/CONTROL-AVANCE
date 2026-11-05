@@ -7,6 +7,7 @@
  */
 import type { MatricesDeActividadRespuestaConceptoId } from "./matricesDeActividadRespuestaConceptoId";
 import type { MatricesDeActividadRespuestaConceptoClave } from "./matricesDeActividadRespuestaConceptoClave";
+import type { MatricesDeActividadRespuestaMatrizCuentaId } from "./matricesDeActividadRespuestaMatrizCuentaId";
 import type { MatrizRespuesta } from "./matrizRespuesta";
 
 export interface MatricesDeActividadRespuesta {
@@ -27,5 +28,7 @@ export interface MatricesDeActividadRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe_ajustado: string;
   medidas: number;
+  /** La matriz que da la cantidad del concepto (D-636); null = cuentan sus trazos propios. */
+  matriz_cuenta_id?: MatricesDeActividadRespuestaMatrizCuentaId;
   matrices: MatrizRespuesta[];
 }

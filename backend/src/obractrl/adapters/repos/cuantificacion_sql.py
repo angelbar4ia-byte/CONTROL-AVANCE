@@ -1560,13 +1560,55 @@ class RepositorioMatricesSQL:
             {"actividad": str(actividad_id), "concepto": str(concepto_id), "cantidad": cantidad},
         )
 
+    async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """La matriz que da la cantidad de la actividad (0118): `{concepto_id, cantidad}`; `None` si no hay o falta 0118."""
+        if not await _hay_columna(self._sesion, "actividad", "matriz_cuenta_id"):
+            return None
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.matriz_cuenta_id as concepto_id, m.cantidad_medida as cantidad
+                      from actividad a
+                      left join actividad_matriz m on m.actividad_id = a.id and m.concepto_id = a.matriz_cuenta_id
+                     where a.id = :a and a.matriz_cuenta_id is not null
+                    """
+                ),
+                {"a": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None
+
+    async def fijar_la_que_cuenta(self, actividad_id: UUID, concepto_id: UUID | None) -> None:
+        await self._sesion.execute(
+            text("update actividad set matriz_cuenta_id = :c where id = :a"),
+            {"a": str(actividad_id), "c": str(concepto_id) if concepto_id else None},
+        )
+
+    async def unidades(self, actividad_id: UUID, concepto_id: UUID) -> tuple[str | None, str | None]:
+        """La unidad de la matriz y la del concepto de la actividad."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select (select u.clave from concepto c join unidad u on u.id = c.unidad_id where c.id = :m) as de_la_matriz,
+                           (select u.clave from actividad a join concepto c on c.id = a.concepto_id
+                              join unidad u on u.id = c.unidad_id where a.id = :a) as del_concepto
+                    """
+                ),
+                {"a": str(actividad_id), "m": str(concepto_id)},
+            )
+        ).mappings().one()
+        return fila["de_la_matriz"], fila["del_concepto"]
+
     async def arbol_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:
         act = (
             await self._sesion.execute(
                 text(
                     """
                     select a.id, a.concepto_id, a.cant_base, a.precio_unitario, c.clave as concepto_clave,
-                           coalesce(a.descripcion, c.descripcion, '') as descripcion
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           cast(to_jsonb(a)->>'matriz_cuenta_id' as uuid) as matriz_cuenta_id
                       from actividad a left join concepto c on c.id = a.concepto_id
                      where a.id = :id
                     """

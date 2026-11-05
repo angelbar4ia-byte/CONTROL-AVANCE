@@ -363,6 +363,16 @@ class RepositorioMatrices(Protocol):
         la deja sin medir."""
         ...
 
+    async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """La matriz que da la cantidad de la actividad (0118, D-636): `{concepto_id, cantidad}` o `None`."""
+        ...
+
+    async def fijar_la_que_cuenta(self, actividad_id: UUID, concepto_id: UUID | None) -> None: ...
+
+    async def unidades(self, actividad_id: UUID, concepto_id: UUID) -> tuple[str | None, str | None]:
+        """`(unidad de la matriz, unidad del concepto de la actividad)`."""
+        ...
+
     async def arbol_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:
         """`{actividad_id, concepto_clave, cant_base, precio_unitario, matrices: [...]}` con las
         matrices internas del concepto de la actividad, a cualquier profundidad, o `None` si no se

@@ -14,7 +14,10 @@ import { useMemo, useState } from 'react';
 import type { ErrorApi } from '@/api/cliente';
 import type { MatricesDeActividadRespuesta } from '@/api/generado/modelo';
 import { useQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete } from '@/api/generado/catalogos/catalogos';
-import { useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet } from '@/api/generado/cuantificacion/cuantificacion';
+import {
+  usePonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut,
+  useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet,
+} from '@/api/generado/cuantificacion/cuantificacion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { AltaDeMatriz } from './AltaDeMatriz';
 import { CostoDelConcepto } from './CostoDelConcepto';
@@ -47,6 +50,8 @@ function Nodo({
   onActivar,
   padreId,
   edicion,
+  cuentaId,
+  onCuenta,
 }: {
   readonly nodo: NodoDeMatriz;
   readonly cerradas: ReadonlySet<string>;
@@ -56,6 +61,9 @@ function Nodo({
   /** La matriz (o el concepto) de la que ésta es insumo directo. */
   readonly padreId: string | null;
   readonly edicion?: Edicion;
+  /** La matriz que da la cantidad del concepto (D-636) y cómo cambiarla; sin `onCuenta` no se ofrece. */
+  readonly cuentaId?: string | null;
+  readonly onCuenta?: (matrizId: string | null) => void;
 }) {
   const conHijos = nodo.hijos.length > 0;
   const abierto = !cerradas.has(nodo.llave);
@@ -102,6 +110,22 @@ function Nodo({
           </span>
         )}
         {sinMedir && <span className="badge badge--outline">Sin medir</span>}
+        {onCuenta && (
+          <button
+            type="button"
+            className={nodo.conceptoId === cuentaId ? 'chip is-active' : 'chip'}
+            aria-pressed={nodo.conceptoId === cuentaId}
+            data-cuenta={nodo.clave}
+            title={
+              nodo.conceptoId === cuentaId
+                ? 'Esta matriz da la cantidad del concepto. Un clic la suelta: cuentan sus trazos propios.'
+                : 'Que la cantidad del concepto sea la de esta matriz (debe ser de su misma unidad).'
+            }
+            onClick={() => onCuenta(nodo.conceptoId === cuentaId ? null : nodo.conceptoId)}
+          >
+            {nodo.conceptoId === cuentaId ? 'Cuenta para el concepto' : 'Que cuente'}
+          </button>
+        )}
         <span
           className="arbol__cuenta"
           title={`Catálogo ${fmtNum(nodo.cantidadCatalogo)} · medido ${sinMedir ? '—' : fmtNum(nodo.cantidadMedida)}${nodo.diferencia != null ? ` · dif. ${fmtNum(nodo.diferencia)}` : ''}`}
@@ -134,7 +158,7 @@ function Nodo({
       {conHijos && abierto && (
         <ul role="group" className="arbol__hijos">
           {nodo.hijos.map((h) => (
-            <Nodo key={h.llave} nodo={h} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={nodo.conceptoId} edicion={edicion} />
+            <Nodo key={h.llave} nodo={h} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={nodo.conceptoId} edicion={edicion} cuentaId={cuentaId} onCuenta={onCuenta} />
           ))}
         </ul>
       )}
@@ -152,6 +176,24 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
   const queryClient = useQueryClient();
   const quitarMatriz = useQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete<ErrorApi>();
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const ponerCuenta = usePonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut<ErrorApi>();
+  /** Qué matriz da la cantidad del concepto (D-636); solo donde se puede trazar (hay `onActivar`). */
+  const alCuenta = onActivar
+    ? (matrizId: string | null) =>
+        ponerCuenta
+          .mutateAsync({ actividadId, data: { matriz_concepto_id: matrizId } })
+          .then((r) => {
+            setMensaje(
+              matrizId === null
+                ? `Cuentan los trazos propios del concepto: ${fmtNum(r.cantidad_total)}.`
+                : `La cantidad del concepto es ahora la de esa matriz: ${fmtNum(r.cantidad_total)}. Lo trazado directo no suma hasta soltarla.`,
+            );
+            void queryClient.invalidateQueries({
+              predicate: (q) => /\/matrices|\/cuantificacion|\/trazos|\/mediciones|\/actividades|\/avance/.test(JSON.stringify(q.queryKey)),
+            });
+          })
+          .catch((err: unknown) => setMensaje(err instanceof Error ? err.message : 'No se pudo cambiar de dónde viene la cantidad.'))
+    : undefined;
   const edicion: Edicion | undefined = puedeEditar
     ? {
         onPuesta: (aviso) => {
@@ -221,7 +263,7 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
       </div>
       <ul role="tree" className="arbol__hijos arbol__matrices-arbol" aria-label={`Árbol de matrices de ${datos.concepto_clave ?? 'la actividad'}`}>
         {nodos.map((n) => (
-          <Nodo key={n.llave} nodo={n} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={datos.concepto_id ?? null} edicion={edicion} />
+          <Nodo key={n.llave} nodo={n} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={datos.concepto_id ?? null} edicion={edicion} cuentaId={datos.matriz_cuenta_id ?? null} onCuenta={alCuenta} />
         ))}
       </ul>
       {edicion && datos.concepto_id && (
@@ -240,7 +282,8 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
         <div className="text-xs">
           Lo medido ajusta el importe: {fmtMXN(Number(datos.importe))} → <strong>{fmtMXN(Number(datos.importe_ajustado))}</strong>{' '}
           ({Number(datos.importe_ajuste) >= 0 ? '+' : ''}
-          {fmtMXN(Number(datos.importe_ajuste))}). La cantidad de la actividad no cambia.
+          {fmtMXN(Number(datos.importe_ajuste))}).{' '}
+          {datos.matriz_cuenta_id ? 'La cantidad de la actividad es la de la matriz que cuenta.' : 'La cantidad de la actividad no cambia.'}
         </div>
       )}
     </div>

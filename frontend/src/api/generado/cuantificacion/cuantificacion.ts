@@ -40,6 +40,8 @@ import type {
   HuecoPeticion,
   HuecoRespuesta,
   MatricesDeActividadRespuesta,
+  MatrizQueCuentaPeticion,
+  MatrizQueCuentaRespuesta,
   MuroDelTrazoPeticion,
   MuroDelTrazoRespuesta,
   NodoCuantificadoRespuesta,
@@ -3713,6 +3715,131 @@ export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
   return query;
 }
 
+/**
+ * Con una matriz puesta, la cantidad medida del concepto es la de esa matriz (D-636); sin ella, la suma de sus
+trazos propios. Se recalcula al cambiar.
+ * @summary Qué matriz da la cantidad del concepto
+ */
+export const ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut =
+  (
+    actividadId: string,
+    matrizQueCuentaPeticion: MatrizQueCuentaPeticion,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<MatrizQueCuentaRespuesta>(
+      {
+        url: `/api/v1/actividades/${actividadId}/matriz-que-cuenta`,
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        data: matrizQueCuentaPeticion,
+      },
+      options,
+    );
+  };
+
+export const getPonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+        >
+      >,
+      TError,
+      { actividadId: string; data: MatrizQueCuentaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+      >
+    >,
+    TError,
+    { actividadId: string; data: MatrizQueCuentaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+        >
+      >,
+      { actividadId: string; data: MatrizQueCuentaPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
+
+      return ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type PonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+      >
+    >
+  >;
+export type PonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationBody =
+  MatrizQueCuentaPeticion;
+export type PonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationError =
+  void;
+
+/**
+ * @summary Qué matriz da la cantidad del concepto
+ */
+export const usePonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+          >
+        >,
+        TError,
+        { actividadId: string; data: MatrizQueCuentaPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+      >
+    >,
+    TError,
+    { actividadId: string; data: MatrizQueCuentaPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getPonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * @summary Los vanos colocados sobre una línea
  */
