@@ -155,6 +155,7 @@ from obractrl.application.casos_uso.cuantificar import (
     CalibrarEscalaDePlano,
     ConsultarCuantificacion,
     ConsultarMatrices,
+    ConversionDelEnlace,
     EliminarTrazo,
     FijarVistaDePlano,
     GestionarVanos,
@@ -402,6 +403,7 @@ __all__ = [
     "ConsultarReprogramacionesDep",
     "ConsultarRutaCriticaDep",
     "ConsultarValuacionDep",
+    "ConversionDelEnlaceDep",
     "CotizarLoModificadoDep",
     "CrearClusterDep",
     "CrearConceptoDep",
@@ -957,6 +959,12 @@ def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> Reempla
     )
 
 
+def obtener_conversion_del_enlace(sesion: SesionRLS, ctx: ContextoActual) -> ConversionDelEnlace:
+    return ConversionDelEnlace(
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion), reemplazar=obtener_reemplazar_enlace(sesion, ctx)
+    )
+
+
 def obtener_traer_trazo(sesion: SesionRLS, ctx: ContextoActual) -> TraerTrazoAOtraVersion:
     return TraerTrazoAOtraVersion(
         trazos=RepositorioTrazosSQL(sesion),
@@ -1148,6 +1156,7 @@ RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+ConversionDelEnlaceDep = Annotated[ConversionDelEnlace, Depends(obtener_conversion_del_enlace)]
 GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_gestionar_enlaces_de_hoja)]
 ProponerTrazosDep = Annotated[ProponerTrazos, Depends(obtener_proponer_trazos)]
 AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_propuestas)]

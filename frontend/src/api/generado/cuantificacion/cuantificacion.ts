@@ -26,7 +26,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AplicarConversionPeticion,
   ArchivoDePlanoRespuesta,
+  CalculoDeConversionRespuesta,
+  ConversionAplicadaRespuesta,
+  ConversionDelEnlaceRespuesta,
+  ConversionPeticion,
   EscalaPeticion,
   EscalaRespuesta,
   FusionPeticion,
@@ -4780,6 +4785,656 @@ export const useFijarMuroApiV1TrazosTrazoIdMuroPut = <
 > => {
   const mutationOptions =
     getFijarMuroApiV1TrazosTrazoIdMuroPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir
+ */
+export const verConversionApiV1EnlacesEnlaceIdConversionGet = (
+  enlaceId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ConversionDelEnlaceRespuesta>(
+    { url: `/api/v1/enlaces/${enlaceId}/conversion`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getVerConversionApiV1EnlacesEnlaceIdConversionGetInfiniteQueryKey =
+  (enlaceId?: string) => {
+    return ["infinite", `/api/v1/enlaces/${enlaceId}/conversion`] as const;
+  };
+
+export const getVerConversionApiV1EnlacesEnlaceIdConversionGetQueryKey = (
+  enlaceId?: string,
+) => {
+  return [`/api/v1/enlaces/${enlaceId}/conversion`] as const;
+};
+
+export const getVerConversionApiV1EnlacesEnlaceIdConversionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+    >,
+    TError = void,
+  >(
+    enlaceId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVerConversionApiV1EnlacesEnlaceIdConversionGetInfiniteQueryKey(
+        enlaceId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+    > = ({ signal }) =>
+      verConversionApiV1EnlacesEnlaceIdConversionGet(
+        enlaceId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!enlaceId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VerConversionApiV1EnlacesEnlaceIdConversionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  >;
+export type VerConversionApiV1EnlacesEnlaceIdConversionGetInfiniteQueryError =
+  void;
+
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir
+ */
+
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerConversionApiV1EnlacesEnlaceIdConversionGetInfiniteQueryOptions(
+      enlaceId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVerConversionApiV1EnlacesEnlaceIdConversionGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVerConversionApiV1EnlacesEnlaceIdConversionGetQueryKey(enlaceId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  > = ({ signal }) =>
+    verConversionApiV1EnlacesEnlaceIdConversionGet(
+      enlaceId,
+      requestOptions,
+      signal,
+    );
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!enlaceId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VerConversionApiV1EnlacesEnlaceIdConversionGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>>
+  >;
+export type VerConversionApiV1EnlacesEnlaceIdConversionGetQueryError = void;
+
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGet<
+  TData = Awaited<
+    ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGet<
+  TData = Awaited<
+    ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGet<
+  TData = Awaited<
+    ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir
+ */
+
+export function useVerConversionApiV1EnlacesEnlaceIdConversionGet<
+  TData = Awaited<
+    ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+  >,
+  TError = void,
+>(
+  enlaceId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof verConversionApiV1EnlacesEnlaceIdConversionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerConversionApiV1EnlacesEnlaceIdConversionGetQueryOptions(
+      enlaceId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Aplicar la conversión: crea un enlace nuevo y el anterior queda como evidencia
+ */
+export const aplicarConversionApiV1EnlacesEnlaceIdConversionPost = (
+  enlaceId: string,
+  aplicarConversionPeticion: AplicarConversionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ConversionAplicadaRespuesta>(
+    {
+      url: `/api/v1/enlaces/${enlaceId}/conversion`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: aplicarConversionPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAplicarConversionApiV1EnlacesEnlaceIdConversionPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof aplicarConversionApiV1EnlacesEnlaceIdConversionPost>
+      >,
+      TError,
+      { enlaceId: string; data: AplicarConversionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof aplicarConversionApiV1EnlacesEnlaceIdConversionPost>
+    >,
+    TError,
+    { enlaceId: string; data: AplicarConversionPeticion },
+    TContext
+  > => {
+    const mutationKey = ["aplicarConversionApiV1EnlacesEnlaceIdConversionPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof aplicarConversionApiV1EnlacesEnlaceIdConversionPost>
+      >,
+      { enlaceId: string; data: AplicarConversionPeticion }
+    > = (props) => {
+      const { enlaceId, data } = props ?? {};
+
+      return aplicarConversionApiV1EnlacesEnlaceIdConversionPost(
+        enlaceId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AplicarConversionApiV1EnlacesEnlaceIdConversionPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof aplicarConversionApiV1EnlacesEnlaceIdConversionPost>
+    >
+  >;
+export type AplicarConversionApiV1EnlacesEnlaceIdConversionPostMutationBody =
+  AplicarConversionPeticion;
+export type AplicarConversionApiV1EnlacesEnlaceIdConversionPostMutationError =
+  void;
+
+/**
+ * @summary Aplicar la conversión: crea un enlace nuevo y el anterior queda como evidencia
+ */
+export const useAplicarConversionApiV1EnlacesEnlaceIdConversionPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof aplicarConversionApiV1EnlacesEnlaceIdConversionPost>
+      >,
+      TError,
+      { enlaceId: string; data: AplicarConversionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof aplicarConversionApiV1EnlacesEnlaceIdConversionPost>
+  >,
+  TError,
+  { enlaceId: string; data: AplicarConversionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAplicarConversionApiV1EnlacesEnlaceIdConversionPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * La vista previa: el mismo cálculo que se guarda al aplicar, con la fórmula escrita y si coincide la unidad.
+ * @summary Calcular cuánto aportaría el trazo con esta conversión, sin guardar nada
+ */
+export const calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost = (
+  enlaceId: string,
+  conversionPeticion: ConversionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CalculoDeConversionRespuesta>(
+    {
+      url: `/api/v1/enlaces/${enlaceId}/conversion/calcular`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: conversionPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCalcularConversionApiV1EnlacesEnlaceIdConversionCalcularPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost
+        >
+      >,
+      TError,
+      { enlaceId: string; data: ConversionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost
+      >
+    >,
+    TError,
+    { enlaceId: string; data: ConversionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost
+        >
+      >,
+      { enlaceId: string; data: ConversionPeticion }
+    > = (props) => {
+      const { enlaceId, data } = props ?? {};
+
+      return calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost(
+        enlaceId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularConversionApiV1EnlacesEnlaceIdConversionCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost
+      >
+    >
+  >;
+export type CalcularConversionApiV1EnlacesEnlaceIdConversionCalcularPostMutationBody =
+  ConversionPeticion;
+export type CalcularConversionApiV1EnlacesEnlaceIdConversionCalcularPostMutationError =
+  void;
+
+/**
+ * @summary Calcular cuánto aportaría el trazo con esta conversión, sin guardar nada
+ */
+export const useCalcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost
+        >
+      >,
+      TError,
+      { enlaceId: string; data: ConversionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof calcularConversionApiV1EnlacesEnlaceIdConversionCalcularPost
+    >
+  >,
+  TError,
+  { enlaceId: string; data: ConversionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCalcularConversionApiV1EnlacesEnlaceIdConversionCalcularPostMutationOptions(
+      options,
+    );
 
   return useMutation(mutationOptions, queryClient);
 };

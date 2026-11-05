@@ -74,6 +74,8 @@ _UNIONES_DE_MURO_SQL = """
                 from trazo_union u join trazo o on o.id = u.con_trazo_id
                where u.trazo_id = t.id and u.op = 'empalme'), 0)
 """
+_CONVERSION_DISPONIBLE = False
+"""Se vuelve `True` cuando `enlace_cuantificacion.conversion` y `app.cantidad_conversion` (0114) ya existen."""
 _UNIONES_DISPONIBLES = False
 """Se vuelve `True` cuando la tabla `trazo_union` (0111) ya existe y no se vuelve a preguntar."""
 _MURO_DISPONIBLE = False
@@ -89,6 +91,20 @@ async def _hay_hoja(sesion: AsyncSession) -> bool:
                 text(
                     "select exists (select 1 from information_schema.columns "
                     "where table_schema = 'public' and table_name = 'vano' and column_name = 'apertura_grados')"
+                )
+            )
+        ).scalar_one()
+    )
+
+
+async def _hay_conversion(sesion: AsyncSession) -> bool:
+    return bool(
+        (
+            await sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                    "and table_name = 'enlace_cuantificacion' and column_name = 'conversion') "
+                    "and to_regprocedure('app.cantidad_conversion(uuid,jsonb)') is not null"
                 )
             )
         ).scalar_one()
@@ -131,8 +147,19 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
         )
     uniones = _UNIONES_DE_MURO_SQL.format(escala=_ESCALA_SQL) if _UNIONES_DISPONIBLES else "0"
     descuento = _DESCUENTO_DE_VANOS_SQL.format(caras=caras) if _VANOS_DISPONIBLES else "0"
+    global _CONVERSION_DISPONIBLE
+    if not _CONVERSION_DISPONIBLE:
+        _CONVERSION_DISPONIBLE = await _hay_conversion(sesion)
+    # Un enlace con conversión lleva factor 1 y su valor YA es la cantidad final (la calcula la base, una sola vez).
+    con_conversion = (
+        "when e.conversion is not null then (app.cantidad_conversion(t.id, e.conversion)->>'valor')::numeric"
+        if _CONVERSION_DISPONIBLE
+        else ""
+    )
     return f"""
-    case e.medida
+    case
+      {con_conversion}
+      else case e.medida
       when 'area'      then case
                               when t.grosor_m is not null
                                 then greatest(
@@ -145,6 +172,7 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
                               ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - {descuento} - ({uniones}),
                               0)
       when 'conteo'     then 1
+    end
     end
 """
 
@@ -1040,6 +1068,7 @@ class RepositorioEnlacesCuantificacionSQL:
         vigente: bool = True,
         matriz_concepto_id: UUID | None = None,
         asignacion_id: UUID | None = None,
+        conversion: dict[str, Any] | None = None,
     ) -> UUID:
         """`tipo_nodo` no se pide: se deriva de cuál de
         `actividad_id`/`prototipo_nodo_id` llegó lleno, igual que
@@ -1051,6 +1080,22 @@ class RepositorioEnlacesCuantificacionSQL:
             await self._sesion.execute(
                 text(
                     """
+                    insert into enlace_cuantificacion
+                        (org_id, trazo_id, tipo_nodo, actividad_id,
+                         prototipo_nodo_id, medida, factor, vigente, matriz_concepto_id,
+                         asignacion_id, conversion)
+                    values
+                        (cast(current_setting('app.org_id') as uuid),
+                         :trazo_id, cast(:tipo_nodo as tipo_nodo_cuantificacion),
+                         cast(:actividad_id as uuid),
+                         cast(:prototipo_nodo_id as uuid),
+                         cast(:medida as medida_cuantificacion),
+                         :factor, :vigente, cast(:matriz_concepto_id as uuid),
+                         cast(:asignacion_id as uuid), cast(:conversion as jsonb))
+                    returning id
+                    """
+                    if conversion is not None
+                    else """
                     insert into enlace_cuantificacion
                         (org_id, trazo_id, tipo_nodo, actividad_id,
                          prototipo_nodo_id, medida, factor, vigente, matriz_concepto_id,
@@ -1067,6 +1112,7 @@ class RepositorioEnlacesCuantificacionSQL:
                     """
                 ),
                 {
+                    **({"conversion": json.dumps(conversion)} if conversion is not None else {}),
                     "trazo_id": str(trazo_id),
                     "tipo_nodo": tipo_nodo,
                     "actividad_id": str(actividad_id) if actividad_id else None,
@@ -1084,13 +1130,14 @@ class RepositorioEnlacesCuantificacionSQL:
         return fila
 
     async def obtener(self, enlace_id: UUID) -> dict[str, Any] | None:
+        conversion = "conversion" if await _hay_conversion(self._sesion) else "null::jsonb as conversion"
         fila = (
             await self._sesion.execute(
                 text(
-                    """
+                    f"""
                     select id, trazo_id, tipo_nodo, actividad_id,
                            prototipo_nodo_id, matriz_concepto_id, medida, factor, vigente,
-                           created_at
+                           created_at, {conversion}
                       from enlace_cuantificacion
                      where id = :id
                     """
@@ -1099,6 +1146,73 @@ class RepositorioEnlacesCuantificacionSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def calcular_conversion(self, trazo_id: UUID, conversion: dict[str, Any]) -> dict[str, Any]:
+        """La cantidad de un trazo con una conversión, calculada por la base (`app.cantidad_conversion`, 0114): la
+        misma cuenta que se guarda al aplicar, así la vista previa nunca difiere."""
+        if not await _hay_conversion(self._sesion):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0114 (conversión del enlace) en esta base.")
+        r = (
+            await self._sesion.execute(
+                text("select app.cantidad_conversion(:t, cast(:c as jsonb))"),
+                {"t": str(trazo_id), "c": json.dumps(conversion)},
+            )
+        ).scalar_one()
+        return dict(r if isinstance(r, dict) else json.loads(r))
+
+    async def unidad_del_concepto(self, enlace: dict[str, Any]) -> str | None:
+        """La unidad (`m2`, `ml`, `pza`…) del concepto al que cuenta el enlace."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select u.clave
+                      from concepto c
+                      left join unidad u on u.id = c.unidad_id
+                     where c.id = coalesce(
+                             cast(:m as uuid),
+                             (select concepto_id from actividad where id = cast(:a as uuid)),
+                             (select concepto_id from prototipo_nodo where id = cast(:pn as uuid)))
+                    """
+                ),
+                {
+                    "a": str(enlace["actividad_id"]) if enlace.get("actividad_id") else None,
+                    "pn": str(enlace["prototipo_nodo_id"]) if enlace.get("prototipo_nodo_id") else None,
+                    "m": str(enlace["matriz_concepto_id"]) if enlace.get("matriz_concepto_id") else None,
+                },
+            )
+        ).first()
+        return str(fila[0]) if fila and fila[0] else None
+
+    async def hermanos_del_mismo_tipo(self, enlace: dict[str, Any]) -> list[dict[str, Any]]:
+        """Los otros enlaces vigentes al mismo nodo cuyo trazo es del mismo tipo de geometría (para «aplicar a todos»)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select e.id
+                      from enlace_cuantificacion e
+                      join trazo t on t.id = e.trazo_id
+                      join trazo t0 on t0.id = :t0
+                     where e.vigente and e.id <> :e
+                       and e.actividad_id is not distinct from cast(:a as uuid)
+                       and e.prototipo_nodo_id is not distinct from cast(:pn as uuid)
+                       and e.matriz_concepto_id is not distinct from cast(:m as uuid)
+                       and ST_GeometryType(t.geometria) = ST_GeometryType(t0.geometria)
+                       and (t.grosor_m is null) = (t0.grosor_m is null)
+                       and t.plano_id = t0.plano_id
+                    """
+                ),
+                {
+                    "e": str(enlace["id"]),
+                    "t0": str(enlace["trazo_id"]),
+                    "a": str(enlace["actividad_id"]) if enlace.get("actividad_id") else None,
+                    "pn": str(enlace["prototipo_nodo_id"]) if enlace.get("prototipo_nodo_id") else None,
+                    "m": str(enlace["matriz_concepto_id"]) if enlace.get("matriz_concepto_id") else None,
+                },
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
 
     async def marcar_no_vigente(self, enlace_id: UUID) -> None:
         await self._sesion.execute(

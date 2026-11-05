@@ -52,6 +52,7 @@ from obractrl.adapters.api.casos_uso import (
     CalibrarEscalaDePlanoDep,
     ConsultarCuantificacionDep,
     ConsultarMatricesDep,
+    ConversionDelEnlaceDep,
     EliminarTrazoDep,
     FijarVistaDePlanoDep,
     GestionarVanosDep,
@@ -1419,6 +1420,126 @@ async def fijar_muro(
     )
     return VanoCambiadoRespuesta(
         vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )
+
+
+class ParteDeAlturaEnConversion(BaseModel):
+    nombre: str = Field(default="", max_length=40)
+    desde_m: float = Field(ge=0)
+    hasta_m: float = Field(gt=0)
+    suma: bool = True
+
+
+class ConversionPeticion(BaseModel):
+    """Cómo cuenta un trazo para su concepto (D-633). Los parámetros que no aplican al modo se ignoran."""
+
+    modo: Literal["largo", "area", "vol", "pza", "perim"]
+    alt: float | None = Field(default=None, ge=0, description="Altura (m); en un área en perímetro, 0 = solo largo.")
+    gro: float | None = Field(default=None, ge=0, description="Grosor (m), en volumen de un muro.")
+    esp: float | None = Field(default=None, ge=0, description="Espesor (m), en volumen de un área.")
+    desc: float | None = Field(default=None, ge=0, description="Descuento (m³), en volumen de un área.")
+    pw: float | None = Field(default=None, gt=0, description="Ancho de la pieza (m).")
+    ph: float | None = Field(default=None, gt=0, description="Alto de la pieza (m).")
+    merma: float | None = Field(default=None, ge=0, le=100, description="Merma (%).")
+    sep: float | None = Field(default=None, gt=0, description="Una pieza cada (m), en piezas de un muro.")
+    mide: Literal["eje", "cara1", "cara2"] = "cara2"
+    cara: Literal["int", "ext"] = "int"
+    lado: Literal["izq", "der"] = Field(default="der", description="De qué lado del sentido de dibujo queda el interior.")
+    partes: list[ParteDeAlturaEnConversion] = Field(default_factory=list, description="Altura por partes.")
+
+
+class ModoRespuesta(BaseModel):
+    clave: str
+    nombre: str
+
+
+class CampoRespuesta(BaseModel):
+    clave: str
+    etiqueta: str
+    unidad: str
+
+
+class ConversionDelEnlaceRespuesta(BaseModel):
+    enlace_id: UUID
+    tipo: str = Field(description="muro, linea, area, punto…")
+    unidad_del_concepto: str | None
+    conversion: dict[str, Any] | None = Field(description="La vigente, o la de defecto; null si este tipo aún cuenta por medida × factor.")
+    es_la_de_hoy: bool = Field(description="Falso = es la de defecto, todavía no se ha aplicado ninguna.")
+    modos: list[ModoRespuesta]
+    campos: dict[str, list[CampoRespuesta]] = Field(description="Los parámetros que pide cada modo.")
+
+
+class CalculoDeConversionRespuesta(BaseModel):
+    valor: float
+    unidad: str
+    formula: str
+    unidad_del_concepto: str | None
+    coincide: bool = Field(description="El resultado viene en la unidad del concepto.")
+    conversion: dict[str, Any]
+    componentes: dict[str, Any]
+
+
+class AplicarConversionPeticion(BaseModel):
+    conversion: ConversionPeticion
+    a_todos: bool = Field(default=False, description="También a los demás trazos del mismo tipo de este concepto.")
+
+
+class ConversionAplicadaRespuesta(BaseModel):
+    aplicados: int
+    resultado: ResultadoRecalculoRespuesta
+
+
+def _conv(p: ConversionPeticion) -> dict[str, Any]:
+    return p.model_dump(exclude_none=True)
+
+
+@router.get(
+    "/enlaces/{enlace_id}/conversion",
+    response_model=ConversionDelEnlaceRespuesta,
+    summary="Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir",
+    responses={404: {"description": "El enlace no existe o está fuera de tu alcance."}, 422: {"description": "Ya fue reemplazado."}},
+)
+async def ver_conversion(enlace_id: UUID, caso_uso: ConversionDelEnlaceDep) -> ConversionDelEnlaceRespuesta:
+    return ConversionDelEnlaceRespuesta(**await caso_uso.ver(enlace_id))
+
+
+@router.post(
+    "/enlaces/{enlace_id}/conversion/calcular",
+    response_model=CalculoDeConversionRespuesta,
+    summary="Calcular cuánto aportaría el trazo con esta conversión, sin guardar nada",
+    responses={404: {"description": "El enlace no existe o está fuera de tu alcance."}, 422: {"description": "La conversión no vale."}},
+)
+async def calcular_conversion(
+    enlace_id: UUID, peticion: ConversionPeticion, caso_uso: ConversionDelEnlaceDep
+) -> CalculoDeConversionRespuesta:
+    """La vista previa: el mismo cálculo que se guarda al aplicar, con la fórmula escrita y si coincide la unidad."""
+    return CalculoDeConversionRespuesta(**await caso_uso.calcular(enlace_id, _conv(peticion)))
+
+
+@router.post(
+    "/enlaces/{enlace_id}/conversion",
+    response_model=ConversionAplicadaRespuesta,
+    summary="Aplicar la conversión: crea un enlace nuevo y el anterior queda como evidencia",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "El enlace es de un prototipo_nodo y el rol no es Control de obra ni Super intendente."},
+        404: {"description": "El enlace no existe o está fuera de tu alcance."},
+        422: {"description": "La conversión no vale o el enlace ya fue reemplazado."},
+    },
+)
+async def aplicar_conversion(
+    enlace_id: UUID, peticion: AplicarConversionPeticion, ctx: ContextoActual, caso_uso: ConversionDelEnlaceDep
+) -> ConversionAplicadaRespuesta:
+    r = await caso_uso.aplicar(
+        enlace_id,
+        _conv(peticion.conversion),
+        a_todos=peticion.a_todos,
+        rol=Rol(ctx.rol),
+        usuario_id=ctx.usuario_id,
+        detectada_en=datetime.now(UTC),
+    )
+    return ConversionAplicadaRespuesta(
+        aplicados=r["aplicados"], resultado=ResultadoRecalculoRespuesta.desde_dominio(r["resultado"])
     )
 
 

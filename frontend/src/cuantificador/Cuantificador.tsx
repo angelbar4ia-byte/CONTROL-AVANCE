@@ -159,7 +159,7 @@ import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
 import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
-import { MuroDelTrazo } from './MuroDelTrazo';
+import { ConversionDelEnlace } from './ConversionDelEnlace';
 import { UnionesDelMuro } from './UnionesDelMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
@@ -2035,18 +2035,32 @@ export function EspacioDeTrazo({
               onCambio={(aviso) => setAviso(aviso)}
               onError={(m) => setAviso(m)}
             />
-            {seleccionado.geometry.type === 'LineString' &&
-              seleccionado.properties.enlaces.some((e) => e.vigente && e.medida === 'longitud' && Number(e.factor) !== 1) && (
-                <MuroDelTrazo
-                  trazoId={seleccionado.id as string}
-                  puedeEditar
-                  onCambio={(aviso) => {
-                    setAviso(aviso);
-                    invalidarTrazos();
-                  }}
-                  onError={(m) => setAviso(m)}
-                />
-              )}
+            {['LineString', 'Polygon'].includes(String(seleccionado.geometry.type)) &&
+              seleccionado.properties.enlaces
+                .filter((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo' && !e.matriz_concepto_id)
+                .map((e) => (
+                  <ConversionDelEnlace
+                    key={e.enlace_id}
+                    enlaceId={e.enlace_id}
+                    nombreDelConcepto={nombreDeNodo(e.tipo_nodo, e.nodo_id)}
+                    grosorM={seleccionado.properties.grosor_m != null ? Number(seleccionado.properties.grosor_m) : null}
+                    alineacion={seleccionado.properties.alineacion ?? null}
+                    hermanos={
+                      features.filter(
+                        (f) =>
+                          f.id !== seleccionado.id &&
+                          f.geometry.type === seleccionado.geometry.type &&
+                          (f.properties.grosor_m == null) === (seleccionado.properties.grosor_m == null) &&
+                          f.properties.enlaces.some((x) => x.vigente && x.nodo_id === e.nodo_id),
+                      ).length
+                    }
+                    onCambio={(aviso) => {
+                      setAviso(aviso);
+                      invalidarTrazos();
+                    }}
+                    onError={(m) => setAviso(m)}
+                  />
+                ))}
             {seleccionado.geometry.type === 'LineString' && (
               <UnionesDelMuro
                 trazoId={seleccionado.id as string}
