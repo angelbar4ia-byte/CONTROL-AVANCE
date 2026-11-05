@@ -186,3 +186,43 @@ async def test_solo_se_miden_las_matrices_de_la_receta(
     assert "matriz interna" in r.text
     r = await control.get(f"/api/v1/actividades/{uuid.uuid4()}/matrices")
     assert r.status_code == 404
+
+
+async def test_la_matriz_que_cuenta_da_la_cantidad_del_concepto_en_lugar_de_sus_trazos(
+    escenario: Escenario, control: httpx.AsyncClient, losa: dict[str, str]
+) -> None:
+    """D-636: con una matriz puesta, la actividad toma su cantidad; los trazos directos dejan de sumar hasta quitarla."""
+    assert (await _medir(control, escenario, 4)).status_code == 201  # directo: 4
+    assert (await _medir(control, escenario, 7, matriz=losa["NERV"])).status_code == 201  # la matriz NERV: 7
+
+    r = await control.put(
+        f"/api/v1/actividades/{escenario.actividad_id}/matriz-que-cuenta", json={"matriz_concepto_id": losa["NERV"]}
+    )
+    assert r.status_code == 200, r.text
+    assert float(r.json()["cantidad_total"]) == pytest.approx(7)
+    assert (await _matrices(control, escenario))["matriz_cuenta_id"] == losa["NERV"]
+
+    # Otro trazo directo no suma mientras la matriz cuente.
+    r2 = await _medir(control, escenario, 2)
+    assert r2.status_code == 201, r2.text
+    assert float(r2.json()["recalculos"][0]["cantidad_total"]) == pytest.approx(7)
+
+    # Medir más de la matriz sí mueve la cantidad del concepto.
+    r3 = await _medir(control, escenario, 3, matriz=losa["NERV"])
+    assert r3.status_code == 201
+    r = await control.put(
+        f"/api/v1/actividades/{escenario.actividad_id}/matriz-que-cuenta", json={"matriz_concepto_id": losa["NERV"]}
+    )
+    assert float(r.json()["cantidad_total"]) == pytest.approx(10)
+
+    # Quitarla devuelve la suma de los trazos propios: 4 + 2.
+    r = await control.put(f"/api/v1/actividades/{escenario.actividad_id}/matriz-que-cuenta", json={"matriz_concepto_id": None})
+    assert r.status_code == 200, r.text
+    assert float(r.json()["cantidad_total"]) == pytest.approx(6)
+    assert (await _matrices(control, escenario))["matriz_cuenta_id"] is None
+
+    # Una matriz que no es de este concepto no se acepta.
+    r = await control.put(
+        f"/api/v1/actividades/{escenario.actividad_id}/matriz-que-cuenta", json={"matriz_concepto_id": losa["AJENO"]}
+    )
+    assert r.status_code == 422

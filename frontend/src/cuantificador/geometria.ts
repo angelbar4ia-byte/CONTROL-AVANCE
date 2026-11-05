@@ -673,3 +673,37 @@ export function ventanaToca(t: TrazoParaVentana, caja: Caja): boolean {
 export function trazosEnVentana(trazos: readonly TrazoParaVentana[], caja: Caja, haciaAbajo: boolean): string[] {
   return trazos.filter((t) => (haciaAbajo ? ventanaCubre(t, caja) : ventanaToca(t, caja))).map((t) => t.id);
 }
+
+/** ¿El punto cae dentro del polígono (anillo, abierto o cerrado)? Regla par-impar. */
+export function puntoDentro(p: Punto, anillo: readonly Punto[]): boolean {
+  let dentro = false;
+  for (let i = 0, j = anillo.length - 1; i < anillo.length; j = i, i += 1) {
+    const a = anillo[i] as Punto;
+    const b = anillo[j] as Punto;
+    if (a[1] > p[1] !== b[1] > p[1] && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) dentro = !dentro;
+  }
+  return dentro;
+}
+
+/** El largo total de una polilínea, en unidades de plano. */
+export function largoDe(linea: readonly Punto[]): number {
+  let t = 0;
+  for (let i = 0; i + 1 < linea.length; i += 1) t += Math.hypot((linea[i + 1] as Punto)[0] - (linea[i] as Punto)[0], (linea[i + 1] as Punto)[1] - (linea[i] as Punto)[1]);
+  return t;
+}
+
+/** Hacia dónde corre la polilínea a `distancia` de su inicio (vector unitario, en el sentido en que se dibujó). */
+export function direccionDeLaLinea(linea: readonly Punto[], distancia: number): Punto {
+  let acumulado = 0;
+  let ultimo: Punto = [1, 0];
+  for (let i = 0; i + 1 < linea.length; i += 1) {
+    const a = linea[i] as Punto;
+    const b = linea[i + 1] as Punto;
+    const largo = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (largo === 0) continue;
+    ultimo = [(b[0] - a[0]) / largo, (b[1] - a[1]) / largo];
+    if (distancia <= acumulado + largo) return ultimo;
+    acumulado += largo;
+  }
+  return ultimo;
+}

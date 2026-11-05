@@ -111,6 +111,20 @@ async def _hay_conversion(sesion: AsyncSession) -> bool:
     )
 
 
+async def _hay_columna(sesion: AsyncSession, tabla: str, columna: str) -> bool:
+    return bool(
+        (
+            await sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                    "and table_name = :t and column_name = :c)"
+                ),
+                {"t": tabla, "c": columna},
+            )
+        ).scalar_one()
+    )
+
+
 async def _hay_tabla(sesion: AsyncSession, nombre: str) -> bool:
     return bool((await sesion.execute(text("select to_regclass(:n) is not null"), {"n": f"public.{nombre}"})).scalar_one())
 
@@ -146,6 +160,12 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
             (await sesion.execute(text("select to_regclass('public.trazo_union') is not null"))).scalar_one()
         )
     uniones = _UNIONES_DE_MURO_SQL.format(escala=_ESCALA_SQL) if _UNIONES_DISPONIBLES else "0"
+    # Los vanos de un área (D-635) descuentan de su área; un vano sobre un muro no entra aquí (el muro tiene grosor).
+    area_vanos = (
+        "coalesce((select sum(v.ancho_m * v.alto_m * v.piezas) from vano v where v.trazo_id = t.id), 0)"
+        if _VANOS_DISPONIBLES
+        else "0"
+    )
     descuento = _DESCUENTO_DE_VANOS_SQL.format(caras=caras) if _VANOS_DISPONIBLES else "0"
     global _CONVERSION_DISPONIBLE
     if not _CONVERSION_DISPONIBLE:
@@ -165,7 +185,7 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
                                 then greatest(
                                        ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - ({uniones}),
                                        0) * t.grosor_m
-                              else ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2)
+                              else greatest(ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2) - ({area_vanos}), 0)
                             end
       when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
       when 'longitud'   then greatest(
@@ -488,6 +508,19 @@ class RepositorioTrazosSQL:
         )
         return pivote
 
+    async def admite_vano(self, trazo_id: UUID) -> bool:
+        """Un vano se coloca sobre una línea (un muro) o sobre un área (D-635)."""
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        "select ST_GeometryType(geometria) in ('ST_LineString', 'ST_Polygon') from trazo where id = :id"
+                    ),
+                    {"id": str(trazo_id)},
+                )
+            ).scalar_one_or_none()
+        )
+
     async def es_linea(self, trazo_id: UUID) -> bool:
         return bool(
             (
@@ -510,18 +543,25 @@ class RepositorioTrazosSQL:
         piezas: int,
         posicion_m: Decimal | None,
         autor_id: UUID,
+        lado_muro: int = 0,
     ) -> UUID:
+        con_lado = lado_muro != 0 and await _hay_columna(self._sesion, "vano", "lado_muro")
         fila = (
             await self._sesion.execute(
                 text(
                     """
-                    insert into vano (org_id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, autor_id)
-                    select t.org_id, t.id, :clave, :tipo, :ancho, :alto, :antepecho, :piezas, :posicion, :autor
+                    insert into vano (org_id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, autor_id"""
+                    + (", lado_muro" if con_lado else "")
+                    + """)
+                    select t.org_id, t.id, :clave, :tipo, :ancho, :alto, :antepecho, :piezas, :posicion, :autor"""
+                    + (", :lado" if con_lado else "")
+                    + """
                       from trazo t where t.id = :trazo
                     returning id
                     """
                 ),
                 {
+                    **({"lado": lado_muro} if con_lado else {}),
                     "trazo": str(trazo_id),
                     "clave": clave,
                     "tipo": tipo,
@@ -547,18 +587,26 @@ class RepositorioTrazosSQL:
             if await _hay_hoja(self._sesion)
             else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
         )
+        lado_v = "v.lado_muro" if await _hay_columna(self._sesion, "vano", "lado_muro") else "0 as lado_muro"
         filas = (
             await self._sesion.execute(
                 text(
                     f"""
                     with base as (
-                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m, {hoja_v},
-                             t.geometria as g, coalesce(p.escala_m_por_unidad, 1) as escala,
-                             ST_Length(t.geometria) as largo
+                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.antepecho_m, v.piezas, v.posicion_m, {hoja_v}, {lado_v},
+                             -- Sobre un área el vano va en su borde exterior (D-635).
+                             case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_ExteriorRing(t.geometria)
+                                  else t.geometria end as g,
+                             coalesce(p.escala_m_por_unidad, 1) as escala,
+                             case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_Perimeter(t.geometria)
+                                  else ST_Length(t.geometria) end as largo,
+                             coalesce(t.grosor_m, 0) / coalesce(p.escala_m_por_unidad, 1) as grosor_plano
                         from vano v
                         join trazo t on t.id = v.trazo_id
                         join plano p on p.id = t.plano_id
-                       where t.plano_id = :plano and ST_GeometryType(t.geometria) = 'ST_LineString' and ST_Length(t.geometria) > 0
+                       where t.plano_id = :plano and ST_GeometryType(t.geometria) in ('ST_LineString', 'ST_Polygon')
+                         and case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_Perimeter(t.geometria)
+                                  else ST_Length(t.geometria) end > 0
                     ), f as (
                       select *, case when posicion_m is null then 0.5
                                      else least(1.0, greatest(0.0, (posicion_m / escala) / largo)) end as fr
@@ -569,7 +617,9 @@ class RepositorioTrazosSQL:
                              ST_LineInterpolatePoint(g, greatest(0.0, fr - 0.001)) as a
                         from f
                     )
-                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas, posicion_m, bisagra, lado_hoja, apertura_grados,
+                    select id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas,
+                           coalesce(posicion_m, round((fr * largo * escala)::numeric, 3)) as posicion_m, bisagra, lado_hoja, apertura_grados,
+                           lado_muro, grosor_plano,
                            ST_X(c) as x, ST_Y(c) as y,
                            degrees(atan2(ST_Y(d) - ST_Y(a), ST_X(d) - ST_X(a))) as angulo,
                            ancho_m / escala as ancho_plano
@@ -585,6 +635,64 @@ class RepositorioTrazosSQL:
         await self._sesion.execute(
             text("update vano set posicion_m = :p where id = :id"), {"p": posicion_m, "id": str(vano_id)}
         )
+
+    async def fijar_ancho_vano(self, vano_id: UUID, ancho_m: Decimal, autor_id: UUID) -> dict[str, Any]:
+        """Cambia el ancho y hace que la versión siga al ancho: pasa a la del catálogo con esas medidas o crea una nueva.
+
+        Devuelve `{"clave", "version_nueva"}`. Sin el catálogo (0117 pendiente) la clave no cambia.
+        """
+        v = (
+            await self._sesion.execute(
+                text("select tipo, clave, alto_m, antepecho_m from vano where id = :id"), {"id": str(vano_id)}
+            )
+        ).mappings().one()
+        await self._sesion.execute(text("update vano set ancho_m = :a where id = :id"), {"a": ancho_m, "id": str(vano_id)})
+        if not await _hay_tabla(self._sesion, "vano_version"):
+            return {"clave": v["clave"], "version_nueva": False}
+        if not (await self._sesion.execute(text("select exists (select 1 from vano_version)"))).scalar_one():
+            # El catálogo nace perezoso: si nadie lo abrió aún, primero sus versiones de partida.
+            from obractrl.adapters.repos.vanos_version_sql import (
+                RepositorioVanosVersionSQL,
+            )
+
+            await RepositorioVanosVersionSQL(self._sesion).sembrar(autor_id)
+        medidas = {"t": v["tipo"], "a": ancho_m, "h": v["alto_m"], "s": v["antepecho_m"]}
+        existente = (
+            await self._sesion.execute(
+                text(
+                    "select clave from vano_version where tipo = :t and ancho_m = :a and alto_m = :h and antepecho_m = :s "
+                    "order by lower(clave) limit 1"
+                ),
+                medidas,
+            )
+        ).scalar_one_or_none()
+        nueva = False
+        if existente is None:
+            prefijo = {"puerta": "P", "ventana": "V", "cancel": "C", "arco": "A", "paso": "PS"}[v["tipo"]]
+            n = int((await self._sesion.execute(text("select count(*) from vano_version where tipo = :t"), {"t": v["tipo"]})).scalar_one()) + 1
+            while True:
+                existente = f"{prefijo}-{n:02d}"
+                en_uso = (
+                    await self._sesion.execute(
+                        text("select exists (select 1 from vano_version where lower(btrim(clave)) = lower(:c))"), {"c": existente}
+                    )
+                ).scalar_one()
+                if not en_uso:
+                    break
+                n += 1
+            await self._sesion.execute(
+                text(
+                    "insert into vano_version (org_id, tipo, clave, ancho_m, alto_m, antepecho_m, autor_id) "
+                    "values (cast(current_setting('app.org_id') as uuid), :t, :c, :a, :h, :s, :autor)"
+                ),
+                {**medidas, "c": existente, "autor": str(autor_id)},
+            )
+            nueva = True
+        await self._sesion.execute(text("update vano set clave = :c where id = :id"), {"c": existente, "id": str(vano_id)})
+        return {"clave": str(existente), "version_nueva": nueva}
+
+    async def fijar_piezas_vano(self, vano_id: UUID, piezas: int) -> None:
+        await self._sesion.execute(text("update vano set piezas = :p where id = :id"), {"p": piezas, "id": str(vano_id)})
 
     async def trazo_del_vano(self, vano_id: UUID) -> UUID | None:
         fila = (
@@ -784,6 +892,7 @@ class RepositorioTrazosSQL:
 
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
         hoja = "bisagra, lado_hoja, apertura_grados" if await _hay_hoja(self._sesion) else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
+        hoja += ", lado_muro" if await _hay_columna(self._sesion, "vano", "lado_muro") else ", 0 as lado_muro"
         filas = (
             await self._sesion.execute(
                 text(
@@ -1451,13 +1560,55 @@ class RepositorioMatricesSQL:
             {"actividad": str(actividad_id), "concepto": str(concepto_id), "cantidad": cantidad},
         )
 
+    async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """La matriz que da la cantidad de la actividad (0118): `{concepto_id, cantidad}`; `None` si no hay o falta 0118."""
+        if not await _hay_columna(self._sesion, "actividad", "matriz_cuenta_id"):
+            return None
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.matriz_cuenta_id as concepto_id, m.cantidad_medida as cantidad
+                      from actividad a
+                      left join actividad_matriz m on m.actividad_id = a.id and m.concepto_id = a.matriz_cuenta_id
+                     where a.id = :a and a.matriz_cuenta_id is not null
+                    """
+                ),
+                {"a": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None
+
+    async def fijar_la_que_cuenta(self, actividad_id: UUID, concepto_id: UUID | None) -> None:
+        await self._sesion.execute(
+            text("update actividad set matriz_cuenta_id = :c where id = :a"),
+            {"a": str(actividad_id), "c": str(concepto_id) if concepto_id else None},
+        )
+
+    async def unidades(self, actividad_id: UUID, concepto_id: UUID) -> tuple[str | None, str | None]:
+        """La unidad de la matriz y la del concepto de la actividad."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select (select u.clave from concepto c join unidad u on u.id = c.unidad_id where c.id = :m) as de_la_matriz,
+                           (select u.clave from actividad a join concepto c on c.id = a.concepto_id
+                              join unidad u on u.id = c.unidad_id where a.id = :a) as del_concepto
+                    """
+                ),
+                {"a": str(actividad_id), "m": str(concepto_id)},
+            )
+        ).mappings().one()
+        return fila["de_la_matriz"], fila["del_concepto"]
+
     async def arbol_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:
         act = (
             await self._sesion.execute(
                 text(
                     """
                     select a.id, a.concepto_id, a.cant_base, a.precio_unitario, c.clave as concepto_clave,
-                           coalesce(a.descripcion, c.descripcion, '') as descripcion
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           cast(to_jsonb(a)->>'matriz_cuenta_id' as uuid) as matriz_cuenta_id
                       from actividad a left join concepto c on c.id = a.concepto_id
                      where a.id = :id
                     """

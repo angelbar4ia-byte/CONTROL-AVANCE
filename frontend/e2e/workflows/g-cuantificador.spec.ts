@@ -1,4 +1,4 @@
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import {
   actividadDe,
   entrarComo,
@@ -8,6 +8,14 @@ import {
   motivoSinRoles,
   test,
 } from '../infraestructura';
+
+/** El selector de obra del Cuantificador dice «CLAVE · Proyecto · Cluster»: se elige por la clave. */
+async function elegirObra(pagina: Page, clave: string) {
+  const selector = pagina.getByLabel('Obra', { exact: true });
+  const opcion = selector.locator('option', { hasText: clave }).first();
+  await selector.selectOption({ label: (await opcion.textContent())!.trim() });
+}
+
 
 /**
  * Cuantificador · trazar sobre un plano y ver la cantidad en la obra
@@ -87,7 +95,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     // --- 1. Abrir el cuantificador -------------------------------------
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Planta baja E2E · v1' });
 
     // --- 2. Dibujar -----------------------------------------------------
@@ -151,7 +159,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     await expect(page.getByRole('cell', { name: /Área × 1/ })).toBeVisible();
 
     await page.reload();
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     // Al recargar se abre el primer plano de la lista, que depende de los que
     // hayan registrado las demás pruebas: se elige el de ésta por nombre.
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Planta baja E2E · v1' });
@@ -194,7 +202,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano con imagen · v1' });
 
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
@@ -214,7 +222,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano con notas · v1' });
 
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
@@ -241,7 +249,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     test.skip(!hayRoles('control'), motivoSinRoles('control'));
     await entrarComo(page, 'control');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await expect(page.getByRole('button', { name: 'Polígono', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Nota', exact: true })).toHaveCount(0);
   });
@@ -288,7 +296,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano para reemplazar · v1' });
 
     // El visor encuadra los dos trazos (x de 0 a 160); A queda a la izquierda.
@@ -346,7 +354,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano en PDF · v1' });
 
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
@@ -373,7 +381,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
       const pagina = await (await browser.newContext()).newPage();
       await entrarComo(pagina, rol);
       await pagina.goto('/cuantificador');
-      await pagina.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+      await elegirObra(pagina, 'OBRA-G');
       await pagina.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano de gobierno · v1' });
       const caja = (await pagina.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
       await pagina.getByRole('button', { name: 'Polígono', exact: true }).click();
@@ -434,7 +442,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
       const pagina = await (await browser.newContext()).newPage();
       await entrarComo(pagina, rol);
       await pagina.goto('/cuantificador');
-      await pagina.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+      await elegirObra(pagina, 'OBRA-G');
       await pagina.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano para aprobar · v1' });
       await expect(pagina.locator('.visor__trazo')).toHaveCount(1);
       const caja = (await pagina.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
@@ -472,7 +480,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await elegirObra(page, 'OBRA-G');
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano de la corbata · v1' });
 
     const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
@@ -539,7 +547,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     expect(await medido()).toBe(1200);
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    await elegirObra(page, clave);
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano para calibrar · v1' });
     await expect(page.getByText('Sin calibrar: cantidades en unidades de plano')).toBeVisible();
 
@@ -583,7 +591,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await entrarComo(page, 'residente');
     await page.goto('/cuantificador');
-    await page.getByLabel('Obra', { exact: true }).selectOption({ label: obra.clave });
+    await elegirObra(page, obra.clave);
     await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Fachada con ventana · v1' });
     const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
     const en = (fx: number, fy: number) => ({

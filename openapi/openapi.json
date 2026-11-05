@@ -10885,6 +10885,61 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/matriz-que-cuenta": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Qué matriz da la cantidad del concepto",
+        "description": "Con una matriz puesta, la cantidad medida del concepto es la de esa matriz (D-636); sin ella, la suma de sus\ntrazos propios. Se recalcula al cambiar.",
+        "operationId": "poner_matriz_que_cuenta_api_v1_actividades__actividad_id__matriz_que_cuenta_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrizQueCuentaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrizQueCuentaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La matriz no es de este concepto o es de otra unidad."
+          }
+        }
+      }
+    },
     "/api/v1/trazos/{trazo_id}/vanos": {
       "get": {
         "tags": [
@@ -11640,6 +11695,130 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vanos/{vano_id}/piezas": {
+      "patch": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cambiar cuántas piezas idénticas son",
+        "description": "Cambia lo que descuenta el vano: sus nodos se recalculan.",
+        "operationId": "cambiar_piezas_del_vano_api_v1_vanos__vano_id__piezas_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VanoPiezasPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vanos/{vano_id}/ancho": {
+      "patch": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cambiar el ancho de un vano",
+        "description": "Cambia lo que descuenta el vano: sus nodos se recalculan, y la versión sigue al ancho.",
+        "operationId": "cambiar_ancho_del_vano_api_v1_vanos__vano_id__ancho_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VanoAnchoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoAnchoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
           },
           "422": {
             "description": "Validation Error",
@@ -12802,6 +12981,208 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/vanos-version": {
+      "get": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Las versiones de vano del catálogo",
+        "description": "Si la organización aún no tiene ninguna, nace con las de partida (P-01…P-03, V-01, V-02, C-01, A-01, PS-01).",
+        "operationId": "listar_versiones_api_v1_vanos_version_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "puerta",
+                    "ventana",
+                    "cancel",
+                    "arco",
+                    "paso"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VersionDeVanoRespuesta"
+                  },
+                  "title": "Response Listar Versiones Api V1 Vanos Version Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Una versión nueva copiando la elegida",
+        "operationId": "crear_version_api_v1_vanos_version_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionNuevaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDeVanoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La versión a copiar no existe."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vanos-version/{version_id}": {
+      "patch": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Cambiar la clave o las medidas de una versión (cambia el catálogo)",
+        "operationId": "cambiar_version_api_v1_vanos_version__version_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCambioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDeVanoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La versión no existe."
+          },
+          "422": {
+            "description": "Esa clave ya existe."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Quitar una versión del catálogo (queda al menos una de cada tipo)",
+        "operationId": "quitar_version_api_v1_vanos_version__version_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La versión no existe."
+          },
+          "422": {
+            "description": "Es la única de su tipo."
           }
         }
       }
@@ -29162,6 +29543,19 @@
             "type": "integer",
             "title": "Medidas"
           },
+          "matriz_cuenta_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Cuenta Id",
+            "description": "La matriz que da la cantidad del concepto (D-636); null = cuentan sus trazos propios."
+          },
           "matrices": {
             "items": {
               "$ref": "#/components/schemas/MatrizRespuesta"
@@ -29248,6 +29642,58 @@
           "cantidad"
         ],
         "title": "MatrizPuestaRespuesta"
+      },
+      "MatrizQueCuentaPeticion": {
+        "properties": {
+          "matriz_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Concepto Id",
+            "description": "La matriz que da la cantidad del concepto; null = cuentan sus trazos propios."
+          }
+        },
+        "type": "object",
+        "title": "MatrizQueCuentaPeticion"
+      },
+      "MatrizQueCuentaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "matriz_cuenta_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Cuenta Id"
+          },
+          "cantidad_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "matriz_cuenta_id",
+          "cantidad_total"
+        ],
+        "title": "MatrizQueCuentaRespuesta"
       },
       "MatrizRespuesta": {
         "properties": {
@@ -38054,6 +38500,69 @@
         ],
         "title": "ValuacionRespuesta"
       },
+      "VanoAnchoPeticion": {
+        "properties": {
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Ancho M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ancho_m"
+        ],
+        "title": "VanoAnchoPeticion"
+      },
+      "VanoAnchoRespuesta": {
+        "properties": {
+          "vano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vano Id"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave",
+            "description": "La versión del catálogo a la que quedó el vano."
+          },
+          "version_nueva": {
+            "type": "boolean",
+            "title": "Version Nueva",
+            "description": "Si hubo que crear la versión porque ninguna tenía esas medidas.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "vano_id",
+          "recalculos"
+        ],
+        "title": "VanoAnchoRespuesta"
+      },
       "VanoCambiadoRespuesta": {
         "properties": {
           "vano_id": {
@@ -38106,6 +38615,12 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Alto M"
           },
+          "antepecho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antepecho M",
+            "default": "0"
+          },
           "piezas": {
             "type": "integer",
             "title": "Piezas"
@@ -38144,6 +38659,22 @@
             "type": "integer",
             "title": "Apertura Grados",
             "default": 90
+          },
+          "lado_muro": {
+            "type": "integer",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Lado Muro",
+            "default": 0
+          },
+          "grosor_plano": {
+            "type": "number",
+            "title": "Grosor Plano",
+            "description": "Grosor del muro en unidades de plano (0 si no tiene).",
+            "default": 0
           },
           "x": {
             "type": "number",
@@ -38267,7 +38798,18 @@
               }
             ],
             "title": "Posicion M",
-            "description": "Distancia desde el inicio de la línea."
+            "description": "Distancia desde el inicio de la línea (o del borde de un área)."
+          },
+          "lado_muro": {
+            "type": "integer",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Lado Muro",
+            "description": "De qué cara del muro cae el clic; solo afecta el dibujo.",
+            "default": 0
           }
         },
         "type": "object",
@@ -38279,6 +38821,21 @@
         ],
         "title": "VanoPeticion",
         "description": "Una puerta, ventana o paso colocado sobre una línea."
+      },
+      "VanoPiezasPeticion": {
+        "properties": {
+          "piezas": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Piezas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piezas"
+        ],
+        "title": "VanoPiezasPeticion"
       },
       "VanoPosicionPeticion": {
         "properties": {
@@ -38352,6 +38909,16 @@
           "llega_al_piso": {
             "type": "boolean",
             "title": "Llega Al Piso"
+          },
+          "lado_muro": {
+            "type": "integer",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Lado Muro",
+            "default": 0
           },
           "bisagra": {
             "type": "integer",
@@ -38429,6 +38996,76 @@
         ],
         "title": "VersionCPURespuesta"
       },
+      "VersionCambioPeticion": {
+        "properties": {
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto M"
+          },
+          "antepecho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Antepecho M"
+          }
+        },
+        "type": "object",
+        "title": "VersionCambioPeticion"
+      },
       "VersionCuadrillaRespuesta": {
         "properties": {
           "id": {
@@ -38458,6 +39095,55 @@
           "vigente"
         ],
         "title": "VersionCuadrillaRespuesta"
+      },
+      "VersionDeVanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puerta",
+              "ventana",
+              "cancel",
+              "arco",
+              "paso"
+            ],
+            "title": "Tipo"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "ancho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Alto M"
+          },
+          "antepecho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antepecho M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "clave",
+          "ancho_m",
+          "alto_m",
+          "antepecho_m"
+        ],
+        "title": "VersionDeVanoRespuesta"
       },
       "VersionDelPresupuestoRespuesta": {
         "properties": {
@@ -38514,6 +39200,39 @@
           "partidas"
         ],
         "title": "VersionDelPresupuestoRespuesta"
+      },
+      "VersionNuevaPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puerta",
+              "ventana",
+              "cancel",
+              "arco",
+              "paso"
+            ],
+            "title": "Tipo"
+          },
+          "copiar_de": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copiar De",
+            "description": "Una versión existente cuyas medidas se copian."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo"
+        ],
+        "title": "VersionNuevaPeticion"
       },
       "VersionPublicadaRespuesta": {
         "properties": {

@@ -151,7 +151,10 @@ class RepositorioTrazos(Protocol):
         piezas: int,
         posicion_m: Decimal | None,
         autor_id: UUID,
+        lado_muro: int = 0,
     ) -> UUID: ...
+
+    async def admite_vano(self, trazo_id: UUID) -> bool: ...
 
     async def trazo_del_vano(self, vano_id: UUID) -> UUID | None: ...
 
@@ -358,6 +361,16 @@ class RepositorioMatrices(Protocol):
     ) -> None:
         """Escribe la cantidad medida (derivada de los enlaces vigentes) de una matriz; `None`
         la deja sin medir."""
+        ...
+
+    async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """La matriz que da la cantidad de la actividad (0118, D-636): `{concepto_id, cantidad}` o `None`."""
+        ...
+
+    async def fijar_la_que_cuenta(self, actividad_id: UUID, concepto_id: UUID | None) -> None: ...
+
+    async def unidades(self, actividad_id: UUID, concepto_id: UUID) -> tuple[str | None, str | None]:
+        """`(unidad de la matriz, unidad del concepto de la actividad)`."""
         ...
 
     async def arbol_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:

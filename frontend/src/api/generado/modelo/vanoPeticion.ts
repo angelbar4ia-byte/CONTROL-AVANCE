@@ -10,6 +10,7 @@ import type { VanoPeticionAnchoM } from "./vanoPeticionAnchoM";
 import type { VanoPeticionAltoM } from "./vanoPeticionAltoM";
 import type { VanoPeticionAntepechoM } from "./vanoPeticionAntepechoM";
 import type { VanoPeticionPosicionM } from "./vanoPeticionPosicionM";
+import type { VanoPeticionLadoMuro } from "./vanoPeticionLadoMuro";
 
 /**
  * Una puerta, ventana o paso colocado sobre una línea.
@@ -30,6 +31,8 @@ export interface VanoPeticion {
    * @maximum 999
    */
   piezas?: number;
-  /** Distancia desde el inicio de la línea. */
+  /** Distancia desde el inicio de la línea (o del borde de un área). */
   posicion_m?: VanoPeticionPosicionM;
+  /** De qué cara del muro cae el clic; solo afecta el dibujo. */
+  lado_muro?: VanoPeticionLadoMuro;
 }

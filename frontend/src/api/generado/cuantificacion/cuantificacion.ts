@@ -40,6 +40,8 @@ import type {
   HuecoPeticion,
   HuecoRespuesta,
   MatricesDeActividadRespuesta,
+  MatrizQueCuentaPeticion,
+  MatrizQueCuentaRespuesta,
   MuroDelTrazoPeticion,
   MuroDelTrazoRespuesta,
   NodoCuantificadoRespuesta,
@@ -62,9 +64,12 @@ import type {
   TrazosDePlanoRespuesta,
   UnionPeticion,
   UnionesDelMuroRespuesta,
+  VanoAnchoPeticion,
+  VanoAnchoRespuesta,
   VanoCambiadoRespuesta,
   VanoEnPlanoRespuesta,
   VanoPeticion,
+  VanoPiezasPeticion,
   VanoPosicionPeticion,
   VanoRespuesta,
   VistaPeticion,
@@ -3711,6 +3716,131 @@ export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
 }
 
 /**
+ * Con una matriz puesta, la cantidad medida del concepto es la de esa matriz (D-636); sin ella, la suma de sus
+trazos propios. Se recalcula al cambiar.
+ * @summary Qué matriz da la cantidad del concepto
+ */
+export const ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut =
+  (
+    actividadId: string,
+    matrizQueCuentaPeticion: MatrizQueCuentaPeticion,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<MatrizQueCuentaRespuesta>(
+      {
+        url: `/api/v1/actividades/${actividadId}/matriz-que-cuenta`,
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        data: matrizQueCuentaPeticion,
+      },
+      options,
+    );
+  };
+
+export const getPonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+        >
+      >,
+      TError,
+      { actividadId: string; data: MatrizQueCuentaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+      >
+    >,
+    TError,
+    { actividadId: string; data: MatrizQueCuentaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+        >
+      >,
+      { actividadId: string; data: MatrizQueCuentaPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
+
+      return ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type PonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+      >
+    >
+  >;
+export type PonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationBody =
+  MatrizQueCuentaPeticion;
+export type PonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationError =
+  void;
+
+/**
+ * @summary Qué matriz da la cantidad del concepto
+ */
+export const usePonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+          >
+        >,
+        TError,
+        { actividadId: string; data: MatrizQueCuentaPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPut
+      >
+    >,
+    TError,
+    { actividadId: string; data: MatrizQueCuentaPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getPonerMatrizQueCuentaApiV1ActividadesActividadIdMatrizQueCuentaPutMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * @summary Los vanos colocados sobre una línea
  */
 export const listarVanosApiV1TrazosTrazoIdVanosGet = (
@@ -6444,6 +6574,208 @@ export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
   return query;
 }
 
+/**
+ * Cambia lo que descuenta el vano: sus nodos se recalculan.
+ * @summary Cambiar cuántas piezas idénticas son
+ */
+export const cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch = (
+  vanoId: string,
+  vanoPiezasPeticion: VanoPiezasPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/vanos/${vanoId}/piezas`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: vanoPiezasPeticion,
+    },
+    options,
+  );
+};
+
+export const getCambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>
+      >,
+      TError,
+      { vanoId: string; data: VanoPiezasPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>>,
+    TError,
+    { vanoId: string; data: VanoPiezasPeticion },
+    TContext
+  > => {
+    const mutationKey = ["cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>
+      >,
+      { vanoId: string; data: VanoPiezasPeticion }
+    > = (props) => {
+      const { vanoId, data } = props ?? {};
+
+      return cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch(
+        vanoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>>
+  >;
+export type CambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationBody =
+  VanoPiezasPeticion;
+export type CambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar cuántas piezas idénticas son
+ */
+export const useCambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>
+      >,
+      TError,
+      { vanoId: string; data: VanoPiezasPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>>,
+  TError,
+  { vanoId: string; data: VanoPiezasPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Cambia lo que descuenta el vano: sus nodos se recalculan, y la versión sigue al ancho.
+ * @summary Cambiar el ancho de un vano
+ */
+export const cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch = (
+  vanoId: string,
+  vanoAnchoPeticion: VanoAnchoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoAnchoRespuesta>(
+    {
+      url: `/api/v1/vanos/${vanoId}/ancho`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: vanoAnchoPeticion,
+    },
+    options,
+  );
+};
+
+export const getCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+    TError,
+    { vanoId: string; data: VanoAnchoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+  TError,
+  { vanoId: string; data: VanoAnchoPeticion },
+  TContext
+> => {
+  const mutationKey = ["cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+    { vanoId: string; data: VanoAnchoPeticion }
+  > = (props) => {
+    const { vanoId, data } = props ?? {};
+
+    return cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch(
+      vanoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>
+  >;
+export type CambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationBody =
+  VanoAnchoPeticion;
+export type CambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar el ancho de un vano
+ */
+export const useCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+      TError,
+      { vanoId: string; data: VanoAnchoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch>>,
+  TError,
+  { vanoId: string; data: VanoAnchoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Dónde está el vano no cambia lo que mide la línea: no recalcula cantidades.
  * @summary Correr un vano por su muro

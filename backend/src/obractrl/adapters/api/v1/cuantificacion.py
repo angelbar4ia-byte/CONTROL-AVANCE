@@ -56,6 +56,7 @@ from obractrl.adapters.api.casos_uso import (
     EliminarTrazoDep,
     FijarVistaDePlanoDep,
     GestionarVanosDep,
+    MatrizQueCuentaDep,
     QuitarHuecoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
@@ -1215,6 +1216,9 @@ class MatricesDeActividadRespuesta(BaseModel):
     )
     importe_ajustado: Decimal
     medidas: int
+    matriz_cuenta_id: UUID | None = Field(
+        default=None, description="La matriz que da la cantidad del concepto (D-636); null = cuentan sus trazos propios."
+    )
     matrices: list[MatrizRespuesta]
 
 
@@ -1233,6 +1237,39 @@ async def matrices_de_la_actividad(
     return MatricesDeActividadRespuesta(**await caso_uso.ejecutar(actividad_id))
 
 
+class MatrizQueCuentaPeticion(BaseModel):
+    matriz_concepto_id: UUID | None = Field(
+        default=None, description="La matriz que da la cantidad del concepto; null = cuentan sus trazos propios."
+    )
+
+
+class MatrizQueCuentaRespuesta(BaseModel):
+    actividad_id: UUID
+    matriz_cuenta_id: UUID | None
+    cantidad_total: Decimal
+
+
+@router.put(
+    "/actividades/{actividad_id}/matriz-que-cuenta",
+    response_model=MatrizQueCuentaRespuesta,
+    summary="Qué matriz da la cantidad del concepto",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        404: {"description": "La actividad no existe o está fuera de tu alcance."},
+        422: {"description": "La matriz no es de este concepto o es de otra unidad."},
+    },
+)
+async def poner_matriz_que_cuenta(
+    actividad_id: UUID, peticion: MatrizQueCuentaPeticion, ctx: ContextoActual, caso_uso: MatrizQueCuentaDep
+) -> MatrizQueCuentaRespuesta:
+    """Con una matriz puesta, la cantidad medida del concepto es la de esa matriz (D-636); sin ella, la suma de sus
+    trazos propios. Se recalcula al cambiar."""
+    r = await caso_uso.poner(actividad_id, peticion.matriz_concepto_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC))
+    return MatrizQueCuentaRespuesta(
+        actividad_id=actividad_id, matriz_cuenta_id=peticion.matriz_concepto_id, cantidad_total=r.cantidad_total
+    )
+
+
 class VanoPeticion(BaseModel):
     """Una puerta, ventana o paso colocado sobre una línea."""
 
@@ -1242,7 +1279,8 @@ class VanoPeticion(BaseModel):
     alto_m: Decimal = Field(gt=0, le=50)
     antepecho_m: Decimal = Field(default=Decimal(0), ge=0, le=50, description="Del piso al borde de abajo (ventanas).")
     piezas: int = Field(default=1, ge=1, le=999)
-    posicion_m: Decimal | None = Field(default=None, ge=0, description="Distancia desde el inicio de la línea.")
+    posicion_m: Decimal | None = Field(default=None, ge=0, description="Distancia desde el inicio de la línea (o del borde de un área).")
+    lado_muro: Literal[-1, 0, 1] = Field(default=0, description="De qué cara del muro cae el clic; solo afecta el dibujo.")
 
 
 class VanoRespuesta(BaseModel):
@@ -1255,6 +1293,7 @@ class VanoRespuesta(BaseModel):
     piezas: int
     posicion_m: Decimal | None
     llega_al_piso: bool
+    lado_muro: Literal[-1, 0, 1] = 0
     bisagra: Literal[-1, 1] = Field(default=1, description="Extremo donde van las bisagras: 1 el inicial, -1 el otro.")
     lado_hoja: Literal[-1, 1] = Field(default=1, description="Hacia qué lado del muro abre la hoja.")
     apertura_grados: int = Field(default=90, ge=0, le=180, description="Cuánto está abierta la hoja al dibujarla.")
@@ -1303,6 +1342,7 @@ async def colocar_vano(
             posicion_m=peticion.posicion_m,
             autor_id=ctx.usuario_id,
             rol=Rol(ctx.rol),
+            lado_muro=peticion.lado_muro,
         ),
         detectada_en=datetime.now(UTC),
     )
@@ -1656,11 +1696,14 @@ class VanoEnPlanoRespuesta(BaseModel):
     tipo: str
     ancho_m: Decimal
     alto_m: Decimal
+    antepecho_m: Decimal = Decimal(0)
     piezas: int
     posicion_m: Decimal | None
     bisagra: Literal[-1, 1] = 1
     lado_hoja: Literal[-1, 1] = 1
     apertura_grados: int = 90
+    lado_muro: Literal[-1, 0, 1] = 0
+    grosor_plano: float = Field(default=0, description="Grosor del muro en unidades de plano (0 si no tiene).")
     x: float = Field(description="Dónde va, en coordenadas del plano.")
     y: float
     angulo: float = Field(description="Hacia dónde corre el muro en ese punto, en grados (eje y hacia abajo).")
@@ -1678,6 +1721,60 @@ class VanoPosicionPeticion(BaseModel):
 )
 async def vanos_del_plano(plano_id: UUID, caso_uso: GestionarVanosDep) -> list[VanoEnPlanoRespuesta]:
     return [VanoEnPlanoRespuesta(**v) for v in await caso_uso.del_plano(plano_id)]
+
+
+class VanoPiezasPeticion(BaseModel):
+    piezas: int = Field(ge=1, le=999)
+
+
+@router.patch(
+    "/vanos/{vano_id}/piezas",
+    response_model=VanoCambiadoRespuesta,
+    summary="Cambiar cuántas piezas idénticas son",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
+)
+async def cambiar_piezas_del_vano(
+    vano_id: UUID, peticion: VanoPiezasPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    """Cambia lo que descuenta el vano: sus nodos se recalculan."""
+    r = await caso_uso.cambiar_piezas(
+        vano_id, peticion.piezas, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC)
+    )
+    return VanoCambiadoRespuesta(
+        vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )
+
+
+class VanoAnchoRespuesta(VanoCambiadoRespuesta):
+    clave: str | None = Field(default=None, description="La versión del catálogo a la que quedó el vano.")
+    version_nueva: bool = Field(default=False, description="Si hubo que crear la versión porque ninguna tenía esas medidas.")
+
+
+class VanoAnchoPeticion(BaseModel):
+    ancho_m: Decimal = Field(gt=0, le=50)
+
+
+@router.patch(
+    "/vanos/{vano_id}/ancho",
+    response_model=VanoAnchoRespuesta,
+    summary="Cambiar el ancho de un vano",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
+)
+async def cambiar_ancho_del_vano(
+    vano_id: UUID, peticion: VanoAnchoPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoAnchoRespuesta:
+    """Cambia lo que descuenta el vano: sus nodos se recalculan, y la versión sigue al ancho."""
+    r = await caso_uso.cambiar_ancho(
+        vano_id, peticion.ancho_m, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC)
+    )
+    return VanoAnchoRespuesta(
+        vano_id=r.vano_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos],
+        clave=r.clave,
+        version_nueva=r.version_nueva,
+    )
 
 
 @router.patch(

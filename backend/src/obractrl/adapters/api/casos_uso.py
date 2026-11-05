@@ -159,6 +159,7 @@ from obractrl.application.casos_uso.cuantificar import (
     EliminarTrazo,
     FijarVistaDePlano,
     GestionarVanos,
+    MatrizQueCuenta,
     QuitarHueco,
     ReemplazarEnlace,
     RegistrarNotaPlano,
@@ -452,6 +453,7 @@ __all__ = [
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "MarcarParteIndependienteDep",
+    "MatrizQueCuentaDep",
     "ModificarActividadDep",
     "ObservarReprogramacionDep",
     "ObtenerCPUDep",
@@ -861,6 +863,19 @@ def obtener_gestionar_vanos(sesion: SesionRLS, ctx: ContextoActual) -> Gestionar
     )
 
 
+def obtener_matriz_que_cuenta(sesion: SesionRLS, ctx: ContextoActual) -> MatrizQueCuenta:
+    return MatrizQueCuenta(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
 def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTrazo:
     return EliminarTrazo(
         trazos=RepositorioTrazosSQL(sesion),
@@ -1165,6 +1180,7 @@ GestionarElementosParametricosDep = Annotated[
     GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
+MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
 PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]
 ArbolDeObraDep = Annotated[ArbolDeObra, Depends(obtener_arbol_de_obra)]
 CambioDeUnidadDep = Annotated[CambioDeUnidad, Depends(obtener_cambio_de_unidad)]

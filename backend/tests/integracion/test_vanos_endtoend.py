@@ -104,14 +104,14 @@ async def test_en_metros_solo_restan_los_vanos_que_llegan_al_piso(escenario: Esc
     assert _total(await control.post(f"/api/v1/trazos/{muro}/vanos", json=PUERTA)) == Decimal("9.1000")
 
 
-async def test_un_vano_solo_va_en_una_linea_y_valida_sus_medidas(escenario: Escenario, control: httpx.AsyncClient) -> None:
+async def test_un_vano_va_en_una_linea_o_en_un_area_y_valida_sus_medidas(escenario: Escenario, control: httpx.AsyncClient) -> None:
     r = await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})
     plano = r.json()["id"]
-    area = await control.post(
+    punto = await control.post(
         f"/api/v1/planos/{plano}/trazos",
-        json={"version_plano": 1, "fuente": "pdf", "geometria_wkt": "POLYGON((0 0, 4 0, 4 4, 0 4, 0 0))", "enlaces": []},
+        json={"version_plano": 1, "fuente": "pdf", "geometria_wkt": "POINT(1 1)", "enlaces": []},
     )
-    assert (await control.post(f"/api/v1/trazos/{area.json()['trazo_id']}/vanos", json=PUERTA)).status_code == 422
+    assert (await control.post(f"/api/v1/trazos/{punto.json()['trazo_id']}/vanos", json=PUERTA)).status_code == 422
     _, muro = await _muro(control, escenario, "longitud", "5.2")
     assert (await control.post(f"/api/v1/trazos/{muro}/vanos", json={**PUERTA, "ancho_m": "0"})).status_code == 422
     assert (await control.post(f"/api/v1/trazos/{uuid.uuid4()}/vanos", json=PUERTA)).status_code == 404
@@ -277,3 +277,92 @@ async def test_la_hoja_de_una_puerta_se_guarda_y_no_cambia_lo_que_descuenta(
     # Valores fuera de rango o un vano que no existe se rechazan.
     assert (await control.put(ruta, json={"apertura_grados": 200})).status_code == 422
     assert (await control.put(f"/api/v1/vanos/{uuid.uuid4()}/hoja", json={})).status_code == 404
+
+
+async def test_un_vano_sobre_un_area_descuenta_de_su_area_y_se_dibuja_en_su_borde(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+    area = (
+        await control.post(
+            f"/api/v1/planos/{plano}/trazos",
+            json={
+                "version_plano": 1, "fuente": "pdf", "geometria_wkt": "POLYGON((0 0, 4 0, 4 3, 0 3, 0 0))",
+                "enlaces": [{"medida": "area", "factor": "1", "actividad_id": str(escenario.actividad_id)}],
+            },
+        )
+    ).json()["trazo_id"]
+    r = await control.post(f"/api/v1/trazos/{area}/vanos", json={**PUERTA, "posicion_m": 2, "lado_muro": 1})
+    assert r.status_code == 201, r.text
+    assert _total(r) == (Decimal("12") - Decimal("1.89")).quantize(Decimal("0.0001"))  # 12 m² − 0.9 × 2.1
+    en_plano = (await control.get(f"/api/v1/planos/{plano}/vanos")).json()
+    assert len(en_plano) == 1 and en_plano[0]["lado_muro"] == 1 and en_plano[0]["trazo_id"] == area
+    assert en_plano[0]["y"] == pytest.approx(0)  # a 2 m del inicio, sobre el borde de abajo del área
+
+
+async def test_el_catalogo_de_versiones_nace_con_las_de_partida_y_se_edita_sin_tocar_los_vanos_puestos(
+    escenario: Escenario, control: httpx.AsyncClient, contexto_residente: ContextoSesion
+) -> None:
+    lista = (await control.get("/api/v1/vanos-version")).json()
+    assert {v["clave"] for v in lista} >= {"P-01", "P-02", "P-03", "V-01", "C-01", "A-01", "PS-01"}
+    p01 = next(v for v in lista if v["clave"] == "P-01")
+    assert (Decimal(str(p01["ancho_m"])), Decimal(str(p01["alto_m"]))) == (Decimal("0.9"), Decimal("2.1"))
+    assert [v["clave"] for v in (await control.get("/api/v1/vanos-version", params={"tipo": "ventana"})).json()] == ["V-01", "V-02"]
+
+    # «+ Nueva» copia las medidas de la elegida y toma la clave que sigue.
+    r = await control.post("/api/v1/vanos-version", json={"tipo": "puerta", "copiar_de": p01["id"]})
+    assert r.status_code == 201, r.text
+    nueva = r.json()
+    assert nueva["clave"] == "P-04" and Decimal(str(nueva["ancho_m"])) == Decimal("0.9")
+
+    # Editar la versión cambia el catálogo; los vanos ya puestos conservan sus medidas.
+    _, muro = await _muro(control, escenario, "longitud", "5.2")
+    puesto = await control.post(f"/api/v1/trazos/{muro}/vanos", json={**PUERTA, "clave": "P-04"})
+    assert puesto.status_code == 201
+    r = await control.patch(f"/api/v1/vanos-version/{nueva['id']}", json={"ancho_m": "1.1", "clave": "p-09"})
+    assert r.status_code == 200 and r.json()["clave"] == "P-09" and Decimal(str(r.json()["ancho_m"])) == Decimal("1.1")
+    vano = (await control.get(f"/api/v1/trazos/{muro}/vanos")).json()[0]
+    assert Decimal(str(vano["ancho_m"])) == Decimal("0.9")
+    assert (await control.patch(f"/api/v1/vanos-version/{nueva['id']}", json={"clave": "P-01"})).status_code == 422  # repetida
+
+    # Se puede quitar mientras quede al menos una del tipo; un residente la ve pero no la define.
+    assert (await control.delete(f"/api/v1/vanos-version/{nueva['id']}")).status_code == 204
+    for v in (await control.get("/api/v1/vanos-version", params={"tipo": "arco"})).json():
+        assert (await control.delete(f"/api/v1/vanos-version/{v['id']}")).status_code == 422
+    async with _cliente(contexto_residente) as residente:
+        assert len((await residente.get("/api/v1/vanos-version")).json()) >= 8
+        assert (await residente.post("/api/v1/vanos-version", json={"tipo": "puerta"})).status_code == 403
+
+
+async def test_cambiar_el_ancho_de_un_vano_recalcula_lo_que_descuenta(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    plano, muro = await _muro(control, escenario, "longitud", "5.2")
+    vano = (await control.post(f"/api/v1/trazos/{muro}/vanos", json=PUERTA)).json()["vano_id"]
+
+    # Resuelta la posición: sin guardar va a la mitad del muro y el plano lo dice en metros.
+    en_plano = next(v for v in (await control.get(f"/api/v1/planos/{plano}/vanos")).json() if v["id"] == vano)
+    assert Decimal(str(en_plano["posicion_m"])) == Decimal("5")
+
+    r = await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "1.0"})
+    assert r.status_code == 200, r.text
+    assert _total(r) == (Decimal("52") - Decimal("4.2")).quantize(Decimal("0.0001"))
+    en_plano = next(v for v in (await control.get(f"/api/v1/planos/{plano}/vanos")).json() if v["id"] == vano)
+    assert en_plano["ancho_plano"] == pytest.approx(1.0)
+    # La versión sigue al ancho: 1 × 2.1 es la P-02 del catálogo.
+    assert r.json()["clave"] == "P-02" and r.json()["version_nueva"] is False
+    assert en_plano["clave"] == "P-02"
+
+    # Un ancho que ninguna versión tiene crea la siguiente del tipo.
+    r = await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "1.1"})
+    assert r.json()["clave"] == "P-04" and r.json()["version_nueva"] is True
+    versiones = (await control.get("/api/v1/vanos-version")).json()
+    assert any(v["clave"] == "P-04" and Decimal(str(v["ancho_m"])) == Decimal("1.1") for v in versiones)
+
+    # Las piezas idénticas también recalculan.
+    r = await control.patch(f"/api/v1/vanos/{vano}/piezas", json={"piezas": 2})
+    assert r.status_code == 200, r.text
+    assert _total(r) == (Decimal("52") - Decimal("1.1") * Decimal("2.1") * 2 * 2).quantize(Decimal("0.0001"))
+    assert (await control.patch(f"/api/v1/vanos/{vano}/piezas", json={"piezas": 0})).status_code == 422
+    assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/piezas", json={"piezas": 1})).status_code == 404
+
+    assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/ancho", json={"ancho_m": "1"})).status_code == 404
+    assert (await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "0"})).status_code == 422

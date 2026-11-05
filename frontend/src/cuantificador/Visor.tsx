@@ -40,6 +40,8 @@ import {
   VISTA_VACIA,
   cajaDePuntos,
   desplazar,
+  direccionDeLaLinea,
+  proyectarEnPolilinea,
   marcadoresDe,
   puntosDe,
   rutaSvg,
@@ -67,6 +69,8 @@ const TOLERANCIA_PX = 8;
 /** Un vano (puerta, ventana…) sobre un muro: dónde va, hacia dónde corre el muro ahí y cuánto mide de ancho (unidades de plano). */
 export interface VanoVisible {
   readonly id: string;
+  /** El muro, línea o área donde está: por su geometría el asa central se pega a él. */
+  readonly trazoId?: string;
   readonly x: number;
   readonly y: number;
   readonly angulo: number;
@@ -78,6 +82,9 @@ export interface VanoVisible {
   readonly bisagra?: number;
   readonly ladoHoja?: number;
   readonly aperturaGrados?: number;
+  /** De qué cara del muro se colocó (-1, 0, 1) y su grosor en unidades de plano, para dibujarlo con su cuerpo. */
+  readonly ladoMuro?: number;
+  readonly grosorPlano?: number;
 }
 
 export interface TrazoVisible {
@@ -149,7 +156,8 @@ interface Props {
   readonly huecos?: readonly (readonly Punto[])[];
   /** El hueco que se está dibujando ahora. */
   readonly huecoEnCurso?: readonly Punto[];
-  readonly onPunto: (p: Punto) => void;
+  /** Un clic de dibujo; `tolerancia` es el radio de captura (8 px de pantalla) en unidades de plano. */
+  readonly onPunto: (p: Punto, tolerancia: number) => void;
   /** `agregar`: con Mayús o Ctrl, suma o quita el trazo de la selección en vez de reemplazarla. */
   readonly onSeleccionar: (seleccion: Seleccion | null, agregar?: boolean) => void;
   /** Los demás trazos elegidos (multiselección), además de `seleccion`. */
@@ -168,6 +176,18 @@ interface Props {
   readonly onMover?: (p: Punto | null) => void;
   /** Los vanos del plano, dibujados sobre sus muros. */
   readonly vanos?: readonly VanoVisible[];
+  /** El vano elegido (Seleccionar): lleva asas para correrlo por su muro y para cambiarle el ancho. */
+  readonly vanoElegidoId?: string | null;
+  readonly onElegirVano?: (id: string | null) => void;
+  /** Se soltó un asa: `desplazamiento` (unidades de plano, a lo largo del muro) o el nuevo `anchoPlano`. */
+  readonly onAjustarVano?: (
+    id: string,
+    cambio: { distanciaPlano?: number; anchoPlano?: number; corrimientoPlano?: number },
+  ) => void;
+  /** Con «Mover…» del menú del vano: el siguiente clic en el plano es el lugar nuevo del vano elegido. */
+  readonly onSoltarVano?: ((p: Punto) => void) | null;
+  /** Clic derecho (sin arrastre) sobre un vano: dónde, en pantalla, para abrir su menú. */
+  readonly onMenuVano?: (id: string, x: number, y: number) => void;
   /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
   readonly onCoordenadas?: (p: Punto | null) => void;
   /**
@@ -253,6 +273,11 @@ export function Visor({
   cotas = [],
   onMover,
   vanos = [],
+  vanoElegidoId = null,
+  onElegirVano,
+  onAjustarVano,
+  onMenuVano,
+  onSoltarVano = null,
   onCoordenadas,
   onMenu,
   asistir,
@@ -357,6 +382,79 @@ export function Visor({
   // tolerancia del clic del mismo tamaño visual a cualquier zoom.
   const porPixel = vista.ancho / anchoPantalla;
 
+  // Las asas de un vano: lo que se arrastra se ve al instante y se manda al soltar.
+  //  · centro: el vano se pega al muro (puede pasar de un tramo a otro);
+  //  · extremo: el otro extremo queda fijo y el centro se corre con el ancho.
+  const [arrastreVano, setArrastreVano] = useState<{
+    id: string;
+    modo: 'mover' | 'ini' | 'fin';
+    /** Mover: dónde queda (plano) y hacia dónde corre el muro ahí. Extremos: corrimiento del centro y ancho nuevo. */
+    x: number;
+    y: number;
+    angulo: number;
+    distancia: number;
+    corrimiento: number;
+    ancho: number;
+  } | null>(null);
+  function lineaDelVano(trazoId: string | undefined): Punto[] | null {
+    const t = trazoId === undefined ? undefined : trazos.find((x) => x.id === trazoId);
+    const coords = (t?.geometry as { coordinates?: unknown } | undefined)?.coordinates;
+    if (!t || !Array.isArray(coords)) return null;
+    const anillo = String(t.geometry.type) === 'Polygon' ? (coords[0] as number[][]) : (coords as number[][]);
+    return Array.isArray(anillo) ? anillo.map((c) => [c[0], c[1]] as Punto) : null;
+  }
+  function empezarArrastreVano(e: React.PointerEvent, v: VanoVisible, modo: 'mover' | 'ini' | 'fin') {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rad = (v.angulo * Math.PI) / 180;
+    const [ux, uy] = [Math.cos(rad), Math.sin(rad)];
+    const linea = lineaDelVano(v.trazoId);
+    const minimo = 4 * porPixel;
+    const origen = aPlano(e.clientX, e.clientY);
+    let ultimo: NonNullable<typeof arrastreVano> | null = null;
+    const alMover = (ev: PointerEvent) => {
+      const q = aPlano(ev.clientX, ev.clientY);
+      if (modo === 'mover') {
+        const sobre = linea ? proyectarEnPolilinea(q, linea) : null;
+        if (!sobre || !linea) return;
+        const dir = direccionDeLaLinea(linea, sobre.distancia);
+        ultimo = {
+          id: v.id,
+          modo,
+          x: sobre.punto[0],
+          y: sobre.punto[1],
+          angulo: (Math.atan2(dir[1], dir[0]) * 180) / Math.PI,
+          distancia: sobre.distancia,
+          corrimiento: 0,
+          ancho: v.anchoPlano,
+        };
+      } else {
+        const signo = modo === 'ini' ? -1 : 1;
+        // Delta desde donde se agarró el asa: el ancho no salta aunque el asa esté corrida hacia afuera.
+        const along = v.anchoPlano + signo * ((q[0] - origen[0]) * ux + (q[1] - origen[1]) * uy);
+        const ancho = Math.max(minimo, along);
+        const corrimiento = signo * (ancho - v.anchoPlano) / 2;
+        ultimo = { id: v.id, modo, x: v.x, y: v.y, angulo: v.angulo, distancia: 0, corrimiento, ancho };
+      }
+      setArrastreVano(ultimo);
+    };
+    const alSoltar = () => {
+      window.removeEventListener('pointermove', alMover);
+      window.removeEventListener('pointerup', alSoltar);
+      setArrastreVano(null);
+      const u = ultimo;
+      if (!u) return;
+      if (u.modo === 'mover') {
+        if (Math.hypot(u.x - v.x, u.y - v.y) > 1e-9) onAjustarVano?.(v.id, { distanciaPlano: u.distancia });
+      } else if (Math.abs(u.ancho - v.anchoPlano) > 1e-9) {
+        onAjustarVano?.(v.id, { anchoPlano: u.ancho, corrimientoPlano: u.corrimiento });
+      }
+    };
+    window.addEventListener('pointermove', alMover);
+    window.addEventListener('pointerup', alSoltar);
+  }
+
   function alPresionar(e: React.PointerEvent<SVGSVGElement>) {
     if (e.button > 2) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -449,6 +547,23 @@ export function Visor({
     if (alSoltarPuntero(e)) return;
     const g = gesto.current;
     gesto.current = null;
+    if (g && !g.movido && g.soloMueve && e.button === 2 && onMenuVano) {
+      // Un vano bajo el cursor tiene su propio menú (hoja, mover, quitar).
+      const q = aPlano(e.clientX, e.clientY);
+      const sobreVano = [...vanos].reverse().find((v) => {
+        const rad = (v.angulo * Math.PI) / 180;
+        const dx = q[0] - v.x;
+        const dy = q[1] - v.y;
+        const along = dx * Math.cos(rad) + dy * Math.sin(rad);
+        const across = -dx * Math.sin(rad) + dy * Math.cos(rad);
+        const tol = TOLERANCIA_PX * porPixel;
+        return Math.abs(along) <= v.anchoPlano / 2 + tol && Math.abs(across) <= Math.max(10 * porPixel, v.grosorPlano ?? 0) / 2 + tol;
+      });
+      if (sobreVano) {
+        onMenuVano(sobreVano.id, e.clientX, e.clientY);
+        return;
+      }
+    }
     if (g && !g.movido && g.soloMueve && e.button === 2 && onMenu) {
       const sobre = trazoEnPunto(trazos, aPlano(e.clientX, e.clientY), TOLERANCIA_PX * porPixel);
       onMenu(sobre, e.clientX, e.clientY);
@@ -484,6 +599,11 @@ export function Visor({
       // Una nota es un punto diminuto sobre trazos que suelen ser polígonos
       // grandes: si se probara el trazo primero, dentro de un polígono siempre
       // ganaría el trazo y la nota nunca se podría elegir.
+      if (onSoltarVano) {
+        onSoltarVano(p);
+        return;
+      }
+      if (herramienta === 'seleccionar') onElegirVano?.(null);
       const nota = notaEnPunto(notas, p, tolerancia);
       const trazo = nota === null ? trazoEnPunto(trazos, p, tolerancia) : null;
       onSeleccionar(
@@ -495,7 +615,7 @@ export function Visor({
         herramienta === 'seleccionar' && (e.shiftKey || e.ctrlKey || e.metaKey),
       );
     } else {
-      onPunto(p);
+      onPunto(p, TOLERANCIA_PX * 1.75 * porPixel);
     }
   }
 
@@ -660,21 +780,45 @@ export function Visor({
 
       <g className="visor__vanos" data-testid="vanos">
         {vanos.map((v) => {
-          const alto = 10 * px;
+          const alto = Math.max(10 * px, v.grosorPlano ?? 0);
+          // Con el ancla transversal el vano se corre hacia la cara donde cayó el clic (el eje local y sigue al muro).
+          const direccion = Math.cos((v.angulo * Math.PI) / 180);
+          const haciaDerecha = direccion > 1e-9 || (Math.abs(direccion) <= 1e-9 && Math.sin((v.angulo * Math.PI) / 180) > 0);
+          const corrimiento = (v.ladoMuro ?? 0) * ((v.grosorPlano ?? 0) / 2) * (haciaDerecha ? 1 : -1);
+          const elegido = vanoElegidoId === v.id;
+          const enArrastre = arrastreVano?.id === v.id ? arrastreVano : null;
+          // Mientras se arrastra, el vano ya se ve en su lugar nuevo (pegado al muro) o con el ancho nuevo.
+          const moviendo = enArrastre?.modo === 'mover' ? enArrastre : null;
+          const posX = moviendo ? moviendo.x : v.x;
+          const posY = moviendo ? moviendo.y : v.y;
+          const anguloV = moviendo ? moviendo.angulo : v.angulo;
+          const desvio = enArrastre && enArrastre.modo !== 'mover' ? enArrastre.corrimiento : 0;
+          const ancho = enArrastre && enArrastre.modo !== 'mover' ? enArrastre.ancho : v.anchoPlano;
           return (
-            <g key={v.id} data-vano-id={v.id} data-tipo={v.tipo}>
-              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo})`}>
+            <g
+              key={v.id}
+              data-vano-id={v.id}
+              data-tipo={v.tipo}
+              className={elegido ? 'visor__vano-grupo is-elegido' : 'visor__vano-grupo'}
+              onPointerDown={(e) => {
+                if (herramienta !== 'seleccionar' || e.button !== 0) return;
+                e.stopPropagation();
+                onElegirVano?.(v.id);
+              }}
+            >
+              <g transform={`translate(${posX} ${posY}) rotate(${anguloV}) translate(${desvio} ${corrimiento})`}>
+                <rect className="visor__vano-zona" x={-ancho / 2} y={-alto / 2} width={ancho} height={alto} />
                 <rect
                   className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : 'visor__vano'}
-                  x={-v.anchoPlano / 2}
+                  x={-ancho / 2}
                   y={-alto / 2}
-                  width={v.anchoPlano}
+                  width={ancho}
                   height={alto}
                   vectorEffect="non-scaling-stroke"
                 />
                 {v.tipo === 'puerta' && (v.aperturaGrados ?? 90) > 0 && (() => {
                   // La hoja: del eje de las bisagras gira `apertura` hacia el lado en que abre, con el arco que barre.
-                  const w = v.anchoPlano;
+                  const w = ancho;
                   const sentido = (v.bisagra ?? 1) === 1 ? 1 : -1;
                   const lado = (v.ladoHoja ?? 1) === 1 ? 1 : -1;
                   const rad = ((v.aperturaGrados ?? 90) * Math.PI) / 180;
@@ -690,6 +834,13 @@ export function Visor({
                     </g>
                   );
                 })()}
+                {elegido && herramienta === 'seleccionar' && (
+                  <g className="visor__asas">
+                    <circle className="visor__asa" data-asa="ini" cx={-Math.max(ancho / 2, 10 * px)} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'ini')} />
+                    <circle className="visor__asa" data-asa="fin" cx={Math.max(ancho / 2, 10 * px)} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'fin')} />
+                    <circle className="visor__asa visor__asa--centro" data-asa="mover" cx={0} cy={0} r={3.5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'mover')} />
+                  </g>
+                )}
               </g>
               <text
                 className="visor__rotulo"
