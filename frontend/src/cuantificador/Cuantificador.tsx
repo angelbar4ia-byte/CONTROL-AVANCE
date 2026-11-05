@@ -98,6 +98,7 @@ import { AltaNota } from './AltaNota';
 import { EditorDeTrabajo } from './EditorDeTrabajo';
 import { PanelDeElementos } from './PanelDeElementos';
 import { PanelDeParametricos } from './PanelDeParametricos';
+import { AltaDeTrabajo } from './AltaDeTrabajo';
 import { PanelDeTrabajos, cuadrillasDeLosTrabajos, type TrabajoElegido } from './PanelDeTrabajos';
 import { PanelDeMediciones } from './PanelDeMediciones';
 import { TrazosDelPlano } from './TrazosDelPlano';
@@ -561,7 +562,7 @@ export function EspacioDeTrazo({
     query: { enabled: puedeEditarTrabajos && pestana === 'trabajos' },
   });
   const cuadrillasDelCatalogo = useMemo(() => cuadrillasConsulta.data ?? [], [cuadrillasConsulta.data]);
-  const cuadrillasDeLaObra = useMemo(() => cuadrillasDeLosTrabajos(listaDeTrabajos), [listaDeTrabajos]);
+  const cuadrillasDeLaObra = useMemo(() => cuadrillasDeLosTrabajos(listaDeTrabajos, cuadrillasDelCatalogo), [listaDeTrabajos, cuadrillasDelCatalogo]);
   /** Lo medido de cada actividad: con la cantidad presupuestada, da la del concepto en Trabajos. */
   const medidaPorActividad = useMemo(
     () => new Map((estado.data ?? []).filter((n) => n.tipo_nodo === 'actividad').map((n) => [n.nodo_id, n.cantidad_medida])),
@@ -884,6 +885,9 @@ export function EspacioDeTrazo({
     clave: v.clave,
     tipo: v.tipo,
     piezas: v.piezas,
+    bisagra: v.bisagra,
+    ladoHoja: v.lado_hoja,
+    aperturaGrados: v.apertura_grados,
   }));
   const [anguloLibre, setAnguloLibre] = useState('15');
 
@@ -2286,6 +2290,26 @@ export function EspacioDeTrazo({
             elegido={trabajoElegido}
             cargando={trabajosConsulta.isLoading}
             onElegir={setTrabajoElegido}
+            cuadrillasDelCatalogo={cuadrillasDelCatalogo}
+            alta={
+              puedeEditarTrabajos ? (
+                <AltaDeTrabajo
+                  conceptos={actividades.flatMap((a) =>
+                    a.concepto_id
+                      ? [{ conceptoId: a.concepto_id, actividadId: a.id, clave: a.concepto_clave ?? '', descripcion: a.descripcion ?? a.concepto_clave ?? '' }]
+                      : [],
+                  )}
+                  onCambio={(aviso) => setAviso(aviso)}
+                  onError={(m) => setAviso(m)}
+                  onRecargar={() => void trabajosConsulta.refetch()}
+                  onDestajo={(actividadId, insumoId) => setTrabajoElegido({ tipo: 'destajo', actividadId, insumoId })}
+                  onCuadrilla={(id) => {
+                    void cuadrillasConsulta.refetch();
+                    setTrabajoElegido({ tipo: 'cuadrilla', id });
+                  }}
+                />
+              ) : undefined
+            }
           />
         </div>
       ) : pestana === 'elementos' ? (

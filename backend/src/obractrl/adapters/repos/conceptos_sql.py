@@ -348,6 +348,51 @@ class RepositorioConceptosSQL:
             )
         ).scalar_one()
 
+    async def poner_destajo(self, concepto_id: UUID, insumo_id: UUID, factor: Decimal) -> UUID:
+        """Un destajo en la receta del concepto: renglón de insumo, categoría destajo, `factor` unidades del destajo por
+        cada unidad del concepto. Si ya estaba, solo cambia el factor. Composición viva (sin versión de CPU)."""
+        existente = (
+            await self._sesion.execute(
+                text(
+                    "select id from explosion where concepto_id = :c and insumo_id = :i and tipo_hijo = 'insumo' "
+                    "and categoria = 'destajo' and cpu_id is null"
+                ),
+                {"c": str(concepto_id), "i": str(insumo_id)},
+            )
+        ).scalar_one_or_none()
+        if existente is not None:
+            await self._sesion.execute(
+                text("update explosion set cantidad = cast(:f as numeric) where id = :id"),
+                {"f": factor, "id": str(existente)},
+            )
+            return UUID(str(existente))
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into explosion
+                        (org_id, concepto_id, cpu_id, tipo_hijo, insumo_id, categoria,
+                         cantidad, rendimiento, costo_unitario, importe, orden)
+                    values (cast(current_setting('app.org_id') as uuid), :c, null, 'insumo', :i, 'destajo',
+                            cast(:f as numeric), 0, 0, 0,
+                            coalesce((select max(orden) + 1 from explosion where concepto_id = :c), 0))
+                    returning id
+                    """
+                ),
+                {"c": str(concepto_id), "i": str(insumo_id), "f": factor},
+            )
+        ).scalar_one()
+
+    async def quitar_destajo(self, concepto_id: UUID, insumo_id: UUID) -> bool:
+        resultado = await self._sesion.execute(
+            text(
+                "delete from explosion where concepto_id = :c and insumo_id = :i and tipo_hijo = 'insumo' "
+                "and categoria = 'destajo' and cpu_id is null"
+            ),
+            {"c": str(concepto_id), "i": str(insumo_id)},
+        )
+        return bool(resultado.rowcount)
+
     async def quitar_matriz(self, padre_id: UUID, hijo_id: UUID) -> bool:
         resultado = await self._sesion.execute(
             text(

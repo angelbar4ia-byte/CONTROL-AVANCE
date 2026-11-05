@@ -7,9 +7,9 @@
  * del destajo no cambia aunque cambie la cuadrilla.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
-import type { TrabajoDeObraRespuesta } from '@/api/generado/modelo';
+import type { CuadrillaRespuesta, TrabajoDeObraRespuesta } from '@/api/generado/modelo';
 import { fmtMXN, fmtNum } from '@/lib/formato';
 import { agruparTrabajos } from './trabajos';
 
@@ -26,7 +26,11 @@ export interface CuadrillaDeLaObra {
 }
 
 /** Las cuadrillas que aparecen en los trabajos de la obra, con lo que cuestan y dónde trabajan. */
-export function cuadrillasDeLosTrabajos(trabajos: readonly TrabajoDeObraRespuesta[]): readonly CuadrillaDeLaObra[] {
+export function cuadrillasDeLosTrabajos(
+  trabajos: readonly TrabajoDeObraRespuesta[],
+  /** Las del catálogo que aún no trabajan en ningún destajo de la obra (recién dadas de alta). */
+  delCatalogo: readonly CuadrillaRespuesta[] = [],
+): readonly CuadrillaDeLaObra[] {
   const por = new Map<string, { nombre: string; costo: number | null; en: Set<string> }>();
   for (const t of trabajos) {
     if (!t.cuadrilla_id) continue;
@@ -37,6 +41,11 @@ export function cuadrillasDeLosTrabajos(trabajos: readonly TrabajoDeObraRespuest
     };
     entrada.en.add(t.clave);
     por.set(t.cuadrilla_id, entrada);
+  }
+  for (const c of delCatalogo) {
+    if (!por.has(c.id)) {
+      por.set(c.id, { nombre: c.nombre, costo: c.costo_jornada != null ? Number(c.costo_jornada) : null, en: new Set<string>() });
+    }
   }
   return [...por.entries()]
     .map(([id, e]) => ({ id, nombre: e.nombre, costoJornada: e.costo, trabajaEn: [...e.en].sort() }))
@@ -49,16 +58,20 @@ interface Props {
   readonly elegido: TrabajoElegido | null;
   readonly cargando: boolean;
   readonly onElegir: (elegido: TrabajoElegido) => void;
+  /** Las cuadrillas del catálogo, para listar también las que aún no trabajan en la obra. */
+  readonly cuadrillasDelCatalogo?: readonly CuadrillaRespuesta[];
+  /** El alta de destajos y cuadrillas (solo Control de obra). */
+  readonly alta?: ReactNode;
 }
 
-export function PanelDeTrabajos({ trabajos, medidaPorActividad, elegido, cargando, onElegir }: Props) {
+export function PanelDeTrabajos({ trabajos, medidaPorActividad, elegido, cargando, onElegir, cuadrillasDelCatalogo = [], alta }: Props) {
   const [busqueda, setBusqueda] = useState('');
   const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
   const grupos = useMemo(
     () => agruparTrabajos(trabajos, { medidaPorActividad, busqueda }),
     [trabajos, medidaPorActividad, busqueda],
   );
-  const cuadrillas = useMemo(() => cuadrillasDeLosTrabajos(trabajos), [trabajos]);
+  const cuadrillas = useMemo(() => cuadrillasDeLosTrabajos(trabajos, cuadrillasDelCatalogo), [trabajos, cuadrillasDelCatalogo]);
 
   function alternar(clave: string) {
     setAbiertos((actual) => {
@@ -76,6 +89,7 @@ export function PanelDeTrabajos({ trabajos, medidaPorActividad, elegido, cargand
         rendimiento. La cantidad sale del concepto: lo medido en el plano o, si aún no hay, lo
         presupuestado.
       </p>
+      {alta}
       <input
         className="input"
         type="search"
