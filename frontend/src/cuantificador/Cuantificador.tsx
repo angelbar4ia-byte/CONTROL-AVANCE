@@ -184,6 +184,7 @@ import { UnionesDelMuro } from './UnionesDelMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { VanoElegido } from './VanoElegido';
 import { VanosDelPlano } from './VanosDelPlano';
+import { usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut } from '@/api/generado/elementos-parametricos/elementos-parametricos';
 import { useAccionesDeVano } from './accionesDeVano';
 import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
@@ -899,6 +900,9 @@ export function EspacioDeTrazo({
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const [vanoElegidoId, setVanoElegidoId] = useState<string | null>(null);
   const [moviendoVano, setMoviendoVano] = useState(false);
+  /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
+  const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
+  const ponerElemento = usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut<ErrorApi>();
   const [menuDelVano, setMenuDelVano] = useState<{ id: string; x: number; y: number } | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
   /** Por línea: el primer clic (sobre qué trazo y a qué distancia de su inicio, en unidades de plano). */
@@ -1367,6 +1371,25 @@ export function EspacioDeTrazo({
     setExtras(new Set());
   }
 
+  /** «Colocar»: elige la herramienta que corresponde al elemento y deja lo que se trace marcado como él. */
+  function colocarElemento(e: { id: string; clave: string; tipo: string }) {
+    if (elementoPorColocar?.id === e.id) {
+      setElementoPorColocar(null);
+      setAviso(`Terminó de colocar ${e.clave}.`);
+      return;
+    }
+    const herramientaDelElemento = ({ castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'rectangulo' } as const)[e.tipo as 'castillo'];
+    setElementoPorColocar(e);
+    cambiarHerramienta(herramientaDelElemento);
+    setAviso(
+      herramientaDelElemento === 'punto'
+        ? `Colocar ${e.clave}: un clic en el plano por cada pieza. Esc termina.`
+        : herramientaDelElemento === 'linea'
+          ? `Colocar ${e.clave}: traza su eje con Línea; cada trazo suma sus metros. Esc termina.`
+          : `Colocar ${e.clave}: traza el área (Rectángulo o Polígono); cada trazo suma sus m². Esc termina.`,
+    );
+  }
+
   /** El clic que sigue a «Mover…»: el vano elegido se pega al punto más cercano de su muro. */
   function soltarVanoEn(p: Punto) {
     setMoviendoVano(false);
@@ -1595,6 +1618,33 @@ export function EspacioDeTrazo({
     };
     let data: TrazoPeticion | null = null;
     let factor = '1';
+    if (elementoPorColocar) {
+      // Un castillo o una zapata se colocan con Punto, una trabe con Línea, una losa con un Área.
+      const geometriaDelElemento = { castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'poligono' }[elementoPorColocar.tipo];
+      if (geometriaDelElemento !== tipo) {
+        setAviso(`${elementoPorColocar.clave} se coloca con ${geometriaDelElemento === 'punto' ? 'Punto' : geometriaDelElemento === 'linea' ? 'Línea' : 'un área'}. Esc termina.`);
+        limpiarDibujo();
+        return;
+      }
+      const planoId = plano.id;
+      const cuerpo = trazoPeticion({ ...base, enlaces: [] });
+      const elemento = elementoPorColocar;
+      registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
+        async (r) => {
+          alGuardar(r, { planoId, data: cuerpo });
+          try {
+            await ponerElemento.mutateAsync({ trazoId: r.trazo_id, data: { elemento_id: elemento.id, lados_cimbra: null } });
+            void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('elementos-parametricos') });
+            invalidarTrazos();
+            setAviso(`${elemento.clave} colocado: el plano suma su receta. Sigue trazando; Esc termina.`);
+          } catch (err) {
+            setAviso(`Trazo guardado, pero no se pudo marcar como ${elemento.clave}: ${err instanceof Error ? err.message : 'error'}`);
+          }
+        },
+        (err: unknown) => setAviso(`No se pudo guardar el trazo: ${err instanceof Error ? err.message : 'error'}`),
+      );
+      return;
+    }
     let conversionDeLaLinea: ReturnType<typeof conversionDeMuro> | null = null;
     if (medicionActiva) {
       if (motivoDeIncompatibilidad(medicionActiva.tipo, tipo, conForma !== null) === null) {
@@ -1720,6 +1770,15 @@ export function EspacioDeTrazo({
     }
   }
 
+  // «Colocar este elemento» termina con Esc.
+  useEffect(() => {
+    if (elementoPorColocar === null) return;
+    const cerrar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setElementoPorColocar(null);
+    };
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [elementoPorColocar]);
   // Un vano elegido se suelta con Esc, al cambiar de herramienta (salvo Seleccionar) o de plano.
   useEffect(() => {
     if (vanoElegidoId === null) return;
@@ -1748,6 +1807,7 @@ export function EspacioDeTrazo({
         setMenuDelTrazo(null);
         setMenuDelVano(null);
         setVanoElegidoId(null);
+        setElementoPorColocar(null);
       }
     };
     window.addEventListener('keydown', cerrar);
@@ -2612,6 +2672,8 @@ export function EspacioDeTrazo({
               if (aviso) setAviso(aviso);
             }}
             onError={(m) => setAviso(m)}
+            onColocar={colocarElemento}
+            colocandoId={elementoPorColocar?.id ?? null}
           />
           <VanosDelPlano
             vanos={vanosConsulta.data ?? []}

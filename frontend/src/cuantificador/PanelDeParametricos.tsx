@@ -33,13 +33,17 @@ interface Props {
   readonly puedeDefinir: boolean;
   readonly onCambio: (aviso?: string) => void;
   readonly onError: (mensaje: string) => void;
+  /** «Colocar este elemento»: elige la herramienta y marca lo que se trace como este elemento (D-604). */
+  readonly onColocar?: (elemento: { id: string; clave: string; tipo: TipoParametrico }) => void;
+  /** El elemento que se está colocando, si hay uno. */
+  readonly colocandoId?: string | null;
 }
 
 function enEnter(e: KeyboardEvent<HTMLInputElement>) {
   if (e.key === 'Enter') e.currentTarget.blur();
 }
 
-export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }: Props) {
+export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, onColocar, colocandoId = null }: Props) {
   const consulta = useListarElementosParametricosApiV1ElementosParametricosGet();
   const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: planoId !== '' } });
   const conceptosDelPlano = useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(planoId, { query: { enabled: planoId !== '' } });
@@ -156,6 +160,18 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
                   )}
                 </button>
                 <span className="badge badge--outline">{NOMBRE_DEL_TIPO[tipo]}</span>
+                {onColocar && (
+                  <button
+                    type="button"
+                    className={colocandoId === e.id ? 'chip is-active' : 'chip'}
+                    aria-pressed={colocandoId === e.id}
+                    aria-label={`Colocar ${e.clave} en el plano`}
+                    title="Traza con la herramienta que le toca: cada trazo nace marcado como este elemento. Esc termina."
+                    onClick={() => onColocar({ id: e.id, clave: e.clave, tipo })}
+                  >
+                    {colocandoId === e.id ? 'Colocando…' : 'Colocar'}
+                  </button>
+                )}
                 {puedeDefinir && (
                   <button type="button" className="btn btn--ghost btn--sm" aria-label={`Borrar ${e.clave}`} onClick={() => void borrar(e)}>
                     <Trash2 size={12} aria-hidden />
