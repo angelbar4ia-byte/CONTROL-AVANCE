@@ -567,6 +567,12 @@ export function Visor({
         return;
       }
     }
+    if (g && !g.movido && g.soloMueve && e.button === 2 && herramienta === 'zoom') {
+      // Con Zoom el clic derecho aleja (el izquierdo acerca).
+      vistaTocada.current = true;
+      setVista((v) => zoomEn(v, 1.5, T.aplicar(aPlano(e.clientX, e.clientY))));
+      return;
+    }
     if (g && !g.movido && g.soloMueve && e.button === 2 && onMenu) {
       const sobre = trazoEnPunto(trazos, aPlano(e.clientX, e.clientY), TOLERANCIA_PX * porPixel);
       onMenu(sobre, e.clientX, e.clientY);

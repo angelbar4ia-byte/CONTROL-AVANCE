@@ -1480,8 +1480,34 @@ export function EspacioDeTrazo({
     el.textContent = `x ${(p[0] * k).toFixed(2)} · y ${(p[1] * k).toFixed(2)} ${u}`;
   }
 
+  /**
+   * El clic derecho (sin arrastre) con una herramienta de dibujo: termina la figura abierta (polilínea, polígono, contorno,
+   * hueco) como Intro, o cancela la que está a medias como Esc. Sin nada en curso no hace nada.
+   */
+  function clicDerechoDeDibujo() {
+    if (herramienta === 'hueco') {
+      if (huecoEnCurso.length >= PUNTOS_MINIMOS_DE_HUECO) void cerrarHueco();
+      else setHuecoEnCurso([]);
+      return;
+    }
+    if (borrador.length === 0) return;
+    const abierta = forma !== null && forma !== 'punto' && clicsDeLaForma === undefined;
+    const alcanza =
+      forma === 'contorno' ? borrador.length >= 3 : forma !== null && forma !== 'punto' && trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador);
+    if (abierta && alcanza) {
+      terminar();
+      return;
+    }
+    limpiarDibujo();
+  }
+
   function abrirMenuDelTrazo(id: string | null, x: number, y: number) {
-    if (id === null || !['seleccionar', 'mover'].includes(herramienta)) {
+    if (!['seleccionar', 'mover'].includes(herramienta)) {
+      clicDerechoDeDibujo();
+      setMenuDelTrazo(null);
+      return;
+    }
+    if (id === null) {
       setMenuDelTrazo(null);
       return;
     }
