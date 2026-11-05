@@ -7,6 +7,6 @@
  */
 
 /**
- * Solo tipo='ingenieria_lote': 'conocido' (default) o 'diseno_nuevo'.
+ * Solo tipo='ingenieria_lote': 'conocido' (default), 'diseno_nuevo', o sobre el presupuesto de la obra: 'modificar', 'actualizar' o 'sustituir' (D-628).
  */
 export type BodySubirCargaApiV1CargasPostCaminoIngenieria = string | null;
