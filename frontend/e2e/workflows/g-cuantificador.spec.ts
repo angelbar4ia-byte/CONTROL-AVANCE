@@ -13,7 +13,10 @@ import {
 async function elegirObra(pagina: Page, clave: string) {
   const selector = pagina.getByLabel('Obra', { exact: true });
   const opcion = selector.locator('option', { hasText: clave }).first();
-  await selector.selectOption({ label: (await opcion.textContent())!.trim() });
+  // Por valor, no por texto: el texto gana «· Proyecto · Cluster» cuando esas consultas terminan de cargar.
+  await expect(opcion).toHaveCount(1);
+  const valor = await opcion.getAttribute('value');
+  await selector.selectOption(valor!);
 }
 
 
