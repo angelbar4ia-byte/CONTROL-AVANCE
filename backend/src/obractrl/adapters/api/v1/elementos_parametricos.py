@@ -241,3 +241,85 @@ async def elementos_del_plano(plano_id: UUID, caso_uso: GestionarElementosParame
         ],
         trazos=[TrazoConElementoRespuesta(**t) for t in r["trazos"]],
     )
+
+
+class MaterialTomadoRespuesta(BaseModel):
+    cantidad: float
+    unidad: str
+
+
+class ConceptoDelElementoRespuesta(BaseModel):
+    concepto_id: UUID
+    clave: str
+    descripcion: str
+    unidad: str = Field(description="En qué unidad se cuenta el concepto: pza, ml o m².")
+    toma: dict[str, bool] = Field(description="Qué materiales toma: concreto, acero, estribos, alambre, cimbra.")
+    por_unidad: dict[str, MaterialTomadoRespuesta] = Field(description="Lo que toma por unidad del concepto.")
+    cantidad_por_muestra: float = Field(description="Cuántas unidades del concepto trae una muestra del elemento.")
+    lados: int = Field(description="Los lados de cimbra con que se calcula.")
+
+
+class ConceptoTomaPeticion(BaseModel):
+    unidad: Literal["pza", "ml", "m²"]
+    toma: dict[str, bool] = Field(description="Qué materiales toma: concreto, acero, estribos, alambre, cimbra.")
+
+
+class ConceptoDelPlanoRespuesta(BaseModel):
+    elemento_id: UUID
+    concepto_id: UUID
+    clave: str
+    descripcion: str
+    unidad: str
+    cantidad: float = Field(description="Cuánto suma el concepto en el plano, en su unidad.")
+    materiales: dict[str, MaterialTomadoRespuesta] = Field(description="Lo que toma en total, por material.")
+
+
+@router.get(
+    "/elementos-parametricos/{elemento_id}/conceptos",
+    response_model=list[ConceptoDelElementoRespuesta],
+    summary="Los conceptos que toman una parte de la receta del elemento",
+    responses={404: {"description": "El elemento no existe o está fuera de tu alcance."}},
+)
+async def conceptos_del_elemento(elemento_id: UUID, caso_uso: GestionarElementosParametricosDep) -> list[ConceptoDelElementoRespuesta]:
+    return [ConceptoDelElementoRespuesta(**c) for c in await caso_uso.conceptos(elemento_id)]
+
+
+@router.put(
+    "/elementos-parametricos/{elemento_id}/conceptos/{concepto_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Un concepto toma una parte de la receta del elemento",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_DEFINEN))],
+    responses={
+        404: {"description": "El elemento o el concepto no existen o están fuera de tu alcance."},
+        422: {"description": "No toma ningún material, o la unidad no corresponde al elemento."},
+    },
+)
+async def tomar_del_elemento(
+    elemento_id: UUID, concepto_id: UUID, peticion: ConceptoTomaPeticion, ctx: ContextoActual, caso_uso: GestionarElementosParametricosDep
+) -> None:
+    await caso_uso.fijar_concepto(
+        elemento_id, concepto_id, unidad=peticion.unidad, toma=peticion.toma, autor_id=ctx.usuario_id
+    )
+
+
+@router.delete(
+    "/elementos-parametricos/{elemento_id}/conceptos/{concepto_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="El concepto deja de tomar del elemento",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_DEFINEN))],
+    responses={404: {"description": "El elemento no existe o está fuera de tu alcance."}},
+)
+async def dejar_de_tomar_del_elemento(
+    elemento_id: UUID, concepto_id: UUID, caso_uso: GestionarElementosParametricosDep
+) -> None:
+    await caso_uso.quitar_concepto(elemento_id, concepto_id)
+
+
+@router.get(
+    "/planos/{plano_id}/elementos-parametricos/conceptos",
+    response_model=list[ConceptoDelPlanoRespuesta],
+    summary="Lo que cada concepto toma, en total, de los elementos colocados en un plano",
+)
+async def conceptos_del_plano(plano_id: UUID, caso_uso: GestionarElementosParametricosDep) -> list[ConceptoDelPlanoRespuesta]:
+    """La cantidad del concepto en su unidad y los materiales que toma, según los elementos que lleva el plano."""
+    return [ConceptoDelPlanoRespuesta(**c) for c in await caso_uso.conceptos_del_plano(plano_id)]

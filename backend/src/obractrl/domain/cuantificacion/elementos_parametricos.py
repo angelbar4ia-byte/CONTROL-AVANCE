@@ -18,6 +18,7 @@ from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
     "GEOMETRIA_DEL_TIPO",
+    "MATERIALES_DE_UN_ELEMENTO",
     "PARAMETROS_POR_TIPO",
     "PESO_ALAMBRE_KG_M",
     "PESO_VARILLA_KG_M",
@@ -28,6 +29,7 @@ __all__ = [
     "lados_por_defecto",
     "normalizar_parametros",
     "receta",
+    "toma_por_unidad",
 ]
 
 TIPOS_DE_ELEMENTO = ("castillo", "lineal", "zapata", "losa")
@@ -189,3 +191,43 @@ def receta(tipo: str, parametros: dict[str, Any]) -> dict[str, Any]:
         "varas": ml / VARA_COMERCIAL_M,
         "cimbra_m2": {1: 1.0},
     }
+
+
+MATERIALES_DE_UN_ELEMENTO = ("concreto", "acero", "estribos", "alambre", "cimbra")
+"""Lo que un concepto puede tomar de la receta de un elemento."""
+
+
+def toma_por_unidad(
+    tipo: str, parametros: dict[str, Any], unidad: str, toma: dict[str, bool], lados: int | None = None
+) -> dict[str, Any]:
+    """Lo que un concepto toma del elemento **por unidad del concepto** (D-630).
+
+    `toma` dice qué materiales toma. Un castillo puede contarse en piezas o en **metros**: en metros, la receta de una
+    pieza se divide entre su altura. La cimbra usa los `lados` dados (o los de defecto del elemento). Devuelve las
+    cantidades por unidad y la unidad en la que viene cada una, más la `cantidad_por_muestra` (cuántas unidades del
+    concepto trae una muestra).
+    """
+    p = normalizar_parametros(tipo, parametros)
+    r = receta(tipo, p)
+    if unidad not in ("pza", "ml", "m²"):
+        raise ErrorDeElementoParametrico("El concepto se cuenta en pza, ml o m².")
+    if unidad != r["unidad"] and not (tipo == "castillo" and unidad == "ml"):
+        raise ErrorDeElementoParametrico(
+            f"Un {tipo} se cuenta en {'pza o ml' if tipo == 'castillo' else r['unidad']}, no en {unidad}."
+        )
+    en_ml = tipo == "castillo" and unidad == "ml"
+    div = float(p["alto"]) if en_ml else 1.0
+    cantidad_por_muestra = float(p["alto"]) if en_ml else 1.0
+    lado = lados or lados_por_defecto(tipo, p)
+    cimbra = r["cimbra_m2"].get(lado)
+    if cimbra is None:
+        raise ErrorDeElementoParametrico(f"El elemento no lleva cimbra de {lado} lados.")
+    todo = {
+        "concreto": (r["concreto"] / div, "m³"),
+        "acero": (r["acero_kg"] / div, "kg"),
+        "estribos": (r["estribos_kg"] / div, "kg"),
+        "alambre": (r["alambre_kg"] / div, "kg"),
+        "cimbra": (cimbra / div, "m²"),
+    }
+    tomados = {m: {"cantidad": v, "unidad": u} for m, (v, u) in todo.items() if toma.get(m)}
+    return {"unidad": unidad, "cantidad_por_muestra": cantidad_por_muestra, "por_unidad": tomados, "lados": lado}

@@ -139,3 +139,57 @@ async def test_cada_elemento_se_coloca_con_su_geometria(escenario, control: http
     assert (await poner(control, k1, str(uuid.uuid4()))).status_code == 404
     # El residente traza, así que también puede marcar sus piezas.
     assert (await poner(residente, k1, t["punto"])).status_code == 204
+
+
+async def test_un_concepto_toma_su_parte_de_la_receta_del_elemento(
+    control: httpx.AsyncClient, residente: httpx.AsyncClient, escenario
+) -> None:
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from tests.integracion.conftest import DATABASE_URL_ADMIN
+
+    elemento = (
+        await control.post("/api/v1/elementos-parametricos", json={"clave": "K-9", "nombre": "Castillo K-9", "tipo": "castillo"})
+    ).json()["id"]
+    habilitado, colado = uuid.uuid4(), uuid.uuid4()
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            for cid, clave in ((habilitado, "HAB-K9"), (colado, "COL-K9")):
+                await c.execute(
+                    text("insert into concepto (id, org_id, clave, descripcion) values (:i, :o, :k, :k)"),
+                    {"i": str(cid), "o": str(escenario.org_id), "k": clave},
+                )
+    finally:
+        await motor.dispose()
+
+    ruta = f"/api/v1/elementos-parametricos/{elemento}/conceptos"
+    # El acero, los estribos y el alambre al habilitado; el concreto y la cimbra al colado (en metros).
+    assert (await control.put(f"{ruta}/{habilitado}", json={"unidad": "pza", "toma": {"acero": True, "estribos": True, "alambre": True}})).status_code == 204
+    assert (await control.put(f"{ruta}/{colado}", json={"unidad": "ml", "toma": {"concreto": True, "cimbra": True}})).status_code == 204
+
+    lista = {c["clave"]: c for c in (await control.get(ruta)).json()}
+    receta = next(e for e in (await control.get("/api/v1/elementos-parametricos")).json() if e["id"] == elemento)["receta"]
+    assert set(lista["HAB-K9"]["por_unidad"]) == {"acero", "estribos", "alambre"}
+    assert lista["HAB-K9"]["por_unidad"]["acero"]["cantidad"] == pytest.approx(receta["acero_kg"])
+    # En metros, lo que toma una pieza se divide entre su altura (2.6 m).
+    assert lista["COL-K9"]["cantidad_por_muestra"] == pytest.approx(2.6)
+    assert lista["COL-K9"]["por_unidad"]["concreto"]["cantidad"] == pytest.approx(receta["concreto"] / 2.6)
+
+    # No toma nada, o una unidad que el elemento no admite: se rechaza. Un residente no define.
+    assert (await control.put(f"{ruta}/{colado}", json={"unidad": "ml", "toma": {}})).status_code == 422
+    assert (await control.put(f"{ruta}/{colado}", json={"unidad": "m²", "toma": {"concreto": True}})).status_code == 422
+    assert (await residente.put(f"{ruta}/{colado}", json={"unidad": "ml", "toma": {"concreto": True}})).status_code == 403
+
+    # Dos castillos en el plano: el concepto en metros suma 2 × 2.6 m y toma el concreto de ambos.
+    plano, ids = await _plano_con_trazos(control, escenario)
+    for t in (ids["punto"], ids["punto2"]):
+        assert (await control.put(f"/api/v1/trazos/{t}/elemento-parametrico", json={"elemento_id": elemento})).status_code == 204
+    del_plano = {c["clave"]: c for c in (await control.get(f"/api/v1/planos/{plano}/elementos-parametricos/conceptos")).json()}
+    assert del_plano["COL-K9"]["cantidad"] == pytest.approx(5.2)
+    assert del_plano["COL-K9"]["materiales"]["concreto"]["cantidad"] == pytest.approx(2 * receta["concreto"])
+    assert del_plano["HAB-K9"]["cantidad"] == pytest.approx(2)  # en piezas
+
+    assert (await control.delete(f"{ruta}/{habilitado}")).status_code == 204
+    assert [c["clave"] for c in (await control.get(ruta)).json()] == ["COL-K9"]
