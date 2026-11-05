@@ -71,6 +71,7 @@ from obractrl.application.casos_uso.matrices_de_concepto import (
 )
 from obractrl.domain.catalogos.apu import ExplosionCalculada, VersionCPU
 from obractrl.domain.catalogos.cantidad import FormulaDePiezasComerciales
+from obractrl.domain.catalogos.reglas import ErrorDeCatalogo, Insumo
 from obractrl.domain.catalogos.rendimientos import (
     jornadas_por_unidad,
     razon_teorico_calculado,
@@ -956,6 +957,93 @@ async def asignar_cuadrilla_a_destajo(
             "origen_rendimiento": "editado en el ERP",
         },
     )
+    await sesion.commit()
+
+
+class DestajoNuevoPeticion(BaseModel):
+    clave: str | None = Field(default=None, description="Vacía = una consecutiva (MO-00001…).")
+    descripcion: str = Field(min_length=1)
+    unidad_id: UUID | None = Field(default=None, description="Vacía = la unidad del concepto.")
+    precio: Decimal = Field(ge=0, description="Lo que se paga por unidad del destajo.")
+    factor: Decimal = Field(default=Decimal(1), gt=0, description="Unidades del destajo por cada unidad del concepto.")
+    cuadrilla_id: UUID | None = None
+    rendimiento_teorico: Decimal | None = Field(default=None, gt=0)
+
+
+class DestajoNuevoRespuesta(BaseModel):
+    insumo_id: UUID
+    clave: str
+
+
+@router.post(
+    "/conceptos/{concepto_id}/destajos",
+    response_model=DestajoNuevoRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Agregar un destajo a la receta de un concepto",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
+    responses={
+        404: {"description": "El concepto o la cuadrilla no existen en tu alcance."},
+        422: {"description": "Clave repetida o datos de catálogo inválidos."},
+    },
+)
+async def agregar_destajo_al_concepto(
+    concepto_id: UUID, peticion: DestajoNuevoPeticion, sesion: SesionRLS
+) -> DestajoNuevoRespuesta:
+    """Crea el destajo (un insumo de mano de obra con su precio) y lo pone en la receta del concepto. Es del **catálogo**:
+    vale para todas las obras que usen el concepto. La cuadrilla y el rendimiento teórico son opcionales."""
+    conceptos, insumos = RepositorioConceptosSQL(sesion), RepositorioInsumosSQL(sesion)
+    concepto = await conceptos.obtener(concepto_id)
+    if concepto is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "El concepto no existe en tu alcance.")
+    if peticion.cuadrilla_id is not None and await RepositorioCuadrillasSQL(sesion).obtener(peticion.cuadrilla_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "La cuadrilla no existe en tu alcance.")
+    clave = (peticion.clave or "").strip().upper()
+    if not clave:
+        existentes = {str(f["clave"]) for f in await insumos.listar(familia_id=None, solo_activos=False)}
+        n = len([c for c in existentes if c.startswith("MO-")]) + 1
+        while f"MO-{n:05d}" in existentes:
+            n += 1
+        clave = f"MO-{n:05d}"
+    try:
+        dominio = Insumo.crear(
+            tipo=TipoInsumo.MANO_OBRA,
+            clave=clave,
+            descripcion=peticion.descripcion,
+            unidad_id=str(peticion.unidad_id or concepto.get("unidad_id") or "") or None,
+            costo_base=peticion.precio,
+        )
+    except ErrorDeCatalogo as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+    if any(str(f["clave"]) == str(dominio.clave) for f in await insumos.listar(familia_id=None, solo_activos=False)):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Ya existe un insumo con la clave {dominio.clave}.")
+    insumo_id = await insumos.crear(
+        {
+            "tipo": str(dominio.tipo),
+            "clave": str(dominio.clave),
+            "descripcion": dominio.descripcion,
+            "unidad_id": dominio.unidad_id,
+            "familia_id": None,
+            "costo_base": dominio.costo_base,
+            "cuadrilla_id": peticion.cuadrilla_id,
+            "rendimiento_teorico": peticion.rendimiento_teorico,
+        }
+    )
+    await conceptos.poner_destajo(concepto_id, insumo_id, peticion.factor)
+    await sesion.commit()
+    return DestajoNuevoRespuesta(insumo_id=insumo_id, clave=str(dominio.clave))
+
+
+@router.delete(
+    "/conceptos/{concepto_id}/destajos/{insumo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Quitar un destajo de la receta de un concepto",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
+    responses={404: {"description": "Ese destajo no es parte de la receta del concepto."}},
+)
+async def quitar_destajo_del_concepto(concepto_id: UUID, insumo_id: UUID, sesion: SesionRLS) -> None:
+    """El destajo sigue en el catálogo de insumos; solo deja de ser parte de la receta de este concepto."""
+    if not await RepositorioConceptosSQL(sesion).quitar_destajo(concepto_id, insumo_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ese destajo no es parte de la receta del concepto.")
     await sesion.commit()
 
 

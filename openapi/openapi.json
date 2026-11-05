@@ -2788,6 +2788,116 @@
         }
       }
     },
+    "/api/v1/conceptos/{concepto_id}/destajos": {
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Agregar un destajo a la receta de un concepto",
+        "description": "Crea el destajo (un insumo de mano de obra con su precio) y lo pone en la receta del concepto. Es del **catálogo**:\nvale para todas las obras que usen el concepto. La cuadrilla y el rendimiento teórico son opcionales.",
+        "operationId": "agregar_destajo_al_concepto_api_v1_conceptos__concepto_id__destajos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestajoNuevoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestajoNuevoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El concepto o la cuadrilla no existen en tu alcance."
+          },
+          "422": {
+            "description": "Clave repetida o datos de catálogo inválidos."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/destajos/{insumo_id}": {
+      "delete": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Quitar un destajo de la receta de un concepto",
+        "description": "El destajo sigue en el catálogo de insumos; solo deja de ser parte de la receta de este concepto.",
+        "operationId": "quitar_destajo_del_concepto_api_v1_conceptos__concepto_id__destajos__insumo_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          },
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Ese destajo no es parte de la receta del concepto."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cuadrillas/{cuadrilla_id}/versiones": {
       "get": {
         "tags": [
@@ -22997,6 +23107,122 @@
           "importante_dias"
         ],
         "title": "DesfaseDePartesRespuesta"
+      },
+      "DestajoNuevoPeticion": {
+        "properties": {
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave",
+            "description": "Vacía = una consecutiva (MO-00001…)."
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id",
+            "description": "Vacía = la unidad del concepto."
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio",
+            "description": "Lo que se paga por unidad del destajo."
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor",
+            "description": "Unidades del destajo por cada unidad del concepto.",
+            "default": "1"
+          },
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "rendimiento_teorico": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Teorico"
+          }
+        },
+        "type": "object",
+        "required": [
+          "descripcion",
+          "precio"
+        ],
+        "title": "DestajoNuevoPeticion"
+      },
+      "DestajoNuevoRespuesta": {
+        "properties": {
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo_id",
+          "clave"
+        ],
+        "title": "DestajoNuevoRespuesta"
       },
       "DestajoRespuesta": {
         "properties": {
