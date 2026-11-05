@@ -964,7 +964,7 @@ class DestajoNuevoPeticion(BaseModel):
     clave: str | None = Field(default=None, description="Vacía = una consecutiva (MO-00001…).")
     descripcion: str = Field(min_length=1)
     unidad_id: UUID | None = Field(default=None, description="Vacía = la unidad del concepto.")
-    precio: Decimal = Field(ge=0, description="Lo que se paga por unidad del destajo.")
+    precio: Decimal = Field(default=Decimal(0), ge=0, description="Lo que se paga por unidad del destajo; los costos se definen en Presupuesto, vacío = 0.")
     factor: Decimal = Field(default=Decimal(1), gt=0, description="Unidades del destajo por cada unidad del concepto.")
     cuadrilla_id: UUID | None = None
     rendimiento_teorico: Decimal | None = Field(default=None, gt=0)

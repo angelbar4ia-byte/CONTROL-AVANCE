@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VanoEnPlanoRespuestaPosicionM } from "./vanoEnPlanoRespuestaPosicionM";
+import type { VanoEnPlanoRespuestaBisagra } from "./vanoEnPlanoRespuestaBisagra";
+import type { VanoEnPlanoRespuestaLadoHoja } from "./vanoEnPlanoRespuestaLadoHoja";
 
 export interface VanoEnPlanoRespuesta {
   id: string;
@@ -18,6 +20,9 @@ export interface VanoEnPlanoRespuesta {
   alto_m: string;
   piezas: number;
   posicion_m: VanoEnPlanoRespuestaPosicionM;
+  bisagra?: VanoEnPlanoRespuestaBisagra;
+  lado_hoja?: VanoEnPlanoRespuestaLadoHoja;
+  apertura_grados?: number;
   /** Dónde va, en coordenadas del plano. */
   x: number;
   y: number;

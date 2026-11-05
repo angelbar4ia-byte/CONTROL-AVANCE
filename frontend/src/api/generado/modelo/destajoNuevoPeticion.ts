@@ -19,8 +19,8 @@ export interface DestajoNuevoPeticion {
   descripcion: string;
   /** Vacía = la unidad del concepto. */
   unidad_id?: DestajoNuevoPeticionUnidadId;
-  /** Lo que se paga por unidad del destajo. */
-  precio: DestajoNuevoPeticionPrecio;
+  /** Lo que se paga por unidad del destajo; los costos se definen en Presupuesto, vacío = 0. */
+  precio?: DestajoNuevoPeticionPrecio;
   /** Unidades del destajo por cada unidad del concepto. */
   factor?: DestajoNuevoPeticionFactor;
   cuadrilla_id?: DestajoNuevoPeticionCuadrillaId;

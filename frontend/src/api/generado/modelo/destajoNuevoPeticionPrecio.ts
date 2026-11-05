@@ -7,6 +7,6 @@
  */
 
 /**
- * Lo que se paga por unidad del destajo.
+ * Lo que se paga por unidad del destajo; los costos se definen en Presupuesto, vacío = 0.
  */
 export type DestajoNuevoPeticionPrecio = number | string;

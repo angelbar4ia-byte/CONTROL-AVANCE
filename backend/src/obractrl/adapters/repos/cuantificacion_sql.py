@@ -82,6 +82,19 @@ _VANOS_DISPONIBLES = False
 """Se vuelve `True` cuando la tabla `vano` (0103) ya existe y no se vuelve a preguntar."""
 
 
+async def _hay_hoja(sesion: AsyncSession) -> bool:
+    return bool(
+        (
+            await sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns "
+                    "where table_schema = 'public' and table_name = 'vano' and column_name = 'apertura_grados')"
+                )
+            )
+        ).scalar_one()
+    )
+
+
 async def _hay_tabla(sesion: AsyncSession, nombre: str) -> bool:
     return bool((await sesion.execute(text("select to_regclass(:n) is not null"), {"n": f"public.{nombre}"})).scalar_one())
 
@@ -501,12 +514,17 @@ class RepositorioTrazosSQL:
         `posicion_m` se mide en metros desde el inicio de la línea (con la escala del plano; sin calibrar, en unidades
         de plano); sin posición, el vano va a la mitad. `ancho_plano` es el ancho del vano en unidades de plano.
         """
+        hoja_v = (
+            "v.bisagra, v.lado_hoja, v.apertura_grados"
+            if await _hay_hoja(self._sesion)
+            else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
+        )
         filas = (
             await self._sesion.execute(
                 text(
-                    """
+                    f"""
                     with base as (
-                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m,
+                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m, {hoja_v},
                              t.geometria as g, coalesce(p.escala_m_por_unidad, 1) as escala,
                              ST_Length(t.geometria) as largo
                         from vano v
@@ -523,7 +541,7 @@ class RepositorioTrazosSQL:
                              ST_LineInterpolatePoint(g, greatest(0.0, fr - 0.001)) as a
                         from f
                     )
-                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas, posicion_m,
+                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas, posicion_m, bisagra, lado_hoja, apertura_grados,
                            ST_X(c) as x, ST_Y(c) as y,
                            degrees(atan2(ST_Y(d) - ST_Y(a), ST_X(d) - ST_X(a))) as angulo,
                            ancho_m / escala as ancho_plano
@@ -737,11 +755,12 @@ class RepositorioTrazosSQL:
         return None
 
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        hoja = "bisagra, lado_hoja, apertura_grados" if await _hay_hoja(self._sesion) else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
         filas = (
             await self._sesion.execute(
                 text(
-                    """
-                    select id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, llega_al_piso
+                    f"""
+                    select id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, llega_al_piso, {hoja}
                       from vano where trazo_id = :t order by created_at, id
                     """
                 ),
@@ -749,6 +768,14 @@ class RepositorioTrazosSQL:
             )
         ).mappings().all()
         return [dict(f) for f in filas]
+
+    async def fijar_hoja(self, vano_id: UUID, *, bisagra: int, lado_hoja: int, apertura_grados: int) -> None:
+        if not await _hay_hoja(self._sesion):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0113 (hoja de las puertas) en esta base.")
+        await self._sesion.execute(
+            text("update vano set bisagra = :b, lado_hoja = :l, apertura_grados = :a where id = :id"),
+            {"b": bisagra, "l": lado_hoja, "a": apertura_grados, "id": str(vano_id)},
+        )
 
     async def crear_hueco(
         self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID

@@ -1254,6 +1254,9 @@ class VanoRespuesta(BaseModel):
     piezas: int
     posicion_m: Decimal | None
     llega_al_piso: bool
+    bisagra: Literal[-1, 1] = Field(default=1, description="Extremo donde van las bisagras: 1 el inicial, -1 el otro.")
+    lado_hoja: Literal[-1, 1] = Field(default=1, description="Hacia qué lado del muro abre la hoja.")
+    apertura_grados: int = Field(default=90, ge=0, le=180, description="Cuánto está abierta la hoja al dibujarla.")
 
 
 class VanoCambiadoRespuesta(BaseModel):
@@ -1304,6 +1307,26 @@ async def colocar_vano(
     )
     return VanoCambiadoRespuesta(
         vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )
+
+
+class HojaDelVanoPeticion(BaseModel):
+    bisagra: Literal[-1, 1] = 1
+    lado_hoja: Literal[-1, 1] = 1
+    apertura_grados: int = Field(default=90, ge=0, le=180)
+
+
+@router.put(
+    "/vanos/{vano_id}/hoja",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="La hoja de una puerta: bisagra, lado y apertura",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
+)
+async def fijar_hoja_del_vano(vano_id: UUID, peticion: HojaDelVanoPeticion, caso_uso: GestionarVanosDep) -> None:
+    """Dibujo y especificación: no cambia lo que descuenta el vano, así que no recalcula cantidades."""
+    await caso_uso.fijar_hoja(
+        vano_id, bisagra=peticion.bisagra, lado_hoja=peticion.lado_hoja, apertura_grados=peticion.apertura_grados
     )
 
 
@@ -1514,6 +1537,9 @@ class VanoEnPlanoRespuesta(BaseModel):
     alto_m: Decimal
     piezas: int
     posicion_m: Decimal | None
+    bisagra: Literal[-1, 1] = 1
+    lado_hoja: Literal[-1, 1] = 1
+    apertura_grados: int = 90
     x: float = Field(description="Dónde va, en coordenadas del plano.")
     y: float
     angulo: float = Field(description="Hacia dónde corre el muro en ese punto, en grados (eje y hacia abajo).")
