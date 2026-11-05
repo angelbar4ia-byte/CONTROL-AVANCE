@@ -367,6 +367,14 @@ class RepositorioMatrices(Protocol):
         """Escribe la cantidad que cada matriz de la obra toma de un elemento (D-639); devuelve las actividades a recalcular."""
         ...
 
+    async def de_si_misma(self, actividad_id: UUID) -> Decimal | None:
+        """Lo que el concepto de la actividad toma de un elemento (D-639), o `None`."""
+        ...
+
+    async def tomas_propias(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Actividades de la obra cuyo concepto toma de un elemento: `{actividad_id, cantidad, descripcion, cant_base}`."""
+        ...
+
     async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
         """La matriz que da la cantidad de la actividad (0118, D-636): `{concepto_id, cantidad}` o `None`."""
         ...

@@ -52,6 +52,7 @@ function Nodo({
   edicion,
   cuentaId,
   onCuenta,
+  enCurso = false,
 }: {
   readonly nodo: NodoDeMatriz;
   readonly cerradas: ReadonlySet<string>;
@@ -64,6 +65,8 @@ function Nodo({
   /** La matriz que da la cantidad del concepto (D-636) y cómo cambiarla; sin `onCuenta` no se ofrece. */
   readonly cuentaId?: string | null;
   readonly onCuenta?: (matrizId: string | null) => void;
+  /** Mientras una petición de «Que cuente» está en curso el botón espera: un clic con el estado viejo la desharía. */
+  readonly enCurso?: boolean;
 }) {
   const conHijos = nodo.hijos.length > 0;
   const abierto = !cerradas.has(nodo.llave);
@@ -121,6 +124,7 @@ function Nodo({
             className={nodo.conceptoId === cuentaId ? 'chip is-active' : 'chip'}
             aria-pressed={nodo.conceptoId === cuentaId}
             data-cuenta={nodo.clave}
+            disabled={enCurso}
             title={
               nodo.conceptoId === cuentaId
                 ? 'Esta matriz da la cantidad del concepto. Un clic la suelta: cuentan sus trazos propios.'
@@ -163,7 +167,7 @@ function Nodo({
       {conHijos && abierto && (
         <ul role="group" className="arbol__hijos">
           {nodo.hijos.map((h) => (
-            <Nodo key={h.llave} nodo={h} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={nodo.conceptoId} edicion={edicion} cuentaId={cuentaId} onCuenta={onCuenta} />
+            <Nodo key={h.llave} nodo={h} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={nodo.conceptoId} edicion={edicion} cuentaId={cuentaId} onCuenta={onCuenta} enCurso={enCurso} />
           ))}
         </ul>
       )}
@@ -268,7 +272,7 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
       </div>
       <ul role="tree" className="arbol__hijos arbol__matrices-arbol" aria-label={`Árbol de matrices de ${datos.concepto_clave ?? 'la actividad'}`}>
         {nodos.map((n) => (
-          <Nodo key={n.llave} nodo={n} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={datos.concepto_id ?? null} edicion={edicion} cuentaId={datos.matriz_cuenta_id ?? null} onCuenta={alCuenta} />
+          <Nodo key={n.llave} nodo={n} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={datos.concepto_id ?? null} edicion={edicion} cuentaId={datos.matriz_cuenta_id ?? null} onCuenta={alCuenta} enCurso={ponerCuenta.isPending} />
         ))}
       </ul>
       {edicion && datos.concepto_id && (

@@ -1602,6 +1602,26 @@ class RepositorioMatricesSQL:
                     continue
                 await self.fijar_cantidad(actividad_id=UUID(str(actividad_id)), concepto_id=cid, cantidad=toma[0], origen="elemento")
                 conservadas.append(str(cid))
+            # El concepto de la actividad misma también puede tomar de un elemento (D-639): su cantidad se guarda con su
+            # propio concepto como clave y solo vale mientras no tenga trazos directos (lo medido manda).
+            propio = arbol.get("concepto_id")
+            toma_propia = tomas.get(UUID(str(propio))) if propio is not None else None
+            if toma_propia is not None:
+                directos = (
+                    await self._sesion.execute(
+                        text(
+                            "select exists (select 1 from enlace_cuantificacion where actividad_id = :a and vigente "
+                            "and matriz_concepto_id is null)"
+                        ),
+                        {"a": str(actividad_id)},
+                    )
+                ).scalar_one()
+                _, del_concepto = await self.unidades(UUID(str(actividad_id)), UUID(str(propio)))
+                if not directos and coincide_la_unidad(del_concepto or "", toma_propia[1]):
+                    await self.fijar_cantidad(
+                        actividad_id=UUID(str(actividad_id)), concepto_id=UUID(str(propio)), cantidad=toma_propia[0], origen="elemento"
+                    )
+                    conservadas.append(str(propio))
             await self._sesion.execute(
                 text(
                     "delete from actividad_matriz where actividad_id = :a and origen = 'elemento' "
@@ -1612,6 +1632,38 @@ class RepositorioMatricesSQL:
             if await self.la_que_cuenta(UUID(str(actividad_id))) is not None:
                 a_recalcular.append(UUID(str(actividad_id)))
         return a_recalcular
+
+    async def de_si_misma(self, actividad_id: UUID) -> Decimal | None:
+        """Lo que el concepto de la actividad toma de un elemento colocado (D-639), si lo toma."""
+        if not await _hay_columna(self._sesion, "actividad_matriz", "origen"):
+            return None
+        fila = (
+            await self._sesion.execute(
+                text(
+                    "select m.cantidad_medida from actividad a join actividad_matriz m "
+                    "on m.actividad_id = a.id and m.concepto_id = a.concepto_id and m.origen = 'elemento' where a.id = :a"
+                ),
+                {"a": str(actividad_id)},
+            )
+        ).scalar_one_or_none()
+        return Decimal(str(fila)) if fila is not None else None
+
+    async def tomas_propias(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Las actividades de la obra cuyo concepto toma de un elemento: `{actividad_id, cantidad, descripcion, cant_base}`."""
+        if not await _hay_columna(self._sesion, "actividad_matriz", "origen"):
+            return []
+        filas = (
+            await self._sesion.execute(
+                text(
+                    "select a.id as actividad_id, m.cantidad_medida as cantidad, "
+                    "coalesce(a.descripcion, c.descripcion, '') as descripcion, a.cant_base "
+                    "from actividad a join actividad_matriz m on m.actividad_id = a.id and m.concepto_id = a.concepto_id "
+                    "and m.origen = 'elemento' left join concepto c on c.id = a.concepto_id where a.obra_id = :o"
+                ),
+                {"o": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
 
     async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
         """La matriz que da la cantidad de la actividad (0118): `{concepto_id, cantidad}`; `None` si no hay o falta 0118."""

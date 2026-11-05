@@ -21,9 +21,11 @@ interface Props {
   readonly geometria: string;
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
+  /** «Ver el elemento»: abre el elemento en la pestaña Elementos. */
+  readonly onVerElemento?: (elementoId: string) => void;
 }
 
-export function ElementoDelTrazo({ planoId, trazoId, geometria, onCambio, onError }: Props) {
+export function ElementoDelTrazo({ planoId, trazoId, geometria, onCambio, onError, onVerElemento }: Props) {
   const tipos = tiposParaGeometria(geometria);
   const catalogo = useListarElementosParametricosApiV1ElementosParametricosGet({ query: { enabled: tipos.length > 0 } });
   const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: tipos.length > 0 } });
@@ -62,6 +64,11 @@ export function ElementoDelTrazo({ planoId, trazoId, geometria, onCambio, onErro
           </option>
         ))}
       </select>
+      {elegido && onVerElemento && (
+        <button type="button" className="btn btn--sm" onClick={() => onVerElemento(elegido.id)}>
+          Ver el elemento
+        </button>
+      )}
       {lados.length > 1 && elegido && (
         <select
           aria-label="Lados de cimbra"

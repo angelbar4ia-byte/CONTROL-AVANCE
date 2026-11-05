@@ -479,6 +479,11 @@ async def _recalcular_nodo(
         cuenta = await matrices.la_que_cuenta(actividad_id)  # type: ignore[arg-type]
         if cuenta is not None:
             cantidad_total = Decimal(str(cuenta["cantidad"])) if cuenta["cantidad"] is not None else Decimal(0)
+        elif not any(m.vigente for m in medidas):
+            # Sin trazos directos, el concepto puede tomar su cantidad de un elemento colocado (D-639).
+            propia = await matrices.de_si_misma(actividad_id)  # type: ignore[arg-type]
+            if propia is not None:
+                cantidad_total = propia
 
     if tipo_nodo is TipoNodoCuantificacion.ACTIVIDAD:
         actividad = await actividades.obtener(actividad_id)  # type: ignore[arg-type]
@@ -1932,6 +1937,10 @@ class ConsultarCuantificacion:
                 cuenta = await self._matrices.la_que_cuenta(nodo_id)
                 if cuenta is not None:
                     medida_del_nodo = Decimal(str(cuenta["cantidad"])) if cuenta["cantidad"] is not None else Decimal(0)
+                elif not vigentes:
+                    propia = await self._matrices.de_si_misma(nodo_id)
+                    if propia is not None:
+                        medida_del_nodo = propia
             nodos.append(
                 NodoCuantificado(
                     tipo_nodo=tipo_nodo,
@@ -1949,6 +1958,24 @@ class ConsultarCuantificacion:
                     trazos_por_revisar=sum(1 for e in vigentes if e["por_revisar"]),
                 )
             )
+        if self._matrices is not None:
+            # Un concepto que toma de un elemento y no tiene ningún enlace aún no aparece arriba: se agrega con lo que toma.
+            presentes = {n.nodo_id for n in nodos}
+            for t in await self._matrices.tomas_propias(obra_id):
+                if t["actividad_id"] in presentes:
+                    continue
+                nodos.append(
+                    NodoCuantificado(
+                        tipo_nodo=TipoNodoCuantificacion.ACTIVIDAD.value,
+                        nodo_id=t["actividad_id"],
+                        descripcion=t["descripcion"],
+                        cant_base=Decimal(str(t["cant_base"])) if t["cant_base"] is not None else None,
+                        cantidad_medida=Decimal(str(t["cantidad"])),
+                        enlaces_vigentes=0,
+                        enlaces_reemplazados=0,
+                        trazos_por_revisar=0,
+                    )
+                )
         return nodos
 
     async def _exigir_obra(self, obra_id: UUID) -> None:
