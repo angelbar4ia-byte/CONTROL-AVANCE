@@ -75,6 +75,15 @@ from obractrl.application.puertos.repositorios import (
     RepositorioPrototipoNodo,
     UnidadDeTrabajo,
 )
+from obractrl.domain.cuantificacion.conversion import (
+    CAMPOS_POR_MODO,
+    MODOS_POR_TIPO,
+    coincide_la_unidad,
+    conversion_por_defecto,
+    formula_en_texto,
+    medida_natural,
+    normalizar_conversion,
+)
 from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
 from obractrl.domain.cuantificacion.medicion import motivo_de_incompatibilidad
@@ -111,6 +120,7 @@ __all__ = [
     "ComandoRegistrarTrazo",
     "ComandoTransformarTrazos",
     "ConsultarCuantificacion",
+    "ConversionDelEnlace",
     "EliminarTrazo",
     "EnlaceNoEncontrado",
     "ErrorDeCuantificacion",
@@ -306,6 +316,8 @@ class NuevoEnlace:
     trazo_id: UUID
     medida: MedidaCuantificacion
     factor: Decimal
+    conversion: dict[str, Any] | None = None
+    """Cómo cuenta el trazo para el concepto (D-633): con ella el factor es 1 y la cantidad la calcula la base."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -804,6 +816,7 @@ class ReemplazarEnlace:
                     matriz_concepto_id=matriz_concepto_id,
                     medida=cmd.nuevo.medida.value,
                     factor=cmd.nuevo.factor,
+                    **({"conversion": cmd.nuevo.conversion} if cmd.nuevo.conversion is not None else {}),
                 )
 
             resultado = await _recalcular_nodo(
@@ -1973,3 +1986,90 @@ class TransformarTrazos:
                 resultado.append(TrazoTransformado(trazo_id=trazo_id, pivote=pivote))
             await self._uow.commit()
         return resultado
+
+
+class ConversionDelEnlace:
+    """Cómo cuenta un trazo para su concepto (D-633): ver, calcular y aplicar la conversión de un enlace.
+
+    **Aplicar** es un reemplazo explícito: crea un enlace nuevo con la conversión y el anterior queda como evidencia
+    (`vigente=false`) y deja de sumar. Con `a_todos`, lo mismo para los demás trazos del mismo tipo del concepto.
+    """
+
+    def __init__(self, *, enlaces: RepositorioEnlacesCuantificacion, reemplazar: ReemplazarEnlace) -> None:
+        self._enlaces = enlaces
+        self._reemplazar = reemplazar
+
+    async def _enlace_vigente(self, enlace_id: UUID) -> dict[str, Any]:
+        e = await self._enlaces.obtener(enlace_id)
+        if e is None:
+            raise EnlaceNoEncontrado(f"El enlace {enlace_id} no existe o está fuera de tu alcance.")
+        if not e["vigente"]:
+            raise ErrorDeCuantificacion("Ese enlace ya fue reemplazado: elige el vigente.")
+        return e
+
+    async def _tipo(self, e: dict[str, Any]) -> str:
+        return str((await self._enlaces.calcular_conversion(e["trazo_id"], {"modo": "largo"}))["tipo"])
+
+    async def ver(self, enlace_id: UUID) -> dict[str, Any]:
+        e = await self._enlace_vigente(enlace_id)
+        unidad = await self._enlaces.unidad_del_concepto(e)
+        tipo = await self._tipo(e)
+        actual = e.get("conversion") or conversion_por_defecto(tipo, unidad)
+        con_modos = tipo in MODOS_POR_TIPO
+        return {
+            "enlace_id": enlace_id,
+            "tipo": tipo,
+            "unidad_del_concepto": unidad,
+            "conversion": normalizar_conversion(tipo, actual) if con_modos else None,
+            "es_la_de_hoy": e.get("conversion") is not None,
+            "modos": [{"clave": k, "nombre": n} for k, n in MODOS_POR_TIPO.get(tipo, ())],
+            "campos": {
+                m: [{"clave": c, "etiqueta": et, "unidad": u} for c, et, u in CAMPOS_POR_MODO.get(f"{tipo}/{m}", ())]
+                for m, _ in MODOS_POR_TIPO.get(tipo, ())
+            },
+        }
+
+    async def calcular(self, enlace_id: UUID, conversion: dict[str, Any]) -> dict[str, Any]:
+        e = await self._enlace_vigente(enlace_id)
+        tipo = await self._tipo(e)
+        limpia = normalizar_conversion(tipo, conversion)
+        c = await self._enlaces.calcular_conversion(e["trazo_id"], limpia)
+        unidad = await self._enlaces.unidad_del_concepto(e)
+        return {
+            "valor": float(c["valor"]),
+            "unidad": str(c["unidad"]),
+            "formula": formula_en_texto(c, limpia),
+            "unidad_del_concepto": unidad,
+            "coincide": coincide_la_unidad(str(c["unidad"]), unidad),
+            "conversion": limpia,
+            "componentes": c,
+        }
+
+    async def aplicar(
+        self, enlace_id: UUID, conversion: dict[str, Any], *, a_todos: bool, rol: Rol, usuario_id: UUID | None, detectada_en: datetime
+    ) -> dict[str, Any]:
+        e = await self._enlace_vigente(enlace_id)
+        tipo = await self._tipo(e)
+        limpia = normalizar_conversion(tipo, conversion)
+        objetivos = [e]
+        if a_todos:
+            for h in await self._enlaces.hermanos_del_mismo_tipo(e):
+                objetivos.append(await self._enlace_vigente(h["id"]))
+        resultado = None
+        for o in objetivos:
+            resultado = await self._reemplazar.ejecutar(
+                ComandoReemplazarEnlace(
+                    enlace_id=o["id"],
+                    rol=rol,
+                    usuario_id=usuario_id,
+                    nuevo=NuevoEnlace(
+                        trazo_id=o["trazo_id"],
+                        medida=MedidaCuantificacion(medida_natural(tipo)),
+                        factor=Decimal(1),
+                        conversion=limpia,
+                    ),
+                ),
+                detectada_en=detectada_en,
+            )
+        assert resultado is not None
+        return {"aplicados": len(objetivos), "resultado": resultado}

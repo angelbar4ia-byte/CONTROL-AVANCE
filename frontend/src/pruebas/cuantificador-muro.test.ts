@@ -1,23 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { alturaQueSuma } from '@/cuantificador/MuroDelTrazo';
+import { aPeticion, hayCambios, type BorradorDeConversion } from '@/cuantificador/ConversionDelEnlace';
 
-describe('altura que suma un muro (D-627)', () => {
-  it('sin partes es la altura única', () => {
-    expect(alturaQueSuma(null, '2.6')).toBeCloseTo(2.6);
-    expect(alturaQueSuma([], '2,4')).toBeCloseTo(2.4);
+const muro = (c: Partial<BorradorDeConversion> = {}): BorradorDeConversion => ({
+  modo: 'area', mide: 'cara2', cara: 'int', lado: 'der', partes: [], alt: '2,6', ...c,
+});
+
+describe('conversión del enlace (D-633)', () => {
+  it('manda los números como números, con coma o con punto', () => {
+    expect(aPeticion(muro({ alt: '2,6', gro: '0.15' }))).toMatchObject({ modo: 'area', alt: 2.6, gro: 0.15, mide: 'cara2' });
   });
 
-  it('por partes suma solo las que suman', () => {
-    const partes = [
-      { nombre: 'Muro', desde: '0', hasta: '2.3', suma: true },
-      { nombre: 'Cerramiento', desde: '2.3', hasta: '2.5', suma: false },
-      { nombre: 'Enrase', desde: '2.5', hasta: '3', suma: true },
-    ];
-    expect(alturaQueSuma(partes, '9')).toBeCloseTo(2.8);
+  it('un campo vacío no se manda', () => {
+    expect('esp' in aPeticion(muro({ esp: '' }))).toBe(false);
   });
 
-  it('una parte al revés no resta', () => {
-    expect(alturaQueSuma([{ nombre: 'X', desde: '2', hasta: '1', suma: true }], '2.6')).toBe(0);
+  it('hay cambios sin aplicar solo si lo editado difiere de lo vigente, sin importar cómo se escribió', () => {
+    expect(hayCambios(muro({ alt: '2.6' }), muro({ alt: '2,6' }))).toBe(false);
+    expect(hayCambios(muro({ mide: 'eje' }), muro())).toBe(true);
+    expect(hayCambios(muro({ partes: [{ nombre: 'M', desde_m: 0, hasta_m: 2.3, suma: true }] }), muro())).toBe(true);
+    expect(hayCambios(null, muro())).toBe(false);
   });
 });

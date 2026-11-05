@@ -11210,6 +11210,160 @@
         }
       }
     },
+    "/api/v1/enlaces/{enlace_id}/conversion": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir",
+        "operationId": "ver_conversion_api_v1_enlaces__enlace_id__conversion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionDelEnlaceRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El enlace no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue reemplazado."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Aplicar la conversión: crea un enlace nuevo y el anterior queda como evidencia",
+        "operationId": "aplicar_conversion_api_v1_enlaces__enlace_id__conversion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AplicarConversionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionAplicadaRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El enlace es de un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El enlace no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La conversión no vale o el enlace ya fue reemplazado."
+          }
+        }
+      }
+    },
+    "/api/v1/enlaces/{enlace_id}/conversion/calcular": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Calcular cuánto aportaría el trazo con esta conversión, sin guardar nada",
+        "description": "La vista previa: el mismo cálculo que se guarda al aplicar, con la fórmula escrita y si coincide la unidad.",
+        "operationId": "calcular_conversion_api_v1_enlaces__enlace_id__conversion_calcular_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDeConversionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El enlace no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La conversión no vale."
+          }
+        }
+      }
+    },
     "/api/v1/trazos/{trazo_id}/uniones": {
       "get": {
         "tags": [
@@ -18587,6 +18741,24 @@
         ],
         "title": "AlertasDePartesRespuesta"
       },
+      "AplicarConversionPeticion": {
+        "properties": {
+          "conversion": {
+            "$ref": "#/components/schemas/ConversionPeticion"
+          },
+          "a_todos": {
+            "type": "boolean",
+            "title": "A Todos",
+            "description": "También a los demás trazos del mismo tipo de este concepto.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversion"
+        ],
+        "title": "AplicarConversionPeticion"
+      },
       "AprobarLotePeticion": {
         "properties": {
           "ids": {
@@ -19337,6 +19509,59 @@
         ],
         "title": "CPURespuesta"
       },
+      "CalculoDeConversionRespuesta": {
+        "properties": {
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          },
+          "unidad_del_concepto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Del Concepto"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide",
+            "description": "El resultado viene en la unidad del concepto."
+          },
+          "conversion": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Conversion"
+          },
+          "componentes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Componentes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valor",
+          "unidad",
+          "formula",
+          "unidad_del_concepto",
+          "coincide",
+          "conversion",
+          "componentes"
+        ],
+        "title": "CalculoDeConversionRespuesta"
+      },
       "CalendarioPeticion": {
         "properties": {
           "dias_habiles": {
@@ -19651,6 +19876,29 @@
           "partidas_bloqueadas"
         ],
         "title": "CambioDeUnidadRespuesta"
+      },
+      "CampoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "etiqueta",
+          "unidad"
+        ],
+        "title": "CampoRespuesta"
       },
       "CandadoPeticion": {
         "properties": {
@@ -21362,6 +21610,258 @@
           "solicitado_en"
         ],
         "title": "ControlCambioRespuesta"
+      },
+      "ConversionAplicadaRespuesta": {
+        "properties": {
+          "aplicados": {
+            "type": "integer",
+            "title": "Aplicados"
+          },
+          "resultado": {
+            "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplicados",
+          "resultado"
+        ],
+        "title": "ConversionAplicadaRespuesta"
+      },
+      "ConversionDelEnlaceRespuesta": {
+        "properties": {
+          "enlace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Enlace Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "muro, linea, area, punto…"
+          },
+          "unidad_del_concepto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Del Concepto"
+          },
+          "conversion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversion",
+            "description": "La vigente, o la de defecto; null si este tipo aún cuenta por medida × factor."
+          },
+          "es_la_de_hoy": {
+            "type": "boolean",
+            "title": "Es La De Hoy",
+            "description": "Falso = es la de defecto, todavía no se ha aplicado ninguna."
+          },
+          "modos": {
+            "items": {
+              "$ref": "#/components/schemas/ModoRespuesta"
+            },
+            "type": "array",
+            "title": "Modos"
+          },
+          "campos": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/CampoRespuesta"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Campos",
+            "description": "Los parámetros que pide cada modo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "enlace_id",
+          "tipo",
+          "unidad_del_concepto",
+          "conversion",
+          "es_la_de_hoy",
+          "modos",
+          "campos"
+        ],
+        "title": "ConversionDelEnlaceRespuesta"
+      },
+      "ConversionPeticion": {
+        "properties": {
+          "modo": {
+            "type": "string",
+            "enum": [
+              "largo",
+              "area",
+              "vol",
+              "pza",
+              "perim"
+            ],
+            "title": "Modo"
+          },
+          "alt": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt",
+            "description": "Altura (m); en un área en perímetro, 0 = solo largo."
+          },
+          "gro": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gro",
+            "description": "Grosor (m), en volumen de un muro."
+          },
+          "esp": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Esp",
+            "description": "Espesor (m), en volumen de un área."
+          },
+          "desc": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desc",
+            "description": "Descuento (m³), en volumen de un área."
+          },
+          "pw": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pw",
+            "description": "Ancho de la pieza (m)."
+          },
+          "ph": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ph",
+            "description": "Alto de la pieza (m)."
+          },
+          "merma": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merma",
+            "description": "Merma (%)."
+          },
+          "sep": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sep",
+            "description": "Una pieza cada (m), en piezas de un muro."
+          },
+          "mide": {
+            "type": "string",
+            "enum": [
+              "eje",
+              "cara1",
+              "cara2"
+            ],
+            "title": "Mide",
+            "default": "cara2"
+          },
+          "cara": {
+            "type": "string",
+            "enum": [
+              "int",
+              "ext"
+            ],
+            "title": "Cara",
+            "default": "int"
+          },
+          "lado": {
+            "type": "string",
+            "enum": [
+              "izq",
+              "der"
+            ],
+            "title": "Lado",
+            "description": "De qué lado del sentido de dibujo queda el interior.",
+            "default": "der"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaEnConversion"
+            },
+            "type": "array",
+            "title": "Partes",
+            "description": "Altura por partes."
+          }
+        },
+        "type": "object",
+        "required": [
+          "modo"
+        ],
+        "title": "ConversionPeticion",
+        "description": "Cómo cuenta un trazo para su concepto (D-633). Los parámetros que no aplican al modo se ignoran."
       },
       "CostoDeJornadaPeticion": {
         "properties": {
@@ -28989,6 +29489,24 @@
         "title": "ModoPago",
         "description": "``actividad.modo_pago`` y ``estimacion.modo`` comparten valores (§8.2)."
       },
+      "ModoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "ModoRespuesta"
+      },
       "MuroDelTrazoPeticion": {
         "properties": {
           "altura_m": {
@@ -30870,6 +31388,37 @@
         "type": "object",
         "title": "ParametrosReporte",
         "description": "Lo que puede necesitar un reporte del catálogo.\n\nUn solo modelo con todo opcional en vez de uno por tipo: el borde valida\ncontra `TipoDeReporte.requiere`, que es la lista que de verdad manda, y\nasí agregar un reporte no agrega un DTO. Lo que se pierde —que OpenAPI no\ndiga *para este tipo, este campo es obligatorio*— se compensa con\n`GET /reportes/tipos`, que publica la tabla.\n\n**Ningún campo de alcance.** No hay `usuario_id` ni `org_id`: el alcance\nsale del token y lo aplica RLS (§12.4). `proyecto_id` y `cluster_id` son\nfoco dentro de lo visible, no permiso."
+      },
+      "ParteDeAlturaEnConversion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Nombre",
+            "default": ""
+          },
+          "desde_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Hasta M"
+          },
+          "suma": {
+            "type": "boolean",
+            "title": "Suma",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "ParteDeAlturaEnConversion"
       },
       "ParteDeAlturaModelo-Input": {
         "properties": {
