@@ -23207,7 +23207,8 @@
               }
             ],
             "title": "Precio",
-            "description": "Lo que se paga por unidad del destajo."
+            "description": "Lo que se paga por unidad del destajo; los costos se definen en Presupuesto, vacío = 0.",
+            "default": "0"
           },
           "factor": {
             "anyOf": [
@@ -23255,8 +23256,7 @@
         },
         "type": "object",
         "required": [
-          "descripcion",
-          "precio"
+          "descripcion"
         ],
         "title": "DestajoNuevoPeticion"
       },
