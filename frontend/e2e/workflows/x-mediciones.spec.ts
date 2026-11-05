@@ -4,9 +4,9 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  * Mediciones, la capa sombra del cuantificador (migración 0088).
  *
  *  1. Una medición se crea en la pestaña «Mediciones» y se vuelve la activa: lo que se dibuja entra a
- *     ella, sin pedir concepto. Una submedición (recámara 1) cuelga de la madre (la losa).
- *  2. Lo suelto no suma a ningún concepto («sin asignar»); al asignar la losa a un concepto suma lo de
- *     todas sus recámaras, y un trazo que entra después hereda el enlace.
+ *     ella, sin pedir concepto. Las mediciones no se anidan (D-639): cada recámara es una medición propia.
+ *  2. Lo suelto no suma a ningún concepto («sin asignar»); al asignar una medición a un concepto suma lo
+ *     suyo, y un trazo que entra después hereda el enlace.
  *  3. Una medición solo admite trazos de su tipo: se avisa antes de guardar.
  *  4. Quitar la asignación deja el concepto sin esa cantidad.
  *
@@ -80,12 +80,12 @@ test.describe('Cuantificador · mediciones', () => {
     await expect(page.getByTestId('tipo-del-concepto')).toContainText('Losa de cimentación');
     await expect(barra.locator('[data-bloque="area"]')).toHaveClass(/is-resaltado/);
 
-    await panel.getByRole('button', { name: 'Agregar una submedición a Losa de cimentación' }).click();
+    await panel.getByRole('button', { name: 'Nueva medición' }).click();
     await panel.getByLabel('Nombre de la medición').fill('Recámara 1');
-    await expect(panel.getByLabel('Dentro de')).toHaveValue(/.+/);
+    await panel.getByLabel('Unidad de la medición').selectOption('m²');
     await panel.getByRole('button', { name: 'Crear medición' }).click();
     await expect(page.getByTestId('tipo-del-concepto')).toContainText('Recámara 1');
-    await expect(panel.getByRole('treeitem', { name: 'Losa de cimentación' }).getByRole('treeitem', { name: 'Recámara 1' })).toBeVisible();
+    await expect(panel.getByRole('treeitem', { name: 'Recámara 1' })).toBeVisible();
 
     // Lo que se dibuja entra a la medición activa, sin pedir concepto.
     await rect(0.4, 0.3, 0.55, 0.45);
@@ -94,8 +94,9 @@ test.describe('Cuantificador · mediciones', () => {
     await expect(alta).toBeHidden();
     await expect.poll(async () => (await trazos()).length).toBe(1);
 
-    await panel.getByRole('button', { name: 'Agregar una submedición a Losa de cimentación' }).click();
+    await panel.getByRole('button', { name: 'Nueva medición' }).click();
     await panel.getByLabel('Nombre de la medición').fill('Recámara 2');
+    await panel.getByLabel('Unidad de la medición').selectOption('m²');
     await panel.getByRole('button', { name: 'Crear medición' }).click();
     await expect(page.getByTestId('tipo-del-concepto')).toContainText('Recámara 2');
     await rect(0.6, 0.3, 0.8, 0.5);
@@ -109,16 +110,12 @@ test.describe('Cuantificador · mediciones', () => {
     expect(t1!.properties.enlaces).toHaveLength(1); // la losa nació asignada al concepto: sus recámaras suman solas
     await expect.poll(cantidad).toBeGreaterThan(0);
 
-    // La losa suma lo de sus recámaras y ya alimenta al concepto.
-    const losa = panel.getByRole('treeitem', { name: 'Losa de cimentación', exact: true });
-    await expect(losa.getByText('Sin asignar')).toHaveCount(0);
-    const valorLosa = Number((await losa.getByTestId('valor-de-medicion').first().textContent())!.replace(/[^\d.]/g, ''));
+    // Las recámaras, asignadas al concepto, ya lo alimentan.
+    const valorLosa = await cantidad();
     expect(valorLosa).toBeGreaterThan(0);
+    await expect(panel.getByRole('treeitem', { name: 'Recámara 1', exact: true }).getByText('Sin asignar')).toHaveCount(0);
 
-    // --- 2. La cantidad del concepto es la de las dos recámaras ------------------------------------------------
-    await expect.poll(cantidad).toBeCloseTo(valorLosa, 1); // la pantalla redondea a dos decimales
-
-    // Un trazo que entra después hereda el enlace de la losa: se enlaza solo.
+    // Un trazo que entra después hereda el enlace de su medición: se enlaza solo.
     // La recámara 2 sigue siendo la medición activa (la última que se creó): ahí entra lo que se dibuje.
     await expect(panel.getByRole('button', { name: 'Recámara 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await rect(0.6, 0.6, 0.7, 0.7);
@@ -154,15 +151,17 @@ test.describe('Cuantificador · mediciones', () => {
 
     // --- 4. Quitar la asignación: el concepto deja de sumar esa medición -----------------------------------------
     await page.getByRole('tab', { name: /Mediciones/ }).click();
-    await panel.getByRole('button', { name: /Quitar la asignación de Losa de cimentación/ }).click();
+    for (const nombre of ['Losa de cimentación', 'Recámara 1', 'Recámara 2']) {
+      await panel.getByRole('button', { name: new RegExp(`Quitar la asignación de ${nombre}`) }).click();
+    }
     await expect(page.getByRole('status')).toContainText('dejaron de sumar');
     await expect.poll(cantidad).toBe(0);
-    await expect(losa.getByText('Sin asignar').first()).toBeVisible();
+    await expect(panel.getByRole('treeitem', { name: 'Recámara 1', exact: true }).getByText('Sin asignar').first()).toBeVisible();
 
     // --- 5. El cuadro de datos también resume por medición, con la marca de las que no alimentan nada ----------
     await page.getByRole('button', { name: 'Cuadro de datos', exact: true }).click();
     const porMedicion = page.getByRole('table', { name: 'Cantidades por medición' });
     await expect(porMedicion).toBeVisible();
-    await expect(porMedicion.getByRole('row', { name: /Losa de cimentación/ })).toContainText('Sin asignar');
+    await expect(porMedicion.getByRole('row', { name: /Recámara 1/ })).toContainText('Sin asignar');
   });
 });

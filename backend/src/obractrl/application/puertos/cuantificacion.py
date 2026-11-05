@@ -357,10 +357,14 @@ class RepositorioMatrices(Protocol):
     cantidad medida en esa obra (migración 0085; cerebro D-583)."""
 
     async def fijar_cantidad(
-        self, *, actividad_id: UUID, concepto_id: UUID, cantidad: Decimal | None
+        self, *, actividad_id: UUID, concepto_id: UUID, cantidad: Decimal | None, origen: str = "trazos"
     ) -> None:
         """Escribe la cantidad medida (derivada de los enlaces vigentes) de una matriz; `None`
         la deja sin medir."""
+        ...
+
+    async def aplicar_tomas(self, obra_id: UUID, tomas: dict[UUID, tuple[Decimal, str]]) -> list[UUID]:
+        """Escribe la cantidad que cada matriz de la obra toma de un elemento (D-639); devuelve las actividades a recalcular."""
         ...
 
     async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:

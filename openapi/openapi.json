@@ -12582,6 +12582,7 @@
           "elementos parametricos"
         ],
         "summary": "Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico",
+        "description": "Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la\nanterior y el resto pasa a la nueva.",
         "operationId": "actualizar_elemento_parametrico_api_v1_elementos_parametricos__elemento_id__patch",
         "security": [
           {
@@ -12971,6 +12972,48 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/tomas/sincronizar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Rehacer lo que las matrices de la obra toman de los elementos colocados",
+        "description": "Se llama al borrar o mover trazos de elementos: la cantidad medida de cada matriz que toma de ellos se rehace\n(D-639). Lo trazado directo sobre la matriz manda sobre lo tomado.",
+        "operationId": "sincronizar_tomas_api_v1_obras__obra_id__tomas_sincronizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -25147,6 +25190,12 @@
           },
           "receta": {
             "$ref": "#/components/schemas/RecetaRespuesta"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Sube al cambiar la receta con obras asignadas que lo usan (D-639).",
+            "default": 1
           }
         },
         "type": "object",
@@ -28520,6 +28569,17 @@
             ],
             "title": "Matriz Concepto Id",
             "description": "Si lo que se mide es una matriz interna de la actividad (nervaduras, trabes…) y no la actividad entera (D-583). Solo con `actividad_id`."
+          },
+          "conversion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversionPeticion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cómo cuenta el trazo para el concepto desde que se traza (D-633, D-638): con ella la medida y el factor se ignoran —la base calcula la cantidad con el factor 1—. Solo con `actividad_id`."
           }
         },
         "type": "object",
@@ -29786,6 +29846,16 @@
               }
             ],
             "title": "Diferencia"
+          },
+          "cantidad_origen": {
+            "type": "string",
+            "enum": [
+              "trazos",
+              "elemento"
+            ],
+            "title": "Cantidad Origen",
+            "description": "De dónde viene lo medido: sus trazos o lo que toma de un elemento colocado (D-639).",
+            "default": "trazos"
           }
         },
         "type": "object",

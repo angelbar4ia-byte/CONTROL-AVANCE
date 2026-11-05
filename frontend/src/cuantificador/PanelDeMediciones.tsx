@@ -27,7 +27,6 @@ import { tipoDeMedicion } from './tipos';
 import {
   arbolDeMediciones,
   coloresDeMediciones,
-  candidatasAMadre,
   MEDIDAS_ASIGNABLES,
   NOMBRE_DE_TIPO_DE_MEDICION,
   type NodoDeMedicion,
@@ -314,15 +313,6 @@ export function PanelDeMediciones({
             <button
               type="button"
               className="btn-icono btn-icono--chico"
-              aria-label={`Agregar una submedición a ${m.nombre}`}
-              title="Agregar una submedición (del mismo tipo)"
-              onClick={() => setCreando({ parentId: m.id, tipo: m.tipo, unidad: m.tipo === 'area' ? 'm²' : m.tipo === 'lineal' ? 'ml' : 'pza' })}
-            >
-              <Plus size={13} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="btn-icono btn-icono--chico"
               aria-label={`Renombrar ${m.nombre}`}
               title="Renombrar"
               onClick={() => setRenombrando({ id: m.id, nombre: m.nombre })}
@@ -333,7 +323,7 @@ export function PanelDeMediciones({
               type="button"
               className="btn-icono btn-icono--chico btn-icono--peligro"
               aria-label={`Borrar ${m.nombre}`}
-              title="Borrar (sin asignaciones ni submediciones)"
+              title="Borrar"
               onClick={() => (m.asignaciones.length > 0 ? setPorBorrar(m.id) : void alEliminar(m))}
             >
               <Trash2 size={13} aria-hidden />
@@ -454,26 +444,6 @@ export function PanelDeMediciones({
               {UNIDADES_DE_MEDICION.map((u) => (
                 <option key={u.valor} value={u.valor}>
                   {u.nombre}
-                </option>
-              ))}
-            </select>
-            <select
-              className="select"
-              aria-label="Dentro de"
-              value={creando.parentId ?? ''}
-              onChange={(e) => {
-                const madre = mediciones.find((m) => m.id === e.target.value);
-                setCreando({
-                  ...creando,
-                  parentId: madre ? madre.id : null,
-                  ...(madre ? { tipo: madre.tipo, unidad: madre.tipo === 'area' ? 'm²' : madre.tipo === 'lineal' ? 'ml' : 'pza' } : {}),
-                });
-              }}
-            >
-              <option value="">Sola (en el nivel de arriba)</option>
-              {candidatasAMadre(mediciones, creando.tipo).map((m) => (
-                <option key={m.id} value={m.id}>
-                  Dentro de {m.nombre}
                 </option>
               ))}
             </select>

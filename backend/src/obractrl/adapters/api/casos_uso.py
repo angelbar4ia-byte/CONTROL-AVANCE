@@ -330,6 +330,7 @@ from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
+from obractrl.application.casos_uso.tomas_de_elemento import SincronizarTomas
 from obractrl.application.casos_uso.valuacion_de_partes import (
     ConsultarValuacion,
     RedisenarParte,
@@ -809,6 +810,7 @@ def obtener_consultar_cuantificacion(sesion: SesionRLS) -> ConsultarCuantificaci
         trazos=RepositorioTrazosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         notas=RepositorioNotasPlanoSQL(sesion),
+        matrices=RepositorioMatricesSQL(sesion),
     )
 
 
@@ -886,6 +888,14 @@ def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTr
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
         matrices=RepositorioMatricesSQL(sesion),
+        tomas=SincronizarTomas(
+            elementos=RepositorioElementosParametricosSQL(sesion),
+            matrices=RepositorioMatricesSQL(sesion),
+            enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+            actividades=RepositorioActividadesSQL(sesion),
+            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+            desviaciones=RepositorioDesviacionesSQL(sesion),
+        ),
     )
 
 
@@ -924,8 +934,18 @@ def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarE
 
 
 def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElementosParametricos:
+    elementos = RepositorioElementosParametricosSQL(sesion)
     return GestionarElementosParametricos(
-        elementos=RepositorioElementosParametricosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        elementos=elementos,
+        uow=UnidadDeTrabajoSQL(sesion),
+        sincronizador=SincronizarTomas(
+            elementos=elementos,
+            matrices=RepositorioMatricesSQL(sesion),
+            enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+            actividades=RepositorioActividadesSQL(sesion),
+            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+            desviaciones=RepositorioDesviacionesSQL(sesion),
+        ),
     )
 
 

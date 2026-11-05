@@ -33,13 +33,17 @@ interface Props {
   readonly puedeDefinir: boolean;
   readonly onCambio: (aviso?: string) => void;
   readonly onError: (mensaje: string) => void;
+  /** «Colocar este elemento»: elige la herramienta y marca lo que se trace como este elemento (D-604). */
+  readonly onColocar?: (elemento: { id: string; clave: string; tipo: TipoParametrico }) => void;
+  /** El elemento que se está colocando, si hay uno. */
+  readonly colocandoId?: string | null;
 }
 
 function enEnter(e: KeyboardEvent<HTMLInputElement>) {
   if (e.key === 'Enter') e.currentTarget.blur();
 }
 
-export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }: Props) {
+export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, onColocar, colocandoId = null }: Props) {
   const consulta = useListarElementosParametricosApiV1ElementosParametricosGet();
   const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: planoId !== '' } });
   const conceptosDelPlano = useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(planoId, { query: { enabled: planoId !== '' } });
@@ -49,6 +53,7 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
   const [nuevo, setNuevo] = useState({ clave: '', nombre: '', tipo: 'castillo' as TipoParametrico });
   const [editando, setEditando] = useState<Readonly<Record<string, string>>>({});
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [buscar, setBuscar] = useState('');
 
   const elementos = consulta.data ?? [];
   const recargar = () =>
@@ -125,8 +130,18 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
         </div>
       )}
       {elementos.length === 0 && !consulta.isLoading && <div className="text-mute text-xs">Aún no hay elementos paramétricos.</div>}
+      {elementos.length > 3 && (
+        <input
+          className="input"
+          type="search"
+          aria-label="Buscar elemento"
+          placeholder="Buscar elemento"
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+        />
+      )}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-        {elementos.map((e) => {
+        {elementos.filter((e) => `${e.clave} ${e.nombre}`.toLowerCase().includes(buscar.trim().toLowerCase())).map((e) => {
           const tipo = e.tipo as TipoParametrico;
           const abiertoAhora = abierto === e.id;
           return (
@@ -140,8 +155,23 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
                   onClick={() => setAbierto(abiertoAhora ? null : e.id)}
                 >
                   <span className="mono">{e.clave}</span> · {e.nombre}
+                  {(e as { version?: number }).version !== undefined && (e as { version?: number }).version! > 1 && (
+                    <span className="badge badge--outline" title="Versión del elemento: las obras asignadas conservan la anterior (D-639)">v{(e as { version?: number }).version}</span>
+                  )}
                 </button>
                 <span className="badge badge--outline">{NOMBRE_DEL_TIPO[tipo]}</span>
+                {onColocar && (
+                  <button
+                    type="button"
+                    className={colocandoId === e.id ? 'chip is-active' : 'chip'}
+                    aria-pressed={colocandoId === e.id}
+                    aria-label={`Colocar ${e.clave} en el plano`}
+                    title="Traza con la herramienta que le toca: cada trazo nace marcado como este elemento. Esc termina."
+                    onClick={() => onColocar({ id: e.id, clave: e.clave, tipo })}
+                  >
+                    {colocandoId === e.id ? 'Colocando…' : 'Colocar'}
+                  </button>
+                )}
                 {puedeDefinir && (
                   <button type="button" className="btn btn--ghost btn--sm" aria-label={`Borrar ${e.clave}`} onClick={() => void borrar(e)}>
                     <Trash2 size={12} aria-hidden />

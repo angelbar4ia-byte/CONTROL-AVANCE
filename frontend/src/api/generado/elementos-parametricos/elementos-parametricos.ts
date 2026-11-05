@@ -1016,6 +1016,8 @@ export const useCrearElementoParametricoApiV1ElementosParametricosPost = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
+ * Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la
+anterior y el resto pasa a la nueva.
  * @summary Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico
  */
 export const actualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch =
@@ -3152,3 +3154,115 @@ export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConce
 
   return query;
 }
+
+/**
+ * Se llama al borrar o mover trazos de elementos: la cantidad medida de cada matriz que toma de ellos se rehace
+(D-639). Lo trazado directo sobre la matriz manda sobre lo tomado.
+ * @summary Rehacer lo que las matrices de la obra toman de los elementos colocados
+ */
+export const sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/obras/${obraId}/tomas/sincronizar`,
+      method: "POST",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getSincronizarTomasApiV1ObrasObraIdTomasSincronizarPostMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost>
+      >,
+      TError,
+      { obraId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost>
+    >,
+    TError,
+    { obraId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost>
+      >,
+      { obraId: string }
+    > = (props) => {
+      const { obraId } = props ?? {};
+
+      return sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost(
+        obraId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type SincronizarTomasApiV1ObrasObraIdTomasSincronizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost>
+    >
+  >;
+
+export type SincronizarTomasApiV1ObrasObraIdTomasSincronizarPostMutationError =
+  HTTPValidationError;
+
+/**
+ * @summary Rehacer lo que las matrices de la obra toman de los elementos colocados
+ */
+export const useSincronizarTomasApiV1ObrasObraIdTomasSincronizarPost = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost>
+      >,
+      TError,
+      { obraId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof sincronizarTomasApiV1ObrasObraIdTomasSincronizarPost>
+  >,
+  TError,
+  { obraId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getSincronizarTomasApiV1ObrasObraIdTomasSincronizarPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};

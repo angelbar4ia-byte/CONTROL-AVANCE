@@ -58,23 +58,32 @@ test.describe('Cuantificador · trazo directo', () => {
 
     // Sin medición, los trazos van del color de su concepto: el mismo que su muestra en el árbol.
     await expect(page.locator('.visor__trazo')).toHaveCount(2);
-    const colorDelArbol = await page.getByTestId('color-del-concepto').first().evaluate((n) => getComputedStyle(n).backgroundColor);
+    // (el concepto elegido no siempre es el primero del árbol: basta con que sea el color de alguna muestra)
+    const coloresDelArbol = await page.getByTestId('color-del-concepto').evaluateAll((ns) => ns.map((n) => getComputedStyle(n).backgroundColor));
     const coloresDeTrazos = await page.locator('.visor__trazo path').evaluateAll((ns) => ns.map((n) => getComputedStyle(n).stroke));
-    expect(new Set(coloresDeTrazos)).toEqual(new Set([colorDelArbol]));
+    expect(new Set(coloresDeTrazos).size).toBe(1);
+    expect(coloresDelArbol).toContain(coloresDeTrazos[0]);
 
     // Una línea sobre un concepto en m² mide su largo × altura (2.6 m) × caras (2): suma al concepto y se dice cómo.
     const antesDeLinea = await cantidad();
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
-    await clic(0.45, 0.85);
-    await clic(0.75, 0.85);
+    // El panel de opciones de la línea tapa la izquierda del lienzo: los clics van a la derecha.
+    await clic(0.68, 0.85);
+    await clic(0.9, 0.85);
     await expect(page.getByRole('dialog', { name: /Guardar/ })).toBeHidden();
     await expect(page.getByRole('status')).toContainText('Línea medida como área');
     await expect.poll(cantidad).toBeGreaterThan(antesDeLinea);
-    const trazos = await llamarApi<{ features: { geometry: { type: string }; properties: { enlaces: { medida: string; factor: string }[] } }[] }>(
+    const trazos = await llamarApi<{ features: { geometry: { type: string }; properties: { enlaces: { medida: string; factor: string; enlace_id: string }[] } }[] }>(
       request, 'control', 'GET', `/planos/${plano.id}/trazos`,
     );
     const linea = trazos.features.find((f) => f.geometry.type === 'LineString')!;
+    // Nace con su conversión (D-638): el panel «Muro · medir por» trae 2 caras × 2.6 m; el factor es 1 y la base calcula.
     expect(linea.properties.enlaces[0]).toMatchObject({ medida: 'longitud' });
-    expect(Number(linea.properties.enlaces[0]!.factor)).toBeCloseTo(5.2, 6);
+    expect(Number(linea.properties.enlaces[0]!.factor)).toBeCloseTo(1, 6);
+    const conv = await llamarApi<{ es_la_de_hoy: boolean; conversion: { mide: string; alt: number } }>(
+      request, 'control', 'GET', `/enlaces/${(linea.properties.enlaces[0] as unknown as { enlace_id: string }).enlace_id}/conversion`,
+    );
+    expect(conv.es_la_de_hoy).toBe(true);
+    expect(conv.conversion).toMatchObject({ mide: 'cara2', alt: 2.6 });
   });
 });

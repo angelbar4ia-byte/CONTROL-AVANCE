@@ -110,6 +110,11 @@ function Nodo({
           </span>
         )}
         {sinMedir && <span className="badge badge--outline">Sin medir</span>}
+        {!sinMedir && nodo.origen === 'elemento' && (
+          <span className="badge badge--outline" data-testid="origen-por-elemento" title="Su cantidad es lo que toma de los elementos colocados en el plano (D-630). Lo trazado directo sobre la matriz manda sobre esto.">
+            Por elemento
+          </span>
+        )}
         {onCuenta && (
           <button
             type="button"

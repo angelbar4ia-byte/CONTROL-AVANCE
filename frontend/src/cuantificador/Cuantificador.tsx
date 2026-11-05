@@ -118,7 +118,16 @@ import { girar, rotacionValida, type VistaDelPlano } from './vista';
 import { AltaDeConcepto } from './AltaDeConcepto';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
-import { ALTURA_POR_DEFECTO_M, CARAS_POR_DEFECTO, factorDeLaMedida, medidaDirecta, trazoPeticion } from './trazoPeticion';
+import {
+  conversionDeMuro,
+  factorDeLaMedida,
+  medidaDirecta,
+  CARAS_POR_DEFECTO,
+  OPCIONES_DE_MURO_INICIALES,
+  textoDeMuro,
+  trazoPeticion,
+  type OpcionesDeMuro,
+} from './trazoPeticion';
 import { motivoDeIncompatibilidad } from './mediciones';
 import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
@@ -141,6 +150,7 @@ import {
   formaDe,
   type HerramientaDeDibujo,
 } from './dibujo';
+import { medidasDeCirculo } from './geometria';
 import { centroide, cotasDe, etiquetasDeMedidas, fmtMedida, sinCierre } from './etiquetas';
 import {
   REFERENCIAS_POR_DEFECTO,
@@ -174,6 +184,7 @@ import { UnionesDelMuro } from './UnionesDelMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { VanoElegido } from './VanoElegido';
 import { VanosDelPlano } from './VanosDelPlano';
+import { usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut } from '@/api/generado/elementos-parametricos/elementos-parametricos';
 import { useAccionesDeVano } from './accionesDeVano';
 import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
@@ -411,6 +422,7 @@ export function EspacioDeTrazo({
   /** Pendiente en % de la línea que se traza (un tramo inclinado); `null` = horizontal. */
   const [pendientePct, setPendientePct] = useState<number | null>(null);
   const [alineacion, setAlineacion] = useState<Alineacion>('centro');
+  const [opcionesMuro, setOpcionesMuro] = useState<OpcionesDeMuro>(OPCIONES_DE_MURO_INICIALES);
   const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
@@ -888,6 +900,9 @@ export function EspacioDeTrazo({
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const [vanoElegidoId, setVanoElegidoId] = useState<string | null>(null);
   const [moviendoVano, setMoviendoVano] = useState(false);
+  /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
+  const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
+  const ponerElemento = usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut<ErrorApi>();
   const [menuDelVano, setMenuDelVano] = useState<{ id: string; x: number; y: number } | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
   /** Por línea: el primer clic (sobre qué trazo y a qué distancia de su inicio, en unidades de plano). */
@@ -1356,6 +1371,25 @@ export function EspacioDeTrazo({
     setExtras(new Set());
   }
 
+  /** «Colocar»: elige la herramienta que corresponde al elemento y deja lo que se trace marcado como él. */
+  function colocarElemento(e: { id: string; clave: string; tipo: string }) {
+    if (elementoPorColocar?.id === e.id) {
+      setElementoPorColocar(null);
+      setAviso(`Terminó de colocar ${e.clave}.`);
+      return;
+    }
+    const herramientaDelElemento = ({ castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'rectangulo' } as const)[e.tipo as 'castillo'];
+    setElementoPorColocar(e);
+    cambiarHerramienta(herramientaDelElemento);
+    setAviso(
+      herramientaDelElemento === 'punto'
+        ? `Colocar ${e.clave}: un clic en el plano por cada pieza. Esc termina.`
+        : herramientaDelElemento === 'linea'
+          ? `Colocar ${e.clave}: traza su eje con Línea; cada trazo suma sus metros. Esc termina.`
+          : `Colocar ${e.clave}: traza el área (Rectángulo o Polígono); cada trazo suma sus m². Esc termina.`,
+    );
+  }
+
   /** El clic que sigue a «Mover…»: el vano elegido se pega al punto más cercano de su muro. */
   function soltarVanoEn(p: Punto) {
     setMoviendoVano(false);
@@ -1584,6 +1618,34 @@ export function EspacioDeTrazo({
     };
     let data: TrazoPeticion | null = null;
     let factor = '1';
+    if (elementoPorColocar) {
+      // Un castillo o una zapata se colocan con Punto, una trabe con Línea, una losa con un Área.
+      const geometriaDelElemento = { castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'poligono' }[elementoPorColocar.tipo];
+      if (geometriaDelElemento !== tipo) {
+        setAviso(`${elementoPorColocar.clave} se coloca con ${geometriaDelElemento === 'punto' ? 'Punto' : geometriaDelElemento === 'linea' ? 'Línea' : 'un área'}. Esc termina.`);
+        limpiarDibujo();
+        return;
+      }
+      const planoId = plano.id;
+      const cuerpo = trazoPeticion({ ...base, enlaces: [] });
+      const elemento = elementoPorColocar;
+      registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
+        async (r) => {
+          alGuardar(r, { planoId, data: cuerpo });
+          try {
+            await ponerElemento.mutateAsync({ trazoId: r.trazo_id, data: { elemento_id: elemento.id, lados_cimbra: null } });
+            void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('elementos-parametricos') });
+            invalidarTrazos();
+            setAviso(`${elemento.clave} colocado: el plano suma su receta. Sigue trazando; Esc termina.`);
+          } catch (err) {
+            setAviso(`Trazo guardado, pero no se pudo marcar como ${elemento.clave}: ${err instanceof Error ? err.message : 'error'}`);
+          }
+        },
+        (err: unknown) => setAviso(`No se pudo guardar el trazo: ${err instanceof Error ? err.message : 'error'}`),
+      );
+      return;
+    }
+    let conversionDeLaLinea: ReturnType<typeof conversionDeMuro> | null = null;
     if (medicionActiva) {
       if (motivoDeIncompatibilidad(medicionActiva.tipo, tipo, conForma !== null) === null) {
         data = trazoPeticion({ ...base, medicionId: medicionActiva.id, enlaces: [] });
@@ -1592,9 +1654,22 @@ export function EspacioDeTrazo({
       const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
       if (medida) {
         factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida);
+        // Una línea sobre un concepto en m² nace con la conversión elegida en el panel (Eje / 1 cara / 2 caras × altura).
+        if (tipoDelConcepto === 'area' && tipo === 'linea' && medida === 'longitud') {
+          conversionDeLaLinea = conversionDeMuro(opcionesMuro);
+          factor = '1';
+        }
         data = trazoPeticion({
           ...base,
-          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor }],
+          enlaces: [
+            {
+              actividadId: conceptoEnFoco,
+              ...(matrizActiva ? { matrizId: matrizActiva.id } : {}),
+              medida,
+              factor,
+              ...(conversionDeLaLinea ? { conversion: conversionDeLaLinea } : {}),
+            },
+          ],
         });
       }
     }
@@ -1604,11 +1679,11 @@ export function EspacioDeTrazo({
     registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
       (r) => {
         alGuardar(r, { planoId, data: cuerpo });
-        if (factor !== '1') {
+        if (conversionDeLaLinea) {
           // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
           setAviso(
-            `Línea medida como área: largo × ${ALTURA_POR_DEFECTO_M} m de altura × ${CARAS_POR_DEFECTO} caras. ` +
-              `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. El factor se cambia en el detalle del trazo.`,
+            `Línea medida como área: ${textoDeMuro(opcionesMuro)}. ` +
+              `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. Se cambia en el detalle del trazo.`,
           );
         }
       },
@@ -1695,6 +1770,15 @@ export function EspacioDeTrazo({
     }
   }
 
+  // «Colocar este elemento» termina con Esc.
+  useEffect(() => {
+    if (elementoPorColocar === null) return;
+    const cerrar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setElementoPorColocar(null);
+    };
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [elementoPorColocar]);
   // Un vano elegido se suelta con Esc, al cambiar de herramienta (salvo Seleccionar) o de plano.
   useEffect(() => {
     if (vanoElegidoId === null) return;
@@ -1723,6 +1807,7 @@ export function EspacioDeTrazo({
         setMenuDelTrazo(null);
         setMenuDelVano(null);
         setVanoElegidoId(null);
+        setElementoPorColocar(null);
       }
     };
     window.addEventListener('keydown', cerrar);
@@ -2242,6 +2327,17 @@ export function EspacioDeTrazo({
               {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
               <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
             </div>
+            {(() => {
+              // Un círculo dice su radio y su diámetro (D-633): se miden en metros con la escala del plano.
+              const c = medidasDeCirculo(seleccionado.geometry);
+              if (!c) return null;
+              const k = escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1;
+              return (
+                <div className="text-xs mono" data-testid="medidas-de-circulo">
+                  Círculo · radio {(c.radio * k).toFixed(2)} m · diámetro {(c.diametro * k).toFixed(2)} m
+                </div>
+              );
+            })()}
             <SelectorDeMedicion
               trazo={seleccionado}
               mediciones={listaDeMediciones}
@@ -2576,6 +2672,8 @@ export function EspacioDeTrazo({
               if (aviso) setAviso(aviso);
             }}
             onError={(m) => setAviso(m)}
+            onColocar={colocarElemento}
+            colocandoId={elementoPorColocar?.id ?? null}
           />
           <VanosDelPlano
             vanos={vanosConsulta.data ?? []}
@@ -2953,6 +3051,8 @@ export function EspacioDeTrazo({
                     forma={formaPunto}
                     onForma={setFormaPunto}
                     contornoElegido={contornoElegido}
+                    muro={herramienta === 'punto' || tipoDelConcepto !== 'area' || medicionActiva ? null : opcionesMuro}
+                    onMuro={(cambio) => setOpcionesMuro((o) => ({ ...o, ...cambio }))}
                   />
                 )}
                 {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}

@@ -53,6 +53,7 @@ class ElementoParametricoRespuesta(BaseModel):
     tipo: TipoDeElementoParametrico
     parametros: dict[str, float]
     receta: RecetaRespuesta
+    version: int = Field(default=1, description="Sube al cambiar la receta con obras asignadas que lo usan (D-639).")
 
 
 class ElementoParametricoPeticion(BaseModel):
@@ -86,6 +87,7 @@ def _respuesta(fila: dict[str, Any]) -> ElementoParametricoRespuesta:
         nombre=fila["nombre"],
         tipo=fila["tipo"],
         parametros={k: float(v) for k, v in fila["parametros"].items()},
+        version=int(fila.get("version") or 1),
         receta=RecetaRespuesta(**{**r, "cimbra_m2": {str(k): float(v) for k, v in r["cimbra_m2"].items()}}),
     )
 
@@ -153,13 +155,16 @@ async def crear_elemento_parametrico(
     },
 )
 async def actualizar_elemento_parametrico(
-    elemento_id: UUID, peticion: ElementoParametricoCambio, caso_uso: GestionarElementosParametricosDep
+    elemento_id: UUID, peticion: ElementoParametricoCambio, ctx: ContextoActual, caso_uso: GestionarElementosParametricosDep
 ) -> None:
+    """Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la
+    anterior y el resto pasa a la nueva."""
     await caso_uso.actualizar(
         elemento_id,
         clave=peticion.clave,
         nombre=peticion.nombre,
         parametros=dict(peticion.parametros) if peticion.parametros is not None else None,
+        autor_id=ctx.usuario_id,
     )
 
 
@@ -323,3 +328,15 @@ async def dejar_de_tomar_del_elemento(
 async def conceptos_del_plano(plano_id: UUID, caso_uso: GestionarElementosParametricosDep) -> list[ConceptoDelPlanoRespuesta]:
     """La cantidad del concepto en su unidad y los materiales que toma, según los elementos que lleva el plano."""
     return [ConceptoDelPlanoRespuesta(**c) for c in await caso_uso.conceptos_del_plano(plano_id)]
+
+
+@router.post(
+    "/obras/{obra_id}/tomas/sincronizar",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Rehacer lo que las matrices de la obra toman de los elementos colocados",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+)
+async def sincronizar_tomas(obra_id: UUID, caso_uso: GestionarElementosParametricosDep) -> None:
+    """Se llama al borrar o mover trazos de elementos: la cantidad medida de cada matriz que toma de ellos se rehace
+    (D-639). Lo trazado directo sobre la matriz manda sobre lo tomado."""
+    await caso_uso.sincronizar_obra(obra_id)

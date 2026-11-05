@@ -197,6 +197,9 @@ class IntencionEnlace:
     matriz_concepto_id: UUID | None = None
     """Si se mide una matriz interna de la actividad (nervaduras, trabes…) y no la actividad
     entera (D-583). Solo con `actividad_id`."""
+    conversion: dict[str, Any] | None = None
+    """Cómo cuenta el trazo para el concepto desde que se traza (D-633, D-638): con ella la medida es la natural del
+    tipo de trazo y el factor 1; la cantidad la calcula la base. Solo con `actividad_id`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -715,13 +718,22 @@ class RegistrarTrazoConEnlaces:
                         str(intencion.matriz_concepto_id) if intencion.matriz_concepto_id else None
                     ),
                 )
+                conversion = None
+                medida_guardada, factor_guardado = validado.medida.value, validado.factor
+                if intencion.conversion is not None:
+                    if intencion.actividad_id is None:
+                        raise ErrorDeCuantificacion("La conversión se fija sobre el enlace a un concepto.")
+                    tipo = str((await self._enlaces.calcular_conversion(trazo_id, {"modo": "largo"}))["tipo"])
+                    conversion = normalizar_conversion(tipo, intencion.conversion)
+                    medida_guardada, factor_guardado = medida_natural(tipo), Decimal(1)
                 enlace_id = await self._enlaces.crear(
                     trazo_id=trazo_id,
                     actividad_id=intencion.actividad_id,
                     prototipo_nodo_id=intencion.prototipo_nodo_id,
                     matriz_concepto_id=intencion.matriz_concepto_id,
-                    medida=validado.medida.value,
-                    factor=validado.factor,
+                    medida=medida_guardada,
+                    factor=factor_guardado,
+                    **({"conversion": conversion} if conversion is not None else {}),
                 )
                 enlace_ids.append(enlace_id)
                 nodos_tocados[
@@ -1542,6 +1554,7 @@ class EliminarTrazo:
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
         matrices: RepositorioMatrices | None = None,
+        tomas: Any | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -1551,6 +1564,8 @@ class EliminarTrazo:
         self._uow = uow
         self._eventos = eventos
         self._matrices = matrices
+        # Borrar un elemento colocado cambia lo que las matrices toman de él (D-639).
+        self._tomas = tomas
 
     async def ejecutar(
         self, cmd: ComandoEliminarTrazo, *, detectada_en: datetime
@@ -1578,6 +1593,7 @@ class EliminarTrazo:
                 f"y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
             )
 
+        obra_de_la_toma = await self._tomas.obra_si_es_elemento(cmd.trazo_id) if self._tomas is not None else None
         async with self._uow:
             await self._trazos.eliminar(cmd.trazo_id)
             recalculos: list[ResultadoDeRecalculo] = []
@@ -1604,6 +1620,8 @@ class EliminarTrazo:
                         proponer_desviacion=any(bool(f["vigente"]) for f in quedan),
                     )
                 )
+            if obra_de_la_toma is not None:
+                await self._tomas.de_la_obra(obra_de_la_toma)
             await self._uow.commit()
 
         resultado = tuple(recalculos)
@@ -1854,11 +1872,13 @@ class ConsultarCuantificacion:
         trazos: RepositorioTrazos,
         enlaces: RepositorioEnlacesCuantificacion,
         notas: RepositorioNotasPlano,
+        matrices: RepositorioMatrices | None = None,
     ) -> None:
         self._planos = planos
         self._trazos = trazos
         self._enlaces = enlaces
         self._notas = notas
+        self._matrices = matrices
 
     async def planos_de_obra(self, obra_id: UUID) -> list[dict]:
         await self._exigir_obra(obra_id)
@@ -1897,6 +1917,21 @@ class ConsultarCuantificacion:
         for (tipo_nodo, nodo_id), enlaces in por_nodo.items():
             vigentes = [e for e in enlaces if e["vigente"]]
             primero = enlaces[0]
+            medida_del_nodo = cantidad_medida(
+                [
+                    MedidaDeEnlace(
+                        medida_valor=Decimal(str(e["medida_valor"])),
+                        factor=Decimal(str(e["factor"])),
+                        vigente=bool(e["vigente"]),
+                    )
+                    for e in enlaces
+                ]
+            )
+            if self._matrices is not None and tipo_nodo == TipoNodoCuantificacion.ACTIVIDAD.value:
+                # Con una matriz que cuenta (D-636) la cantidad del concepto es la de esa matriz.
+                cuenta = await self._matrices.la_que_cuenta(nodo_id)
+                if cuenta is not None:
+                    medida_del_nodo = Decimal(str(cuenta["cantidad"])) if cuenta["cantidad"] is not None else Decimal(0)
             nodos.append(
                 NodoCuantificado(
                     tipo_nodo=tipo_nodo,
@@ -1908,16 +1943,7 @@ class ConsultarCuantificacion:
                         else None
                     ),
                     # El dominio suma; el SQL solo midió (§12.11).
-                    cantidad_medida=cantidad_medida(
-                        [
-                            MedidaDeEnlace(
-                                medida_valor=Decimal(str(e["medida_valor"])),
-                                factor=Decimal(str(e["factor"])),
-                                vigente=bool(e["vigente"]),
-                            )
-                            for e in enlaces
-                        ]
-                    ),
+                    cantidad_medida=medida_del_nodo,
                     enlaces_vigentes=len(vigentes),
                     enlaces_reemplazados=len(enlaces) - len(vigentes),
                     trazos_por_revisar=sum(1 for e in vigentes if e["por_revisar"]),
@@ -1983,6 +2009,7 @@ class ConsultarMatrices:
                     "cantidad_catalogo": catalogo,
                     "precio_unitario": f["precio_unitario"],
                     "cantidad_medida": n.cantidad_medida,
+                    "cantidad_origen": f.get("cantidad_origen") or "trazos",
                     "diferencia": (
                         n.cantidad_medida - catalogo if n.cantidad_medida is not None else None
                     ),

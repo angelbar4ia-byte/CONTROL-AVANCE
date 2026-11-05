@@ -19,6 +19,7 @@ export interface MatrizPlana {
   readonly cantidad_catalogo: number | string;
   readonly cantidad_medida?: number | string | null;
   readonly diferencia?: number | string | null;
+  readonly cantidad_origen?: string;
   /** Cómo se formó la cantidad unitaria, si no fue a mano: piezas ÷ largo × desperdicio. */
   readonly formula?: Readonly<Record<string, unknown>> | null;
 }
@@ -36,6 +37,8 @@ export interface NodoDeMatriz {
   /** `null` = sin medir. */
   readonly cantidadMedida: number | null;
   readonly diferencia: number | null;
+  /** De dónde viene lo medido: sus trazos o lo que toma de un elemento colocado (D-639). */
+  readonly origen: 'trazos' | 'elemento';
   readonly formula: string | null;
   readonly hijos: readonly NodoDeMatriz[];
   /** Matrices medidas en esta rama (ella y todo lo que tiene dentro). */
@@ -74,6 +77,7 @@ function cerrar(b: Borrador): NodoDeMatriz {
     cantidadCatalogo: numero(b.base.cantidad_catalogo) ?? 0,
     cantidadMedida,
     diferencia: numero(b.base.diferencia),
+    origen: b.base.cantidad_origen === 'elemento' ? 'elemento' : 'trazos',
     formula: textoDeFormula(b.base.formula),
     hijos,
     medidas: (cantidadMedida !== null ? 1 : 0) + hijos.reduce((s, h) => s + h.medidas, 0),

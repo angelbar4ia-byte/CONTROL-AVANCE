@@ -22,6 +22,8 @@ import {
 import type { Punto } from './geometria';
 import { PanelDeOpciones } from './PanelDeOpciones';
 import { numeroTecleado } from './volumen';
+import { AlturaPorPartes } from './AlturaPorPartes';
+import type { OpcionesDeMuro } from './trazoPeticion';
 
 const GROSORES_USUALES = [0.1, 0.15, 0.2, 0.3] as const;
 /** Pendientes de uso común en techumbres, drenajes y rampas (en %). */
@@ -95,6 +97,9 @@ interface Props {
   readonly onForma: (f: Forma | null) => void;
   /** El contorno normalizado del trazo elegido, para «usar la forma del trazo elegido». */
   readonly contornoElegido: readonly Punto[] | null;
+  /** Con un concepto en m² la línea cuenta por caras × altura: se elige antes de trazar (D-638). Sin él, no se ofrece. */
+  readonly muro?: OpcionesDeMuro | null;
+  readonly onMuro?: (cambio: Partial<OpcionesDeMuro>) => void;
 }
 
 export function OpcionesDeHerramienta({
@@ -108,6 +113,8 @@ export function OpcionesDeHerramienta({
   forma,
   onForma,
   contornoElegido,
+  muro = null,
+  onMuro,
 }: Props) {
   const [grosorTecleado, setGrosorTecleado] = useState('');
   const [pendienteTecleada, setPendienteTecleada] = useState('');
@@ -115,6 +122,74 @@ export function OpcionesDeHerramienta({
   if (herramienta === 'linea') {
     return (
       <PanelDeOpciones etiqueta="Opciones de la línea" titulo="Línea">
+        {muro && onMuro && (
+          <>
+            <div className="opciones__titulo">Muro · medir por</div>
+            <div className="opciones__fila" role="group" aria-label="Medir el muro por">
+              {(
+                [
+                  ['eje', 'Eje'],
+                  ['cara1', '1 cara'],
+                  ['cara2', '2 caras'],
+                ] as const
+              ).map(([clave, etiqueta]) => (
+                <button
+                  key={clave}
+                  type="button"
+                  className={muro.mide === clave ? 'chip is-active' : 'chip'}
+                  aria-pressed={muro.mide === clave}
+                  onClick={() => onMuro({ mide: clave })}
+                >
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+            {muro.mide === 'cara1' && (
+              <>
+                <div className="opciones__fila" role="group" aria-label="Qué cara">
+                  {(
+                    [
+                      ['int', 'Interior'],
+                      ['ext', 'Exterior'],
+                    ] as const
+                  ).map(([clave, etiqueta]) => (
+                    <button key={clave} type="button" className={muro.cara === clave ? 'chip is-active' : 'chip'} aria-pressed={muro.cara === clave} onClick={() => onMuro({ cara: clave })}>
+                      {etiqueta}
+                    </button>
+                  ))}
+                </div>
+                <div className="opciones__fila" role="group" aria-label="De qué lado queda el interior">
+                  {(
+                    [
+                      ['izq', 'Interior a la izquierda'],
+                      ['der', 'Interior a la derecha'],
+                    ] as const
+                  ).map(([clave, etiqueta]) => (
+                    <button key={clave} type="button" className={muro.lado === clave ? 'chip is-active' : 'chip'} aria-pressed={muro.lado === clave} onClick={() => onMuro({ lado: clave })}>
+                      {etiqueta}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-mute text-xs">Interior a la izquierda o derecha, mirando en el sentido en que dibujas.</p>
+              </>
+            )}
+            <div className="opciones__titulo">Altura</div>
+            {muro.partes.length === 0 && (
+              <label className="opciones__campo" htmlFor="opc-altura-muro">
+                <span>Altura (m)</span>
+                <input
+                  id="opc-altura-muro"
+                  className="input"
+                  inputMode="decimal"
+                  value={muro.alt}
+                  onChange={(e) => onMuro({ alt: e.target.value })}
+                />
+              </label>
+            )}
+            <AlturaPorPartes partes={muro.partes} alturaUnica={muro.alt} onPartes={(partes) => onMuro({ partes })} />
+            <p className="text-mute text-xs">m²: largo del eje o de las caras × altura. Se afina después en el detalle del trazo.</p>
+          </>
+        )}
         <div className="opciones__titulo">Grosor</div>
         <div className="opciones__fila">
           <button
@@ -215,7 +290,7 @@ export function OpcionesDeHerramienta({
         </p>
         <p className="text-mute text-xs">
           {grosorM === null
-            ? 'Sin grosor la línea mide su largo. Con grosor mide también largo × grosor (el área de un muro).'
+            ? 'La línea mide su largo. Sobre un concepto en m² lo vuelve área: largo × altura × caras (se afina en el detalle).'
             : 'El eje es la línea que dibujas; el cuerpo del muro queda del lado que elijas.'}
         </p>
       </PanelDeOpciones>

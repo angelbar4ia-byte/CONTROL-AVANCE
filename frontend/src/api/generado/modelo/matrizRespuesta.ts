@@ -9,6 +9,7 @@ import type { MatrizRespuestaUnidad } from "./matrizRespuestaUnidad";
 import type { MatrizRespuestaFormula } from "./matrizRespuestaFormula";
 import type { MatrizRespuestaCantidadMedida } from "./matrizRespuestaCantidadMedida";
 import type { MatrizRespuestaDiferencia } from "./matrizRespuestaDiferencia";
+import type { MatrizRespuestaCantidadOrigen } from "./matrizRespuestaCantidadOrigen";
 
 export interface MatrizRespuesta {
   concepto_id: string;
@@ -36,4 +37,6 @@ export interface MatrizRespuesta {
   /** Lo medido en esta obra; no reescribe el catálogo. */
   cantidad_medida?: MatrizRespuestaCantidadMedida;
   diferencia?: MatrizRespuestaDiferencia;
+  /** De dónde viene lo medido: sus trazos o lo que toma de un elemento colocado (D-639). */
+  cantidad_origen?: MatrizRespuestaCantidadOrigen;
 }
