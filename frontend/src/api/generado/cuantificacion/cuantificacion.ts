@@ -29,6 +29,7 @@ import type {
   ArchivoDePlanoRespuesta,
   EscalaPeticion,
   EscalaRespuesta,
+  FusionPeticion,
   HTTPValidationError,
   HuecoPeticion,
   HuecoRespuesta,
@@ -53,6 +54,8 @@ import type {
   TrazoRespuesta,
   TrazoTraidoRespuesta,
   TrazosDePlanoRespuesta,
+  UnionPeticion,
+  UnionesDelMuroRespuesta,
   VanoCambiadoRespuesta,
   VanoEnPlanoRespuesta,
   VanoPeticion,
@@ -4678,6 +4681,660 @@ export const useFijarMuroApiV1TrazosTrazoIdMuroPut = <
 > => {
   const mutationOptions =
     getFijarMuroApiV1TrazosTrazoIdMuroPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Qué pasa en cada extremo del muro y con qué muros se encuentra
+ */
+export const verUnionesApiV1TrazosTrazoIdUnionesGet = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<UnionesDelMuroRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}/uniones`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getVerUnionesApiV1TrazosTrazoIdUnionesGetInfiniteQueryKey = (
+  trazoId?: string,
+) => {
+  return ["infinite", `/api/v1/trazos/${trazoId}/uniones`] as const;
+};
+
+export const getVerUnionesApiV1TrazosTrazoIdUnionesGetQueryKey = (
+  trazoId?: string,
+) => {
+  return [`/api/v1/trazos/${trazoId}/uniones`] as const;
+};
+
+export const getVerUnionesApiV1TrazosTrazoIdUnionesGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVerUnionesApiV1TrazosTrazoIdUnionesGetInfiniteQueryKey(trazoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  > = ({ signal }) =>
+    verUnionesApiV1TrazosTrazoIdUnionesGet(trazoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trazoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VerUnionesApiV1TrazosTrazoIdUnionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  >;
+export type VerUnionesApiV1TrazosTrazoIdUnionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Qué pasa en cada extremo del muro y con qué muros se encuentra
+ */
+
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerUnionesApiV1TrazosTrazoIdUnionesGetInfiniteQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVerUnionesApiV1TrazosTrazoIdUnionesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVerUnionesApiV1TrazosTrazoIdUnionesGetQueryKey(trazoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+  > = ({ signal }) =>
+    verUnionesApiV1TrazosTrazoIdUnionesGet(trazoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trazoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VerUnionesApiV1TrazosTrazoIdUnionesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+>;
+export type VerUnionesApiV1TrazosTrazoIdUnionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGet<
+  TData = Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGet<
+  TData = Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGet<
+  TData = Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Qué pasa en cada extremo del muro y con qué muros se encuentra
+ */
+
+export function useVerUnionesApiV1TrazosTrazoIdUnionesGet<
+  TData = Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof verUnionesApiV1TrazosTrazoIdUnionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getVerUnionesApiV1TrazosTrazoIdUnionesGetQueryOptions(
+    trazoId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * La unión a tope resta medio grosor del otro muro del largo; el empalme, el tramo que se solapa.
+ * @summary Fijar qué pasa en un extremo del muro: conexión, unión a tope o empalme
+ */
+export const fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut = (
+  trazoId: string,
+  extremo: "ini" | "fin",
+  unionPeticion: UnionPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/uniones/${extremo}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: unionPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarUnionApiV1TrazosTrazoIdUnionesExtremoPutMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut>>,
+    TError,
+    { trazoId: string; extremo: "ini" | "fin"; data: UnionPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut>>,
+  TError,
+  { trazoId: string; extremo: "ini" | "fin"; data: UnionPeticion },
+  TContext
+> => {
+  const mutationKey = ["fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut>>,
+    { trazoId: string; extremo: "ini" | "fin"; data: UnionPeticion }
+  > = (props) => {
+    const { trazoId, extremo, data } = props ?? {};
+
+    return fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut(
+      trazoId,
+      extremo,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FijarUnionApiV1TrazosTrazoIdUnionesExtremoPutMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut>>
+  >;
+export type FijarUnionApiV1TrazosTrazoIdUnionesExtremoPutMutationBody =
+  UnionPeticion;
+export type FijarUnionApiV1TrazosTrazoIdUnionesExtremoPutMutationError = void;
+
+/**
+ * @summary Fijar qué pasa en un extremo del muro: conexión, unión a tope o empalme
+ */
+export const useFijarUnionApiV1TrazosTrazoIdUnionesExtremoPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut>>,
+      TError,
+      { trazoId: string; extremo: "ini" | "fin"; data: UnionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof fijarUnionApiV1TrazosTrazoIdUnionesExtremoPut>>,
+  TError,
+  { trazoId: string; extremo: "ini" | "fin"; data: UnionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarUnionApiV1TrazosTrazoIdUnionesExtremoPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Quitar la unión de un extremo
+ */
+export const quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete = (
+  trazoId: string,
+  extremo: "ini" | "fin",
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}/uniones/${extremo}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getQuitarUnionApiV1TrazosTrazoIdUnionesExtremoDeleteMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete>
+      >,
+      TError,
+      { trazoId: string; extremo: "ini" | "fin" },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete>
+    >,
+    TError,
+    { trazoId: string; extremo: "ini" | "fin" },
+    TContext
+  > => {
+    const mutationKey = ["quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete>
+      >,
+      { trazoId: string; extremo: "ini" | "fin" }
+    > = (props) => {
+      const { trazoId, extremo } = props ?? {};
+
+      return quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete(
+        trazoId,
+        extremo,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarUnionApiV1TrazosTrazoIdUnionesExtremoDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete>
+    >
+  >;
+
+export type QuitarUnionApiV1TrazosTrazoIdUnionesExtremoDeleteMutationError =
+  void;
+
+/**
+ * @summary Quitar la unión de un extremo
+ */
+export const useQuitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete>
+      >,
+      TError,
+      { trazoId: string; extremo: "ini" | "fin" },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof quitarUnionApiV1TrazosTrazoIdUnionesExtremoDelete>>,
+  TError,
+  { trazoId: string; extremo: "ini" | "fin" },
+  TContext
+> => {
+  const mutationOptions =
+    getQuitarUnionApiV1TrazosTrazoIdUnionesExtremoDeleteMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * El primero conserva su identidad y absorbe al segundo; deben tener el mismo grosor y alimentar lo mismo.
+ * @summary Fusionar dos muros que se encuentran en un extremo: pasan a ser uno solo
+ */
+export const fusionarMurosApiV1TrazosTrazoIdFusionPost = (
+  trazoId: string,
+  fusionPeticion: FusionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/fusion`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: fusionPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getFusionarMurosApiV1TrazosTrazoIdFusionPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fusionarMurosApiV1TrazosTrazoIdFusionPost>>,
+    TError,
+    { trazoId: string; data: FusionPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fusionarMurosApiV1TrazosTrazoIdFusionPost>>,
+  TError,
+  { trazoId: string; data: FusionPeticion },
+  TContext
+> => {
+  const mutationKey = ["fusionarMurosApiV1TrazosTrazoIdFusionPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fusionarMurosApiV1TrazosTrazoIdFusionPost>>,
+    { trazoId: string; data: FusionPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return fusionarMurosApiV1TrazosTrazoIdFusionPost(
+      trazoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FusionarMurosApiV1TrazosTrazoIdFusionPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof fusionarMurosApiV1TrazosTrazoIdFusionPost>>
+  >;
+export type FusionarMurosApiV1TrazosTrazoIdFusionPostMutationBody =
+  FusionPeticion;
+export type FusionarMurosApiV1TrazosTrazoIdFusionPostMutationError = void;
+
+/**
+ * @summary Fusionar dos muros que se encuentran en un extremo: pasan a ser uno solo
+ */
+export const useFusionarMurosApiV1TrazosTrazoIdFusionPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof fusionarMurosApiV1TrazosTrazoIdFusionPost>>,
+      TError,
+      { trazoId: string; data: FusionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof fusionarMurosApiV1TrazosTrazoIdFusionPost>>,
+  TError,
+  { trazoId: string; data: FusionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFusionarMurosApiV1TrazosTrazoIdFusionPostMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
