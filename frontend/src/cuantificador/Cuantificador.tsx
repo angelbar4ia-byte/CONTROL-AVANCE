@@ -67,6 +67,7 @@ import type {
   NotaPlanoDetalleRespuesta,
   PlanoDetalleRespuesta,
   TrazoRespuesta,
+  ObraRespuesta,
   TrabajoDeObraRespuesta,
   TrazosDePlanoRespuesta,
 } from '@/api/generado/modelo';
@@ -82,7 +83,11 @@ import {
   useAceptarPropuestasApiV1PlanosPlanoIdPropuestasAceptarPost,
   useRechazarPropuestasApiV1PlanosPlanoIdPropuestasRechazarPost,
 } from '@/api/generado/propuestas/propuestas';
-import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/api/generado/proyectos/proyectos';
+import {
+  useListarClustersApiV1ClustersGet,
+  useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet,
+  useListarProyectosApiV1ProyectosGet,
+} from '@/api/generado/proyectos/proyectos';
 import {
   getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey,
   useActividadesDeObraApiV1ObrasObraIdActividadesGet,
@@ -3508,11 +3513,20 @@ export default function Cuantificador() {
   const { sesion } = useSesion();
   const [cambiandoPrototipo, setCambiandoPrototipo] = useState(false);
   const [avisoPrototipo, setAvisoPrototipo] = useState<string | null>(null);
+  // La obra se nombra como en el mockup: «CLAVE · Proyecto · Cluster», para no confundir obras de distintos proyectos.
+  const clustersDeLasObras = useListarClustersApiV1ClustersGet();
+  const proyectosDeLasObras = useListarProyectosApiV1ProyectosGet();
+  const textoDeLaObra = (obra: ObraRespuesta) => {
+    const cluster = (clustersDeLasObras.data ?? []).find((c) => c.id === obra.cluster_id);
+    const proyecto = (proyectosDeLasObras.data ?? []).find((p) => p.id === cluster?.proyecto_id);
+    return [obra.clave, proyecto?.nombre, cluster?.nombre].filter(Boolean).join(' · ');
+  };
   const selectorDeObra = (
     <div className="estacion__obra">
       <SelectorObra
         id="cuant-obra"
         etiqueta="Obra"
+        textoDe={textoDeLaObra}
         valor={obraId}
         onCambio={(id) => setBusqueda(id === '' ? {} : { obra: id })}
       />

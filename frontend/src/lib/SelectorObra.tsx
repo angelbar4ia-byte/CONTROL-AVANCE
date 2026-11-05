@@ -13,6 +13,7 @@
  * "el front programa contra el contrato").
  */
 
+import type { ObraRespuesta } from '@/api/generado/modelo';
 import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
 
 interface Props {
@@ -23,6 +24,8 @@ interface Props {
   /** Texto de la opción vacía. */
   readonly vacio?: string;
   readonly requerido?: boolean;
+  /** El texto de cada obra; sin él, su clave. Sirve para mostrar «CLAVE · Proyecto · Cluster». */
+  readonly textoDe?: (obra: ObraRespuesta) => string;
 }
 
 export function SelectorObra({
@@ -32,6 +35,7 @@ export function SelectorObra({
   onCambio,
   vacio = 'Elige una obra…',
   requerido = false,
+  textoDe,
 }: Props) {
   const consulta = useListarObrasApiV1ObrasGet();
   const obras = consulta.data ?? [];
@@ -52,7 +56,7 @@ export function SelectorObra({
         <option value="">{consulta.isLoading ? 'Cargando obras…' : vacio}</option>
         {obras.map((obra) => (
           <option key={obra.id} value={obra.id}>
-            {obra.clave}
+            {textoDe ? textoDe(obra) : obra.clave}
           </option>
         ))}
       </select>
