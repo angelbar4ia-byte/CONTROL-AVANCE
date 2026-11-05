@@ -175,3 +175,36 @@ async def test_aplicar_crea_un_enlace_nuevo_y_el_anterior_queda_como_evidencia(
     f1 = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == m1)
     vigente = next(e for e in f1["properties"]["enlaces"] if e["vigente"])
     assert Decimal(str(vigente["cantidad"])).quantize(Decimal("0.01")) == Decimal("48.22")
+
+
+async def test_una_forma_y_un_punto_cuentan_por_piezas_area_o_volumen(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    plano = await _plano(control, escenario)
+    # Un castillo de 0.15 × 0.15 m estampado: una forma; y un punto suelto.
+    cuerpo = {
+        "version_plano": 1, "fuente": "pdf",
+        "geometria_wkt": "POLYGON((0 0, 0.15 0, 0.15 0.15, 0 0.15, 0 0))",
+        "forma": {"tipo": "cuadrado", "ancho_m": "0.15", "alto_m": "0.15", "rotacion_grados": "0"},
+        "enlaces": [{"medida": "conteo", "factor": "1", "actividad_id": str(escenario.actividad_id)}],
+    }
+    r = await control.post(f"/api/v1/planos/{plano}/trazos", json=cuerpo)
+    assert r.status_code == 201, r.text
+    forma = r.json()["trazo_id"]
+    ruta = f"/api/v1/enlaces/{await _enlace_vigente(control, plano, forma)}/conversion"
+    info = (await control.get(ruta)).json()
+    assert info["tipo"] == "forma" and [m["clave"] for m in info["modos"]] == ["pza", "area", "vol"]
+
+    async def calcula(**c: object) -> dict:
+        return (await control.post(f"{ruta}/calcular", json=c)).json()
+
+    assert (await calcula(modo="pza"))["valor"] == 1
+    assert (await calcula(modo="area"))["valor"] == pytest.approx(0.0225)
+    vol = await calcula(modo="vol", alt=2.6)
+    assert vol["valor"] == pytest.approx(0.0225 * 2.6) and vol["unidad"] == "m³" and "× 2.6 m" in vol["formula"]
+    assert (await calcula(modo="area"))["componentes"]["huecos"] == 0
+
+    punto = await _trazo(control, escenario, plano, "POINT(3 3)", "conteo")
+    ruta_p = f"/api/v1/enlaces/{await _enlace_vigente(control, plano, punto)}/conversion"
+    ip = (await control.get(ruta_p)).json()
+    assert ip["tipo"] == "punto" and [m["clave"] for m in ip["modos"]] == ["pza"]
+    assert (await control.post(f"{ruta_p}/calcular", json={"modo": "pza"})).json()["valor"] == 1
+    assert (await control.post(f"{ruta_p}/calcular", json={"modo": "area"})).status_code == 422

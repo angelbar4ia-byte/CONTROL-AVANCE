@@ -2035,7 +2035,7 @@ export function EspacioDeTrazo({
               onCambio={(aviso) => setAviso(aviso)}
               onError={(m) => setAviso(m)}
             />
-            {['LineString', 'Polygon'].includes(String(seleccionado.geometry.type)) &&
+            {['LineString', 'Polygon', 'Point'].includes(String(seleccionado.geometry.type)) &&
               seleccionado.properties.enlaces
                 .filter((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo' && !e.matriz_concepto_id)
                 .map((e) => (
