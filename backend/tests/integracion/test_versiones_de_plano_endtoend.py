@@ -88,6 +88,10 @@ async def test_el_trazo_pasa_a_la_version_nueva_sin_contarse_dos_veces(
     cuerpo = r.json()
     assert cuerpo["huecos"] == 1
     assert len(cuerpo["enlace_ids"]) == 1
+    # D-113: lo retrazado se compara con lo anterior; corrido sin deformar da la misma medida.
+    assert cuerpo["cambio_la_medida"] is False
+    assert [Decimal(str(c["antes"])) for c in cuerpo["comparacion"]] == [Decimal("96")]
+    assert [Decimal(str(c["despues"])) for c in cuerpo["comparacion"]] == [Decimal("96")]
 
     # Lo medido es lo mismo: el enlace del viejo dejó de contar y el nuevo ocupa su lugar.
     assert await _cantidad(control, escenario) == Decimal("96")

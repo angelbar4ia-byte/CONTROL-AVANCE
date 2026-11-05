@@ -217,6 +217,7 @@ export type * from "./cierreRespuestaValidadaPor";
 export * from "./claseNodo";
 export type * from "./clusterRespuesta";
 export type * from "./cohorteItemRespuesta";
+export type * from "./comparacionDeMedida";
 export type * from "./conceptoDelElementoRespuesta";
 export type * from "./conceptoDelElementoRespuestaPorUnidad";
 export type * from "./conceptoDelElementoRespuestaToma";
