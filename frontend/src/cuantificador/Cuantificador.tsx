@@ -138,7 +138,7 @@ import { Modal } from '@/lib/Modal';
 import { BarraDeFunciones, BarraDeTrazo, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
 import { CuadroDeDatos } from './CuadroDeDatos';
 import { crearHistorial } from './historial';
-import { AyudasDeDibujo } from './AyudasDeDibujo';
+import { BotonDeAyudas } from './AyudasDeDibujo';
 import {
   CLICS_DE_FORMA,
   contornoCerrado,
@@ -3082,22 +3082,6 @@ export function EspacioDeTrazo({
             <>
               {barra('trazo')}
 
-              <div className="estacion__ayudas">
-        {ayudasAbiertas && asistida && herramienta !== 'escala' && (
-          <AyudasDeDibujo
-            ortogonal={ortogonal}
-            onOrtogonal={setOrtogonal}
-            pasoGrados={pasoGrados}
-            onPaso={setPasoGrados}
-            baseGrados={baseGrados}
-            onBase={setBaseGrados}
-            referenciasOn={referenciasOn}
-            onReferenciasOn={setReferenciasOn}
-            referencias={referencias}
-            onReferencia={(tipo, on) => setReferencias((r) => ({ ...r, [tipo]: on }))}
-          />
-        )}
-              </div>
 
               <div className="estacion__paneles">
                 {(herramienta === 'linea' ||
@@ -3473,16 +3457,20 @@ export function EspacioDeTrazo({
             </div>
           )}
           {asistida && herramienta !== 'escala' && (
-            <button
-              type="button"
-              className={ayudasAbiertas ? 'estado-pastilla is-activa' : 'estado-pastilla'}
-              aria-pressed={ayudasAbiertas}
-              aria-label="Ayudas de dibujo"
-              title="Ajustar el ortogonal (ángulo de trabajo) y la referencia a objetos"
-              onClick={() => setAyudasAbiertas(!ayudasAbiertas)}
-            >
-              AYUDAS
-            </button>
+            <BotonDeAyudas
+              abiertas={ayudasAbiertas}
+              onAbiertas={setAyudasAbiertas}
+              ortogonal={ortogonal}
+              onOrtogonal={setOrtogonal}
+              pasoGrados={pasoGrados}
+              onPaso={setPasoGrados}
+              baseGrados={baseGrados}
+              onBase={setBaseGrados}
+              referenciasOn={referenciasOn}
+              onReferenciasOn={setReferenciasOn}
+              referencias={referencias}
+              onReferencia={(tipo, on) => setReferencias((r) => ({ ...r, [tipo]: on }))}
+            />
           )}
           <button
             type="button"
