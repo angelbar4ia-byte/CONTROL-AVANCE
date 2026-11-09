@@ -652,8 +652,10 @@ export function Visor({
 
   const radio = 5 * porPixel;
   const cursor =
-    herramienta === 'seleccionar' || herramienta === 'mano'
-      ? 'grab'
+    herramienta === 'seleccionar'
+      ? 'default' // la flecha: seleccionar no es arrastrar el plano
+      : herramienta === 'mano'
+        ? 'grab'
       : herramienta === 'zoom'
         ? 'zoom-in'
         : herramienta === 'borrar'

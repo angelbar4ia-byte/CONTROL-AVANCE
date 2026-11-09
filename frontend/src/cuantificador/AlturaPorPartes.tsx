@@ -13,14 +13,22 @@ export interface ParteDeAltura {
 
 interface Props {
   readonly partes: readonly ParteDeAltura[];
-  /** La altura única, como se teclea: la primera parte nace con ella. */
-  readonly alturaUnica: string;
+  /** La altura única, como se teclea (ya no siembra las partes: nacen precargadas). */
+  readonly alturaUnica?: string;
   readonly onPartes: (partes: ParteDeAltura[]) => void;
 }
 
+/** Las partes con que nace «Por partes»: un muro de casa con su cerramiento y su enrase (se editan o se quitan). */
+export const PARTES_PRECARGADAS: readonly ParteDeAltura[] = [
+  { nombre: 'Media altura', desde_m: 0, hasta_m: 1.2, suma: true },
+  { nombre: 'Hasta cerramiento', desde_m: 1.2, hasta_m: 2.3, suma: true },
+  { nombre: 'Cerramiento', desde_m: 2.3, hasta_m: 2.5, suma: false },
+  { nombre: 'Enrase', desde_m: 2.5, hasta_m: 3, suma: true },
+];
+
 const num = (t: unknown) => Number(String(t ?? '').replace(',', '.'));
 
-export function AlturaPorPartes({ partes, alturaUnica, onPartes }: Props) {
+export function AlturaPorPartes({ partes, onPartes }: Props) {
   const cambiarUna = (i: number, cambio: Partial<ParteDeAltura>) =>
     onPartes(partes.map((x, j) => (j === i ? { ...x, ...cambio } : x)));
   const chip = (activo: boolean, etiqueta: string, alPulsar: () => void) => (
@@ -33,9 +41,7 @@ export function AlturaPorPartes({ partes, alturaUnica, onPartes }: Props) {
       <div className="alturas__titulo">Altura por partes</div>
       <div className="alturas__modo" role="group" aria-label="Altura única o por partes">
         {chip(partes.length === 0, 'Altura única', () => onPartes([]))}
-        {chip(partes.length > 0, 'Por partes', () =>
-          onPartes([{ nombre: 'Muro', desde_m: 0, hasta_m: num(alturaUnica) || 2.6, suma: true }]),
-        )}
+        {chip(partes.length > 0, 'Por partes', () => onPartes(PARTES_PRECARGADAS.map((p) => ({ ...p }))))}
       </div>
       {partes.map((p, i) => (
         <div key={i} className="alturas__fila">

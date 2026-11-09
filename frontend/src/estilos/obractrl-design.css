@@ -2724,7 +2724,11 @@ a { color: inherit; text-decoration: none; }
   background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
 }
 .opciones__titulo { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--c-text-mute); }
-.opciones__fila { display: flex; flex-wrap: wrap; gap: 4px; }
+.opciones__fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 6px; }
+.opciones__fila--apilada { grid-template-columns: 1fr; }
+/* Los botones del panel: del mismo alto y centrados, con área de toque cómoda (los chips sueltos de otras pantallas no cambian). */
+.opciones .chip { justify-content: center; min-height: 30px; padding: 4px 8px; text-align: center; white-space: nowrap; }
+.opciones .alturas__modo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .opciones__campo { display: grid; grid-template-columns: 1fr 84px; gap: 6px; align-items: center; color: var(--c-text-soft); }
 .opciones__campo .input { height: 26px; text-align: right; }
 .opciones__medidas { display: grid; gap: 6px; }
@@ -2819,7 +2823,7 @@ a { color: inherit; text-decoration: none; }
 }
 .estado-pastilla.is-activa { background: var(--c-accent-soft); border-color: var(--c-accent); color: var(--c-accent-strong); }
 .estado-pastilla:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
-.estacion__ayudas { position: absolute; right: 10px; top: 46px; z-index: 4; }
+.ayudas-flotante { position: fixed; z-index: 60; width: 330px; max-width: 86vw; max-height: 70vh; overflow-y: auto; border-radius: var(--r-lg); box-shadow: var(--shadow-lg); }
 
 /* Pestañas del panel lateral (Presupuesto · Planos) y el navegador de planos. */
 .estacion__pestanas { display: flex; flex: none; border-bottom: 1px solid var(--c-line); }

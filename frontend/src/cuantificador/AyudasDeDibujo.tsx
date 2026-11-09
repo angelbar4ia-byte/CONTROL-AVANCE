@@ -7,7 +7,8 @@
  * apagado, dibuja recto. F8 y F3 los encienden y apagan.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   NOMBRE_DE_REFERENCIA,
@@ -131,5 +132,94 @@ export function AyudasDeDibujo({
         ))}
       </div>
     </section>
+  );
+}
+
+interface PropsBoton extends Props {
+  readonly abiertas: boolean;
+  readonly onAbiertas: (abiertas: boolean) => void;
+}
+
+/**
+ * El botón AYUDAS de la barra de estado con su ventana: al pulsarlo la ventana **sube** desde el botón (sobre el
+ * plano, no tapa la barra) para elegir los campos; al mover el puntero fuera de ella se oculta, igual que con Esc o un
+ * clic fuera. No se oculta mientras se teclea en uno de sus campos. Encender o apagar el ortogonal y la referencia se
+ * hace con un clic en sus botones (también ORTO y REF de la barra).
+ */
+export function BotonDeAyudas({ abiertas, onAbiertas, ...ayudas }: PropsBoton) {
+  const boton = useRef<HTMLButtonElement>(null);
+  const ventana = useRef<HTMLDivElement>(null);
+  const espera = useRef<number | null>(null);
+  const [lugar, setLugar] = useState<{ left: number; bottom: number } | null>(null);
+  const cancelar = () => {
+    if (espera.current !== null) window.clearTimeout(espera.current);
+    espera.current = null;
+  };
+  const alejarse = () => {
+    if (!abiertas) return;
+    cancelar();
+    // Un respiro para cruzar el hueco entre el botón y la ventana sin que se cierre.
+    espera.current = window.setTimeout(() => {
+      const activo = document.activeElement;
+      const tecleando = ventana.current?.contains(activo) && activo instanceof HTMLInputElement;
+      if (!tecleando) onAbiertas(false);
+    }, 350);
+  };
+  // La ventana flota fija sobre el botón (la barra de estado se desplaza y la recortaría).
+  useEffect(() => {
+    if (!abiertas) return;
+    const poner = () => {
+      const caja = boton.current?.getBoundingClientRect();
+      if (!caja) return;
+      setLugar({ left: Math.max(8, Math.min(caja.left, window.innerWidth - 340)), bottom: window.innerHeight - caja.top + 8 });
+    };
+    poner();
+    window.addEventListener('resize', poner);
+    const fuera = (e: PointerEvent) => {
+      const el = e.target as Node;
+      if (!ventana.current?.contains(el) && !boton.current?.contains(el)) onAbiertas(false);
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onAbiertas(false);
+    };
+    document.addEventListener('pointerdown', fuera);
+    document.addEventListener('keydown', tecla);
+    return () => {
+      window.removeEventListener('resize', poner);
+      document.removeEventListener('pointerdown', fuera);
+      document.removeEventListener('keydown', tecla);
+      cancelar();
+    };
+  }, [abiertas, onAbiertas]);
+  return (
+    <>
+      {abiertas &&
+        lugar &&
+        createPortal(
+          <div
+            ref={ventana}
+            className="ayudas-flotante"
+            style={{ left: lugar.left, bottom: lugar.bottom }}
+            onPointerEnter={cancelar}
+            onPointerLeave={alejarse}
+          >
+            <AyudasDeDibujo {...ayudas} />
+          </div>,
+          document.body,
+        )}
+      <button
+        ref={boton}
+        type="button"
+        className={abiertas ? 'estado-pastilla is-activa' : 'estado-pastilla'}
+        aria-pressed={abiertas}
+        aria-label="Ayudas de dibujo"
+        title="Ajustar el ortogonal (ángulo de trabajo) y la referencia a objetos"
+        onPointerEnter={cancelar}
+        onPointerLeave={alejarse}
+        onClick={() => onAbiertas(!abiertas)}
+      >
+        AYUDAS
+      </button>
+    </>
   );
 }
