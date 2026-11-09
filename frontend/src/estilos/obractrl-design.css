@@ -69,6 +69,44 @@
   --subbar-h: 44px;
 }
 
+/* ---------- Tema oscuro ----------
+   `html[data-theme]` es el interruptor ("claro" | "oscuro"); lo escribe `shell/SelectorTema.tsx`
+   (por defecto sigue al sistema). Solo cambian los tokens: los componentes no hardcodean colores. */
+html[data-theme="oscuro"] {
+  color-scheme: dark;
+  --c-bg:        oklch(17% 0.010 255);
+  --c-surface:   oklch(21% 0.012 255);
+  --c-panel:     oklch(19% 0.011 255);
+  --c-elev:      oklch(26% 0.013 255);
+  --c-line:      oklch(31% 0.012 255);
+  --c-line-strong: oklch(38% 0.014 255);
+  --c-line-soft: oklch(26% 0.010 255);
+
+  --c-text:      oklch(94% 0.006 255);
+  --c-text-soft: oklch(80% 0.008 255);
+  --c-text-mute: oklch(66% 0.010 255);
+  --c-text-faint:oklch(52% 0.010 255);
+
+  --c-accent:    oklch(68% 0.14 255);
+  --c-accent-soft: oklch(30% 0.06 255);
+  --c-accent-strong: oklch(76% 0.13 255);
+  --c-accent-fg: oklch(16% 0.01 255);
+
+  --c-ok:        oklch(72% 0.13 155);
+  --c-ok-soft:   oklch(29% 0.05 155);
+  --c-warn:      oklch(79% 0.13 75);
+  --c-warn-soft: oklch(31% 0.05 75);
+  --c-danger:    oklch(70% 0.17 25);
+  --c-danger-soft: oklch(30% 0.06 25);
+  --c-info:      oklch(74% 0.10 230);
+  --c-info-soft: oklch(29% 0.04 230);
+
+  --shadow-sm: 0 1px 0 oklch(0% 0 0 / 0.30), 0 1px 2px oklch(0% 0 0 / 0.30);
+  --shadow-md: 0 2px 4px oklch(0% 0 0 / 0.35), 0 6px 16px oklch(0% 0 0 / 0.35);
+  --shadow-lg: 0 4px 8px oklch(0% 0 0 / 0.40), 0 16px 40px oklch(0% 0 0 / 0.45);
+}
+html[data-theme="oscuro"] body { background: var(--c-bg); color: var(--c-text); }
+
 body[data-density="compact"] {
   --row-h: 30px;
   --pad-cell-y: 5px;
@@ -2918,37 +2956,37 @@ a { color: inherit; text-decoration: none; }
   gap: 6px;
   padding: 8px;
   margin: 4px 8px;
-  border: 1px solid var(--border, #d8dce2);
+  border: 1px solid var(--c-line-strong);
   border-radius: 6px;
-  background: var(--surface, #fff);
+  background: var(--c-surface);
 }
 .alta-concepto__titulo { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 12px; }
 .alta-concepto label { display: grid; gap: 2px; font-size: 11px; }
 .alta-concepto input, .alta-concepto select { min-width: 0; }
 .arbol__alta-matriz { padding: 0 0 2px 22px; }
 .datos__sin-asignar { margin-left: 6px; font-size: 9px; }
-.arbol__costo { padding: 4px 6px; border: 1px dashed var(--c-warn, #d97706); border-radius: 6px; }
+.arbol__costo { padding: 4px 6px; border: 1px dashed var(--c-warn); border-radius: 6px; }
 
 /* Fase 2 · empalme de versiones: la versión anterior como fantasma */
-.visor__fantasma path { fill: none; stroke: var(--c-danger, #dc2626); stroke-width: 1.5; stroke-dasharray: 5 4; }
-.visor__fantasma circle { fill: var(--c-danger, #dc2626); }
+.visor__fantasma path { fill: none; stroke: var(--c-danger); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.visor__fantasma circle { fill: var(--c-danger); }
 .visor__fantasma .visor__fantasma-zona { stroke: transparent; stroke-width: 12; stroke-dasharray: none; pointer-events: stroke; cursor: pointer; }
 .visor__fantasma.is-elegido path:not(.visor__fantasma-zona) { stroke-width: 3; }
 .visor__empalme { pointer-events: none; }
 .visor__empalme .visor__fantasma { pointer-events: auto; }
 
 .empalme__clave { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
-.empalme__clave--antes { background: var(--c-danger, #dc2626); }
-.empalme__clave--ahora { background: var(--c-ok, #16a34a); }
+.empalme__clave--antes { background: var(--c-danger); }
+.empalme__clave--ahora { background: var(--c-ok); }
 
 /* Fase 2 · enlaces entre hojas: la zona que lleva a otra hoja */
-.visor__enlace rect { fill: var(--c-info, #2563eb); fill-opacity: .08; stroke: var(--c-info, #2563eb); stroke-width: 1.5; stroke-dasharray: 2 3; cursor: pointer; }
-.visor__enlace text { fill: var(--c-info, #2563eb); font-weight: 600; pointer-events: none; }
+.visor__enlace rect { fill: var(--c-info); fill-opacity: .08; stroke: var(--c-info); stroke-width: 1.5; stroke-dasharray: 2 3; cursor: pointer; }
+.visor__enlace text { fill: var(--c-info); font-weight: 600; pointer-events: none; }
 .visor__enlace:hover rect { fill-opacity: .18; }
 
 /* Fase 2 y 3 · propuestas por revisar: se ven en naranja y no suman nada hasta aceptarse */
-.visor__propuesta path:not(.visor__propuesta-zona) { fill: none; stroke: var(--c-warn, #d97706); stroke-width: 2; stroke-dasharray: 4 3; }
-.visor__propuesta circle { fill: var(--c-warn, #d97706); fill-opacity: .35; stroke: var(--c-warn, #d97706); stroke-width: 1.5; }
+.visor__propuesta path:not(.visor__propuesta-zona) { fill: none; stroke: var(--c-warn); stroke-width: 2; stroke-dasharray: 4 3; }
+.visor__propuesta circle { fill: var(--c-warn); fill-opacity: .35; stroke: var(--c-warn); stroke-width: 1.5; }
 .visor__propuesta .visor__propuesta-zona { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .visor__propuesta.is-descartada { opacity: .3; }
 .propuestas__resumen { margin: 0; padding-left: 16px; }
@@ -2959,19 +2997,31 @@ a { color: inherit; text-decoration: none; }
 .arbol-edicion__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px 2px 0; font-size: 12px; }
 .arbol-edicion__alta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .arbol-edicion__alta input, .arbol-edicion__alta select, .arbol-edicion__partida select { min-width: 0; height: 24px; font-size: 11px; }
-.arbol-edicion__partida { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: center; padding: 3px 0; font-size: 11px; border-bottom: 1px solid var(--line, #e5e7eb); }
+.arbol-edicion__partida { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: center; padding: 3px 0; font-size: 11px; border-bottom: 1px solid var(--c-line); }
 .arbol-edicion__concepto { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Vanos (puertas, ventanas, pasos) dibujados sobre su muro en el visor del cuantificador. */
 .visor__vanos { pointer-events: none; }
-.visor__vano { fill: var(--panel, #fff); fill-opacity: .85; stroke: var(--accent, #2563eb); stroke-width: 1.5; pointer-events: none; }
+.visor__vano { fill: var(--c-surface); fill-opacity: .85; stroke: var(--c-accent); stroke-width: 1.5; pointer-events: none; }
 .visor__vano-zona { fill: transparent; stroke: none; pointer-events: all; }
 .visor__vano-grupo.is-elegido .visor__vano { stroke-width: 2.5; }
 .visor__asas { pointer-events: all; }
-.visor__asa { fill: var(--panel, #fff); stroke: var(--accent, #2563eb); stroke-width: 1.5; cursor: ew-resize; pointer-events: all; }
-.visor__asa--centro { cursor: grab; fill: var(--accent, #2563eb); }
+.visor__asa { fill: var(--c-surface); stroke: var(--c-accent); stroke-width: 1.5; cursor: ew-resize; pointer-events: all; }
+.visor__asa--centro { cursor: grab; fill: var(--c-accent); }
 .visor__vano--ventana { fill-opacity: .35; stroke-dasharray: 3 2; }
 
 /* Ventana de selección del visor: azul y sólida si solo elige lo que cubre por completo; verde y punteada si elige lo que toca. */
-.visor__ventana { fill: var(--accent, #2563eb); fill-opacity: .08; stroke: var(--accent, #2563eb); stroke-width: 1; pointer-events: none; }
-.visor__ventana--toca { fill: var(--c-ok, #16a34a); stroke: var(--c-ok, #16a34a); stroke-dasharray: 5 3; }
+.visor__ventana { fill: var(--c-accent); fill-opacity: .08; stroke: var(--c-accent); stroke-width: 1; pointer-events: none; }
+.visor__ventana--toca { fill: var(--c-ok); stroke: var(--c-ok); stroke-dasharray: 5 3; }
+
+/* Altura por partes del muro (panel de la línea y detalle del trazo) */
+.alturas { display: flex; flex-direction: column; gap: 8px; }
+.alturas__titulo { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-mute); }
+.alturas__modo { display: flex; gap: 8px; }
+.alturas__fila { display: grid; grid-template-columns: minmax(0, 1fr) 56px 56px auto auto; gap: 8px; align-items: center; }
+.alturas__nombre, .alturas__medida { min-width: 0; padding: 7px 9px; border: 1px solid var(--c-line-strong); border-radius: var(--r-md); background: var(--c-surface); color: var(--c-text); font: inherit; font-weight: 600; }
+.alturas__medida { text-align: left; }
+.alturas__suma { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-sm); color: var(--c-text-mute); white-space: nowrap; }
+.alturas__quitar { width: 34px; height: 34px; }
+.alturas__agregar { width: 100%; padding: 8px; border: 1px solid var(--c-line-strong); border-radius: var(--r-xl); background: transparent; color: var(--c-text-soft); font: inherit; cursor: pointer; }
+.alturas__agregar:hover { background: var(--c-elev); color: var(--c-text); }

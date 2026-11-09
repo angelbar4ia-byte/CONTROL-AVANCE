@@ -13,6 +13,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from '@/shell/AppShell';
 import { useAplicarDensidad } from '@/shell/SelectorDensidad';
+import { useAplicarTema } from '@/shell/SelectorTema';
 import { useSesion } from '@/app/sesion';
 import { Login } from '@/app/Login';
 import { queryClient } from '@/app/queryClient';
@@ -83,6 +84,7 @@ export function App() {
 
 function Rutas() {
   useAplicarDensidad();
+  useAplicarTema();
 
   const { sesion, cargando, error } = useSesion();
   const enLinea = useEnLinea();

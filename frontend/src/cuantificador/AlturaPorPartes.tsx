@@ -29,23 +29,23 @@ export function AlturaPorPartes({ partes, alturaUnica, onPartes }: Props) {
     </button>
   );
   return (
-    <>
-      <div className="text-xs text-mute">Altura por partes</div>
-      <div className="row" style={{ gap: 4 }} role="group" aria-label="Altura única o por partes">
+    <div className="alturas">
+      <div className="alturas__titulo">Altura por partes</div>
+      <div className="alturas__modo" role="group" aria-label="Altura única o por partes">
         {chip(partes.length === 0, 'Altura única', () => onPartes([]))}
         {chip(partes.length > 0, 'Por partes', () =>
           onPartes([{ nombre: 'Muro', desde_m: 0, hasta_m: num(alturaUnica) || 2.6, suma: true }]),
         )}
       </div>
       {partes.map((p, i) => (
-        <div key={i} className="row" style={{ gap: 4 }}>
-          <input aria-label={`Nombre de la parte ${i + 1}`} style={{ width: 80 }} value={p.nombre} onChange={(e) => cambiarUna(i, { nombre: e.target.value })} />
-          <input aria-label={`Desde (m) de la parte ${i + 1}`} inputMode="decimal" style={{ width: 48 }} value={String(p.desde_m)} onChange={(e) => cambiarUna(i, { desde_m: num(e.target.value) })} />
-          <input aria-label={`Hasta (m) de la parte ${i + 1}`} inputMode="decimal" style={{ width: 48 }} value={String(p.hasta_m)} onChange={(e) => cambiarUna(i, { hasta_m: num(e.target.value) })} />
-          <label className="text-xs" title="Suma a la cantidad">
+        <div key={i} className="alturas__fila">
+          <input aria-label={`Nombre de la parte ${i + 1}`} className="alturas__nombre" value={p.nombre} onChange={(e) => cambiarUna(i, { nombre: e.target.value })} />
+          <input aria-label={`Desde (m) de la parte ${i + 1}`} className="alturas__medida" inputMode="decimal" value={String(p.desde_m)} onChange={(e) => cambiarUna(i, { desde_m: num(e.target.value) })} />
+          <input aria-label={`Hasta (m) de la parte ${i + 1}`} className="alturas__medida" inputMode="decimal" value={String(p.hasta_m)} onChange={(e) => cambiarUna(i, { hasta_m: num(e.target.value) })} />
+          <label className="alturas__suma" title="Suma a la cantidad">
             <input type="checkbox" checked={p.suma} onChange={(e) => cambiarUna(i, { suma: e.target.checked })} /> suma
           </label>
-          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Quitar la parte ${i + 1}`} onClick={() => onPartes(partes.filter((_, j) => j !== i))}>
+          <button type="button" className="btn btn--icon alturas__quitar" aria-label={`Quitar la parte ${i + 1}`} onClick={() => onPartes(partes.filter((_, j) => j !== i))}>
             ×
           </button>
         </div>
@@ -53,7 +53,7 @@ export function AlturaPorPartes({ partes, alturaUnica, onPartes }: Props) {
       {partes.length > 0 && (
         <button
           type="button"
-          className="btn btn--sm"
+          className="alturas__agregar"
           onClick={() => {
             const ultima = partes[partes.length - 1]!;
             onPartes([...partes, { nombre: '', desde_m: ultima.hasta_m, hasta_m: ultima.hasta_m + 0.5, suma: true }]);
@@ -62,6 +62,6 @@ export function AlturaPorPartes({ partes, alturaUnica, onPartes }: Props) {
           + Parte
         </button>
       )}
-    </>
+    </div>
   );
 }
