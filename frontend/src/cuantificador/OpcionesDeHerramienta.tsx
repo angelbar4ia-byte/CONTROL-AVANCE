@@ -158,7 +158,7 @@ export function OpcionesDeHerramienta({
                     </button>
                   ))}
                 </div>
-                <div className="opciones__fila" role="group" aria-label="De qué lado queda el interior">
+                <div className="opciones__fila opciones__fila--apilada" role="group" aria-label="De qué lado queda el interior">
                   {(
                     [
                       ['izq', 'Interior a la izquierda'],
