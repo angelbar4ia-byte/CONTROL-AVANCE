@@ -62,6 +62,23 @@ describe('el árbol del cuantificador', () => {
   });
 });
 
+describe('la fila del concepto usa su descripción corta del catálogo', () => {
+  const larga = 'Colocación de acero en cimentación K1, armado completo con varilla del número 3 y alambre recocido';
+  it('muestra el nombre breve del catálogo cuando lo trae', () => {
+    const [n] = arbolDeCuantificacion(
+      [act('a1', { nivel_clave: 'PB', concepto_clave: 'EST-10010', descripcion: larga, concepto_descripcion_corta: 'Acero K1' })],
+      [],
+    );
+    const hoja = n!.etapas[0]!.hojas[0]!;
+    expect(hoja.corta).toBe('EST-10010 · Acero K1');
+    expect(hoja.etiqueta).toContain('armado completo'); // la completa sigue para la búsqueda y la ayuda
+  });
+  it('sin descripción corta, recorta la completa como antes', () => {
+    const [n] = arbolDeCuantificacion([act('a1', { nivel_clave: 'PB', concepto_clave: 'EST-10011', descripcion: larga })], []);
+    expect(n!.etapas[0]!.hojas[0]!.corta.endsWith('…')).toBe(true);
+  });
+});
+
 describe('descripcionCorta', () => {
   it('deja intacta una descripción corta', () => {
     expect(descripcionCorta('Firme de concreto')).toBe('Firme de concreto');

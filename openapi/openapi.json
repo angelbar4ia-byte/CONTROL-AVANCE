@@ -17640,6 +17640,18 @@
             ],
             "title": "Concepto Clave"
           },
+          "concepto_descripcion_corta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion Corta",
+            "description": "El nombre breve del concepto (catálogo, 0121); `null` si no lo trae."
+          },
           "unidad": {
             "anyOf": [
               {
@@ -18490,6 +18502,18 @@
               }
             ],
             "title": "Concepto Clave"
+          },
+          "concepto_descripcion_corta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion Corta",
+            "description": "El nombre breve del concepto (catálogo, 0121); `null` si no lo trae."
           },
           "unidad": {
             "anyOf": [

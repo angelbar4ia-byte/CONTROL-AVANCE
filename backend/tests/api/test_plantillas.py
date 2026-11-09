@@ -51,6 +51,8 @@ def test_plantilla_de_catalogo_de_conceptos_es_por_nombre_no_posicional() -> Non
         # la plantilla y lea "frente" escribiría OBRA o INSTALACIONES —los
         # cuatro de la etapa— en la columna de los quince oficios.
         "especialidad",
+        # El nombre breve que las filas angostas muestran (migración 0121).
+        "descripcion corta",
     ]
 
 

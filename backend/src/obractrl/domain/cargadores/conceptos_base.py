@@ -60,6 +60,12 @@ class FilaConceptoBase:
     Viaja como texto: resolverlo contra el catálogo de `especialidad` es
     trabajo del aplicador, que tiene la base delante."""
 
+    descripcion_corta: str | None = None
+    """El nombre breve del concepto (0121) para filas angostas; opcional."""
+
+    otras: tuple[tuple[str, str], ...] = ()
+    """Las columnas del archivo sin campo propio, ``(encabezado, valor)``: no se descarta ninguna (0122)."""
+
     fila: int = 0
     """Renglón del archivo. Viaja con el registro para que un pendiente
     pueda ligar al origen (§10.3) sin volver a abrir el libro, y para darle
@@ -111,5 +117,7 @@ def validar_concepto_base(
         unidad=texto_limpio(mapa.valor(fila, "unidad")) or None,
         clave_unidad=texto_limpio(mapa.valor(fila, "clave_unidad")) or None,
         especialidad=texto_limpio(mapa.valor(fila, "especialidad")) or None,
+        descripcion_corta=texto_limpio(mapa.valor(fila, "descripcion_corta")) or None,
+        otras=mapa.otras(fila),
         fila=numero,
     )

@@ -80,7 +80,10 @@ export function arbolDeCuantificacion(
     etapa.hojas.push({
       id: a.id,
       etiqueta: [a.concepto_clave, a.descripcion].filter(Boolean).join(' · ') || 'Actividad',
-      corta: [a.concepto_clave, descripcionCorta(a.descripcion)].filter(Boolean).join(' · ') || 'Actividad',
+      // El nombre breve del catálogo (columna «Descripción corta»); sin él, la descripción completa recortada.
+      corta:
+        [a.concepto_clave, a.concepto_descripcion_corta?.trim() || descripcionCorta(a.descripcion)].filter(Boolean).join(' · ') ||
+        'Actividad',
       base: a.cant_base,
       medida: nodo ? nodo.cantidad_medida : null,
       diferencia: nodo ? (nodo.diferencia ?? null) : null,

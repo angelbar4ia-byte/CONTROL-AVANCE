@@ -289,6 +289,27 @@ def test_concepto_auxiliar_real_captura_clave_unidad_e_ignora_el_costo() -> None
     assert auxiliar.clave_unidad == "8"
 
 
+def test_concepto_base_captura_la_descripcion_corta_sin_chocar_con_la_descripcion() -> None:
+    """`DESCRIPCIÓN CORTA` junto a `DESCRIPCIÓN` no rechaza el archivo por ambigüedad y llega como campo propio (0121)."""
+    mapa = resolver_encabezados(["Clave", "Descripción", "Descripción corta", "Unidad"], CONCEPTOS_BASE)
+    concepto = validar_concepto_base(
+        ["EST-10010", "Colocación de acero en cimentación K1, armado completo", "Acero K1", "kg"], mapa, 7
+    )
+    assert concepto.descripcion == "Colocación de acero en cimentación K1, armado completo"
+    assert concepto.descripcion_corta == "Acero K1"
+    sin = validar_concepto_base(["EST-02", "Losa", "", "m2"], mapa, 8)
+    assert sin.descripcion_corta is None
+
+
+def test_concepto_base_guarda_todas_las_columnas_que_no_tienen_campo_propio() -> None:
+    """0122: nada se descarta; lo desconocido viaja como (encabezado, valor) y las celdas vacías no."""
+    mapa = resolver_encabezados(
+        ["Clave", "Descripción", "Unidad", "Costo base M.N.", "Fecha", "Comentarios"], CONCEPTOS_BASE
+    )
+    concepto = validar_concepto_base(["EST-03", "Firme", "m2", 125.5, "2026-08-01", ""], mapa, 3)
+    assert dict(concepto.otras) == {"Costo base M.N.": "125.5", "Fecha": "2026-08-01"}
+
+
 def test_concepto_base_sin_unidad_queda_en_none() -> None:
     concepto = validar_concepto_base(["EST-02", "Losa de azotea", ""], _MAPA_CONCEPTOS_BASE, 6)
     assert concepto.unidad is None

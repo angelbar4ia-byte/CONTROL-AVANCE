@@ -38,7 +38,48 @@ _COLUMNAS = """
     id, tipo, clave, descripcion, unidad_id, familia_id, estatus, especialidad_id
 """
 
+_CORTA_DISPONIBLE = False
+"""Se vuelve `True` cuando la columna `concepto.descripcion_corta` (0121) ya existe y no se vuelve a preguntar."""
+_DATOS_DISPONIBLES = False
+"""Ídem para `concepto.datos_catalogo` (0122)."""
+
+
+async def _hay_datos(sesion: AsyncSession) -> bool:
+    global _DATOS_DISPONIBLES
+    if not _DATOS_DISPONIBLES:
+        _DATOS_DISPONIBLES = bool(
+            (
+                await sesion.execute(
+                    text(
+                        "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                        "and table_name = 'concepto' and column_name = 'datos_catalogo')"
+                    )
+                )
+            ).scalar_one()
+        )
+    return _DATOS_DISPONIBLES
+
+
+async def _hay_corta(sesion: AsyncSession) -> bool:
+    """Expand → contract: el código puede llegar antes que la migración 0121 y no debe tumbar las lecturas."""
+    global _CORTA_DISPONIBLE
+    if not _CORTA_DISPONIBLE:
+        _CORTA_DISPONIBLE = bool(
+            (
+                await sesion.execute(
+                    text(
+                        "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                        "and table_name = 'concepto' and column_name = 'descripcion_corta')"
+                    )
+                )
+            ).scalar_one()
+        )
+    return _CORTA_DISPONIBLE
+
+
 _CAMPOS_EDITABLES: dict[str, str] = {
+    "descripcion_corta": "descripcion_corta = :descripcion_corta",
+    "datos_catalogo": "datos_catalogo = cast(:datos_catalogo as jsonb)",
     "tipo": "tipo = cast(:tipo as tipo_concepto)",
     "descripcion": "descripcion = :descripcion",
     "unidad_id": "unidad_id = cast(:unidad_id as uuid)",
@@ -91,6 +132,12 @@ class RepositorioConceptosSQL:
     def __init__(self, sesion: AsyncSession) -> None:
         self._sesion = sesion
 
+    async def _columnas(self) -> str:
+        extra = (", descripcion_corta" if await _hay_corta(self._sesion) else "") + (
+            ", datos_catalogo" if await _hay_datos(self._sesion) else ""
+        )
+        return _COLUMNAS.rstrip() + extra + "\n"
+
     async def crear(self, datos: dict[str, Any]) -> UUID:
         """Alta de concepto (§11.2 `POST /conceptos`, rol C).
 
@@ -98,19 +145,23 @@ class RepositorioConceptosSQL:
         normalizados por `domain.catalogos.reglas.Concepto`. Opcionales:
         ``unidad_id``, ``familia_id``.
         """
+        con_corta = await _hay_corta(self._sesion)
+        con_datos = await _hay_datos(self._sesion)
         return (
             await self._sesion.execute(
                 text(
-                    """
+                    f"""
                     insert into concepto
-                        (org_id, tipo, clave, descripcion, unidad_id, familia_id)
+                        (org_id, tipo, clave, descripcion, unidad_id, familia_id{", descripcion_corta" if con_corta else ""}{", datos_catalogo" if con_datos else ""})
                     values (cast(current_setting('app.org_id') as uuid),
                             cast(:tipo as tipo_concepto), :clave, :descripcion,
-                            cast(:unidad_id as uuid), cast(:familia_id as uuid))
+                            cast(:unidad_id as uuid), cast(:familia_id as uuid){", :descripcion_corta" if con_corta else ""}{", cast(:datos_catalogo as jsonb)" if con_datos else ""})
                     returning id
                     """
                 ),
                 {
+                    **({"descripcion_corta": datos.get("descripcion_corta")} if con_corta else {}),
+                    **({"datos_catalogo": json.dumps(datos.get("datos_catalogo") or {}, ensure_ascii=False)} if con_datos else {}),
                     "tipo": datos["tipo"],
                     "clave": datos["clave"],
                     "descripcion": datos["descripcion"],
@@ -131,6 +182,12 @@ class RepositorioConceptosSQL:
         que ya existe: en modo Actualizar se refresca descripción, unidad y
         familia (§10.2). La `clave` no es editable — es la identidad (§3.3).
         """
+        if not await _hay_corta(self._sesion):
+            cambios = {c: v for c, v in cambios.items() if c != "descripcion_corta"}
+        if not await _hay_datos(self._sesion):
+            cambios = {c: v for c, v in cambios.items() if c != "datos_catalogo"}
+        elif "datos_catalogo" in cambios:
+            cambios = {**cambios, "datos_catalogo": json.dumps(cambios["datos_catalogo"] or {}, ensure_ascii=False)}
         asignaciones = [
             _CAMPOS_EDITABLES[campo] for campo in cambios if campo in _CAMPOS_EDITABLES
         ]
@@ -154,7 +211,7 @@ class RepositorioConceptosSQL:
     async def obtener(self, concepto_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
-                text(f"select {_COLUMNAS} from concepto where id = :id"),
+                text(f"select {await self._columnas()} from concepto where id = :id"),
                 {"id": str(concepto_id)},
             )
         ).mappings().first()
@@ -165,7 +222,7 @@ class RepositorioConceptosSQL:
         identifica por `valor_origen` (la clave), no por id."""
         fila = (
             await self._sesion.execute(
-                text(f"select {_COLUMNAS} from concepto where clave = :clave"),
+                text(f"select {await self._columnas()} from concepto where clave = :clave"),
                 {"clave": clave},
             )
         ).mappings().first()
@@ -182,7 +239,7 @@ class RepositorioConceptosSQL:
             await self._sesion.execute(
                 text(
                     f"""
-                    select {_COLUMNAS}
+                    select {await self._columnas()}
                     from concepto
                     -- El cast del lado `is null` fija el tipo del parámetro;
                     -- sin él asyncpg levanta AmbiguousParameterError.

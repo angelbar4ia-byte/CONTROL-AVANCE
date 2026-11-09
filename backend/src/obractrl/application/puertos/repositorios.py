@@ -352,6 +352,10 @@ class RepositorioPrototipoNodo(Protocol):
     migración 0038).
     """
 
+    async def guardar_datos_catalogo(self, nodo_id: UUID, datos: dict[str, str]) -> None:
+        """Mezcla en el nodo las columnas del catálogo sin campo propio (0123)."""
+        ...
+
     async def por_prototipo(self, prototipo_id: UUID) -> list[dict]:
         """Nodos vigentes del árbol de un prototipo, con clave.
 

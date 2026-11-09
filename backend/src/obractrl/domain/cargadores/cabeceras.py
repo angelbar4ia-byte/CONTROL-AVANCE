@@ -128,6 +128,25 @@ class MapaColumnas:
     series: dict[str, tuple[int, ...]] = field(default_factory=dict)
     """Campo canónico → todas las columnas que lo alimentan, en orden."""
 
+    posiciones_ignoradas: tuple[tuple[str, int], ...] = ()
+    """Cada cabecera ignorada con su columna (base 0), para poder guardar su valor en lugar de descartarlo."""
+
+    def otras(self, fila: Sequence[object]) -> tuple[tuple[str, str], ...]:
+        """Las celdas de las columnas sin campo propio, como ``(encabezado, texto)``; las vacías no se guardan.
+
+        Es lo que permite un catálogo que **no descarta ninguna columna**: lo conocido va a su campo y el resto
+        queda tal como venía.
+        """
+        salida: list[tuple[str, str]] = []
+        for encabezado, indice in self.posiciones_ignoradas:
+            if indice >= len(fila):
+                continue
+            celda = fila[indice]
+            if celda is None or not str(celda).strip():
+                continue
+            salida.append((encabezado, str(celda).strip()))
+        return tuple(salida)
+
     def valor(self, fila: Sequence[object], campo: str) -> object:
         """Celda de ``campo`` en ``fila``, o ``None`` si la columna no vino."""
         indice = self.indices.get(campo)
@@ -181,6 +200,7 @@ def resolver_encabezados(
     indices: dict[str, int] = {}
     por_alias_propio: set[str] = set()
     ignoradas: list[str] = []
+    posiciones: list[tuple[str, int]] = []
     series: dict[str, list[int]] = {}
 
     for posicion, crudo in enumerate(encabezados):
@@ -197,6 +217,7 @@ def resolver_encabezados(
         canonico = propio or canonizar_encabezado(crudo)
         if canonico is None or canonico not in especificacion.canonicas:
             ignoradas.append(str(crudo))
+            posiciones.append((str(crudo), posicion))
             continue
 
         if canonico in indices:
@@ -207,6 +228,7 @@ def resolver_encabezados(
                 indices[canonico] = posicion
                 por_alias_propio.add(canonico)
                 ignoradas.append(str(encabezados[anterior]))
+                posiciones.append((str(encabezados[anterior]), anterior))
                 continue
             if (propio is not None) == ya_era_propio:
                 raise ErrorDeCabecera(
@@ -216,6 +238,7 @@ def resolver_encabezados(
                     f"cuál vale es justo lo que el §3.3 no permite."
                 )
             ignoradas.append(str(crudo))
+            posiciones.append((str(crudo), posicion))
             continue
 
         indices[canonico] = posicion
@@ -238,6 +261,7 @@ def resolver_encabezados(
         indices=indices,
         ignoradas=tuple(ignoradas),
         series={campo: tuple(cols) for campo, cols in series.items()},
+        posiciones_ignoradas=tuple(posiciones),
     )
 
 
@@ -342,8 +366,11 @@ CONCEPTOS_BASE = EspecificacionArchivo(
     archivo="CABECERAS_CONCEPTOS.xlsx",
     hoja=None,
     obligatorias=("clave", "descripcion"),
-    opcionales=("unidad", "clave_unidad", "especialidad"),
+    opcionales=("unidad", "clave_unidad", "especialidad", "descripcion_corta"),
     alias={
+        # `DESCRIPCIÓN CORTA` es el nombre breve del concepto (0121). Sin este alias el mapa global la canoniza como
+        # `descripcion` y choca con la columna `DESCRIPCIÓN` de al lado: el archivo se rechazaría por ambigüedad.
+        "descripcion corta": "descripcion_corta",
         # `especialidad` va **primero** a propósito: `plantillas.py` rotula la
         # columna con el primer alias del campo, y la plantilla que alguien
         # descarga tiene que decir "especialidad". Rotulada "frente", quien la
@@ -381,6 +408,7 @@ CONCEPTOS_AUXILIARES = EspecificacionArchivo(
     # en el contrato haría que la columna se leyera y se tirara en silencio,
     # que es justo lo que le pasó a RFC y CONTACTO en contratistas.
     opcionales=tuple(c for c in CONCEPTOS_BASE.opcionales if c != "especialidad"),
+    alias={"descripcion corta": "descripcion_corta"},
 )
 """Mismo contrato que `CONCEPTOS_BASE`: un concepto auxiliar es un
 `concepto` más (`tipo=auxiliar`, §7.3), con su propio archivo y su propio
@@ -924,8 +952,11 @@ PRESUPUESTO = EspecificacionArchivo(
         "importe",
         "wbs",
         "nivel_erp",
+        "descripcion_corta",
     ),
     alias={
+        # «Descripcion Corta»: el nombre breve de la fila (0121). Se guarda en el concepto y en el nodo.
+        "descripcion corta": "descripcion_corta",
         "indice": "indice",
         "clave padre": "clave_padre",
         "clave_padre": "clave_padre",

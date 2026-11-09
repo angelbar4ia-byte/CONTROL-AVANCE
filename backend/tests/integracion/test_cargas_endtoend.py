@@ -973,6 +973,62 @@ async def test_recargar_conceptos_base_actualiza_descripcion_sin_pedir_unidad_de
     assert conceptos["EST-01"]["unidad_id"] is not None
 
 
+async def test_la_descripcion_corta_del_concepto_se_guarda_y_una_recarga_sin_ella_la_conserva(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """0121: `DESCRIPCIÓN CORTA` junto a `DESCRIPCIÓN` se guarda como campo propio; recargar sin esa columna no la borra."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _libro(
+            [
+                ["Clave", "Descripción", "Descripción corta", "Unidad"],
+                ["EST-10010", "Colocación de acero en cimentación K1, armado completo", "Acero K1", "kg"],
+            ]
+        ),
+    )
+    conceptos = await _conceptos(contexto_control)
+    assert conceptos["EST-10010"]["descripcion_corta"] == "Acero K1"
+    assert conceptos["EST-10010"]["descripcion"].startswith("Colocación de acero")
+
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["EST-10010", "Colocación de acero en cimentación K1, armado completo", "kg"]]),
+    )
+    assert (await _conceptos(contexto_control))["EST-10010"]["descripcion_corta"] == "Acero K1"
+
+
+async def test_el_catalogo_de_conceptos_guarda_todas_las_columnas_y_la_recarga_las_mezcla(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """0122: las columnas sin campo propio no se descartan; recargar con otras columnas suma, no pisa."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _libro(
+            [
+                ["Clave", "Descripción", "Unidad", "Costo base M.N.", "Fecha"],
+                ["EST-20000", "Firme de concreto", "m2", 125.5, "2026-08-01"],
+            ]
+        ),
+    )
+    assert (await _conceptos(contexto_control))["EST-20000"]["datos_catalogo"] == {
+        "Costo base M.N.": "125.5",
+        "Fecha": "2026-08-01",
+    }
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _libro([["Clave", "Descripción", "Unidad", "Comentarios"], ["EST-20000", "Firme de concreto", "m2", "revisar"]]),
+    )
+    assert (await _conceptos(contexto_control))["EST-20000"]["datos_catalogo"] == {
+        "Costo base M.N.": "125.5",
+        "Fecha": "2026-08-01",
+        "Comentarios": "revisar",
+    }
+
+
 async def test_concepto_base_sin_clave_se_numera_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
@@ -2547,6 +2603,39 @@ async def test_dos_prototipos_con_la_misma_clave_de_concepto_cpu_la_comparten(
     assert len(partidas10) == 1 and len(partidas11) == 1
     assert partidas10[0]["concepto_id"] == partidas11[0]["concepto_id"] == conceptos["EST-01"]["id"]
     assert partidas10[0]["precio_unitario"] == partidas11[0]["precio_unitario"]
+
+
+async def test_el_presupuesto_guarda_la_descripcion_corta_y_todas_las_demas_columnas(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """0121-0123: «Descripcion Corta» va al concepto; el resto de las columnas (Origen, %…) no se descarta: queda en el
+    concepto y en cada nodo del árbol, con el encabezado tal como venía."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-30")
+    filas = [
+        [*fila, f"Corta {fila[2]}", "OPUS", "50"] for fila in _prototipo_simple("CAS-30", "EST-30", 5)
+    ]
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _libro([[*_CABECERAS_PRESUPUESTO, "Descripcion Corta", "Origen", "%"], *filas]),
+    )
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+
+    concepto = (await _conceptos(contexto_control))["EST-30"]
+    assert concepto["descripcion_corta"] == "Corta EST-30"
+    assert concepto["datos_catalogo"] == {"Origen": "OPUS", "%": "50"}
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        nodos = (
+            await sesion.execute(
+                text("select clave, datos_catalogo from prototipo_nodo where clave in ('CAS-30', 'EST-30') order by clave")
+            )
+        ).all()
+    por_clave = {fila.clave: fila.datos_catalogo for fila in nodos}
+    assert por_clave["EST-30"]["Descripcion Corta"] == "Corta EST-30"
+    assert por_clave["EST-30"]["Origen"] == "OPUS"
 
 
 async def test_una_clave_de_concepto_repetida_en_dos_etapas_del_mismo_prototipo_no_se_pisan(

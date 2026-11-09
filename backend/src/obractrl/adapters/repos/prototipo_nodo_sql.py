@@ -21,6 +21,7 @@ sí.
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -34,6 +35,25 @@ __all__ = ["RepositorioPrototipoNodoSQL"]
 class RepositorioPrototipoNodoSQL:
     def __init__(self, sesion: AsyncSession) -> None:
         self._sesion = sesion
+
+    async def guardar_datos_catalogo(self, nodo_id: UUID, datos: dict[str, str]) -> None:
+        """Mezcla en el nodo las columnas del catálogo sin campo propio (0123). Sin la columna (base sin migrar), nada."""
+        if not datos:
+            return
+        hay = (
+            await self._sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                    "and table_name = 'prototipo_nodo' and column_name = 'datos_catalogo')"
+                )
+            )
+        ).scalar_one()
+        if not hay:
+            return
+        await self._sesion.execute(
+            text("update prototipo_nodo set datos_catalogo = datos_catalogo || cast(:d as jsonb) where id = :id"),
+            {"d": json.dumps(datos, ensure_ascii=False), "id": str(nodo_id)},
+        )
 
     async def por_prototipo(self, prototipo_id: UUID) -> list[dict[str, Any]]:
         filas = (
