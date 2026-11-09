@@ -973,6 +973,32 @@ async def test_recargar_conceptos_base_actualiza_descripcion_sin_pedir_unidad_de
     assert conceptos["EST-01"]["unidad_id"] is not None
 
 
+async def test_la_descripcion_corta_del_concepto_se_guarda_y_una_recarga_sin_ella_la_conserva(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """0121: `DESCRIPCIÓN CORTA` junto a `DESCRIPCIÓN` se guarda como campo propio; recargar sin esa columna no la borra."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _libro(
+            [
+                ["Clave", "Descripción", "Descripción corta", "Unidad"],
+                ["EST-10010", "Colocación de acero en cimentación K1, armado completo", "Acero K1", "kg"],
+            ]
+        ),
+    )
+    conceptos = await _conceptos(contexto_control)
+    assert conceptos["EST-10010"]["descripcion_corta"] == "Acero K1"
+    assert conceptos["EST-10010"]["descripcion"].startswith("Colocación de acero")
+
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["EST-10010", "Colocación de acero en cimentación K1, armado completo", "kg"]]),
+    )
+    assert (await _conceptos(contexto_control))["EST-10010"]["descripcion_corta"] == "Acero K1"
+
+
 async def test_concepto_base_sin_clave_se_numera_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:

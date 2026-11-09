@@ -10,6 +10,7 @@ import type { ActividadRespuestaFrenteId } from "./actividadRespuestaFrenteId";
 import type { ActividadRespuestaDescripcion } from "./actividadRespuestaDescripcion";
 import type { ActividadRespuestaFrenteNombre } from "./actividadRespuestaFrenteNombre";
 import type { ActividadRespuestaConceptoClave } from "./actividadRespuestaConceptoClave";
+import type { ActividadRespuestaConceptoDescripcionCorta } from "./actividadRespuestaConceptoDescripcionCorta";
 import type { ActividadRespuestaUnidad } from "./actividadRespuestaUnidad";
 import type { ActividadRespuestaNivelId } from "./actividadRespuestaNivelId";
 import type { ActividadRespuestaNivelClave } from "./actividadRespuestaNivelClave";
@@ -43,6 +44,8 @@ export interface ActividadRespuesta {
   descripcion?: ActividadRespuestaDescripcion;
   frente_nombre?: ActividadRespuestaFrenteNombre;
   concepto_clave?: ActividadRespuestaConceptoClave;
+  /** El nombre breve del concepto (catálogo, 0121); `null` si no lo trae. */
+  concepto_descripcion_corta?: ActividadRespuestaConceptoDescripcionCorta;
   unidad?: ActividadRespuestaUnidad;
   nivel_id?: ActividadRespuestaNivelId;
   /** El **frente**. */

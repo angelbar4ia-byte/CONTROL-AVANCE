@@ -255,7 +255,9 @@ class RepositorioTorreSQL:
                            act.contratista_id, ctr.razon_social as contratista_nombre,
                            act.cuadrilla_id,  cua.nombre        as cuadrilla_nombre,
                            -- El lugar en su etapa (0116); `to_jsonb` tolera la base sin esa columna todavía.
-                           (to_jsonb(act)->>'orden')::int as orden
+                           (to_jsonb(act)->>'orden')::int as orden,
+                           -- El nombre breve del concepto (0121), con la misma tolerancia a la base sin migrar.
+                           to_jsonb(con)->>'descripcion_corta' as concepto_descripcion_corta
                       from actividad act
                       left join concepto con on con.id = act.concepto_id
                       left join unidad   uni on uni.id = con.unidad_id

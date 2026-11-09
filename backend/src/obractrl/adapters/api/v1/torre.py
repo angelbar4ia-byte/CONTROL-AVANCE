@@ -94,6 +94,9 @@ class ActividadRespuesta(BaseModel):
     descripcion: str | None = None
     frente_nombre: str | None = None
     concepto_clave: str | None = None
+    concepto_descripcion_corta: str | None = Field(
+        default=None, description="El nombre breve del concepto (catálogo, 0121); `null` si no lo trae."
+    )
     unidad: str | None = None
 
     # La jerarquía como el residente mira su obra (§7.4): el nivel es el

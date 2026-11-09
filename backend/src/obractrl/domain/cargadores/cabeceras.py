@@ -342,8 +342,11 @@ CONCEPTOS_BASE = EspecificacionArchivo(
     archivo="CABECERAS_CONCEPTOS.xlsx",
     hoja=None,
     obligatorias=("clave", "descripcion"),
-    opcionales=("unidad", "clave_unidad", "especialidad"),
+    opcionales=("unidad", "clave_unidad", "especialidad", "descripcion_corta"),
     alias={
+        # `DESCRIPCIÓN CORTA` es el nombre breve del concepto (0121). Sin este alias el mapa global la canoniza como
+        # `descripcion` y choca con la columna `DESCRIPCIÓN` de al lado: el archivo se rechazaría por ambigüedad.
+        "descripcion corta": "descripcion_corta",
         # `especialidad` va **primero** a propósito: `plantillas.py` rotula la
         # columna con el primer alias del campo, y la plantilla que alguien
         # descarga tiene que decir "especialidad". Rotulada "frente", quien la
@@ -381,6 +384,7 @@ CONCEPTOS_AUXILIARES = EspecificacionArchivo(
     # en el contrato haría que la columna se leyera y se tirara en silencio,
     # que es justo lo que le pasó a RFC y CONTACTO en contratistas.
     opcionales=tuple(c for c in CONCEPTOS_BASE.opcionales if c != "especialidad"),
+    alias={"descripcion corta": "descripcion_corta"},
 )
 """Mismo contrato que `CONCEPTOS_BASE`: un concepto auxiliar es un
 `concepto` más (`tipo=auxiliar`, §7.3), con su propio archivo y su propio
