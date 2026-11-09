@@ -109,7 +109,7 @@ function CeldasEditables({ prototipo }: Pick<Props, 'prototipo'>) {
           }}
         />
         {error && (
-          <div className="text-xs" role="alert" style={{ color: 'var(--danger, #b42318)' }}>
+          <div className="text-xs" role="alert" style={{ color: 'var(--c-danger)' }}>
             {error}
           </div>
         )}

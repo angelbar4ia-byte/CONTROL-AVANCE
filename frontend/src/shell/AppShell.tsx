@@ -40,6 +40,7 @@ import { useTiempoReal, type EstadoEnVivo } from '@/lib/tiempoReal';
 import { fmtSemana } from '@/lib/formato';
 import { useAjuste } from '@/lib/useAjuste';
 import { SelectorDensidad } from './SelectorDensidad';
+import { SelectorTema } from './SelectorTema';
 import { ProveedorDeVentanaCuantificador } from '@/cuantificador/VentanaCuantificador';
 
 interface Props {
@@ -291,6 +292,7 @@ function BarraSuperior({
         </span>
 
         <SelectorDensidad />
+        <SelectorTema />
 
         <div className="role-chip">
           <span className="role-chip__dot" aria-hidden>

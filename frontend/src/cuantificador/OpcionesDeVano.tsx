@@ -174,7 +174,7 @@ export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo,
           <div
             role="group"
             aria-label="Punto de partida del vano"
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 22px)', gridTemplateRows: 'repeat(3, 22px)', gap: 3, padding: 5, border: '1px solid var(--line, #2a2f3a)', borderRadius: 7 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 22px)', gridTemplateRows: 'repeat(3, 22px)', gap: 3, padding: 5, border: '1px solid var(--c-line-strong)', borderRadius: 7 }}
           >
             {(['i', 'c', 'd'] as const).flatMap((v) =>
               (['i', 'c', 'd'] as const).map((h) => {
@@ -187,7 +187,7 @@ export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo,
                     aria-pressed={activo}
                     aria-label={`Punto de partida: ${NOMBRE_DEL_EJE[h]} · cara ${NOMBRE_DEL_EJE[v]}`}
                     title={h === 'c' && v === 'c' ? 'Centro' : `A lo largo: ${NOMBRE_DEL_EJE[h]} · A lo ancho: ${NOMBRE_DEL_EJE[v]}`}
-                    style={{ width: 22, height: 22, padding: 0, borderRadius: 4, border: '1px solid var(--line, #2a2f3a)', background: activo ? 'var(--accent, #3b82f6)' : 'transparent' }}
+                    style={{ width: 22, height: 22, padding: 0, borderRadius: 4, border: '1px solid var(--c-line-strong)', background: activo ? 'var(--c-accent)' : 'transparent' }}
                     onClick={() => onCambiar({ ancla: { h, v } })}
                   />
                 );

@@ -903,6 +903,8 @@ class TrazoTraido:
     enlace_ids: tuple[UUID, ...]
     huecos: int
     recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
+    comparacion: tuple[tuple[str, Decimal, Decimal], ...] = ()
+    """Por cada medida que el trazo alimenta: (medida, antes, después). Si difiere, se revisa a mano (D-113)."""
 
 
 class TraerTrazoAOtraVersion:
@@ -1011,6 +1013,12 @@ class TraerTrazoAOtraVersion:
                     (validado.tipo_nodo, intencion.actividad_id, intencion.prototipo_nodo_id, intencion.matriz_concepto_id)
                 ] = None
 
+            # D-113: lo retrazado se compara con lo anterior; las medidas se leen del servidor, ya con huecos y vanos.
+            nuevos = await self._enlaces.vigentes_de_trazo(nuevo_id)
+            comparacion = tuple(
+                (str(viejo["medida"]), Decimal(str(viejo.get("medida_valor") or 0)), Decimal(str(nuevo.get("medida_valor") or 0)))
+                for viejo, nuevo in zip(vigentes, nuevos, strict=False)
+            )
             recalculos = tuple(
                 [
                     await _recalcular_nodo(
@@ -1032,7 +1040,11 @@ class TraerTrazoAOtraVersion:
 
         await _avisar_reaperturas(self._eventos, recalculos, cmd.usuario_id)
         return TrazoTraido(
-            trazo_id=nuevo_id, enlace_ids=tuple(enlace_ids), huecos=len(huecos), recalculos=recalculos
+            trazo_id=nuevo_id,
+            enlace_ids=tuple(enlace_ids),
+            huecos=len(huecos),
+            recalculos=recalculos,
+            comparacion=comparacion,
         )
 
 

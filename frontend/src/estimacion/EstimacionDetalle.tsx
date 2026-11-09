@@ -269,7 +269,7 @@ export function EstimacionDetalle({ estimacionId, rol, onVolver }: Props) {
               className="text-sm mb-8"
               role="alert"
               style={{
-                color: 'oklch(45% 0.13 75)',
+                color: 'var(--c-text)',
                 background: 'var(--c-warn-soft)',
                 border: '1px solid var(--c-warn)',
                 borderRadius: 'var(--r-md)',
