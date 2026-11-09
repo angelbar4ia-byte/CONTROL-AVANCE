@@ -3015,12 +3015,18 @@ a { color: inherit; text-decoration: none; }
 .visor__ventana--toca { fill: var(--c-ok); stroke: var(--c-ok); stroke-dasharray: 5 3; }
 
 /* Altura por partes del muro (panel de la línea y detalle del trazo) */
-.alturas { display: flex; flex-direction: column; gap: 8px; }
+.alturas { display: flex; flex-direction: column; gap: 8px; container-type: inline-size; }
 .alturas__titulo { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-mute); }
 .alturas__modo { display: flex; gap: 8px; }
 .alturas__fila { display: grid; grid-template-columns: minmax(0, 1fr) 56px 56px auto auto; gap: 8px; align-items: center; }
 .alturas__nombre, .alturas__medida { min-width: 0; padding: 7px 9px; border: 1px solid var(--c-line-strong); border-radius: var(--r-md); background: var(--c-surface); color: var(--c-text); font: inherit; font-weight: 600; }
 .alturas__medida { text-align: left; }
+/* En un panel angosto el nombre se queda con su propia fila y lo demás va debajo. */
+@container (max-width: 330px) {
+  .alturas__fila { grid-template-columns: 56px 56px 1fr auto; row-gap: 6px; }
+  .alturas__nombre { grid-column: 1 / -1; }
+  .alturas__suma { justify-self: end; }
+}
 .alturas__suma { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-sm); color: var(--c-text-mute); white-space: nowrap; }
 .alturas__quitar { width: 34px; height: 34px; }
 .alturas__agregar { width: 100%; padding: 8px; border: 1px solid var(--c-line-strong); border-radius: var(--r-xl); background: transparent; color: var(--c-text-soft); font: inherit; cursor: pointer; }
