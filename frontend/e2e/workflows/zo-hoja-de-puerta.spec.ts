@@ -93,9 +93,14 @@ test.describe('Cuantificador · hoja de la puerta', () => {
     };
 
     // --- 1. Seleccionar la puerta y pulsar Supr ---------------------------------------------------------------------
-    const [x1, y1] = await centro();
-    await page.mouse.click(x1, y1);
-    await expect(page.getByRole('group', { name: 'Elemento colocado' })).toBeVisible();
+    // El plano y los vanos cargan aparte: se espera la zona de la puerta y, si el clic cayó antes de que la pantalla
+    // estuviera lista, se repite hasta que el detalle abre.
+    await expect(page.locator('[data-vano-id] .visor__vano-zona').first()).toBeVisible();
+    await expect(async () => {
+      const [x1, y1] = await centro();
+      await page.mouse.click(x1, y1);
+      await expect(page.getByRole('group', { name: 'Elemento colocado' })).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 15_000 });
     await page.keyboard.press('Delete');
     await expect.poll(vanos).toBe(0);
     await page.keyboard.press('Control+z');
