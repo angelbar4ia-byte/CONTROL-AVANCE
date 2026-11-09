@@ -10,7 +10,9 @@
 
 import { colorDeConcepto } from './mediciones';
 import { ChevronRight, Layers, Folder, FolderOpen } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+import { useMemoriaDelCuantificador } from './memoria';
 
 import { fmtNum } from '@/lib/formato';
 import { idsDeEtapa, idsDeNivel, type HojaDelArbol, type NivelDelArbol } from './arbol';
@@ -28,6 +30,8 @@ interface Props {
   readonly onActivarMatriz?: (actividadId: string, matriz: { id: string; clave: string; unidad: string | null }) => void;
   /** Control de obra y Costos agregan y quitan matrices (composición del catálogo). */
   readonly puedeEditarMatrices?: boolean;
+  /** La obra: con ella el desglose (niveles y etapas cerrados, matrices abiertas) se recuerda al volver. */
+  readonly memoriaId?: string;
 }
 
 const norm = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -68,10 +72,23 @@ export function ArbolPresupuesto({
   matrizActivaId,
   onActivarMatriz,
   puedeEditarMatrices = false,
+  memoriaId,
 }: Props) {
   // Todo abierto al empezar: el árbol de una obra cabe y lo que se busca no debe esconderse.
-  const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
-  const [conMatrices, setConMatrices] = useState<ReadonlySet<string>>(new Set());
+  // Si el árbol tiene `memoriaId` (la obra), el desglose queda como se dejó al cambiar de menú y volver.
+  const memoria = useMemoriaDelCuantificador;
+  const [cerradas, setCerradas] = useState<ReadonlySet<string>>(
+    () => new Set(memoriaId ? (memoria.getState().cerradasPorObra[memoriaId] ?? []) : []),
+  );
+  const [conMatrices, setConMatrices] = useState<ReadonlySet<string>>(
+    () => new Set(memoriaId ? (memoria.getState().conMatricesPorObra[memoriaId] ?? []) : []),
+  );
+  useEffect(() => {
+    if (memoriaId) memoria.getState().recordarLista('cerradasPorObra', memoriaId, cerradas);
+  }, [memoriaId, memoria, cerradas]);
+  useEffect(() => {
+    if (memoriaId) memoria.getState().recordarLista('conMatricesPorObra', memoriaId, conMatrices);
+  }, [memoriaId, memoria, conMatrices]);
   const [busqueda, setBusqueda] = useState('');
 
   const q = norm(busqueda.trim());

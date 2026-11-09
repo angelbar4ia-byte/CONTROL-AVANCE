@@ -168,6 +168,7 @@ import {
 } from './formas';
 import { NavegadorDePlanos } from './NavegadorDePlanos';
 import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
+import { useMemoriaDelCuantificador } from './memoria';
 import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
 import { AltaEnlaceDeHoja } from './AltaEnlaceDeHoja';
 import { ConteoAutomatico } from './ConteoAutomatico';
@@ -405,7 +406,9 @@ export function EspacioDeTrazo({
   /** `aprobar_trazo` es solo de Control de obra (MODELO.md §1b); el servidor lo impone con 403. */
   const puedeAprobar = sesion?.rol === 'control_obra';
   const puedeEnlazarPrototipo = sesion?.rol === 'control_obra' || sesion?.rol === 'super_intendente';
-  const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
+  const [planoElegido, setPlanoElegido] = useState(
+    planoInicial ?? useMemoriaDelCuantificador.getState().planoPorObra[obraId] ?? '',
+  );
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
   // El contorno mezcla tramos rectos y arcos: cómo se llegó a cada clic después del primero, y cómo es el siguiente.
@@ -489,12 +492,23 @@ export function EspacioDeTrazo({
   const [reemplazando, setReemplazando] = useState<string | null>(null);
   const [calibrando, setCalibrando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [elegidos, setElegidos] = useState<ReadonlySet<string>>(new Set());
+  const [elegidos, setElegidos] = useState<ReadonlySet<string>>(
+    () => new Set(useMemoriaDelCuantificador.getState().elegidosPorObra[obraId] ?? []),
+  );
+  useEffect(() => {
+    useMemoriaDelCuantificador.getState().recordarLista('elegidosPorObra', obraId, elegidos);
+  }, [obraId, elegidos]);
   const [soloElegidos, setSoloElegidos] = useState(false);
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
-  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones' | 'trazos' | 'elementos' | 'trabajos' | 'arbol'>('presupuesto');
+  type Pestana = 'presupuesto' | 'planos' | 'mediciones' | 'trazos' | 'elementos' | 'trabajos' | 'arbol';
+  const [pestana, setPestana] = useState<Pestana>(
+    () => (useMemoriaDelCuantificador.getState().pestanaPorObra[obraId] as Pestana | undefined) ?? 'presupuesto',
+  );
+  useEffect(() => {
+    useMemoriaDelCuantificador.getState().recordarPestana(obraId, pestana);
+  }, [obraId, pestana]);
   /** La medición activa (la capa sombra): lo que se dibuja entra a ella. */
   const [medicionActivaId, setMedicionActivaId] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
@@ -534,8 +548,11 @@ export function EspacioDeTrazo({
     if (planoElegido === '' && listaDePlanos[0]) setPlanoElegido(listaDePlanos[0].id);
   }, [listaDePlanos, planoElegido]);
   useEffect(() => {
-    if (planoElegido !== '') onPlanoCambiado?.(planoElegido);
-  }, [planoElegido, onPlanoCambiado]);
+    if (planoElegido !== '') {
+      onPlanoCambiado?.(planoElegido);
+      useMemoriaDelCuantificador.getState().recordarPlano(obraId, planoElegido);
+    }
+  }, [planoElegido, onPlanoCambiado, obraId]);
 
   const plano = listaDePlanos.find((p) => p.id === planoElegido);
 
@@ -2819,6 +2836,7 @@ export function EspacioDeTrazo({
         </div>
       ) : (
         <ArbolPresupuesto
+          memoriaId={obraId}
           arbol={arbol}
           elegidos={elegidos}
           onElegir={elegirConceptos}
@@ -3891,7 +3909,12 @@ export function EspacioDeTrazo({
  */
 export default function Cuantificador() {
   const [busqueda, setBusqueda] = useSearchParams();
-  const obraId = busqueda.get('obra') ?? '';
+  const obraDeLaDireccion = busqueda.get('obra') ?? '';
+  // Al volver al módulo sin obra en la dirección, vuelve a la última que se tenía a la vista.
+  const obraId = obraDeLaDireccion || useMemoriaDelCuantificador.getState().ultimaObra;
+  useEffect(() => {
+    if (obraDeLaDireccion) useMemoriaDelCuantificador.getState().recordarObra(obraDeLaDireccion);
+  }, [obraDeLaDireccion]);
   const { sesion } = useSesion();
   const [cambiandoPrototipo, setCambiandoPrototipo] = useState(false);
   const [avisoPrototipo, setAvisoPrototipo] = useState<string | null>(null);
@@ -3910,7 +3933,10 @@ export default function Cuantificador() {
         etiqueta="Obra"
         textoDe={textoDeLaObra}
         valor={obraId}
-        onCambio={(id) => setBusqueda(id === '' ? {} : { obra: id })}
+        onCambio={(id) => {
+          useMemoriaDelCuantificador.getState().recordarObra(id);
+          setBusqueda(id === '' ? {} : { obra: id });
+        }}
       />
     </div>
   );
