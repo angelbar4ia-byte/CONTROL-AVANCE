@@ -952,8 +952,11 @@ PRESUPUESTO = EspecificacionArchivo(
         "importe",
         "wbs",
         "nivel_erp",
+        "descripcion_corta",
     ),
     alias={
+        # «Descripcion Corta»: el nombre breve de la fila (0121). Se guarda en el concepto y en el nodo.
+        "descripcion corta": "descripcion_corta",
         "indice": "indice",
         "clave padre": "clave_padre",
         "clave_padre": "clave_padre",

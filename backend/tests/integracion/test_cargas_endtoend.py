@@ -2605,6 +2605,39 @@ async def test_dos_prototipos_con_la_misma_clave_de_concepto_cpu_la_comparten(
     assert partidas10[0]["precio_unitario"] == partidas11[0]["precio_unitario"]
 
 
+async def test_el_presupuesto_guarda_la_descripcion_corta_y_todas_las_demas_columnas(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """0121-0123: «Descripcion Corta» va al concepto; el resto de las columnas (Origen, %…) no se descarta: queda en el
+    concepto y en cada nodo del árbol, con el encabezado tal como venía."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-30")
+    filas = [
+        [*fila, f"Corta {fila[2]}", "OPUS", "50"] for fila in _prototipo_simple("CAS-30", "EST-30", 5)
+    ]
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _libro([[*_CABECERAS_PRESUPUESTO, "Descripcion Corta", "Origen", "%"], *filas]),
+    )
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+
+    concepto = (await _conceptos(contexto_control))["EST-30"]
+    assert concepto["descripcion_corta"] == "Corta EST-30"
+    assert concepto["datos_catalogo"] == {"Origen": "OPUS", "%": "50"}
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        nodos = (
+            await sesion.execute(
+                text("select clave, datos_catalogo from prototipo_nodo where clave in ('CAS-30', 'EST-30') order by clave")
+            )
+        ).all()
+    por_clave = {fila.clave: fila.datos_catalogo for fila in nodos}
+    assert por_clave["EST-30"]["Descripcion Corta"] == "Corta EST-30"
+    assert por_clave["EST-30"]["Origen"] == "OPUS"
+
+
 async def test_una_clave_de_concepto_repetida_en_dos_etapas_del_mismo_prototipo_no_se_pisan(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:

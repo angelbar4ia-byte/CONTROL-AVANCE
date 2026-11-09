@@ -208,6 +208,12 @@ class NodoLeido:
     """«Nivel ERP» del archivo (llave al catálogo de niveles, 0..15). Se
     conserva y se guarda; no es identidad (D-615)."""
 
+    descripcion_corta: str | None = None
+    """«Descripcion Corta» del archivo (0121): el nombre breve de la fila."""
+
+    otras: tuple[tuple[str, str], ...] = ()
+    """Todas las demás columnas del archivo, ``(encabezado, valor)``: no se descarta ninguna (0122, 0123)."""
+
     fila: int = 0
     """Renglón del archivo, para que un error de fila ligue al origen."""
 
@@ -395,6 +401,8 @@ def _leer_nodo(
         nivel=nivel,
         wbs=texto_limpio(mapa.valor(fila, "wbs")) or None,
         nivel_erp=_entero_opcional(mapa.valor(fila, "nivel_erp"), columna="nivel_erp"),
+        descripcion_corta=texto_limpio(mapa.valor(fila, "descripcion_corta")) or None,
+        otras=mapa.otras(fila),
         fila=numero,
         es_hueco=es_placeholder,
     )

@@ -4338,6 +4338,7 @@ class AplicadorPresupuesto:
                     "nivel_erp": nodo.nivel_erp,
                 },
             )
+            await self._guardar_extras_del_nodo(nodo, nodo_id)
             operaciones.append(
                 _operacion(
                     "prototipo_nodo",
@@ -4382,6 +4383,34 @@ class AplicadorPresupuesto:
                 claves_actualizadas=claves_actualizadas,
             )
 
+    async def _guardar_extras_del_nodo(self, nodo: NodoLeido, nodo_id: UUID | None) -> None:
+        """Todas las columnas del archivo sin campo propio, en el nodo del árbol (0123); se mezclan, no se pisan."""
+        extras = dict(nodo.otras)
+        if nodo.descripcion_corta:
+            extras["Descripcion Corta"] = nodo.descripcion_corta
+        if nodo_id is not None and extras:
+            await self._prototipo_nodos.guardar_datos_catalogo(nodo_id, extras)
+
+    async def _guardar_extras_del_concepto(
+        self, nodo: NodoLeido, actual: dict[str, Any] | None, *, dry_run: bool
+    ) -> None:
+        """«Descripcion Corta» y todas las demás columnas del archivo, en un concepto que ya existía (0121, 0122).
+
+        Lo ya guardado se mezcla y no se pisa: recargar con menos columnas no borra nada.
+        """
+        if dry_run or actual is None or actual.get("id") is None:
+            return
+        cambios: dict[str, Any] = {}
+        if nodo.descripcion_corta and nodo.descripcion_corta != actual.get("descripcion_corta"):
+            cambios["descripcion_corta"] = nodo.descripcion_corta
+        vigentes = dict(actual.get("datos_catalogo") or {})
+        mezcla = {**vigentes, **dict(nodo.otras)}
+        if nodo.otras and mezcla != vigentes:
+            cambios["datos_catalogo"] = mezcla
+        if cambios:
+            await self._conceptos.actualizar(actual["id"], cambios)
+            actual.update(cambios)
+
     async def _procesar_concepto(
         self,
         *,
@@ -4419,6 +4448,7 @@ class AplicadorPresupuesto:
         cual (ver docstring de la clase)."""
         clave_catalogo = _clave_catalogo_concepto(nodo, arbol)
         actual = catalogo_conceptos.get(clave_catalogo)
+        await self._guardar_extras_del_concepto(nodo, actual, dry_run=dry_run)
 
         # `actual["id"]` es `None` cuando `actual` es el alta de ESTE MISMO
         # archivo que un `dry_run` dejó sin id real (§9.3: la vista previa
@@ -4617,6 +4647,8 @@ class AplicadorPresupuesto:
                             "descripcion": nodo.descripcion,
                             "unidad_id": unidad_id,
                             "familia_id": None,
+                            "descripcion_corta": nodo.descripcion_corta,
+                            "datos_catalogo": dict(nodo.otras),
                         }
                     )
                     operaciones.append(
@@ -4753,6 +4785,8 @@ class AplicadorPresupuesto:
                             "descripcion": nodo.descripcion,
                             "unidad_id": unidad_id,
                             "familia_id": None,
+                            "descripcion_corta": nodo.descripcion_corta,
+                            "datos_catalogo": dict(nodo.otras),
                         }
                     )
                     operaciones.append(
@@ -4886,6 +4920,7 @@ class AplicadorPresupuesto:
                 "nivel_erp": nodo.nivel_erp,
             },
         )
+        await self._guardar_extras_del_nodo(nodo, nodo_id)
         operaciones.append(
             _operacion(
                 "prototipo_nodo",
