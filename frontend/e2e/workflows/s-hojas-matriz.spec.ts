@@ -89,7 +89,7 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
       enlaces: [{ actividad_id: extra.id, matriz_concepto_id: nerv.id, medida: 'longitud', factor: '1' }],
     });
     await control.reload();
-    await control.getByRole('button', { name: /Matrices de MTZ-LOSA/ }).click();
+    // Las matrices abiertas se recuerdan al recargar o cambiar de menú: siguen abiertas, no hay que volver a abrirlas.
     const despues = control.getByRole('region', { name: 'Matrices de MTZ-LOSA' });
     await expect(despues.getByRole('treeitem', { name: /MTZ-NERV/ })).toContainText('8');
     await expect(despues.getByText('Sin medir')).toHaveCount(2); // quedan las trabes y los bastones
