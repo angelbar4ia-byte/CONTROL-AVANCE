@@ -145,19 +145,21 @@ export function OpcionesDeHerramienta({
               ))}
             </div>
             {muro.mide === 'cara1' && (
+              <div className="opciones__fila" role="group" aria-label="Qué cara">
+                {(
+                  [
+                    ['int', 'Interior'],
+                    ['ext', 'Exterior'],
+                  ] as const
+                ).map(([clave, etiqueta]) => (
+                  <button key={clave} type="button" className={muro.cara === clave ? 'chip is-active' : 'chip'} aria-pressed={muro.cara === clave} onClick={() => onMuro({ cara: clave })}>
+                    {etiqueta}
+                  </button>
+                ))}
+              </div>
+            )}
+            {muro.mide !== 'eje' && (
               <>
-                <div className="opciones__fila" role="group" aria-label="Qué cara">
-                  {(
-                    [
-                      ['int', 'Interior'],
-                      ['ext', 'Exterior'],
-                    ] as const
-                  ).map(([clave, etiqueta]) => (
-                    <button key={clave} type="button" className={muro.cara === clave ? 'chip is-active' : 'chip'} aria-pressed={muro.cara === clave} onClick={() => onMuro({ cara: clave })}>
-                      {etiqueta}
-                    </button>
-                  ))}
-                </div>
                 <div className="opciones__fila opciones__fila--apilada" role="group" aria-label="De qué lado queda el interior">
                   {(
                     [

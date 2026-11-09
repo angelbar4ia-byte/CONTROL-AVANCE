@@ -37,6 +37,11 @@ test.describe('Cuantificador · altura por partes', () => {
     const panel = page.locator('.alturas');
     await expect(panel).toBeVisible();
     await expect(panel.getByText('Altura por partes')).toBeVisible();
+    // Con 2 caras (lo de siempre) también se dice de qué lado queda el interior; con «Eje» no.
+    await expect(page.getByRole('button', { name: 'Interior a la izquierda' })).toBeVisible();
+    await page.getByRole('button', { name: 'Eje', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Interior a la izquierda' })).toHaveCount(0);
+    await page.getByRole('button', { name: '2 caras', exact: true }).click();
     await panel.getByRole('button', { name: 'Por partes' }).click();
     // Nace con las cuatro partes precargadas.
     await expect(panel.getByLabel('Nombre de la parte 4')).toHaveValue('Enrase');
