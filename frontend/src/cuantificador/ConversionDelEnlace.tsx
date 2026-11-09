@@ -232,7 +232,7 @@ export function ConversionDelEnlace({ enlaceId, nombreDelConcepto, grosorM, alin
         </>
       )}
 
-      <div style={{ border: '1px solid var(--line, #2a2f3a)', borderRadius: 8, padding: '8px 10px' }} data-resultado>
+      <div style={{ border: '1px solid var(--c-line-strong)', borderRadius: 8, padding: '8px 10px' }} data-resultado>
         <div className="mono text-xs text-mute">{resultado?.formula ?? '…'}</div>
         <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>
           {resultado ? `${resultado.unidad === 'pza' ? Math.round(resultado.valor) : resultado.valor.toFixed(2)} ${resultado.unidad}` : '—'}

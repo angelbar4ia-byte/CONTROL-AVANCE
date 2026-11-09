@@ -3533,9 +3533,9 @@ export function EspacioDeTrazo({
               display: 'grid',
               gap: 2,
               padding: 6,
-              border: '1px solid var(--line, #ccc)',
+              border: '1px solid var(--c-line-strong)',
               borderRadius: 10,
-              background: 'var(--panel, #fff)',
+              background: 'var(--c-surface)',
               boxShadow: '0 6px 24px rgb(0 0 0 / .18)',
             }}
           >
@@ -3591,9 +3591,9 @@ export function EspacioDeTrazo({
               display: 'grid',
               gap: 2,
               padding: 6,
-              border: '1px solid var(--line, #ccc)',
+              border: '1px solid var(--c-line-strong)',
               borderRadius: 10,
-              background: 'var(--panel, #fff)',
+              background: 'var(--c-surface)',
               boxShadow: '0 6px 24px rgb(0 0 0 / .18)',
             }}
           >
