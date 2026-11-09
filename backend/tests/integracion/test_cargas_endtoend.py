@@ -999,6 +999,36 @@ async def test_la_descripcion_corta_del_concepto_se_guarda_y_una_recarga_sin_ell
     assert (await _conceptos(contexto_control))["EST-10010"]["descripcion_corta"] == "Acero K1"
 
 
+async def test_el_catalogo_de_conceptos_guarda_todas_las_columnas_y_la_recarga_las_mezcla(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """0122: las columnas sin campo propio no se descartan; recargar con otras columnas suma, no pisa."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _libro(
+            [
+                ["Clave", "Descripción", "Unidad", "Costo base M.N.", "Fecha"],
+                ["EST-20000", "Firme de concreto", "m2", 125.5, "2026-08-01"],
+            ]
+        ),
+    )
+    assert (await _conceptos(contexto_control))["EST-20000"]["datos_catalogo"] == {
+        "Costo base M.N.": "125.5",
+        "Fecha": "2026-08-01",
+    }
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _libro([["Clave", "Descripción", "Unidad", "Comentarios"], ["EST-20000", "Firme de concreto", "m2", "revisar"]]),
+    )
+    assert (await _conceptos(contexto_control))["EST-20000"]["datos_catalogo"] == {
+        "Costo base M.N.": "125.5",
+        "Fecha": "2026-08-01",
+        "Comentarios": "revisar",
+    }
+
+
 async def test_concepto_base_sin_clave_se_numera_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:

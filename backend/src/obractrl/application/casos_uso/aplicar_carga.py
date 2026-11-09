@@ -1488,6 +1488,8 @@ class AplicadorConceptosBase:
                 "unidad_id": unidad_id,
                 # Sin la columna en el archivo se conserva la que ya tiene el concepto (no se borra al recargar).
                 "descripcion_corta": base.descripcion_corta or actual.get("descripcion_corta"),
+                # Las demás columnas del archivo se guardan todas; lo ya guardado se mezcla, no se pisa entero.
+                "datos_catalogo": {**(actual.get("datos_catalogo") or {}), **dict(base.otras)},
             }
             if base.especialidad:
                 conceptos_por_oficio.setdefault(base.especialidad, []).append(clave)
@@ -1497,6 +1499,7 @@ class AplicadorConceptosBase:
                 "descripcion": fila.get("descripcion"),
                 "unidad_id": fila.get("unidad_id"),
                 "descripcion_corta": fila.get("descripcion_corta"),
+                "datos_catalogo": fila.get("datos_catalogo") or {},
             }
             for clave, fila in por_clave.items()
         }
@@ -1512,6 +1515,7 @@ class AplicadorConceptosBase:
                         "descripcion": alta.despues["descripcion"],
                         "unidad_id": alta.despues["unidad_id"],
                         "descripcion_corta": alta.despues.get("descripcion_corta"),
+                        "datos_catalogo": alta.despues.get("datos_catalogo") or {},
                     }
                 )
                 operaciones.append(
