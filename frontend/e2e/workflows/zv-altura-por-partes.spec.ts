@@ -38,19 +38,16 @@ test.describe('Cuantificador · altura por partes', () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByText('Altura por partes')).toBeVisible();
     await panel.getByRole('button', { name: 'Por partes' }).click();
-    await expect(panel.getByLabel('Nombre de la parte 1')).toHaveValue('Muro');
+    // Nace con las cuatro partes precargadas.
+    await expect(panel.getByLabel('Nombre de la parte 4')).toHaveValue('Enrase');
+    await expect(panel.getByLabel('Nombre de la parte 3')).toHaveValue('Cerramiento');
+    await expect(panel.getByRole('checkbox')).toHaveCount(4);
+    await expect(panel.getByRole('checkbox').nth(2)).not.toBeChecked(); // el cerramiento no suma
 
-    await panel.getByLabel('Nombre de la parte 1').fill('Media altura');
-    await panel.getByLabel('Desde (m) de la parte 1').fill('0');
-    await panel.getByLabel('Hasta (m) de la parte 1').fill('1.2');
+    await panel.getByLabel('Hasta (m) de la parte 4').fill('3.1');
     await panel.getByRole('button', { name: '+ Parte' }).click();
-    await panel.getByLabel('Nombre de la parte 2').fill('Cerramiento');
-    await expect(panel.getByLabel('Desde (m) de la parte 2')).toHaveValue('1.2');
-    await panel.getByLabel('Hasta (m) de la parte 2').fill('1.4');
-    await panel.getByRole('checkbox').nth(1).uncheck();
-    await expect(panel.getByRole('checkbox').nth(1)).not.toBeChecked();
-    await panel.getByRole('button', { name: '+ Parte' }).click();
-    await expect(panel.getByLabel('Nombre de la parte 3')).toBeVisible();
+    await expect(panel.getByLabel('Desde (m) de la parte 5')).toHaveValue('3.1'); // la parte nueva sigue donde acaba la última
+    await panel.getByLabel('Nombre de la parte 5').fill('Remate');
 
     const captura = async (nombre: string) => {
       const carpeta = process.env.E2E_CAPTURAS;
@@ -64,8 +61,9 @@ test.describe('Cuantificador · altura por partes', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'oscuro');
     await captura('oscuro');
 
-    await panel.getByRole('button', { name: 'Quitar la parte 3' }).click();
-    await expect(panel.getByLabel('Nombre de la parte 3')).toHaveCount(0);
+    await panel.getByRole('button', { name: 'Quitar la parte 5' }).click();
+    await expect(panel.getByLabel('Nombre de la parte 5')).toHaveCount(0);
+    await expect(panel.getByLabel('Nombre de la parte 4')).toHaveValue('Enrase');
     await panel.getByRole('button', { name: 'Altura única' }).click();
     await expect(panel.getByLabel('Nombre de la parte 1')).toHaveCount(0);
     await expect(panel.getByRole('button', { name: '+ Parte' })).toHaveCount(0);
