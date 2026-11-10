@@ -3035,3 +3035,9 @@ a { color: inherit; text-decoration: none; }
 .alturas__quitar { width: 34px; height: 34px; }
 .alturas__agregar { width: 100%; padding: 8px; border: 1px solid var(--c-line-strong); border-radius: var(--r-xl); background: transparent; color: var(--c-text-soft); font: inherit; cursor: pointer; }
 .alturas__agregar:hover { background: var(--c-elev); color: var(--c-text); }
+
+/* Árbol de la obra: los controles van arriba y actúan sobre lo elegido */
+.arbol-edicion__barra { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 6px 8px 0; padding: 4px 6px; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-panel); position: sticky; top: 0; z-index: 2; }
+.arbol-edicion__barra select { height: 26px; font-size: 11px; max-width: 110px; }
+.arbol-edicion__partida { cursor: pointer; }
+.arbol-edicion__partida.is-elegida, .arbol-edicion__titulo.is-elegida { background: var(--c-accent-soft); border-radius: var(--r-sm); }
