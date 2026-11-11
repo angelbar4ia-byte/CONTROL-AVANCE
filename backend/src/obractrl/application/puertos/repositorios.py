@@ -12,7 +12,7 @@ entre contextos es por fachada o por evento de dominio (§11.1).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
@@ -93,6 +93,11 @@ class RepositorioActividades(Protocol):
         la `Desviacion` candidata (`application.casos_uso.cuantificar`): es
         un `select` adicional sobre una columna que ya existe en la fila,
         no un campo nuevo."""
+        ...
+
+    async def bloquear(self, actividad_ids: Iterable[UUID]) -> None:
+        """Toma el bloqueo de esas actividades, **en orden fijo**, antes de tocar sus enlaces: dos
+        peticiones que recalculan el mismo concepto se hacen turno en vez de abrazarse (deadlock)."""
         ...
 
     async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> dict | None:
