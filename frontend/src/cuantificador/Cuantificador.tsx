@@ -32,6 +32,7 @@ import {
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
   useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
   useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut,
+  useLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPut,
   useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete,
   useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost,
   useTraerTrazoApiV1TrazosTrazoIdTraerPost,
@@ -184,6 +185,7 @@ import { ConversionDelEnlace } from './ConversionDelEnlace';
 import { OPCIONES_DE_VANO_INICIALES, OpcionesDeVano, versionDelVano, type OpcionesDelVano } from './OpcionesDeVano';
 import { useListarVersionesApiV1VanosVersionGet } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import { UnionesDelMuro } from './UnionesDelMuro';
+import { RevestimientosDelMuro, type RevestimientoPorColocar } from './RevestimientosDelMuro';
 import { acabadoPorDefecto, ClasificacionDelMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { VanoElegido } from './VanoElegido';
@@ -432,6 +434,9 @@ export function EspacioDeTrazo({
   /** El tipo de muro y el acabado con que nace el siguiente muro (F-22): el trazo se guarda ya clasificado. */
   const [muroNuevo, setMuroNuevo] = useState<{ tipo: TipoDeMuro | null; acabado: Acabado }>({ tipo: null, acabado: acabadoPorDefecto() });
   const clasificarMuro = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
+  /** Un revestimiento (un concepto del catálogo) que espera su largo sobre un muro: la siguiente línea que se dibuje (D-645). */
+  const [revestimientoPorColocar, setRevestimientoPorColocar] = useState<RevestimientoPorColocar | null>(null);
+  const ligarRevestimiento = useLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPut<ErrorApi>();
   const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
@@ -1684,6 +1689,39 @@ export function EspacioDeTrazo({
     };
     let data: TrazoPeticion | null = null;
     let factor = '1';
+    if (revestimientoPorColocar && tipo === 'linea') {
+      // El largo de un revestimiento: una línea que mide largo × altura en m² para su concepto, ligada al muro y a su cara.
+      const r = revestimientoPorColocar;
+      const planoId = plano.id;
+      const cuerpo = trazoPeticion({
+        ...base,
+        grosorM: null,
+        alineacion: null,
+        enlaces: [
+          {
+            actividadId: r.actividadId,
+            medida: 'longitud',
+            factor: '1',
+            conversion: conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, mide: 'eje', alt: String(r.alturaM), partes: [] }),
+          },
+        ],
+      });
+      registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
+        async (creado) => {
+          alGuardar(creado, { planoId, data: cuerpo });
+          try {
+            await ligarRevestimiento.mutateAsync({ trazoId: creado.trazo_id, data: { muro_id: r.muroId, cara: r.cara } });
+            invalidarTrazos();
+            setAviso(`Revestimiento ${r.clave} en el muro (${r.cara}): ${fmtNum(creado.recalculos[0]?.cantidad_total)} m² medidos del concepto.`);
+          } catch (err) {
+            setAviso(`Línea guardada, pero no se pudo ligar al muro: ${err instanceof Error ? err.message : 'error'}`);
+          }
+          setRevestimientoPorColocar(null);
+        },
+        (err: unknown) => setAviso(`No se pudo guardar el revestimiento: ${err instanceof Error ? err.message : 'error'}`),
+      );
+      return;
+    }
     if (elementoPorColocar) {
       // Un castillo o una zapata se colocan con Punto, una trabe con Línea, una losa con un Área.
       const geometriaDelElemento = { castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'poligono' }[elementoPorColocar.tipo];
@@ -1836,6 +1874,15 @@ export function EspacioDeTrazo({
     }
   }
 
+  // El largo de un revestimiento también termina con Esc.
+  useEffect(() => {
+    if (revestimientoPorColocar === null) return;
+    const cerrar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRevestimientoPorColocar(null);
+    };
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [revestimientoPorColocar]);
   // «Colocar este elemento» termina con Esc.
   useEffect(() => {
     if (elementoPorColocar === null) return;
@@ -2473,6 +2520,30 @@ export function EspacioDeTrazo({
                   invalidarTrazos();
                 }}
                 onError={(m) => setAviso(m)}
+              />
+            )}
+            {seleccionado.geometry.type === 'LineString' && seleccionado.properties.grosor_m != null && (
+              <RevestimientosDelMuro
+                muroId={seleccionado.id as string}
+                trazos={features}
+                actividades={actividades}
+                colocando={revestimientoPorColocar}
+                onColocar={(r) => {
+                  setRevestimientoPorColocar(r);
+                  if (r) {
+                    setHerramienta('linea');
+                    setAviso(`Dibuja el largo de ${r.clave} sobre el muro (dos clics). Esc cancela.`);
+                  }
+                }}
+                onQuitar={(trazoId) =>
+                  void eliminar.mutateAsync({ trazoId }).then(
+                    () => {
+                      invalidarTrazos();
+                      setAviso('Revestimiento quitado.');
+                    },
+                    (err: unknown) => setAviso(err instanceof Error ? err.message : 'No se pudo quitar el revestimiento.'),
+                  )
+                }
               />
             )}
             {seleccionado.geometry.type === 'LineString' && (

@@ -55,6 +55,8 @@ import type {
   PlanoRespuesta,
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
+  RevestimientoPeticion,
+  RevestimientoRespuesta,
   TraerTrazoPeticion,
   TransformarTrazosPeticion,
   TransformarTrazosRespuesta,
@@ -5551,6 +5553,118 @@ export const useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut =
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * @summary Ligar una línea a un muro como su revestimiento (o deslígarla)
+ */
+export const ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut = (
+  trazoId: string,
+  revestimientoPeticion: RevestimientoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<RevestimientoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/revestimiento`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: revestimientoPeticion,
+    },
+    options,
+  );
+};
+
+export const getLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut>
+      >,
+      TError,
+      { trazoId: string; data: RevestimientoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut>
+    >,
+    TError,
+    { trazoId: string; data: RevestimientoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut>
+      >,
+      { trazoId: string; data: RevestimientoPeticion }
+    > = (props) => {
+      const { trazoId, data } = props ?? {};
+
+      return ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut(
+        trazoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type LigarRevestimientoApiV1TrazosTrazoIdRevestimientoPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut>
+    >
+  >;
+export type LigarRevestimientoApiV1TrazosTrazoIdRevestimientoPutMutationBody =
+  RevestimientoPeticion;
+export type LigarRevestimientoApiV1TrazosTrazoIdRevestimientoPutMutationError =
+  void;
+
+/**
+ * @summary Ligar una línea a un muro como su revestimiento (o deslígarla)
+ */
+export const useLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut>
+      >,
+      TError,
+      { trazoId: string; data: RevestimientoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof ligarRevestimientoApiV1TrazosTrazoIdRevestimientoPut>
+  >,
+  TError,
+  { trazoId: string; data: RevestimientoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * @summary Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir
  */

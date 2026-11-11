@@ -11368,6 +11368,60 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/revestimiento": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Ligar una línea a un muro como su revestimiento (o deslígarla)",
+        "operationId": "ligar_revestimiento_api_v1_trazos__trazo_id__revestimiento_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevestimientoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevestimientoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo o el muro no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "No son líneas del mismo plano, o la cara no vale."
+          }
+        }
+      }
+    },
     "/api/v1/enlaces/{enlace_id}/conversion": {
       "get": {
         "tags": [
@@ -36447,6 +36501,82 @@
         ],
         "title": "ReversaRespuesta"
       },
+      "RevestimientoPeticion": {
+        "properties": {
+          "muro_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Id",
+            "description": "El muro. `null` deslíga el revestimiento."
+          },
+          "cara": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara",
+            "description": "Obligatoria si hay muro."
+          }
+        },
+        "type": "object",
+        "required": [
+          "muro_id"
+        ],
+        "title": "RevestimientoPeticion",
+        "description": "Liga una línea (con su concepto del catálogo, largo × altura en m²) a un muro y a una de sus caras (D-645)."
+      },
+      "RevestimientoRespuesta": {
+        "properties": {
+          "muro_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Id"
+          },
+          "cara": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara"
+          }
+        },
+        "type": "object",
+        "required": [
+          "muro_id",
+          "cara"
+        ],
+        "title": "RevestimientoRespuesta"
+      },
       "RevisionRespuesta": {
         "properties": {
           "id": {
@@ -38013,6 +38143,35 @@
             ],
             "title": "Muro Acabado",
             "description": "Capas de acabado con Sí/No por cara (interior, fachada): gris, blanca, pintura (0124)."
+          },
+          "revestimiento_de": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revestimiento De",
+            "description": "Si este trazo es un revestimiento, el muro al que pertenece (0125); su concepto va en el enlace."
+          },
+          "revestimiento_cara": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revestimiento Cara",
+            "description": "La cara del muro que lleva el revestimiento (0125)."
           },
           "conexiones": {
             "items": {

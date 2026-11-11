@@ -61,6 +61,40 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await expect(detalle.getByRole('button', { name: 'Con cadena' })).toHaveAttribute('aria-pressed', 'true');
     await detalle.getByRole('button', { name: 'Tabique' }).click();
     await expect.poll(async () => (await trazos())[0]!.properties.muro_tipo).toBe('tabique');
+
+    // --- Revestimiento: un concepto del catálogo con su largo y su altura (D-645, tanda 2) ------------------------------
+    const muroId = (await llamarApi<{ features: { id: string }[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features[0]!.id;
+    const revestimientos = page.getByRole('group', { name: 'Revestimientos del muro' });
+    await expect(revestimientos).toContainText('Sin revestimientos');
+    await revestimientos.getByRole('button', { name: '+ Revestimiento' }).click();
+    const alta = revestimientos.getByRole('group', { name: 'Revestimiento nuevo' });
+    await alta.getByLabel('Concepto del revestimiento').selectOption({ index: 1 }); // el primer concepto en m² de la obra
+    await alta.getByRole('button', { name: 'Fachada' }).click();
+    const altura = alta.getByLabel('Altura del revestimiento (m)');
+    await altura.fill('');
+    await altura.pressSequentially('2.1');
+    await alta.getByRole('button', { name: 'Dibujar el largo' }).click();
+    await expect(revestimientos.getByRole('status')).toContainText('Dibuja el largo');
+
+    // Se dibuja el largo sobre el muro: dos clics sobre su recorrido (en la parte que el panel de opciones no tapa).
+    const sobre = (await page.locator('.visor__trazo').first().boundingBox())!;
+    const y = sobre.y + sobre.height / 2;
+    await page.mouse.click(sobre.x + sobre.width * 0.62, y);
+    await page.mouse.click(sobre.x + sobre.width * 0.9, y);
+    await expect.poll(async () => (await trazos()).length).toBe(2);
+
+    const hijo = (await llamarApi<{ features: { id: string; geometry: { coordinates: number[][] }; properties: Record<string, unknown> }[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features.find(
+      (f) => f.properties.revestimiento_de === muroId,
+    )!;
+    expect(hijo.properties.revestimiento_cara).toBe('fachada');
+    const largo = Math.hypot(hijo.geometry.coordinates[1]![0]! - hijo.geometry.coordinates[0]![0]!, hijo.geometry.coordinates[1]![1]! - hijo.geometry.coordinates[0]![1]!);
+    const enlace = (hijo.properties.enlaces as { cantidad: string }[])[0]!;
+    expect(Number(enlace.cantidad)).toBeCloseTo(largo * 2.1, 2); // largo × altura, en m²
+    await expect(revestimientos.locator('[data-revestimiento]')).toHaveCount(1);
     if (process.env.E2E_CAPTURAS) await page.screenshot({ path: `${process.env.E2E_CAPTURAS}/paramerico-muro.png` });
+
+    // Se quita: el revestimiento deja de existir y el muro sigue.
+    await revestimientos.getByRole('button', { name: /^Quitar el revestimiento/ }).click();
+    await expect.poll(async () => (await trazos()).length).toBe(1);
   });
 });

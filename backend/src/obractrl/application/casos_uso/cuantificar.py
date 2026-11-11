@@ -1523,6 +1523,35 @@ class GestionarVanos(AgregarHuecoATrazo):
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
 
+    async def ligar_revestimiento(self, trazo_id: UUID, *, muro_id: UUID | None, cara: str | None) -> dict[str, Any]:
+        """Un revestimiento (D-645): una línea con su concepto del catálogo, ligada a un muro y a una de sus caras. No cambia lo
+        que mide: la línea ya mide largo × altura en m² con su propio enlace. Con ``muro_id`` ``None`` se desliga."""
+        actual = await self._trazos.revestimiento_de_trazo(trazo_id)
+        if actual["plano_id"] is None or await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if muro_id is None:
+            async with self._uow:
+                await self._trazos.ligar_revestimiento(trazo_id=trazo_id, muro_id=None, cara=None)
+                await self._uow.commit()
+            return {"muro_id": None, "cara": None}
+        if cara not in ("interior", "fachada"):
+            raise ErrorDeCuantificacion("La cara del revestimiento es interior o fachada.")
+        if muro_id == trazo_id:
+            raise ErrorDeCuantificacion("Un revestimiento no puede ser su propio muro.")
+        muro = await self._trazos.revestimiento_de_trazo(muro_id)
+        if muro["plano_id"] is None or await self._trazos.obtener(muro_id) is None:
+            raise TrazoNoEncontrado(f"El muro {muro_id} no existe o no está en tu alcance.")
+        if muro["plano_id"] != actual["plano_id"]:
+            raise ErrorDeCuantificacion("El revestimiento y su muro deben estar en el mismo plano.")
+        if not await self._trazos.es_linea(trazo_id) or not await self._trazos.es_linea(muro_id):
+            raise ErrorDeCuantificacion("El revestimiento y su muro son líneas.")
+        if muro["muro_id"] is not None:
+            raise ErrorDeCuantificacion("Un revestimiento no puede ser el muro de otro revestimiento.")
+        async with self._uow:
+            await self._trazos.ligar_revestimiento(trazo_id=trazo_id, muro_id=muro_id, cara=cara)
+            await self._uow.commit()
+        return {"muro_id": muro_id, "cara": cara}
+
     async def clasificacion(self, trazo_id: UUID) -> dict[str, Any]:
         """Tipo de muro y acabado del trazo; el acabado ya completo (lo que falta, el defecto)."""
         if await self._trazos.obtener(trazo_id) is None:

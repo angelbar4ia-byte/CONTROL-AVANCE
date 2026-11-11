@@ -725,6 +725,34 @@ class RepositorioTrazosSQL:
             "partes": fila["muro_partes"],
         }
 
+    async def revestimiento_de_trazo(self, trazo_id: UUID) -> dict[str, Any]:
+        """A qué muro y cara pertenece un revestimiento (0125). Sin la migración o sin ligar: todo ``None``."""
+        vacio: dict[str, Any] = {"muro_id": None, "cara": None, "plano_id": None}
+        fila = (
+            await self._sesion.execute(
+                text("select plano_id from trazo where id = :id"), {"id": str(trazo_id)}
+            )
+        ).mappings().one_or_none()
+        if fila is None:
+            return vacio
+        vacio["plano_id"] = fila["plano_id"]
+        if not await _hay_columna(self._sesion, "trazo", "revestimiento_de"):
+            return vacio
+        liga = (
+            await self._sesion.execute(
+                text("select revestimiento_de, revestimiento_cara from trazo where id = :id"), {"id": str(trazo_id)}
+            )
+        ).mappings().one()
+        return {"muro_id": liga["revestimiento_de"], "cara": liga["revestimiento_cara"], "plano_id": fila["plano_id"]}
+
+    async def ligar_revestimiento(self, *, trazo_id: UUID, muro_id: UUID | None, cara: str | None) -> None:
+        if not await _hay_columna(self._sesion, "trazo", "revestimiento_de"):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0125 (revestimiento de un muro) en esta base.")
+        await self._sesion.execute(
+            text("update trazo set revestimiento_de = cast(:m as uuid), revestimiento_cara = :c where id = :id"),
+            {"m": str(muro_id) if muro_id else None, "c": cara, "id": str(trazo_id)},
+        )
+
     async def clasificacion_de_muro(self, trazo_id: UUID) -> dict[str, Any]:
         """Tipo de muro y acabado (0124, F-22). Sin la migración o sin clasificar: ``tipo`` ``None`` y ``acabado`` ``None``."""
         vacio: dict[str, Any] = {"tipo": None, "acabado": None}
@@ -1140,6 +1168,8 @@ class RepositorioTrazosSQL:
                            t.propuesta_medida, t.propuesta_confianza,
                            -- Tipo de muro y acabado (0124), con la misma tolerancia a la base sin migrar.
                            to_jsonb(t)->>'muro_tipo' as muro_tipo, to_jsonb(t)->'muro_acabado' as muro_acabado,
+                           -- El muro al que pertenece un revestimiento y su cara (0125).
+                           to_jsonb(t)->>'revestimiento_de' as revestimiento_de, to_jsonb(t)->>'revestimiento_cara' as revestimiento_cara,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.
