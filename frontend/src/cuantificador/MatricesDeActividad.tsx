@@ -119,21 +119,24 @@ function Nodo({
           </span>
         )}
         {onCuenta && (
-          <button
-            type="button"
-            className={nodo.conceptoId === cuentaId ? 'chip is-active' : 'chip'}
-            aria-pressed={nodo.conceptoId === cuentaId}
-            data-cuenta={nodo.clave}
-            disabled={enCurso}
+          <label
+            className="arbol__casilla-cuenta"
             title={
               nodo.conceptoId === cuentaId
-                ? 'Esta matriz da la cantidad del concepto. Un clic la suelta: cuentan sus trazos propios.'
-                : 'Que la cantidad del concepto sea la de esta matriz (debe ser de su misma unidad).'
+                ? 'Esta matriz da la cantidad del concepto. Desmárcala y cuentan sus trazos propios.'
+                : 'Marca la casilla para que la cantidad del concepto sea la de esta matriz (debe ser de su misma unidad).'
             }
-            onClick={() => onCuenta(nodo.conceptoId === cuentaId ? null : nodo.conceptoId)}
           >
-            {nodo.conceptoId === cuentaId ? 'Cuenta para el concepto' : 'Que cuente'}
-          </button>
+            <input
+              type="checkbox"
+              data-cuenta={nodo.clave}
+              checked={nodo.conceptoId === cuentaId}
+              disabled={enCurso}
+              aria-label={`Que cuente ${nodo.clave} para el concepto`}
+              onChange={() => onCuenta(nodo.conceptoId === cuentaId ? null : nodo.conceptoId)}
+            />
+            cuenta
+          </label>
         )}
         <span
           className="arbol__cuenta"

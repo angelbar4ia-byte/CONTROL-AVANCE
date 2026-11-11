@@ -2667,6 +2667,7 @@ export function EspacioDeTrazo({
           <PanelDelArbol
             obraId={obraId}
             actividades={actividades}
+            medidaPorActividad={medidaPorActividad}
             onCambio={(aviso) => {
               setAviso(aviso);
               void queryClient.invalidateQueries({
