@@ -1330,7 +1330,7 @@ class VanoPeticion(BaseModel):
     """Una puerta, ventana o paso colocado sobre una línea."""
 
     clave: str = Field(min_length=1, max_length=20)
-    tipo: Literal["puerta", "ventana", "cancel", "arco", "paso"]
+    tipo: Literal["puerta", "ventana", "cancel", "arco", "paso", "castillo"]
     ancho_m: Decimal = Field(gt=0, le=50)
     alto_m: Decimal = Field(gt=0, le=50)
     antepecho_m: Decimal = Field(default=Decimal(0), ge=0, le=50, description="Del piso al borde de abajo (ventanas).")

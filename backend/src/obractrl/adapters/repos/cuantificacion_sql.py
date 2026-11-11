@@ -668,7 +668,7 @@ class RepositorioTrazosSQL:
         ).scalar_one_or_none()
         nueva = False
         if existente is None:
-            prefijo = {"puerta": "P", "ventana": "V", "cancel": "C", "arco": "A", "paso": "PS"}[v["tipo"]]
+            prefijo = {"puerta": "P", "ventana": "V", "cancel": "C", "arco": "A", "paso": "PS", "castillo": "K"}[v["tipo"]]
             n = int((await self._sesion.execute(text("select count(*) from vano_version where tipo = :t"), {"t": v["tipo"]})).scalar_one()) + 1
             while True:
                 existente = f"{prefijo}-{n:02d}"

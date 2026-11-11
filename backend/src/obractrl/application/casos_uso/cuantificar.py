@@ -88,6 +88,7 @@ from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
 from obractrl.domain.cuantificacion.medicion import motivo_de_incompatibilidad
 from obractrl.domain.cuantificacion.muro import (
+    ALTURA_POR_DEFECTO_M,
     ParteDeAltura,
     altura_efectiva,
     factor_de_muro,
@@ -1342,13 +1343,24 @@ class GestionarVanos(AgregarHuecoATrazo):
         if not await self._trazos.admite_vano(cmd.trazo_id):
             raise ErrorDeCuantificacion("Un vano se coloca sobre una línea (un muro) o sobre un área.")
 
+        alto_m = cmd.alto_m
+        if cmd.tipo == "castillo":
+            # Un castillo se coloca en un muro con cadena (D-645) y sube hasta lo alto del muro.
+            if not await self._trazos.es_linea(cmd.trazo_id):
+                raise ErrorDeCuantificacion("Un castillo se coloca sobre una línea (un muro).")
+            if (await self._trazos.clasificacion_de_muro(cmd.trazo_id))["tipo"] != "con_cadena":
+                raise ErrorDeCuantificacion(
+                    "Los castillos se colocan en un muro «con cadena»: cambia el tipo del muro y vuelve a colocarlos."
+                )
+            alto_m = await self._altura_del_muro(cmd.trazo_id)
+
         async def crear() -> UUID:
             return await self._trazos.crear_vano(
                 trazo_id=cmd.trazo_id,
                 clave=cmd.clave.strip(),
                 tipo=cmd.tipo,
                 ancho_m=cmd.ancho_m,
-                alto_m=cmd.alto_m,
+                alto_m=alto_m,
                 antepecho_m=cmd.antepecho_m,
                 piezas=cmd.piezas,
                 posicion_m=cmd.posicion_m,
@@ -1357,6 +1369,15 @@ class GestionarVanos(AgregarHuecoATrazo):
             )
 
         return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)
+
+    async def _altura_del_muro(self, trazo_id: UUID) -> Decimal:
+        """Lo alto del muro: el tope de sus partes o su altura única (2.6 m si no hay). Lo que sube un castillo."""
+        muro = await self._trazos.muro_de_trazo(trazo_id)
+        partes = muro.get("partes")
+        if partes:
+            return max(Decimal(str(p["hasta_m"])) for p in partes)
+        altura = muro.get("altura_m")
+        return Decimal(str(altura)) if altura is not None else ALTURA_POR_DEFECTO_M
 
     async def quitar(
         self, vano_id: UUID, *, autor_id: UUID, rol: Rol, detectada_en: datetime

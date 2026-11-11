@@ -16,4 +16,5 @@ export const VanoPeticionTipo = {
   cancel: "cancel",
   arco: "arco",
   paso: "paso",
+  castillo: "castillo",
 } as const;

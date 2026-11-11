@@ -21,7 +21,7 @@ from obractrl.domain.shared.diccionario import Rol
 router = APIRouter(tags=["vanos catalogo"])
 
 ROLES_QUE_DEFINEN = (Rol.CONTROL_OBRA, Rol.COSTOS)
-TipoDeVano = Literal["puerta", "ventana", "cancel", "arco", "paso"]
+TipoDeVano = Literal["puerta", "ventana", "cancel", "arco", "paso", "castillo"]
 
 
 class VersionDeVanoRespuesta(BaseModel):

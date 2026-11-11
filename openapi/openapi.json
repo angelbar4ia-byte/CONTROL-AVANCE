@@ -13211,7 +13211,8 @@
                     "ventana",
                     "cancel",
                     "arco",
-                    "paso"
+                    "paso",
+                    "castillo"
                   ],
                   "type": "string"
                 },
@@ -39290,7 +39291,8 @@
               "ventana",
               "cancel",
               "arco",
-              "paso"
+              "paso",
+              "castillo"
             ],
             "title": "Tipo"
           },
@@ -39672,7 +39674,8 @@
               "ventana",
               "cancel",
               "arco",
-              "paso"
+              "paso",
+              "castillo"
             ],
             "title": "Tipo"
           },
@@ -39772,7 +39775,8 @@
               "ventana",
               "cancel",
               "arco",
-              "paso"
+              "paso",
+              "castillo"
             ],
             "title": "Tipo"
           },

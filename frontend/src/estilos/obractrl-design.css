@@ -3067,3 +3067,6 @@ a { color: inherit; text-decoration: none; }
 .revestimientos-muro__alta { display: grid; gap: 6px; padding: 6px; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-panel); }
 .revestimientos-muro__alta select { width: 100%; }
 .revestimientos-muro__colocando { padding: 6px 8px; border-radius: var(--r-md); background: var(--c-accent-soft); color: var(--c-accent-strong); font-size: var(--fs-sm); }
+
+/* Castillo de un muro con cadena: pieza llena sobre el muro */
+.visor__vano--castillo { fill: var(--c-text-mute); fill-opacity: .75; }

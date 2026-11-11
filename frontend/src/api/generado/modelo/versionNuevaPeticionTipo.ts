@@ -16,4 +16,5 @@ export const VersionNuevaPeticionTipo = {
   cancel: "cancel",
   arco: "arco",
   paso: "paso",
+  castillo: "castillo",
 } as const;

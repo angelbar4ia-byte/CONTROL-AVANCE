@@ -16,4 +16,5 @@ export const VersionDeVanoRespuestaTipo = {
   cancel: "cancel",
   arco: "arco",
   paso: "paso",
+  castillo: "castillo",
 } as const;

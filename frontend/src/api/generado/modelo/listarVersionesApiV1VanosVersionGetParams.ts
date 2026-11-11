@@ -7,5 +7,5 @@
  */
 
 export type ListarVersionesApiV1VanosVersionGetParams = {
-  tipo?: "puerta" | "ventana" | "cancel" | "arco" | "paso" | null;
+  tipo?: "puerta" | "ventana" | "cancel" | "arco" | "paso" | "castillo" | null;
 };

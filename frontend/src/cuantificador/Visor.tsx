@@ -828,7 +828,7 @@ export function Visor({
               <g transform={`translate(${posX} ${posY}) rotate(${anguloV}) translate(${desvio} ${corrimiento})`}>
                 <rect className="visor__vano-zona" x={-ancho / 2} y={-alto / 2} width={ancho} height={alto} />
                 <rect
-                  className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : 'visor__vano'}
+                  className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : v.tipo === 'castillo' ? 'visor__vano visor__vano--castillo' : 'visor__vano'}
                   x={-ancho / 2}
                   y={-alto / 2}
                   width={ancho}

@@ -159,7 +159,7 @@ export function useAccionesDeVano({ historial, alCambiarHistorial, avisar, alCam
   async function quitar(v: VanoEnPlanoRespuesta) {
     const datos = {
       clave: v.clave,
-      tipo: v.tipo as 'puerta' | 'ventana' | 'cancel' | 'arco' | 'paso',
+      tipo: v.tipo as 'puerta' | 'ventana' | 'cancel' | 'arco' | 'paso' | 'castillo',
       ancho_m: num(v.ancho_m),
       alto_m: num(v.alto_m),
       antepecho_m: num(v.antepecho_m ?? 0),

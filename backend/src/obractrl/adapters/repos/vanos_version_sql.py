@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = ["PREFIJO_DEL_TIPO", "VERSIONES_DE_PARTIDA", "RepositorioVanosVersionSQL"]
 
-PREFIJO_DEL_TIPO = {"puerta": "P", "ventana": "V", "cancel": "C", "arco": "A", "paso": "PS"}
+PREFIJO_DEL_TIPO = {"puerta": "P", "ventana": "V", "cancel": "C", "arco": "A", "paso": "PS", "castillo": "K"}
 
 # Las versiones con que nace el catálogo de una organización (las del mockup).
 VERSIONES_DE_PARTIDA: tuple[tuple[str, str, str, str, str], ...] = (
@@ -23,6 +23,7 @@ VERSIONES_DE_PARTIDA: tuple[tuple[str, str, str, str, str], ...] = (
     ("cancel", "C-01", "1.5", "2.1", "0"),
     ("arco", "A-01", "1", "2.1", "0"),
     ("paso", "PS-01", "0.9", "2.1", "0"),
+    ("castillo", "K-01", "0.15", "2.6", "0"),
 )
 
 _COLUMNAS = "id, tipo, clave, ancho_m, alto_m, antepecho_m"
