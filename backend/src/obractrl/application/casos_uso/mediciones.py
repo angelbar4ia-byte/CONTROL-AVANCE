@@ -221,7 +221,9 @@ class GestionarMediciones:
             raise ErrorDeCuantificacion("Esta medición tiene submediciones: bórralas o muévelas primero.")
         tocados: set[NodoActividad] = set()
         async with self._uow:
-            for a in await self._mediciones.asignaciones_de([medicion_id]):
+            asignaciones = await self._mediciones.asignaciones_de([medicion_id])
+            await self._actividades.bloquear([a["actividad_id"] for a in asignaciones])
+            for a in asignaciones:
                 for e in await self._mediciones.enlaces_de_asignacion(a["id"]):
                     await self._enlaces.marcar_no_vigente(e["id"])
                 await self._mediciones.eliminar_asignacion(a["id"])
@@ -394,6 +396,7 @@ class GestionarMediciones:
             )
 
         async with self._uow:
+            await self._actividades.bloquear([cmd.actividad_id])
             asignacion_id = await self._mediciones.crear_asignacion(
                 medicion_id=cmd.medicion_id,
                 actividad_id=cmd.actividad_id,
@@ -442,6 +445,7 @@ class GestionarMediciones:
         if a is None:
             raise MedicionNoEncontrada(f"La asignación {asignacion_id} no existe o está fuera de tu alcance.")
         async with self._uow:
+            await self._actividades.bloquear([a["actividad_id"]])
             enlaces = await self._mediciones.enlaces_de_asignacion(asignacion_id)
             for e in enlaces:
                 await self._enlaces.marcar_no_vigente(e["id"])

@@ -12,6 +12,7 @@ Por HTTP contra Postgres real:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from decimal import Decimal
@@ -225,3 +226,25 @@ async def test_renombrar_y_el_nombre_no_se_repite_entre_hermanas(
     assert (await control.patch(f"/api/v1/mediciones/{a}", json={"nombre": "Cocina integral"})).status_code == 204
     assert (await control.patch(f"/api/v1/mediciones/{a}", json={"nombre": "baño"})).status_code == 422
     assert (await control.patch(f"/api/v1/mediciones/{uuid.uuid4()}", json={"nombre": "x"})).status_code == 404
+
+
+async def test_quitar_varias_asignaciones_del_mismo_concepto_a_la_vez_no_se_abraza(
+    control: httpx.AsyncClient, escenario: Escenario
+) -> None:
+    """Tres borrados simultáneos recalculan el mismo concepto: se hacen turno (antes: deadlock, 500)."""
+    plano = await _plano(control, escenario)
+    asignaciones = []
+    for i, wkt in enumerate([CUADRADO_10, CUADRADO_4, "POLYGON((30 0, 35 0, 35 2, 30 2, 30 0))"]):
+        medicion = await _medicion(control, plano, f"M{i}")
+        trazo = await _trazo(control, plano, wkt)
+        assert (await control.put(f"/api/v1/trazos/{trazo}/medicion", json={"medicion_id": medicion})).status_code == 200
+        r = await _asignar(control, medicion, escenario)
+        assert r.status_code == 201, r.text
+        asignaciones.append(r.json()["id"])
+    assert await _cantidad(control, escenario) == 100 + 16 + 10
+    respuestas = await asyncio.gather(
+        *[control.delete(f"/api/v1/asignaciones-de-medicion/{a}") for a in asignaciones]
+    )
+    assert [r.status_code for r in respuestas] == [200, 200, 200], [r.text[:200] for r in respuestas]
+    assert await _cantidad(control, escenario) == 0
+

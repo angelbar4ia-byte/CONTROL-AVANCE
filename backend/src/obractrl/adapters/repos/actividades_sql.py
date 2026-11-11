@@ -20,6 +20,7 @@ empíricamente, no hace falta `json.loads` en las lecturas.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -104,6 +105,15 @@ class RepositorioActividadesSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def bloquear(self, actividad_ids: Iterable[UUID]) -> None:
+        ids = sorted({str(i) for i in actividad_ids})
+        if not ids:
+            return
+        await self._sesion.execute(
+            text("select id from actividad where id = any(cast(:ids as uuid[])) order by id for update"),
+            {"ids": ids},
+        )
 
     async def fijar_cantidad_medida(
         self, actividad_id: UUID, cantidad: Decimal
