@@ -453,3 +453,33 @@ async def test_un_revestimiento_se_liga_a_un_muro_y_una_cara_sin_cambiar_lo_que_
     # Se deslíga.
     r = await control.put(f"/api/v1/trazos/{revest}/revestimiento", json={"muro_id": None})
     assert r.json() == {"muro_id": None, "cara": None}
+
+
+async def test_un_castillo_solo_entra_en_un_muro_con_cadena_y_resta_de_los_m2(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    """D-645 (0126): los castillos de un muro «con cadena» restan ancho × altura del muro × caras de los m², y su ancho del largo."""
+    _, muro = await _muro(control, escenario, "longitud", "5.2")  # 10 m × 2.6 m × 2 caras = 52 m²
+    castillo = {"clave": "K-01", "tipo": "castillo", "ancho_m": "0.15", "alto_m": "1", "posicion_m": "3"}
+
+    # Sin clasificar, o confinado o tabique, no se colocan castillos: el muro debe ser «con cadena».
+    assert (await control.post(f"/api/v1/trazos/{muro}/vanos", json=castillo)).status_code == 422
+    for tipo in ("confinado", "tabique"):
+        await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": tipo})
+        r = await control.post(f"/api/v1/trazos/{muro}/vanos", json=castillo)
+        assert r.status_code == 422 and "con cadena" in r.text
+
+    # Con cadena: el castillo sube lo alto del muro (2.6 m, no el 1 m que traía) y resta 0.15 × 2.6 × 2 caras = 0.78 m².
+    await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "con_cadena"})
+    r = await control.post(f"/api/v1/trazos/{muro}/vanos", json=castillo)
+    assert r.status_code == 201, r.text
+    assert _total(r) == (Decimal("52") - Decimal("0.78")).quantize(Decimal("0.0001"))
+    vanos = (await control.get(f"/api/v1/trazos/{muro}/vanos")).json()
+    assert [(v["tipo"], Decimal(str(v["alto_m"]))) for v in vanos] == [("castillo", Decimal("2.6"))]
+
+    # Dos castillos más: tres en total, 2.34 m² menos; al quitar uno vuelve lo que restaba.
+    for k, pos in (("K-02", "6"), ("K-03", "9")):
+        r = await control.post(f"/api/v1/trazos/{muro}/vanos", json={**castillo, "clave": k, "posicion_m": pos})
+    assert _total(r) == (Decimal("52") - Decimal("2.34")).quantize(Decimal("0.0001"))
+    q = await control.delete(f"/api/v1/vanos/{vanos[0]['id']}")
+    assert _total(q) == (Decimal("52") - Decimal("1.56")).quantize(Decimal("0.0001"))

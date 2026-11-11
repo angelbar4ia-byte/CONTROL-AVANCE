@@ -96,5 +96,31 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     // Se quita: el revestimiento deja de existir y el muro sigue.
     await revestimientos.getByRole('button', { name: /^Quitar el revestimiento/ }).click();
     await expect.poll(async () => (await trazos()).length).toBe(1);
+
+    // --- Castillos (D-645, tanda 3): solo en un muro «con cadena»; restan de los m² del muro -------------------------------
+    const vanos = async () => llamarApi<{ tipo: string; alto_m: string }[]>(request, 'control', 'GET', `/trazos/${muroId}/vanos`);
+    const medida = async () => Number(((await trazos())[0]!.properties.enlaces as { cantidad: string }[])[0]!.cantidad);
+    const antes = await medida();
+    await barra.getByRole('button', { name: /^Vano/ }).click();
+    const opcionesVano = page.getByRole('region', { name: 'Opciones del vano' });
+    await opcionesVano.getByRole('button', { name: 'Castillo' }).click();
+    const cajaMuro = (await page.locator('.visor__trazo').first().boundingBox())!;
+    await page.mouse.click(cajaMuro.x + cajaMuro.width * 0.7, cajaMuro.y + cajaMuro.height / 2);
+    await expect(page.getByText(/se colocan en un muro/)).toBeVisible(); // el muro sigue siendo tabique
+    expect((await vanos()).length).toBe(0);
+    expect(await medida()).toBeCloseTo(antes, 4);
+
+    // Se cambia el muro a «con cadena» en su detalle y ahora sí se coloca.
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    await page.mouse.click(cajaMuro.x + cajaMuro.width * 0.3, cajaMuro.y + cajaMuro.height / 2);
+    await page.getByRole('group', { name: 'Tipo de muro' }).last().getByRole('button', { name: 'Con cadena' }).click();
+    await expect.poll(async () => (await trazos())[0]!.properties.muro_tipo).toBe('con_cadena');
+    await barra.getByRole('button', { name: /^Vano/ }).click();
+    await page.mouse.click(cajaMuro.x + cajaMuro.width * 0.7, cajaMuro.y + cajaMuro.height / 2);
+    await expect.poll(async () => (await vanos()).length).toBe(1);
+    const colocado = (await vanos())[0]!;
+    expect(colocado.tipo).toBe('castillo');
+    expect(Number(colocado.alto_m)).toBeCloseTo(2.6, 3); // sube lo alto del muro
+    await expect.poll(medida).toBeLessThan(antes); // y resta de los m² del muro
   });
 });
