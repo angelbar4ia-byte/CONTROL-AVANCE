@@ -416,3 +416,40 @@ async def test_el_tipo_de_muro_y_su_acabado_se_fijan_se_leen_y_no_cambian_lo_que
         assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": tipo})).json()["tipo"] == tipo
     quitado = (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": None})).json()
     assert quitado == {"tipo": None, "acabado": None}
+
+
+async def test_un_revestimiento_se_liga_a_un_muro_y_una_cara_sin_cambiar_lo_que_mide(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    """D-645 (0125): el revestimiento es una línea con su concepto (largo × altura en m²) ligada a un muro y a una cara."""
+    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+    muro = await _muro_con(control, escenario, plano, "LINESTRING(0 0, 10 0)", "0.2")
+    revest = await _muro_con(control, escenario, plano, "LINESTRING(2 0, 6 0)", None)
+    otro_plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "Q", "archivo_url": "e2e/q.pdf"})).json()["id"]
+    ajeno = await _muro_con(control, escenario, otro_plano, "LINESTRING(0 0, 4 0)", None)
+
+    def medidas(feats: list[dict]) -> dict[str, str]:
+        return {f["id"]: f["properties"]["enlaces"][0]["cantidad"] for f in feats}
+
+    antes = medidas((await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"])
+
+    # Se liga a la cara de fachada del muro.
+    r = await control.put(f"/api/v1/trazos/{revest}/revestimiento", json={"muro_id": muro, "cara": "fachada"})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"muro_id": muro, "cara": "fachada"}
+    feats = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"]
+    prop = next(f for f in feats if f["id"] == revest)["properties"]
+    assert prop["revestimiento_de"] == muro and prop["revestimiento_cara"] == "fachada"
+    assert next(f for f in feats if f["id"] == muro)["properties"]["revestimiento_de"] is None
+    assert medidas(feats) == antes  # lo medido no cambia
+
+    # Lo que no vale: sin cara, a sí mismo, a un muro de otro plano, un revestimiento como muro de otro.
+    assert (await control.put(f"/api/v1/trazos/{revest}/revestimiento", json={"muro_id": muro})).status_code == 422
+    assert (await control.put(f"/api/v1/trazos/{revest}/revestimiento", json={"muro_id": revest, "cara": "interior"})).status_code == 422
+    assert (await control.put(f"/api/v1/trazos/{revest}/revestimiento", json={"muro_id": ajeno, "cara": "interior"})).status_code == 422
+    otro = await _muro_con(control, escenario, plano, "LINESTRING(7 0, 9 0)", None)
+    assert (await control.put(f"/api/v1/trazos/{otro}/revestimiento", json={"muro_id": revest, "cara": "interior"})).status_code == 422
+
+    # Se deslíga.
+    r = await control.put(f"/api/v1/trazos/{revest}/revestimiento", json={"muro_id": None})
+    assert r.json() == {"muro_id": None, "cara": None}

@@ -14,6 +14,8 @@ import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
 import type { TrazoPropiedadesPendientePct } from "./trazoPropiedadesPendientePct";
 import type { TrazoPropiedadesMuroTipo } from "./trazoPropiedadesMuroTipo";
 import type { TrazoPropiedadesMuroAcabado } from "./trazoPropiedadesMuroAcabado";
+import type { TrazoPropiedadesRevestimientoDe } from "./trazoPropiedadesRevestimientoDe";
+import type { TrazoPropiedadesRevestimientoCara } from "./trazoPropiedadesRevestimientoCara";
 import type { ConexionDeMuro } from "./conexionDeMuro";
 import type { TrazoPropiedadesMedicionId } from "./trazoPropiedadesMedicionId";
 import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
@@ -42,6 +44,10 @@ export interface TrazoPropiedades {
   muro_tipo?: TrazoPropiedadesMuroTipo;
   /** Capas de acabado con Sí/No por cara (interior, fachada): gris, blanca, pintura (0124). */
   muro_acabado?: TrazoPropiedadesMuroAcabado;
+  /** Si este trazo es un revestimiento, el muro al que pertenece (0125); su concepto va en el enlace. */
+  revestimiento_de?: TrazoPropiedadesRevestimientoDe;
+  /** La cara del muro que lleva el revestimiento (0125). */
+  revestimiento_cara?: TrazoPropiedadesRevestimientoCara;
   /** Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo. */
   conexiones?: ConexionDeMuro[];
   /** La medición a la que pertenece el trazo (0088); `null` = suelto. */

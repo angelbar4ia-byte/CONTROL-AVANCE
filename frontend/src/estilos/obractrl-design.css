@@ -3059,3 +3059,11 @@ a { color: inherit; text-decoration: none; }
 .clasificacion-muro__acabado th, .clasificacion-muro__acabado td { padding: 3px 6px; text-align: center; border-bottom: 1px solid var(--c-line); }
 .clasificacion-muro__acabado th[scope="row"] { text-align: left; font-weight: 500; color: var(--c-text-soft); }
 .clasificacion-muro__acabado thead th { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--c-text-mute); font-weight: 600; }
+
+/* Revestimientos de un muro: conceptos del catálogo con su largo y su altura */
+.revestimientos-muro { display: grid; gap: 6px; padding: 6px 0; }
+.revestimientos-muro__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.revestimientos-muro__lista li { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; font-size: var(--fs-sm); border-bottom: 1px solid var(--c-line); padding: 2px 0; }
+.revestimientos-muro__alta { display: grid; gap: 6px; padding: 6px; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-panel); }
+.revestimientos-muro__alta select { width: 100%; }
+.revestimientos-muro__colocando { padding: 6px 8px; border-radius: var(--r-md); background: var(--c-accent-soft); color: var(--c-accent-strong); font-size: var(--fs-sm); }

@@ -960,6 +960,13 @@ class TrazoPropiedades(BaseModel):
     muro_acabado: dict[str, dict[str, bool]] | None = Field(
         default=None, description="Capas de acabado con Sí/No por cara (interior, fachada): gris, blanca, pintura (0124)."
     )
+    revestimiento_de: UUID | None = Field(
+        default=None,
+        description="Si este trazo es un revestimiento, el muro al que pertenece (0125); su concepto va en el enlace.",
+    )
+    revestimiento_cara: Literal["interior", "fachada"] | None = Field(
+        default=None, description="La cara del muro que lleva el revestimiento (0125)."
+    )
     conexiones: list[ConexionDeMuro] = Field(
         default_factory=list,
         description="Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo.",
@@ -1112,6 +1119,8 @@ async def trazos_de_plano(
                     pendiente_pct=trazo.get("pendiente_pct"),
                     muro_tipo=trazo.get("muro_tipo"),
                     muro_acabado=trazo.get("muro_acabado"),
+                    revestimiento_de=trazo.get("revestimiento_de"),
+                    revestimiento_cara=trazo.get("revestimiento_cara"),
                     conexiones=[ConexionDeMuro(**c) for c in trazo.get("conexiones", [])],
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),
@@ -1555,6 +1564,34 @@ async def fijar_clasificacion_de_muro(
     trazo_id: UUID, peticion: ClasificacionDeMuroPeticion, caso_uso: GestionarVanosDep
 ) -> ClasificacionDeMuroRespuesta:
     return ClasificacionDeMuroRespuesta(**await caso_uso.clasificar(trazo_id, tipo=peticion.tipo, acabado=peticion.acabado))
+
+
+class RevestimientoPeticion(BaseModel):
+    """Liga una línea (con su concepto del catálogo, largo × altura en m²) a un muro y a una de sus caras (D-645)."""
+
+    muro_id: UUID | None = Field(description="El muro. `null` deslíga el revestimiento.")
+    cara: Literal["interior", "fachada"] | None = Field(default=None, description="Obligatoria si hay muro.")
+
+
+class RevestimientoRespuesta(BaseModel):
+    muro_id: UUID | None
+    cara: Literal["interior", "fachada"] | None
+
+
+@router.put(
+    "/trazos/{trazo_id}/revestimiento",
+    response_model=RevestimientoRespuesta,
+    summary="Ligar una línea a un muro como su revestimiento (o deslígarla)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        404: {"description": "El trazo o el muro no existen o están fuera de tu alcance."},
+        422: {"description": "No son líneas del mismo plano, o la cara no vale."},
+    },
+)
+async def ligar_revestimiento(
+    trazo_id: UUID, peticion: RevestimientoPeticion, caso_uso: GestionarVanosDep
+) -> RevestimientoRespuesta:
+    return RevestimientoRespuesta(**await caso_uso.ligar_revestimiento(trazo_id, muro_id=peticion.muro_id, cara=peticion.cara))
 
 
 class ParteDeAlturaEnConversion(BaseModel):
