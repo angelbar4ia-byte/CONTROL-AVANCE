@@ -92,6 +92,7 @@ from obractrl.domain.cuantificacion.muro import (
     altura_efectiva,
     factor_de_muro,
 )
+from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado, tipo_valido
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -1521,6 +1522,27 @@ class GestionarVanos(AgregarHuecoATrazo):
             return trazo_id
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
+
+    async def clasificacion(self, trazo_id: UUID) -> dict[str, Any]:
+        """Tipo de muro y acabado del trazo; el acabado ya completo (lo que falta, el defecto)."""
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        c = await self._trazos.clasificacion_de_muro(trazo_id)
+        return {"tipo": c["tipo"], "acabado": acabado_normalizado(c["acabado"]) if c["tipo"] else None}
+
+    async def clasificar(self, trazo_id: UUID, *, tipo: str | None, acabado: dict[str, Any] | None) -> dict[str, Any]:
+        """El paramétrico de muro (F-22): cómo se construye el muro y qué capas de acabado lleva. Solo clasifica: no cambia lo
+        que mide ni recalcula nada."""
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if not await self._trazos.es_linea(trazo_id):
+            raise ErrorDeCuantificacion("El tipo de muro se fija sobre una línea.")
+        tipo = tipo_valido(tipo)
+        completo = acabado_normalizado(acabado) if tipo else None
+        async with self._uow:
+            await self._trazos.clasificar_muro(trazo_id=trazo_id, tipo=tipo, acabado=completo)
+            await self._uow.commit()
+        return {"tipo": tipo, "acabado": completo}
 
     async def fijar_hoja(self, vano_id: UUID, *, bisagra: int, lado_hoja: int, apertura_grados: int) -> None:
         """La hoja de una puerta (D-632): bisagra, lado y apertura. Es dibujo y especificación: no cambia lo que descuenta."""
