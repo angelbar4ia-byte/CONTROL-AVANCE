@@ -34,11 +34,14 @@ import {
 } from '@/api/generado/arbol/arbol';
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
+import { useTrabajosDeObraApiV1ObrasObraIdTrabajosGet } from '@/api/generado/torre/torre';
+import type { TrabajoDeObraRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 import { descripcionCorta, reordenar } from './arbol';
 import { ArbolDeLaObra } from './ArbolDeLaObra';
 import { CambioDeUnidadDelConcepto } from './CambioDeUnidadDelConcepto';
 import { MatricesDeActividad } from './MatricesDeActividad';
+import { TrabajosDeLaPartida } from './TrabajosDeLaPartida';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 
 interface Props {
@@ -47,12 +50,16 @@ interface Props {
   /** Algo cambió en el servidor: hay que volver a leer actividades y cantidades. */
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
+  /** Lo medido en el plano por actividad, para la cantidad de los trabajos de cada partida. */
+  readonly medidaPorActividad?: ReadonlyMap<string, string | number | null | undefined>;
 }
 
 const SIN_ETAPA = '__sin_etapa__';
 
-function Alta({ etiqueta, campos, onCrear, ocupado }: {
+function Alta({ etiqueta, texto, campos, onCrear, ocupado }: {
   readonly etiqueta: string;
+  /** Lo que dice el botón (por defecto, la etiqueta sin «Agregar»/«Nuevo»); la etiqueta sigue siendo su nombre accesible. */
+  readonly texto?: string;
   readonly campos: readonly [string, string];
   readonly onCrear: (a: string, b: string) => Promise<void>;
   readonly ocupado: boolean;
@@ -73,7 +80,7 @@ function Alta({ etiqueta, campos, onCrear, ocupado }: {
   if (!abierto) {
     return (
       <button type="button" className="btn btn--ghost btn--sm" aria-label={etiqueta} onClick={() => setAbierto(true)}>
-        <Plus size={12} aria-hidden /> {etiqueta.replace(/^Agregar /, '').replace(/^Nuev[oa] /, '')}
+        <Plus size={12} aria-hidden /> {texto ?? etiqueta.replace(/^Agregar /, '').replace(/^Nuev[oa] /, '')}
       </button>
     );
   }
@@ -195,7 +202,9 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
   );
 }
 
-export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
+export function PanelDelArbol({ obraId, actividades, onCambio, onError, medidaPorActividad }: Props) {
+  const trabajosConsulta = useTrabajosDeObraApiV1ObrasObraIdTrabajosGet<TrabajoDeObraRespuesta[], ErrorApi>(obraId);
+  const trabajos = trabajosConsulta.data ?? [];
   /** Qué se ve: las partidas de la obra, o su árbol y las versiones del presupuesto (D-624). */
   const [vista, setVista] = useState<'partidas' | 'arbol'>('partidas');
   /** Lo que está elegido en el árbol (partida, etapa o nivel): los controles de la barra superior actúan sobre ello. */
@@ -505,27 +514,28 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
             </option>
           ))}
         </select>
-        <span className="badge badge--outline" title="Cómo se mide: sale de su unidad">
-          {tipo ? NOMBRE_DE_TIPO[tipo] : '—'}
-        </span>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          style={{ gridColumn: '1 / -1', justifySelf: 'start' }}
-          aria-expanded={conMatrices}
-          aria-label={`Matrices de ${a.concepto_clave ?? 'la partida'}`}
-          title="Las matrices del concepto: agregarlas, quitarlas, su cantidad y su costo (cambia el catálogo)"
-          onClick={() =>
-            setMatricesAbiertas((actual) => {
-              const siguiente = new Set(actual);
-              if (siguiente.has(a.id)) siguiente.delete(a.id);
-              else siguiente.add(a.id);
-              return siguiente;
-            })
-          }
-        >
-          {conMatrices ? 'Ocultar matrices' : 'Matrices'}
-        </button>
+        <div className="arbol-edicion__fila-inferior">
+          <span className="badge badge--outline" title="Cómo se mide: sale de su unidad">
+            {tipo ? NOMBRE_DE_TIPO[tipo] : '—'}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            aria-expanded={conMatrices}
+            aria-label={`Matrices de ${a.concepto_clave ?? 'la partida'}`}
+            title="Las matrices del concepto: agregarlas, quitarlas, su cantidad y su costo (cambia el catálogo)"
+            onClick={() =>
+              setMatricesAbiertas((actual) => {
+                const siguiente = new Set(actual);
+                if (siguiente.has(a.id)) siguiente.delete(a.id);
+                else siguiente.add(a.id);
+                return siguiente;
+              })
+            }
+          >
+            {conMatrices ? '▾ Matrices' : '▸ Matrices'}
+          </button>
+        </div>
         {cambioDeUnidad?.actividad.id === a.id && a.concepto_id && (
           <div style={{ gridColumn: '1 / -1' }}>
             <CambioDeUnidadDelConcepto
@@ -545,6 +555,20 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
         {conMatrices && (
           <div style={{ gridColumn: '1 / -1' }}>
             <MatricesDeActividad actividadId={a.id} puedeEditar />
+          </div>
+        )}
+        {a.concepto_id && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <TrabajosDeLaPartida
+              actividadId={a.id}
+              conceptoId={a.concepto_id}
+              clave={a.concepto_clave ?? 'la partida'}
+              trabajos={trabajos}
+              medida={medidaPorActividad?.get(a.id)}
+              onCambio={onCambio}
+              onError={onError}
+              onRecargar={() => void trabajosConsulta.refetch()}
+            />
           </div>
         )}
       </li>
@@ -583,7 +607,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
         todas las obras).
       </p>
       <div style={{ padding: '0 8px' }}>
-        <Alta etiqueta="Nuevo nivel" campos={['Clave', 'Descripción']} ocupado={crearNivel.isPending} onCrear={nuevoNivel} />
+        <Alta etiqueta="Nuevo nivel" texto="Nivel" campos={['Clave', 'Descripción']} ocupado={crearNivel.isPending} onCrear={nuevoNivel} />
       </div>
       <ul className="arbol-edicion__niveles" aria-label="Niveles">
         {(niveles.data ?? []).map((n) => (
@@ -593,7 +617,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
               onClick={() => setSeleccion({ tipo: 'nivel', id: n.id })}
             >
               <strong>{n.clave}</strong> {nombreEditable('nivel', n.id, n.descripcion)}
-              <Alta etiqueta={`Nueva etapa en ${n.clave}`} campos={['Clave', 'Descripción']} ocupado={crearEtapa.isPending} onCrear={(c, d) => nuevaEtapa(n.id, c, d)} />
+              <Alta etiqueta={`Nueva etapa en ${n.clave}`} texto="Etapa" campos={['Clave', 'Descripción']} ocupado={crearEtapa.isPending} onCrear={(c, d) => nuevaEtapa(n.id, c, d)} />
             </div>
             <ul aria-label={`Etapas de ${n.clave}`}>
               {(etapasPorNivel.get(n.id) ?? []).map((e) => (

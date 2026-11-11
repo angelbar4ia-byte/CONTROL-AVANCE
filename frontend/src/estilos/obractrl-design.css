@@ -3001,7 +3001,7 @@ a { color: inherit; text-decoration: none; }
 .arbol-edicion__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px 2px 0; font-size: 12px; }
 .arbol-edicion__alta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .arbol-edicion__alta input, .arbol-edicion__alta select, .arbol-edicion__partida select { min-width: 0; height: 24px; font-size: 11px; }
-.arbol-edicion__partida { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: center; padding: 3px 0; font-size: 11px; border-bottom: 1px solid var(--c-line); }
+.arbol-edicion__partida { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: center; padding: 4px 4px; font-size: 11px; border-bottom: 1px solid var(--c-line); }
 .arbol-edicion__concepto { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Vanos (puertas, ventanas, pasos) dibujados sobre su muro en el visor del cuantificador. */
@@ -3041,3 +3041,14 @@ a { color: inherit; text-decoration: none; }
 .arbol-edicion__barra select { height: 26px; font-size: 11px; max-width: 110px; }
 .arbol-edicion__partida { cursor: pointer; }
 .arbol-edicion__partida.is-elegida, .arbol-edicion__titulo.is-elegida { background: var(--c-accent-soft); border-radius: var(--r-sm); }
+
+/* Árbol como el mockup: «+ Etapa» y «+ Partida» a la derecha, trabajos bajo cada partida, casilla «cuenta» */
+.arbol-edicion__titulo > .btn:last-child, .arbol-edicion__titulo > .arbol-edicion__alta { margin-left: auto; }
+.arbol-edicion__fila-inferior { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.arbol-trabajos { display: grid; gap: 2px; padding: 2px 0 4px 10px; }
+.arbol-trabajos__cabeza { display: flex; align-items: center; justify-content: space-between; }
+.arbol-trabajos__titulo { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-mute); }
+.arbol-trabajos__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.arbol-trabajos__lista li { display: grid; gap: 0; font-size: var(--fs-sm); }
+.arbol-trabajos__lista small { font-size: 10.5px; }
+.arbol__casilla-cuenta { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--c-text-mute); cursor: pointer; }

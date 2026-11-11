@@ -73,5 +73,15 @@ test.describe('Cuantificador · lugar de las partidas', () => {
     await expect.poll(async () => (await lugar(`LUA-${sufijo}`)) > (await lugar(`LUB-${sufijo}`))).toBe(true);
     await arbol.getByRole('button', { name: `Subir posición de LUA-${sufijo}` }).click();
     await expect.poll(async () => (await lugar(`LUA-${sufijo}`)) < (await lugar(`LUB-${sufijo}`))).toBe(true);
+
+    // Bajo cada partida van sus trabajos, con «+ Trabajo» (como en el mockup del Árbol).
+    const trabajos = arbol.getByRole('group', { name: `Trabajos de LUA-${sufijo}` });
+    await expect(trabajos).toContainText('Sin trabajos en la receta');
+    await trabajos.getByRole('button', { name: `Agregar trabajo a LUA-${sufijo}` }).click();
+    await trabajos.getByLabel(`Nombre del trabajo de LUA-${sufijo}`).fill('Colado de prueba');
+    await trabajos.getByLabel(`Nombre del trabajo de LUA-${sufijo}`).press('Enter');
+    await expect(trabajos.locator('[data-trabajo]')).toHaveCount(1);
+    await expect(trabajos).toContainText('Colado de prueba');
+    if (process.env.E2E_CAPTURAS) await arbol.screenshot({ path: `${process.env.E2E_CAPTURAS}/arbol-mockup.png` });
   });
 });

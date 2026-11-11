@@ -71,19 +71,19 @@ test.describe('Cuantificador · la matriz que cuenta', () => {
     await matrices.locator('[data-cuenta="MTZ-NERV"]').click();
     await expect(pagina.getByText(/La cantidad del concepto es ahora la de esa matriz/)).toBeVisible();
     await expect.poll(cantidadDeLaLosa).toBeCloseTo(4, 2);
-    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toBeChecked();
 
     // --- 2. Soltarla devuelve los trazos propios ---------------------------------------------------------------
     await matrices.locator('[data-cuenta="MTZ-NERV"]').click();
     await expect.poll(cantidadDeLaLosa).toBeCloseTo(6, 2);
     // Esperar a que el botón refleje que ya no cuenta: un clic con el estado viejo volvería a soltarla.
-    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toHaveAttribute('aria-pressed', 'false');
+    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).not.toBeChecked();
 
     // --- 3. Trazar directo sobre la losa con una matriz que cuenta pide confirmar -----------------------------
     await matrices.locator('[data-cuenta="MTZ-NERV"]').click();
     await expect.poll(cantidadDeLaLosa).toBeCloseTo(4, 2);
     // La pantalla ya sabe que la matriz cuenta (si no, el Rectángulo no pediría confirmar).
-    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toBeChecked();
     await pagina.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Rectángulo', exact: true }).click();
     const aviso = pagina.getByRole('alertdialog', { name: /Sustituir la matriz que cuenta/ });
     await expect(aviso).toBeVisible();
