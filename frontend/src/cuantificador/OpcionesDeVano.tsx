@@ -275,7 +275,7 @@ export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo,
           </div>
         </>
       ) : (
-        <div className="opciones__vano-linea" style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'grid', gap: 6 }}>
           <div className="row" style={{ gap: 8, alignItems: 'end' }}>
             <label className="text-xs">
               Altura (m)
