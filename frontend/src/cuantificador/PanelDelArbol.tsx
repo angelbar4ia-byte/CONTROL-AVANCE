@@ -198,6 +198,8 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
 export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
   /** Qué se ve: las partidas de la obra, o su árbol y las versiones del presupuesto (D-624). */
   const [vista, setVista] = useState<'partidas' | 'arbol'>('partidas');
+  /** Lo que está elegido en el árbol (partida, etapa o nivel): los controles de la barra superior actúan sobre ello. */
+  const [seleccion, setSeleccion] = useState<{ tipo: 'partida' | 'etapa' | 'nivel'; id: string } | null>(null);
   const [matricesAbiertas, setMatricesAbiertas] = useState<ReadonlySet<string>>(new Set());
   /** Un cambio de unidad que cruza de tipo en curso: pide equivalencia en vez de cambiarse directo. */
   const [cambioDeUnidad, setCambioDeUnidad] = useState<{ actividad: ActividadRespuesta; unidadId: string } | null>(null);
@@ -301,17 +303,6 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
     );
   };
 
-  const flechas = (tipo: 'nivel' | 'etapa', id: string, hermanos: readonly string[], nombre: string) => (
-    <span className="row" style={{ gap: 2 }}>
-      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Subir ${nombre}`} title="Subir" onClick={() => void cambiarLugar(tipo, id, hermanos, 'up')}>
-        ↑
-      </button>
-      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Bajar ${nombre}`} title="Bajar" onClick={() => void cambiarLugar(tipo, id, hermanos, 'down')}>
-        ↓
-      </button>
-    </span>
-  );
-
   async function nuevoNivel(clave: string, descripcion: string) {
     try {
       await crearNivel.mutateAsync({ data: { clave, descripcion } });
@@ -410,11 +401,93 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
     }
   }
 
+  /** Los controles del árbol, arriba: actúan sobre lo que está elegido (partida, etapa o nivel). */
+  const barraDeControles = () => {
+    const partida = seleccion?.tipo === 'partida' ? actividades.find((x) => x.id === seleccion.id) : undefined;
+    const etapa = seleccion?.tipo === 'etapa' ? (etapas.data ?? []).find((x) => x.id === seleccion.id) : undefined;
+    const nivel = seleccion?.tipo === 'nivel' ? (niveles.data ?? []).find((x) => x.id === seleccion.id) : undefined;
+    const nombre = partida?.concepto_clave ?? etapa?.clave ?? nivel?.clave ?? null;
+    const hermanosDeEtapa = etapa ? (etapasPorNivel.get(etapa.nivel_id ?? '') ?? []).map((x) => x.id) : [];
+    const hermanosDeNivel = (niveles.data ?? []).map((x) => x.id);
+    const subir = () => {
+      if (partida) return void subirOBajar(partida, 'up');
+      if (etapa) return void cambiarLugar('etapa', etapa.id, hermanosDeEtapa, 'up');
+      if (nivel) return void cambiarLugar('nivel', nivel.id, hermanosDeNivel, 'up');
+    };
+    const bajar = () => {
+      if (partida) return void subirOBajar(partida, 'down');
+      if (etapa) return void cambiarLugar('etapa', etapa.id, hermanosDeEtapa, 'down');
+      if (nivel) return void cambiarLugar('nivel', nivel.id, hermanosDeNivel, 'down');
+    };
+    const otroNivel = (sentido: -1 | 1) => {
+      if (partida) return void aOtraEtapa(partida, sentido);
+      if (etapa && etapa.nivel_id) return void aOtroNivel(etapa.id, etapa.nivel_id, sentido);
+    };
+    const sinElegir = nombre === null;
+    const boton = (etiqueta: string, titulo: string, texto: string, alPulsar: () => void, desactivado = sinElegir) => (
+      <button type="button" className="btn btn--ghost btn--sm" aria-label={etiqueta} title={titulo} disabled={desactivado} onClick={alPulsar}>
+        {texto}
+      </button>
+    );
+    return (
+      <div className="arbol-edicion__barra" role="toolbar" aria-label="Controles del árbol">
+        <span className="text-xs text-mute" aria-live="polite">
+          {nombre ? `Elegido: ${nombre}` : 'Elige una partida, etapa o nivel'}
+        </span>
+        {boton(`Subir posición de ${nombre ?? 'la selección'}`, 'Subir posición', '↑', subir)}
+        {boton(`Bajar posición de ${nombre ?? 'la selección'}`, 'Bajar posición', '↓', bajar)}
+        {boton(
+          partida ? `Subir ${nombre} a la etapa anterior` : `Pasar ${nombre ?? 'la selección'} al nivel anterior`,
+          partida ? 'Subir de nivel (pasa a la etapa anterior)' : 'Subir de nivel (pasa al nivel anterior)',
+          '⇤',
+          () => otroNivel(-1),
+          sinElegir || (!partida && !etapa),
+        )}
+        {boton(
+          partida ? `Bajar ${nombre} a la etapa siguiente` : `Pasar ${nombre ?? 'la selección'} al nivel siguiente`,
+          partida ? 'Bajar de nivel (pasa a la etapa siguiente)' : 'Bajar de nivel (pasa al nivel siguiente)',
+          '⇥',
+          () => otroNivel(1),
+          sinElegir || (!partida && !etapa),
+        )}
+        <select
+          aria-label={`Mover ${nombre ?? 'la partida'} a`}
+          disabled={!partida}
+          value={partida ? (partida.etapa_id ?? SIN_ETAPA) : SIN_ETAPA}
+          onChange={(e) => partida && void aEtapa(partida, e.target.value)}
+        >
+          <option value={SIN_ETAPA}>{partida ? 'Sin etapa' : 'Mover a…'}</option>
+          {(etapas.data ?? []).map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.clave}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          aria-label={`Quitar ${partida?.concepto_clave ?? 'la partida'}`}
+          title="Quita la partida de la obra; solo si no tiene trazos, avance ni estimaciones"
+          disabled={!partida}
+          onClick={() => partida && void quitarPartida(partida)}
+        >
+          Quitar
+        </button>
+      </div>
+    );
+  };
+
   const filaDePartida = (a: ActividadRespuesta) => {
     const tipo = tipoDeMedicion(a.unidad);
     const conMatrices = matricesAbiertas.has(a.id);
     return (
-      <li key={a.id} className="arbol-edicion__partida" data-partida={a.concepto_clave ?? a.id}>
+      <li
+        key={a.id}
+        className={seleccion?.tipo === 'partida' && seleccion.id === a.id ? 'arbol-edicion__partida is-elegida' : 'arbol-edicion__partida'}
+        data-partida={a.concepto_clave ?? a.id}
+        aria-selected={seleccion?.tipo === 'partida' && seleccion.id === a.id}
+        onClick={() => setSeleccion({ tipo: 'partida', id: a.id })}
+      >
         <span className="arbol-edicion__concepto" title={String(a.descripcion ?? '')}>
           <span className="mono">{a.concepto_clave ?? '—'}</span> · {descripcionCorta(a.descripcion)}
         </span>
@@ -435,18 +508,6 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
         <span className="badge badge--outline" title="Cómo se mide: sale de su unidad">
           {tipo ? NOMBRE_DE_TIPO[tipo] : '—'}
         </span>
-        <select
-          aria-label={`Mover ${a.concepto_clave ?? 'la partida'} a`}
-          value={a.etapa_id ?? SIN_ETAPA}
-          onChange={(e) => void aEtapa(a, e.target.value)}
-        >
-          <option value={SIN_ETAPA}>Sin etapa</option>
-          {(etapas.data ?? []).map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.clave}
-            </option>
-          ))}
-        </select>
         <button
           type="button"
           className="btn btn--ghost btn--sm"
@@ -464,30 +525,6 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
           }
         >
           {conMatrices ? 'Ocultar matrices' : 'Matrices'}
-        </button>
-        <span className="row" style={{ gap: 2, justifySelf: 'start' }} role="group" aria-label={`Mover ${a.concepto_clave ?? 'la partida'} en el árbol`}>
-          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Subir posición de ${a.concepto_clave ?? 'la partida'}`} title="Subir posición" onClick={() => void subirOBajar(a, 'up')}>
-            ↑
-          </button>
-          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Bajar posición de ${a.concepto_clave ?? 'la partida'}`} title="Bajar posición" onClick={() => void subirOBajar(a, 'down')}>
-            ↓
-          </button>
-          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Subir ${a.concepto_clave ?? 'la partida'} a la etapa anterior`} title="Subir de nivel (pasa a la etapa anterior)" onClick={() => void aOtraEtapa(a, -1)}>
-            ⇤
-          </button>
-          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Bajar ${a.concepto_clave ?? 'la partida'} a la etapa siguiente`} title="Bajar de nivel (pasa a la etapa siguiente)" onClick={() => void aOtraEtapa(a, 1)}>
-            ⇥
-          </button>
-        </span>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          style={{ justifySelf: 'start' }}
-          aria-label={`Quitar ${a.concepto_clave ?? 'la partida'}`}
-          title="Quita la partida de la obra; solo si no tiene trazos, avance ni estimaciones"
-          onClick={() => void quitarPartida(a)}
-        >
-          Quitar
         </button>
         {cambioDeUnidad?.actividad.id === a.id && a.concepto_id && (
           <div style={{ gridColumn: '1 / -1' }}>
@@ -540,6 +577,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
           Árbol y versiones
         </button>
       </div>
+      {barraDeControles()}
       <p className="text-mute text-xs" style={{ margin: '6px 8px' }}>
         Aquí armas el árbol: niveles, etapas y partidas. La unidad de un concepto decide cómo se mide y es del catálogo (vale para
         todas las obras).
@@ -550,25 +588,21 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
       <ul className="arbol-edicion__niveles" aria-label="Niveles">
         {(niveles.data ?? []).map((n) => (
           <li key={n.id} data-nivel={n.clave}>
-            <div className="arbol-edicion__titulo">
+            <div
+              className={seleccion?.tipo === 'nivel' && seleccion.id === n.id ? 'arbol-edicion__titulo is-elegida' : 'arbol-edicion__titulo'}
+              onClick={() => setSeleccion({ tipo: 'nivel', id: n.id })}
+            >
               <strong>{n.clave}</strong> {nombreEditable('nivel', n.id, n.descripcion)}
-              {flechas('nivel', n.id, (niveles.data ?? []).map((x) => x.id), n.clave)}
               <Alta etiqueta={`Nueva etapa en ${n.clave}`} campos={['Clave', 'Descripción']} ocupado={crearEtapa.isPending} onCrear={(c, d) => nuevaEtapa(n.id, c, d)} />
             </div>
             <ul aria-label={`Etapas de ${n.clave}`}>
               {(etapasPorNivel.get(n.id) ?? []).map((e) => (
                 <li key={e.id} data-etapa={e.clave}>
-                  <div className="arbol-edicion__titulo">
+                  <div
+                    className={seleccion?.tipo === 'etapa' && seleccion.id === e.id ? 'arbol-edicion__titulo is-elegida' : 'arbol-edicion__titulo'}
+                    onClick={() => setSeleccion({ tipo: 'etapa', id: e.id })}
+                  >
                     <strong>{e.clave}</strong> {nombreEditable('etapa', e.id, e.descripcion)}
-                    {flechas('etapa', e.id, (etapasPorNivel.get(n.id) ?? []).map((x) => x.id), e.clave)}
-                    <span className="row" style={{ gap: 2 }}>
-                      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Pasar ${e.clave} al nivel anterior`} title="Subir de nivel (pasa al nivel anterior)" onClick={() => void aOtroNivel(e.id, n.id, -1)}>
-                        ⇤
-                      </button>
-                      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Pasar ${e.clave} al nivel siguiente`} title="Bajar de nivel (pasa al nivel siguiente)" onClick={() => void aOtroNivel(e.id, n.id, 1)}>
-                        ⇥
-                      </button>
-                    </span>
                     <NuevaPartida obraId={obraId} etapaId={e.id} onCreada={onCambio} onError={onError} />
                   </div>
                   <ul aria-label={`Partidas de ${e.clave}`}>{(partidasPorEtapa.get(e.id) ?? []).map(filaDePartida)}</ul>

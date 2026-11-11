@@ -95,7 +95,8 @@ test.describe('Cuantificador · árbol editable', () => {
     const nueva = arbol.locator(`[data-partida="NUE-${sufijo}"]`);
     await expect(nueva).toBeVisible();
     await expect(nueva).toContainText('Lineal');
-    await nueva.getByLabel(`Mover NUE-${sufijo} a`).selectOption('__sin_etapa__');
+    await nueva.click(); // se elige la partida; el selector de etapa está en la barra de controles de arriba
+    await arbol.getByLabel(`Mover NUE-${sufijo} a`).selectOption('__sin_etapa__');
     await expect(arbol.getByRole('list', { name: 'Partidas sin etapa' }).locator(`[data-partida="NUE-${sufijo}"]`)).toBeVisible();
 
     // --- 4. El residente no ve la pestaña --------------------------------------------------------------------------

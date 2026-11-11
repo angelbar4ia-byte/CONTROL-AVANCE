@@ -65,6 +65,10 @@ test.describe('Cuantificador · lugar de las partidas', () => {
     // Nacen en orden: A antes que B.
     await expect.poll(async () => (await lugar(`LUA-${sufijo}`)) < (await lugar(`LUB-${sufijo}`))).toBe(true);
 
+    // Los controles están en la barra de arriba y actúan sobre la partida elegida con un clic.
+    await arbol.locator(`[data-partida="LUA-${sufijo}"]`).click();
+    await expect(arbol.getByRole('toolbar', { name: 'Controles del árbol' })).toContainText(`LUA-${sufijo}`);
+    if (process.env.E2E_CAPTURAS) await arbol.screenshot({ path: `${process.env.E2E_CAPTURAS}/arbol-barra.png` });
     await arbol.getByRole('button', { name: `Bajar posición de LUA-${sufijo}` }).click();
     await expect.poll(async () => (await lugar(`LUA-${sufijo}`)) > (await lugar(`LUB-${sufijo}`))).toBe(true);
     await arbol.getByRole('button', { name: `Subir posición de LUA-${sufijo}` }).click();
