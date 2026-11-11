@@ -29,6 +29,8 @@ import type {
   AplicarConversionPeticion,
   ArchivoDePlanoRespuesta,
   CalculoDeConversionRespuesta,
+  ClasificacionDeMuroPeticion,
+  ClasificacionDeMuroRespuesta,
   ConversionAplicadaRespuesta,
   ConversionDelEnlaceRespuesta,
   ConversionPeticion,
@@ -4918,6 +4920,637 @@ export const useFijarMuroApiV1TrazosTrazoIdMuroPut = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Tipo de muro y acabado por capas
+ */
+export const verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ClasificacionDeMuroRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/muro/clasificacion`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfiniteQueryKey =
+  (trazoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/trazos/${trazoId}/muro/clasificacion`,
+    ] as const;
+  };
+
+export const getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryKey =
+  (trazoId?: string) => {
+    return [`/api/v1/trazos/${trazoId}/muro/clasificacion`] as const;
+  };
+
+export const getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    trazoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfiniteQueryKey(
+        trazoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+        >
+      >
+    > = ({ signal }) =>
+      verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet(
+        trazoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >
+  >;
+export type VerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Tipo de muro y acabado por capas
+ */
+
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfiniteQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    trazoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryKey(
+        trazoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+        >
+      >
+    > = ({ signal }) =>
+      verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet(
+        trazoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+      >
+    >
+  >;
+export type VerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Tipo de muro y acabado por capas
+ */
+
+export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)
+ */
+export const fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut = (
+  trazoId: string,
+  clasificacionDeMuroPeticion: ClasificacionDeMuroPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<ClasificacionDeMuroRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/muro/clasificacion`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: clasificacionDeMuroPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut
+        >
+      >,
+      TError,
+      { trazoId: string; data: ClasificacionDeMuroPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut
+      >
+    >,
+    TError,
+    { trazoId: string; data: ClasificacionDeMuroPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut
+        >
+      >,
+      { trazoId: string; data: ClasificacionDeMuroPeticion }
+    > = (props) => {
+      const { trazoId, data } = props ?? {};
+
+      return fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut(
+        trazoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type FijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut
+      >
+    >
+  >;
+export type FijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPutMutationBody =
+  ClasificacionDeMuroPeticion;
+export type FijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPutMutationError =
+  void;
+
+/**
+ * @summary Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)
+ */
+export const useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut
+          >
+        >,
+        TError,
+        { trazoId: string; data: ClasificacionDeMuroPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut
+      >
+    >,
+    TError,
+    { trazoId: string; data: ClasificacionDeMuroPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPutMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * @summary Cómo cuenta un trazo para su concepto: lo vigente y lo que se puede elegir
  */

@@ -31,6 +31,7 @@ import {
   getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey,
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
   useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
+  useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut,
   useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete,
   useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost,
   useTraerTrazoApiV1TrazosTrazoIdTraerPost,
@@ -183,6 +184,7 @@ import { ConversionDelEnlace } from './ConversionDelEnlace';
 import { OPCIONES_DE_VANO_INICIALES, OpcionesDeVano, versionDelVano, type OpcionesDelVano } from './OpcionesDeVano';
 import { useListarVersionesApiV1VanosVersionGet } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import { UnionesDelMuro } from './UnionesDelMuro';
+import { acabadoPorDefecto, ClasificacionDelMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { VanoElegido } from './VanoElegido';
 import { VanosDelPlano } from './VanosDelPlano';
@@ -427,6 +429,9 @@ export function EspacioDeTrazo({
   const [pendientePct, setPendientePct] = useState<number | null>(null);
   const [alineacion, setAlineacion] = useState<Alineacion>('centro');
   const [opcionesMuro, setOpcionesMuro] = useState<OpcionesDeMuro>(OPCIONES_DE_MURO_INICIALES);
+  /** El tipo de muro y el acabado con que nace el siguiente muro (F-22): el trazo se guarda ya clasificado. */
+  const [muroNuevo, setMuroNuevo] = useState<{ tipo: TipoDeMuro | null; acabado: Acabado }>({ tipo: null, acabado: acabadoPorDefecto() });
+  const clasificarMuro = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
   const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
@@ -1920,6 +1925,12 @@ export function EspacioDeTrazo({
     refrescarHistorial();
     setGuardando(false);
     limpiarDibujo();
+    if (muroNuevo.tipo && solicitud.data.grosor_m != null) {
+      // Un muro nace ya clasificado con el tipo y el acabado que se eligieron en el panel de la línea.
+      void clasificarMuro
+        .mutateAsync({ trazoId: resultado.trazo_id, data: { tipo: muroNuevo.tipo, acabado: muroNuevo.acabado } })
+        .catch((err: unknown) => setAviso(`Trazo guardado, pero no se pudo clasificar el muro: ${err instanceof Error ? err.message : 'error'}`));
+    }
     const total = resultado.recalculos[0]?.cantidad_total;
     setAviso(
       resultado.enlace_ids.length === 0
@@ -2454,6 +2465,16 @@ export function EspacioDeTrazo({
                     onError={(m) => setAviso(m)}
                   />
                 ))}
+            {seleccionado.geometry.type === 'LineString' && seleccionado.properties.grosor_m != null && (
+              <ClasificacionDelMuro
+                trazoId={seleccionado.id as string}
+                onCambio={(aviso) => {
+                  setAviso(aviso);
+                  invalidarTrazos();
+                }}
+                onError={(m) => setAviso(m)}
+              />
+            )}
             {seleccionado.geometry.type === 'LineString' && (
               <UnionesDelMuro
                 trazoId={seleccionado.id as string}
@@ -3103,6 +3124,8 @@ export function EspacioDeTrazo({
                     forma={formaPunto}
                     onForma={setFormaPunto}
                     contornoElegido={contornoElegido}
+                    clasificacion={muroNuevo}
+                    onClasificacion={setMuroNuevo}
                     muro={herramienta === 'punto' || tipoDelConcepto !== 'area' || medicionActiva ? null : opcionesMuro}
                     onMuro={(cambio) => setOpcionesMuro((o) => ({ ...o, ...cambio }))}
                   />

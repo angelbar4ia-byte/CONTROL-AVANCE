@@ -22,6 +22,7 @@ import {
 import type { Punto } from './geometria';
 import { PanelDeOpciones } from './PanelDeOpciones';
 import { numeroTecleado } from './volumen';
+import { ClasificacionDeMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
 import { AlturaPorPartes } from './AlturaPorPartes';
 import type { OpcionesDeMuro } from './trazoPeticion';
 
@@ -99,6 +100,9 @@ interface Props {
   readonly contornoElegido: readonly Punto[] | null;
   /** Con un concepto en m² la línea cuenta por caras × altura: se elige antes de trazar (D-638). Sin él, no se ofrece. */
   readonly muro?: OpcionesDeMuro | null;
+  /** El tipo de muro y el acabado con que nace el siguiente muro (F-22). */
+  readonly clasificacion?: { readonly tipo: TipoDeMuro | null; readonly acabado: Acabado };
+  readonly onClasificacion?: (c: { tipo: TipoDeMuro | null; acabado: Acabado }) => void;
   readonly onMuro?: (cambio: Partial<OpcionesDeMuro>) => void;
 }
 
@@ -115,6 +119,8 @@ export function OpcionesDeHerramienta({
   contornoElegido,
   muro = null,
   onMuro,
+  clasificacion,
+  onClasificacion,
 }: Props) {
   const [grosorTecleado, setGrosorTecleado] = useState('');
   const [pendienteTecleada, setPendienteTecleada] = useState('');
@@ -229,6 +235,14 @@ export function OpcionesDeHerramienta({
             }}
           />
         </label>
+        {grosorM !== null && clasificacion && onClasificacion && (
+          <ClasificacionDeMuro
+            tipo={clasificacion.tipo}
+            acabado={clasificacion.acabado}
+            onTipo={(tipo) => onClasificacion({ ...clasificacion, tipo })}
+            onAcabado={(acabado) => onClasificacion({ ...clasificacion, acabado })}
+          />
+        )}
         <div className="opciones__titulo">Alineación del cuerpo</div>
         <div className="opciones__fila" role="group" aria-label="Alineación">
           {ALINEACIONES.map((a) => (

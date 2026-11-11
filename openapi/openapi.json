@@ -11265,6 +11265,109 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/muro/clasificacion": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Tipo de muro y acabado por capas",
+        "operationId": "ver_clasificacion_de_muro_api_v1_trazos__trazo_id__muro_clasificacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClasificacionDeMuroRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)",
+        "operationId": "fijar_clasificacion_de_muro_api_v1_trazos__trazo_id__muro_clasificacion_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClasificacionDeMuroPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClasificacionDeMuroRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es una línea o el acabado no vale."
+          }
+        }
+      }
+    },
     "/api/v1/enlaces/{enlace_id}/conversion": {
       "get": {
         "tags": [
@@ -21126,6 +21229,100 @@
         ],
         "title": "ClaseNodo",
         "description": "Rol del nodo en el árbol WBS. Columna ``CLASE`` del archivo (§10.6)."
+      },
+      "ClasificacionDeMuroPeticion": {
+        "properties": {
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "confinado",
+                  "con_cadena",
+                  "tabique",
+                  "sillar",
+                  "pretil",
+                  "barda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo",
+            "description": "`null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos."
+          },
+          "acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acabado",
+            "description": "Sí/No por capa (gris, blanca, pintura) y cara (interior, fachada). Lo que falta toma el defecto: todo en Sí."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo"
+        ],
+        "title": "ClasificacionDeMuroPeticion",
+        "description": "El paramétrico de muro (F-22): cómo se construye y qué capas de acabado lleva. Solo clasifica: no cambia lo que mide."
+      },
+      "ClasificacionDeMuroRespuesta": {
+        "properties": {
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "confinado",
+                  "con_cadena",
+                  "tabique",
+                  "sillar",
+                  "pretil",
+                  "barda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo"
+          },
+          "acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acabado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "acabado"
+        ],
+        "title": "ClasificacionDeMuroRespuesta"
       },
       "ClusterRespuesta": {
         "properties": {
@@ -37786,6 +37983,36 @@
             ],
             "title": "Pendiente Pct",
             "description": "Pendiente en % de una línea inclinada; `null` = horizontal."
+          },
+          "muro_tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Tipo",
+            "description": "Cómo se construye el muro: confinado, con_cadena, tabique, sillar, pretil o barda (0124); `null` = sin clasificar."
+          },
+          "muro_acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Acabado",
+            "description": "Capas de acabado con Sí/No por cara (interior, fachada): gris, blanca, pintura (0124)."
           },
           "conexiones": {
             "items": {

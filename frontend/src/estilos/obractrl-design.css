@@ -3052,3 +3052,10 @@ a { color: inherit; text-decoration: none; }
 .arbol-trabajos__lista li { display: grid; gap: 0; font-size: var(--fs-sm); }
 .arbol-trabajos__lista small { font-size: 10.5px; }
 .arbol__casilla-cuenta { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--c-text-mute); cursor: pointer; }
+
+/* Paramétrico de muro: tipo de muro y acabado por capa y cara */
+.clasificacion-muro { display: grid; gap: 6px; padding: 6px 0; }
+.clasificacion-muro__acabado { border-collapse: collapse; font-size: var(--fs-sm); width: 100%; }
+.clasificacion-muro__acabado th, .clasificacion-muro__acabado td { padding: 3px 6px; text-align: center; border-bottom: 1px solid var(--c-line); }
+.clasificacion-muro__acabado th[scope="row"] { text-align: left; font-weight: 500; color: var(--c-text-soft); }
+.clasificacion-muro__acabado thead th { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--c-text-mute); font-weight: 600; }

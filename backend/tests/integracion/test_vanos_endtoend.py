@@ -370,3 +370,49 @@ async def test_cambiar_el_ancho_de_un_vano_recalcula_lo_que_descuenta(escenario:
 
     assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/ancho", json={"ancho_m": "1"})).status_code == 404
     assert (await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "0"})).status_code == 422
+
+
+async def test_el_tipo_de_muro_y_su_acabado_se_fijan_se_leen_y_no_cambian_lo_que_mide(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    """F-22 (0124): confinado, con cadena, tabique, sillar, pretil o barda, con las capas gris, blanca y pintura en Sí/No por cara.
+    Solo clasifica: lo que mide el muro no cambia."""
+    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+    muro = await _muro_con(control, escenario, plano, "LINESTRING(0 0, 10 0)", "0.2")
+    antes = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][0]["properties"]["enlaces"][0]["cantidad"]
+
+    # Sin clasificar: sin tipo ni acabado.
+    vacio = (await control.get(f"/api/v1/trazos/{muro}/muro/clasificacion")).json()
+    assert vacio == {"tipo": None, "acabado": None}
+
+    # Se clasifica con el acabado de defecto (todo en Sí) y luego se quita la pintura de la fachada.
+    r = await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "confinado"})
+    assert r.status_code == 200, r.text
+    assert r.json()["acabado"] == {c: dict.fromkeys(("gris", "blanca", "pintura"), True) for c in ("interior", "fachada")}
+    r = await control.put(
+        f"/api/v1/trazos/{muro}/muro/clasificacion",
+        json={"tipo": "tabique", "acabado": {"fachada": {"pintura": False}}},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["tipo"] == "tabique"
+    assert r.json()["acabado"]["fachada"] == {"gris": True, "blanca": True, "pintura": False}
+    assert r.json()["acabado"]["interior"] == {"gris": True, "blanca": True, "pintura": True}
+
+    # El plano trae el tipo y el acabado; lo medido es lo mismo.
+    prop = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][0]["properties"]
+    assert prop["muro_tipo"] == "tabique"
+    assert prop["muro_acabado"]["fachada"]["pintura"] is False
+    assert prop["enlaces"][0]["cantidad"] == antes
+
+    # Lo que no vale se rechaza: un tipo desconocido y el revestimiento como capa (es un concepto del catálogo).
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "adobe"})).status_code == 422
+    malo = await control.put(
+        f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "tabique", "acabado": {"interior": {"revestimiento": True}}}
+    )
+    assert malo.status_code == 422
+
+    # Se puede cambiar de confinado a con cadena y a tabique, y quitar la clasificación.
+    for tipo in ("confinado", "con_cadena", "tabique"):
+        assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": tipo})).json()["tipo"] == tipo
+    quitado = (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": None})).json()
+    assert quitado == {"tipo": None, "acabado": None}

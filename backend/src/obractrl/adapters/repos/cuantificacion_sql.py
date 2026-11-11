@@ -725,6 +725,28 @@ class RepositorioTrazosSQL:
             "partes": fila["muro_partes"],
         }
 
+    async def clasificacion_de_muro(self, trazo_id: UUID) -> dict[str, Any]:
+        """Tipo de muro y acabado (0124, F-22). Sin la migración o sin clasificar: ``tipo`` ``None`` y ``acabado`` ``None``."""
+        vacio: dict[str, Any] = {"tipo": None, "acabado": None}
+        if not await _hay_columna(self._sesion, "trazo", "muro_tipo"):
+            return vacio
+        fila = (
+            await self._sesion.execute(
+                text("select muro_tipo, muro_acabado from trazo where id = :id"), {"id": str(trazo_id)}
+            )
+        ).mappings().one_or_none()
+        if fila is None:
+            return vacio
+        return {"tipo": fila["muro_tipo"], "acabado": fila["muro_acabado"]}
+
+    async def clasificar_muro(self, *, trazo_id: UUID, tipo: str | None, acabado: dict[str, Any] | None) -> None:
+        if not await _hay_columna(self._sesion, "trazo", "muro_tipo"):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0124 (tipo de muro y acabado) en esta base.")
+        await self._sesion.execute(
+            text("update trazo set muro_tipo = :t, muro_acabado = cast(:a as jsonb) where id = :id"),
+            {"t": tipo, "a": json.dumps(acabado) if acabado is not None else None, "id": str(trazo_id)},
+        )
+
     async def fijar_muro(
         self,
         *,
@@ -1116,6 +1138,8 @@ class RepositorioTrazosSQL:
                            t.grosor_m, t.alineacion, t.forma, t.pendiente_pct, t.medicion_id,
                            t.propuesta, t.propuesta_origen, t.propuesta_actividad_id,
                            t.propuesta_medida, t.propuesta_confianza,
+                           -- Tipo de muro y acabado (0124), con la misma tolerancia a la base sin migrar.
+                           to_jsonb(t)->>'muro_tipo' as muro_tipo, to_jsonb(t)->'muro_acabado' as muro_acabado,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.

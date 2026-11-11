@@ -953,6 +953,13 @@ class TrazoPropiedades(BaseModel):
     pendiente_pct: Decimal | None = Field(
         default=None, description="Pendiente en % de una línea inclinada; `null` = horizontal."
     )
+    muro_tipo: str | None = Field(
+        default=None,
+        description="Cómo se construye el muro: confinado, con_cadena, tabique, sillar, pretil o barda (0124); `null` = sin clasificar.",
+    )
+    muro_acabado: dict[str, dict[str, bool]] | None = Field(
+        default=None, description="Capas de acabado con Sí/No por cara (interior, fachada): gris, blanca, pintura (0124)."
+    )
     conexiones: list[ConexionDeMuro] = Field(
         default_factory=list,
         description="Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo.",
@@ -1103,6 +1110,8 @@ async def trazos_de_plano(
                     grosor_m=trazo.get("grosor_m"),
                     alineacion=trazo.get("alineacion"),
                     pendiente_pct=trazo.get("pendiente_pct"),
+                    muro_tipo=trazo.get("muro_tipo"),
+                    muro_acabado=trazo.get("muro_acabado"),
                     conexiones=[ConexionDeMuro(**c) for c in trazo.get("conexiones", [])],
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),
@@ -1499,6 +1508,53 @@ async def fijar_muro(
     return VanoCambiadoRespuesta(
         vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
     )
+
+
+TipoDeMuro = Literal["confinado", "con_cadena", "tabique", "sillar", "pretil", "barda"]
+
+
+class ClasificacionDeMuroPeticion(BaseModel):
+    """El paramétrico de muro (F-22): cómo se construye y qué capas de acabado lleva. Solo clasifica: no cambia lo que mide."""
+
+    tipo: TipoDeMuro | None = Field(
+        description="`null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos "
+        "(restan de los m²); tabique: sin cadenas ni castillos."
+    )
+    acabado: dict[str, dict[str, bool]] | None = Field(
+        default=None,
+        description="Sí/No por capa (gris, blanca, pintura) y cara (interior, fachada). Lo que falta toma el defecto: todo en Sí.",
+    )
+
+
+class ClasificacionDeMuroRespuesta(BaseModel):
+    tipo: TipoDeMuro | None
+    acabado: dict[str, dict[str, bool]] | None
+
+
+@router.get(
+    "/trazos/{trazo_id}/muro/clasificacion",
+    response_model=ClasificacionDeMuroRespuesta,
+    summary="Tipo de muro y acabado por capas",
+    responses={404: {"description": "El trazo no existe o está fuera de tu alcance."}},
+)
+async def ver_clasificacion_de_muro(trazo_id: UUID, caso_uso: GestionarVanosDep) -> ClasificacionDeMuroRespuesta:
+    return ClasificacionDeMuroRespuesta(**await caso_uso.clasificacion(trazo_id))
+
+
+@router.put(
+    "/trazos/{trazo_id}/muro/clasificacion",
+    response_model=ClasificacionDeMuroRespuesta,
+    summary="Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+        422: {"description": "El trazo no es una línea o el acabado no vale."},
+    },
+)
+async def fijar_clasificacion_de_muro(
+    trazo_id: UUID, peticion: ClasificacionDeMuroPeticion, caso_uso: GestionarVanosDep
+) -> ClasificacionDeMuroRespuesta:
+    return ClasificacionDeMuroRespuesta(**await caso_uso.clasificar(trazo_id, tipo=peticion.tipo, acabado=peticion.acabado))
 
 
 class ParteDeAlturaEnConversion(BaseModel):
