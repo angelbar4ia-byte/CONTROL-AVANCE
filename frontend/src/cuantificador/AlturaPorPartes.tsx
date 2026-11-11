@@ -4,6 +4,8 @@
  * (antes de trazar) y el detalle del trazo («Cómo cuenta para el concepto»).
  */
 
+import { CampoDecimal } from './CampoDecimal';
+
 export interface ParteDeAltura {
   nombre: string;
   desde_m: number;
@@ -26,7 +28,6 @@ export const PARTES_PRECARGADAS: readonly ParteDeAltura[] = [
   { nombre: 'Enrase', desde_m: 2.5, hasta_m: 3, suma: true },
 ];
 
-const num = (t: unknown) => Number(String(t ?? '').replace(',', '.'));
 
 export function AlturaPorPartes({ partes, onPartes }: Props) {
   const cambiarUna = (i: number, cambio: Partial<ParteDeAltura>) =>
@@ -46,8 +47,8 @@ export function AlturaPorPartes({ partes, onPartes }: Props) {
       {partes.map((p, i) => (
         <div key={i} className="alturas__fila">
           <input aria-label={`Nombre de la parte ${i + 1}`} className="alturas__nombre" value={p.nombre} onChange={(e) => cambiarUna(i, { nombre: e.target.value })} />
-          <input aria-label={`Desde (m) de la parte ${i + 1}`} className="alturas__medida" inputMode="decimal" value={String(p.desde_m)} onChange={(e) => cambiarUna(i, { desde_m: num(e.target.value) })} />
-          <input aria-label={`Hasta (m) de la parte ${i + 1}`} className="alturas__medida" inputMode="decimal" value={String(p.hasta_m)} onChange={(e) => cambiarUna(i, { hasta_m: num(e.target.value) })} />
+          <CampoDecimal etiqueta={`Desde (m) de la parte ${i + 1}`} className="alturas__medida" valor={p.desde_m} onValor={(n) => cambiarUna(i, { desde_m: n })} />
+          <CampoDecimal etiqueta={`Hasta (m) de la parte ${i + 1}`} className="alturas__medida" valor={p.hasta_m} onValor={(n) => cambiarUna(i, { hasta_m: n })} />
           <label className="alturas__suma" title="Suma a la cantidad">
             <input type="checkbox" checked={p.suma} onChange={(e) => cambiarUna(i, { suma: e.target.checked })} /> suma
           </label>

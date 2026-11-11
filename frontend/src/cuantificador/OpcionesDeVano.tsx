@@ -18,6 +18,7 @@ import {
 import type { VersionDeVanoRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
+import { CampoDecimal } from './CampoDecimal';
 import { numeroTecleado } from './volumen';
 import { TIPOS_DE_VANO, type TipoDeVano } from './vanos';
 
@@ -64,6 +65,23 @@ interface Props {
 export function versionDelVano(versiones: readonly VersionDeVanoRespuesta[], opciones: OpcionesDelVano): VersionDeVanoRespuesta | undefined {
   const delTipo = versiones.filter((v) => v.tipo === opciones.tipo);
   return delTipo.find((v) => v.id === opciones.versionId) ?? delTipo[0];
+}
+
+/** Valores que se piden más seguido: se eligen con un clic en vez de teclearlos. */
+const ALTURAS_USUALES = [0.6, 0.9, 1.2, 1.5, 2.1, 2.4] as const;
+/** «Del piso a la ventana» es el antepecho: 0 = parte del piso. */
+const ANTEPECHOS_USUALES = [0, 0.5, 0.9, 1.0, 1.1, 1.2] as const;
+
+function ValoresUsuales({ etiqueta, valores, actual, onElegir }: { readonly etiqueta: string; readonly valores: readonly number[]; readonly actual: number; readonly onElegir: (n: number) => void }) {
+  return (
+    <div className="opciones__fila" role="group" aria-label={etiqueta}>
+      {valores.map((v) => (
+        <button key={v} type="button" className={actual === v ? 'chip is-active' : 'chip'} aria-pressed={actual === v} onClick={() => onElegir(v)}>
+          {v}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo, onAviso, onError }: Props) {
@@ -257,16 +275,41 @@ export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo,
           </div>
         </>
       ) : (
-        <div className="row" style={{ gap: 8 }}>
-          <label className="text-xs">
-            Altura (m)
-            <input aria-label="Altura del vano por línea (m)" inputMode="decimal" style={{ width: 60 }} value={String(opciones.alturaLinea)} onChange={(e) => onCambiar({ alturaLinea: numeroTecleado(e.target.value) })} />
-          </label>
-          {esVentana && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div className="row" style={{ gap: 8, alignItems: 'end' }}>
             <label className="text-xs">
-              Del piso a la ventana (m)
-              <input aria-label="Del piso a la ventana (m)" inputMode="decimal" style={{ width: 60 }} value={String(opciones.antepechoLinea)} onChange={(e) => onCambiar({ antepechoLinea: numeroTecleado(e.target.value) })} />
+              Altura (m)
+              <CampoDecimal etiqueta="Altura del vano por línea (m)" valor={opciones.alturaLinea} onValor={(n) => onCambiar({ alturaLinea: n })} />
             </label>
+            {esVentana && (
+              <label className="text-xs">
+                Del piso a la ventana (m) · AN
+                <CampoDecimal etiqueta="Del piso a la ventana (m)" valor={opciones.antepechoLinea} onValor={(n) => onCambiar({ antepechoLinea: n })} />
+              </label>
+            )}
+            {esVentana && (
+              <label className="text-xs" title="La altura del cerramiento que marca el plano (CE): la altura de la ventana sale de CE menos el antepecho AN.">
+                Cerramiento CE (m)
+                <CampoDecimal
+                  etiqueta="Altura del cerramiento CE (m)"
+                  valor={Math.round((opciones.alturaLinea + opciones.antepechoLinea) * 1000) / 1000}
+                  onValor={(ce) => onCambiar({ alturaLinea: Math.max(0, Math.round((ce - opciones.antepechoLinea) * 1000) / 1000) })}
+                />
+              </label>
+            )}
+          </div>
+          {esVentana && (
+            <div className="text-xs text-mute">
+              Como en el plano: altura de la ventana = CE − AN. Con AN = {opciones.antepechoLinea} y CE ={' '}
+              {Math.round((opciones.alturaLinea + opciones.antepechoLinea) * 1000) / 1000}, la ventana mide {opciones.alturaLinea} m.
+            </div>
+          )}
+          <ValoresUsuales etiqueta="Alturas usuales" valores={ALTURAS_USUALES} actual={opciones.alturaLinea} onElegir={(n) => onCambiar({ alturaLinea: n })} />
+          {esVentana && (
+            <>
+              <div className="text-xs text-mute">Del piso a la ventana (antepecho)</div>
+              <ValoresUsuales etiqueta="Antepechos usuales" valores={ANTEPECHOS_USUALES} actual={opciones.antepechoLinea} onElegir={(n) => onCambiar({ antepechoLinea: n })} />
+            </>
           )}
         </div>
       )}
