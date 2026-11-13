@@ -588,27 +588,28 @@ export function EspacioDeTrazo({
     volteoV: plano?.volteo_vertical ?? false,
   };
   const vistaDelPlano = vistaPedida && vistaPedida.planoId === planoElegido ? vistaPedida.vista : vistaGuardada;
+  // Los cambios de vista se mandan de uno en uno y en orden: dos clics seguidos (girar y voltear) viajan como dos
+  // PUT que reemplazan la vista entera, y si el servidor los atendiera al revés quedaría guardada la vista vieja.
+  const colaDeVista = useRef<Promise<unknown>>(Promise.resolve());
   function cambiarVista(nueva: VistaDelPlano) {
     setVistaPedida({ planoId: planoElegido, vista: nueva });
-    fijarVista.mutate(
-      {
-        planoId: planoElegido,
-        data: {
-          rotacion_grados: nueva.rotacionGrados,
-          volteo_horizontal: nueva.volteoH,
-          volteo_vertical: nueva.volteoV,
-        },
-      },
-      {
-        onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId) });
-        },
-        onError: (err) => {
-          setVistaPedida(null);
-          setAviso(`No se pudo cambiar la vista del plano: ${err.message}`);
-        },
-      },
-    );
+    const planoDeLaVista = planoElegido;
+    colaDeVista.current = colaDeVista.current.then(async () => {
+      try {
+        await fijarVista.mutateAsync({
+          planoId: planoDeLaVista,
+          data: {
+            rotacion_grados: nueva.rotacionGrados,
+            volteo_horizontal: nueva.volteoH,
+            volteo_vertical: nueva.volteoV,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId) });
+      } catch (err) {
+        setVistaPedida(null);
+        setAviso(`No se pudo cambiar la vista del plano: ${err instanceof Error ? err.message : 'error desconocido'}`);
+      }
+    });
   }
   const esImagen = plano !== undefined && ES_IMAGEN.test(plano.archivo_url);
   const esPdf = plano !== undefined && ES_PDF.test(plano.archivo_url);
@@ -3212,9 +3213,18 @@ export function EspacioDeTrazo({
           />
         )}
 
-        {pestana === 'elementos' && <PantallaDeElementos />}
-        {pestana === 'artefacto' && <PantallaDeArtefacto />}
-        {pestana === 'parametrico' && <PantallaParametrica />}
+        {pantallaPropia && (
+          <div className="estacion__pantalla">
+            {aviso && (
+              <div className="text-sm estacion__pantalla-aviso" role="status">
+                {aviso}
+              </div>
+            )}
+            {pestana === 'elementos' && <PantallaDeElementos />}
+            {pestana === 'artefacto' && <PantallaDeArtefacto />}
+            {pestana === 'parametrico' && <PantallaParametrica />}
+          </div>
+        )}
         <div className="estacion__lienzo" style={pantallaPropia ? { display: 'none' } : undefined}>
           {plano === undefined ? (
             <div className="empty">

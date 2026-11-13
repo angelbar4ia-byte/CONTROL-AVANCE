@@ -3122,3 +3122,7 @@ a { color: inherit; text-decoration: none; }
   .pantalla-elementos { flex-direction: column; }
   .pantalla-elementos__biblioteca { width: auto; max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--c-line); }
 }
+
+/* El avisos de lo que se hizo en el panel izquierdo (el peso se recalculó…) se ve también cuando la pantalla propia oculta el plano */
+.estacion__pantalla { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.estacion__pantalla-aviso { padding: 6px 12px; background: var(--c-accent-soft); border-bottom: 1px solid var(--c-line); }
