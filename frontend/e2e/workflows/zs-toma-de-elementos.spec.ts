@@ -3,7 +3,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
 /**
  * Lo que un concepto toma de un elemento (D-630, D-639): un concepto con una matriz «Habilitado» (en piezas) que toma el
  * acero de un castillo. Al colocar dos castillos en el plano, la cantidad medida de la matriz es 2 y el árbol dice «Por
- * elemento». Desde el detalle de un castillo, «Ver el elemento» abre el elemento en la pestaña Elementos.
+ * elemento». Desde el detalle de un castillo, «Ver el elemento» abre el elemento en la pestaña Trazos.
  */
 
 const ROLES_ZS = ['control'] as const;
@@ -62,7 +62,7 @@ test.describe('Cuantificador · lo que toma un concepto de un elemento', () => {
 
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
-    await page.getByRole('tab', { name: /Elementos/ }).click();
+    await page.getByRole('tab', { name: /^Trazos/ }).click();
     await page.getByRole('button', { name: `Colocar ${clave} en el plano` }).click();
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     const c = (await lienzo.boundingBox())!;
@@ -83,7 +83,7 @@ test.describe('Cuantificador · lo que toma un concepto de un elemento', () => {
     const marca = (await page.locator('.visor__trazo').nth(1).boundingBox())!;
     await page.mouse.click(marca.x + marca.width / 2, marca.y + marca.height / 2);
     await page.getByRole('button', { name: 'Ver el elemento' }).click();
-    await expect(page.getByRole('tab', { name: /Elementos/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: /^Trazos/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('button', { name: `Ocultar ${clave}` })).toBeVisible();
   });
 });

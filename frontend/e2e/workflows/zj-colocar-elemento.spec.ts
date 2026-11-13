@@ -1,7 +1,7 @@
 import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
- * «Colocar este elemento» (D-604): se elige el elemento en la pestaña Elementos, se traza con la herramienta que le toca
+ * «Colocar este elemento» (D-604): se elige el elemento en la pestaña Trazos, se traza con la herramienta que le toca
  * (un castillo con Punto) y cada trazo nace marcado como ese elemento, sin pedir concepto; el plano suma su receta.
  */
 
@@ -33,7 +33,7 @@ test.describe('Cuantificador · colocar un elemento', () => {
 
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
-    await page.getByRole('tab', { name: /Elementos/ }).click();
+    await page.getByRole('tab', { name: /^Trazos/ }).click();
     await page.getByRole('button', { name: `Colocar ${clave} en el plano` }).click();
     await expect(page.getByRole('status')).toContainText(`Colocar ${clave}`);
 

@@ -85,7 +85,9 @@ test.describe('Cuantificador · pestañas Trazos y Elementos', () => {
     await pestanas.getByRole('tab', { name: /^Mediciones/ }).click();
     await expect(page.getByRole('tabpanel', { name: /Mediciones/ }).getByText('Elementos con peso')).toHaveCount(0);
     await pestanas.getByRole('tab', { name: /^Elementos/ }).click();
-    await expect(page.getByRole('tabpanel', { name: /Elementos/ })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: /Elementos/ }).getByRole('navigation', { name: 'Biblioteca de elementos' })).toBeVisible();
+    await pestanas.getByRole('tab', { name: /^Trazos/ }).click();
+    await expect(page.getByRole('list', { name: 'Elementos con peso' })).toBeVisible();
   });
 
   test('Trabajos: los destajos del concepto con su cuadrilla, y Control corrige el rendimiento', async ({ page, request }) => {

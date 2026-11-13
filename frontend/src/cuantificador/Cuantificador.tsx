@@ -196,6 +196,7 @@ import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { PantallaDeArtefacto } from './elementos/PantallaDeArtefacto';
+import { PanelDeBiblioteca } from './elementos/PanelDeBiblioteca';
 import { PantallaDeElementos } from './elementos/PantallaDeElementos';
 import { PantallaParametrica } from './elementos/PantallaParametrica';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
@@ -953,6 +954,8 @@ export function EspacioDeTrazo({
   const [moviendoVano, setMoviendoVano] = useState(false);
   const [elementoAVer, setElementoAVer] = useState<string | null>(null);
   /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
+  // El elemento de la biblioteca que se ve en el área de trabajo de la pestaña Elementos.
+  const [elementoDeBiblioteca, setElementoDeBiblioteca] = useState<string | null>('MCT-01010');
   const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
   // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
   // Mientras se coloca un elemento (D-604) se ve el plano: Esc termina y vuelve la pantalla.
@@ -2500,7 +2503,7 @@ export function EspacioDeTrazo({
               onError={(m) => setAviso(m)}
               onVerElemento={(id) => {
                 setElementoAVer(id);
-                setPestana('elementos');
+                setPestana('trazos');
               }}
             />
             {['LineString', 'Polygon', 'Point'].includes(String(seleccionado.geometry.type)) &&
@@ -2723,7 +2726,7 @@ export function EspacioDeTrazo({
           className={pestana === 'elementos' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
           onClick={() => setPestana('elementos')}
         >
-          Elementos <span className="estacion__contador">{listaDeElementos.length}</span>
+          Elementos
         </button>
         {puedeVerTrabajos && (
           <button
@@ -2820,6 +2823,35 @@ export function EspacioDeTrazo({
             opciones={opcionesDeLaListaDeTrazos}
             onElegir={(trazoId) => setSeleccion({ tipo: 'trazo', id: trazoId })}
           />
+          <PanelDeElementos
+            elementos={listaDeElementos}
+            puedePonerPeso={puedePonerPeso}
+            onCambio={(aviso) => {
+              void elementosConsulta.refetch();
+              if (aviso) setAviso(aviso);
+            }}
+            onError={(m) => setAviso(m)}
+          />
+          <PanelDeParametricos
+            planoId={planoElegido}
+            puedeDefinir={puedePonerPeso}
+            onCambio={(aviso) => {
+              if (aviso) setAviso(aviso);
+            }}
+            onError={(m) => setAviso(m)}
+            onColocar={colocarElemento}
+            colocandoId={elementoPorColocar?.id ?? null}
+            abrirId={elementoAVer}
+          />
+          <VanosDelPlano
+            vanos={vanosConsulta.data ?? []}
+            elegidoId={vanoElegidoId}
+            nombreDelMuro={nombreDeTrazoPorId}
+            onElegir={(id) => {
+              cambiarHerramienta('seleccionar');
+              elegirVano(id);
+            }}
+          />
         </div>
       ) : pestana === 'trabajos' && puedeVerTrabajos ? (
         <div role="tabpanel" id="panel-trabajos" aria-labelledby="pestana-trabajos" className="estacion__panel-pestana">
@@ -2866,35 +2898,7 @@ export function EspacioDeTrazo({
         </div>
       ) : pestana === 'elementos' ? (
         <div role="tabpanel" id="panel-elementos" aria-labelledby="pestana-elementos" className="estacion__panel-pestana">
-          <PanelDeElementos
-            elementos={listaDeElementos}
-            puedePonerPeso={puedePonerPeso}
-            onCambio={(aviso) => {
-              void elementosConsulta.refetch();
-              if (aviso) setAviso(aviso);
-            }}
-            onError={(m) => setAviso(m)}
-          />
-          <PanelDeParametricos
-            planoId={planoElegido}
-            puedeDefinir={puedePonerPeso}
-            onCambio={(aviso) => {
-              if (aviso) setAviso(aviso);
-            }}
-            onError={(m) => setAviso(m)}
-            onColocar={colocarElemento}
-            colocandoId={elementoPorColocar?.id ?? null}
-            abrirId={elementoAVer}
-          />
-          <VanosDelPlano
-            vanos={vanosConsulta.data ?? []}
-            elegidoId={vanoElegidoId}
-            nombreDelMuro={nombreDeTrazoPorId}
-            onElegir={(id) => {
-              cambiarHerramienta('seleccionar');
-              elegirVano(id);
-            }}
-          />
+          <PanelDeBiblioteca elegida={elementoDeBiblioteca} onElegir={setElementoDeBiblioteca} />
         </div>
       ) : pestana === 'mediciones' ? (
         <div role="tabpanel" id="panel-mediciones" aria-labelledby="pestana-mediciones" className="estacion__panel-pestana">
@@ -3220,7 +3224,7 @@ export function EspacioDeTrazo({
                 {aviso}
               </div>
             )}
-            {pestana === 'elementos' && <PantallaDeElementos />}
+            {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} />}
             {pestana === 'artefacto' && <PantallaDeArtefacto />}
             {pestana === 'parametrico' && <PantallaParametrica />}
           </div>
