@@ -13185,6 +13185,125 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La biblioteca de elementos por categoría y subcategoría",
+        "operationId": "biblioteca_de_elementos_api_v1_biblioteca_de_elementos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoriaDeBiblioteca"
+                  },
+                  "type": "array",
+                  "title": "Response Biblioteca De Elementos Api V1 Biblioteca De Elementos Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/{clave}": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La definición de un elemento de la biblioteca (Cuadro 1, pendientes y fuente)",
+        "operationId": "definicion_del_elemento_api_v1_biblioteca_de_elementos__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDelElemento"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula el muro de contención de piedra por metro lineal de trazo",
+        "operationId": "calcular_elemento_api_v1_biblioteca_de_elementos__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelMuroPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDelMuro"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vanos-version": {
       "get": {
         "tags": [
@@ -20250,6 +20369,179 @@
         ],
         "title": "CalculoDeConversionRespuesta"
       },
+      "CalculoDelMuro": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "concepto": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Concepto"
+          },
+          "seccion": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Seccion"
+          },
+          "volumen": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Volumen"
+          },
+          "dentellon": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Dentellon"
+          },
+          "dren": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Dren"
+          },
+          "insumos_por_m3": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Insumos Por M3"
+          },
+          "vistas": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Vistas"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "unidad",
+          "concepto",
+          "seccion",
+          "volumen",
+          "dentellon",
+          "dren",
+          "insumos_por_m3",
+          "vistas",
+          "advertencias"
+        ],
+        "title": "CalculoDelMuro",
+        "description": "El resultado completo (secciones anidadas) por metro lineal de trazo."
+      },
+      "CalculoDelMuroPeticion": {
+        "properties": {
+          "alto_m": {
+            "type": "number",
+            "maximum": 20.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Alto M",
+            "description": "Altura del muro en METROS."
+          },
+          "corona_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corona M",
+            "description": "Corona a mano; vacío usa el Cuadro 1."
+          },
+          "base_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base M",
+            "description": "Base a mano; vacío usa el Cuadro 1."
+          },
+          "dentellon": {
+            "type": "boolean",
+            "title": "Dentellon",
+            "description": "Opcional; solo aplica desde 2.00 m de altura.",
+            "default": true
+          },
+          "lluvia": {
+            "type": "string",
+            "enum": [
+              "baja",
+              "alta"
+            ],
+            "title": "Lluvia",
+            "default": "baja"
+          },
+          "tubo": {
+            "type": "string",
+            "enum": [
+              "pvc",
+              "concreto"
+            ],
+            "title": "Tubo",
+            "default": "pvc"
+          },
+          "filtro_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 200.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filtro Cm",
+            "description": "Espesor del filtro de grava; el manual no lo da."
+          },
+          "relleno": {
+            "type": "string",
+            "enum": [
+              "vertical",
+              "inclinada"
+            ],
+            "title": "Relleno",
+            "default": "vertical"
+          },
+          "tramo_m": {
+            "type": "number",
+            "maximum": 50.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tramo M",
+            "description": "Largo del tramo que dibujan las vistas.",
+            "default": 6.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "alto_m"
+        ],
+        "title": "CalculoDelMuroPeticion"
+      },
       "CalendarioPeticion": {
         "properties": {
           "dias_habiles": {
@@ -20918,6 +21210,37 @@
         ],
         "title": "CatalogoBaseRespuesta"
       },
+      "CategoriaDeBiblioteca": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "prefijo": {
+            "type": "string",
+            "title": "Prefijo"
+          },
+          "subcategorias": {
+            "items": {
+              "$ref": "#/components/schemas/SubcategoriaDeBiblioteca"
+            },
+            "type": "array",
+            "title": "Subcategorias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "prefijo",
+          "subcategorias"
+        ],
+        "title": "CategoriaDeBiblioteca"
+      },
       "CategoriaExplosion": {
         "type": "string",
         "enum": [
@@ -21458,6 +21781,29 @@
           "igual"
         ],
         "title": "ComparacionDeMedida"
+      },
+      "ConceptoDelElemento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad"
+        ],
+        "title": "ConceptoDelElemento"
       },
       "ConceptoDelElementoRespuesta": {
         "properties": {
@@ -24431,6 +24777,89 @@
         ],
         "title": "DecisionRespuesta"
       },
+      "DefinicionDelElemento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDelElemento"
+          },
+          "categoria": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Categoria"
+          },
+          "subcategoria": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Subcategoria"
+          },
+          "parametros_por_defecto": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parametros Por Defecto"
+          },
+          "cuadro_1": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDelCuadro1"
+            },
+            "type": "array",
+            "title": "Cuadro 1"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "dentellon": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Dentellon"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDelElemento"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "se_mide_por",
+          "concepto",
+          "categoria",
+          "subcategoria",
+          "parametros_por_defecto",
+          "cuadro_1",
+          "fuente",
+          "dentellon",
+          "pendientes"
+        ],
+        "title": "DefinicionDelElemento"
+      },
       "DependenciaDTO": {
         "properties": {
           "ref": {
@@ -25325,6 +25754,38 @@
         },
         "type": "object",
         "title": "ElementoCambio"
+      },
+      "ElementoDeBiblioteca": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDelElemento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "se_mide_por",
+          "concepto"
+        ],
+        "title": "ElementoDeBiblioteca"
       },
       "ElementoDeMedicion": {
         "properties": {
@@ -27549,6 +28010,54 @@
           "total"
         ],
         "title": "FilaDeInsumoRespuesta"
+      },
+      "FilaDelCuadro1": {
+        "properties": {
+          "H": {
+            "type": "number",
+            "title": "H"
+          },
+          "B": {
+            "type": "number",
+            "title": "B"
+          },
+          "B1": {
+            "type": "number",
+            "title": "B1"
+          },
+          "Vm": {
+            "type": "number",
+            "title": "Vm"
+          },
+          "piedra": {
+            "type": "number",
+            "title": "Piedra"
+          },
+          "cemento_kg": {
+            "type": "number",
+            "title": "Cemento Kg"
+          },
+          "arena_m3": {
+            "type": "number",
+            "title": "Arena M3"
+          },
+          "agua_l": {
+            "type": "number",
+            "title": "Agua L"
+          }
+        },
+        "type": "object",
+        "required": [
+          "H",
+          "B",
+          "B1",
+          "Vm",
+          "piedra",
+          "cemento_kg",
+          "arena_m3",
+          "agua_l"
+        ],
+        "title": "FilaDelCuadro1"
       },
       "FormaDeTrazo": {
         "properties": {
@@ -32913,6 +33422,24 @@
         "title": "PendienteBandejaRespuesta",
         "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
       },
+      "PendienteDelElemento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "PendienteDelElemento"
+      },
       "PendienteRespuesta": {
         "properties": {
           "clave": {
@@ -36952,6 +37479,37 @@
         ],
         "title": "SolicitarCierrePeticion",
         "description": "Solicitud de cierre de actividad (§6, §11.3 C.1)."
+      },
+      "SubcategoriaDeBiblioteca": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "prefijo": {
+            "type": "string",
+            "title": "Prefijo"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoDeBiblioteca"
+            },
+            "type": "array",
+            "title": "Elementos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "prefijo",
+          "elementos"
+        ],
+        "title": "SubcategoriaDeBiblioteca"
       },
       "SujetoEvaluacion": {
         "type": "string",
