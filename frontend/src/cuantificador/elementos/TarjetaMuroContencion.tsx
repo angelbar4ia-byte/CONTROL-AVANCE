@@ -97,7 +97,6 @@ export function TarjetaMuroContencion({ clave }: Props) {
 
   const v = calculo?.volumen;
   const dren = calculo?.dren;
-  const sinPrecio = (calculo?.insumos_por_m3 ?? []).filter((i) => i.provisional && i.cantidad > 0);
 
   return (
     <article className="mct" aria-label={`${d.clave} ${d.nombre}`}>
@@ -258,17 +257,14 @@ export function TarjetaMuroContencion({ clave }: Props) {
                 ))}
               </tbody>
             </table>
-            {sinPrecio.length > 0 && (
-              <p className="text-xs mct__aviso" data-testid="mct-sin-precio">
-                El precio unitario no incluye {sinPrecio.map((i) => i.clave).join(', ')} porque aún no tienen precio: Costos los asigna.
-              </p>
-            )}
           </section>
 
           {calculo.advertencias.length > 0 && (
             <ul className="mct__advertencias" aria-label="Advertencias">
               {calculo.advertencias.map((a) => (
-                <li key={a}>{a}</li>
+                <li key={a} data-testid={a.startsWith('El precio unitario') ? 'mct-sin-precio' : undefined}>
+                  {a}
+                </li>
               ))}
             </ul>
           )}

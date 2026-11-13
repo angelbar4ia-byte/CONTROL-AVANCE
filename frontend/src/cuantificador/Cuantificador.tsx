@@ -531,8 +531,6 @@ export function EspacioDeTrazo({
   useEffect(() => {
     useMemoriaDelCuantificador.getState().recordarPestana(obraId, pestana);
   }, [obraId, pestana]);
-  // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
-  const pantallaPropia = pestana === 'elementos' || pestana === 'artefacto' || pestana === 'parametrico';
   /** La medición activa (la capa sombra): lo que se dibuja entra a ella. */
   const [medicionActivaId, setMedicionActivaId] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
@@ -955,6 +953,10 @@ export function EspacioDeTrazo({
   const [elementoAVer, setElementoAVer] = useState<string | null>(null);
   /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
   const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
+  // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
+  // Mientras se coloca un elemento (D-604) se ve el plano: Esc termina y vuelve la pantalla.
+  const pantallaPropia =
+    (pestana === 'elementos' || pestana === 'artefacto' || pestana === 'parametrico') && elementoPorColocar === null;
   const ponerElemento = usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut<ErrorApi>();
   const [menuDelVano, setMenuDelVano] = useState<{ id: string; x: number; y: number } | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
@@ -1433,8 +1435,6 @@ export function EspacioDeTrazo({
     }
     const herramientaDelElemento = ({ castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'rectangulo' } as const)[e.tipo as 'castillo'];
     setElementoPorColocar(e);
-    // El plano está en las demás pestañas: Elementos reemplaza el área de trabajo por su pantalla.
-    setPestana('trazos');
     cambiarHerramienta(herramientaDelElemento);
     setAviso(
       herramientaDelElemento === 'punto'

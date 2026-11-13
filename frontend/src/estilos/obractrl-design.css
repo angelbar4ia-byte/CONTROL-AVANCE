@@ -3116,6 +3116,7 @@ a { color: inherit; text-decoration: none; }
 .mct__pendientes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .mct-vistas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
 .mct-vistas figure { margin: 0; display: grid; gap: 4px; align-content: start; }
+.mct-vistas svg { max-height: 300px; }
 .mct-vistas figcaption { font-size: var(--fs-xs); color: var(--c-text-mute); }
 @media (max-width: 900px) {
   .pantalla-elementos { flex-direction: column; }

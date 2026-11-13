@@ -2,7 +2,7 @@
 
 export function PantallaDeArtefacto() {
   return (
-    <section className="pantalla-elementos pantalla-elementos--vacia" role="tabpanel" id="area-artefacto" aria-label="Artefacto">
+    <section className="pantalla-elementos pantalla-elementos--vacia" role="region" id="area-artefacto" aria-label="Artefacto">
       <div className="empty">
         <div className="empty-title">Artefacto</div>
         <div className="empty-sub">

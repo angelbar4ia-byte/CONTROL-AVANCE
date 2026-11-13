@@ -2,7 +2,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
 
 /**
  * Las pestañas del panel izquierdo del cuantificador, como en el artefacto de diseño:
- * Presupuesto · Planos · Mediciones · Trazos · Elementos (· Árbol para Control y Costos).
+ * Presupuesto · Planos · Mediciones · Trazos · Elementos · Trabajos · Árbol (Control y Costos) · Artefacto · Paramétrico.
  *
  *  1. «Trazos» lista todos los trazos del plano, agrupados por concepto, con su cantidad.
  *  2. Un clic en un trazo de la lista lo elige en el plano y el detalle muestra sus enlaces.
@@ -57,7 +57,7 @@ test.describe('Cuantificador · pestañas Trazos y Elementos', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
 
     const pestanas = page.getByRole('tablist', { name: 'Panel lateral' });
-    for (const nombre of ['Presupuesto', 'Planos', 'Mediciones', 'Trazos', 'Elementos', 'Árbol']) {
+    for (const nombre of ['Presupuesto', 'Planos', 'Mediciones', 'Trazos', 'Elementos', 'Árbol', 'Artefacto', 'Paramétrico']) {
       await expect(pestanas.getByRole('tab', { name: new RegExp(`^${nombre}`) })).toBeVisible();
     }
     // El contador de la pestaña Trazos es el número de trazos del plano.

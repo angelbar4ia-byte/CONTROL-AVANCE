@@ -19,7 +19,7 @@ export function PantallaDeElementos() {
   return (
     <section
       className="pantalla-elementos"
-      role="tabpanel"
+      role="region"
       id="area-elementos"
       aria-label="Elementos"
     >

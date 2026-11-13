@@ -2,7 +2,7 @@
 
 export function PantallaParametrica() {
   return (
-    <section className="pantalla-elementos pantalla-elementos--vacia" role="tabpanel" id="area-parametrico" aria-label="Paramétrico">
+    <section className="pantalla-elementos pantalla-elementos--vacia" role="region" id="area-parametrico" aria-label="Paramétrico">
       <div className="empty">
         <div className="empty-title">Paramétrico</div>
         <div className="empty-sub">
