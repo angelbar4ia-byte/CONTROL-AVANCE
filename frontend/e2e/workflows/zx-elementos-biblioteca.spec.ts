@@ -38,6 +38,8 @@ test.describe('Cuantificador · biblioteca de elementos y muro MCT-01010', () =>
 
     // --- 1. El orden de las pestañas ---------------------------------------------------------------------
     const pestanas = page.getByRole('tablist', { name: 'Panel lateral' });
+    // allInnerTexts no espera: se espera antes a que estén las nueve pestañas de Control.
+    await expect(pestanas.getByRole('tab')).toHaveCount(9);
     const nombres = await pestanas.getByRole('tab').allInnerTexts();
     const orden = ['Presupuesto', 'Planos', 'Mediciones', 'Trazos', 'Elementos', 'Trabajos', 'Árbol', 'Artefacto', 'Paramétrico'];
     expect(orden.map((n) => nombres.findIndex((t) => t.startsWith(n)))).toEqual(
