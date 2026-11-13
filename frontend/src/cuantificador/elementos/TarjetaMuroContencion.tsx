@@ -197,7 +197,7 @@ export function TarjetaMuroContencion({ clave }: Props) {
             <span className="chip">
               {calculo.dentellon.aplica ? `+ dentellón ${num(v.dentellon_m3_ml)} m³` : 'Sin dentellón'}
             </span>
-            <span className="chip chip--fuerte" data-testid="mct-total">
+            <span className="chip" data-testid="mct-total">
               <b>{num(v.total_m3_ml, 3)} m³ por metro de trazo</b>
             </span>
             <span className="chip">Piedra a comprar {num(v.piedra_a_comprar_m3_ml)} m³</span>
