@@ -4,7 +4,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  * Las pestañas Elementos, Artefacto y Paramétrico del cuantificador reemplazan el área de trabajo por su pantalla.
  *
  *  1. Orden de las pestañas: Presupuesto, Planos, Mediciones, Trazos, Elementos, Trabajos, Árbol, Artefacto, Paramétrico.
- *  2. Elementos: la biblioteca plegable por categoría y subcategoría abre la del elemento elegido (MCT-01010);
+ *  2. Elementos: la biblioteca plegable (en el panel izquierdo) por categoría y subcategoría abre la del elemento elegido (MCT-01010);
  *     «Contraer todo» y «Expandir todo» la cierran y la abren.
  *  3. La tarjeta del muro de piedra: a 3.00 m, 2.91 m³ por metro (muro 2.70 + dentellón 0.21), 3 hileras de
  *     lloraderos, y los insumos del dren marcados como provisionales sin precio.
@@ -51,7 +51,9 @@ test.describe('Cuantificador · biblioteca de elementos y muro MCT-01010', () =>
     const area = page.getByRole('region', { name: 'Elementos', exact: true });
     await expect(area).toBeVisible();
     await expect(page.getByRole('img', { name: 'Plano con sus trazos' })).toBeHidden();
-    const biblioteca = area.getByRole('navigation', { name: 'Biblioteca de elementos' });
+    // La biblioteca vive en el panel izquierdo; el área de trabajo es solo la tarjeta.
+    const biblioteca = page.getByRole('tabpanel', { name: /Elementos/ }).getByRole('navigation', { name: 'Biblioteca de elementos' });
+    await expect(area.getByRole('navigation', { name: 'Biblioteca de elementos' })).toHaveCount(0);
     await expect(biblioteca.getByRole('button', { name: /Muros de contención/ })).toHaveAttribute('aria-expanded', 'true');
     await expect(biblioteca.getByRole('button', { name: /MCT-01010/ })).toHaveAttribute('aria-current', 'true');
     await biblioteca.getByRole('button', { name: 'Contraer todo' }).click();

@@ -68,8 +68,8 @@ test.describe('Cuantificador · elementos con peso', () => {
     const panel = page.getByRole('region', { name: 'Mediciones del plano' });
     const guardado = page.getByTestId('autoguardado');
 
-    // --- 1. El elemento se crea solo, al salir de la fila (pestaña Elementos) --------------------------------------
-    await page.getByRole('tab', { name: /^Elementos/ }).click();
+    // --- 1. El elemento se crea solo, al salir de la fila (pestaña Trazos) --------------------------------------
+    await page.getByRole('tab', { name: /^Trazos/ }).click(); // los elementos con peso viven en la pestaña Trazos
     const lista = page.getByRole('list', { name: 'Elementos con peso' });
     await lista.getByLabel('Nombre del elemento nuevo').fill('Castillo K1');
     await lista.getByLabel(/Peso del elemento nuevo/).fill('38');
@@ -109,7 +109,7 @@ test.describe('Cuantificador · elementos con peso', () => {
     await expect(panel.getByRole('treeitem', { name: 'Castillos K1' }).getByText(/ACE-K1 .* peso/)).toBeVisible();
 
     // --- Cambiar el peso: sin botón, y lo asignado se rehace --------------------------------------------------------
-    await page.getByRole('tab', { name: /^Elementos/ }).click(); // el peso se edita en la pestaña Elementos
+    await page.getByRole('tab', { name: /^Trazos/ }).click(); // el peso se edita en la pestaña Trazos
     const peso = lista.getByLabel('Peso de Castillo K1 (kg/pza)');
     await peso.fill('40');
     await peso.press('Enter');
@@ -120,8 +120,6 @@ test.describe('Cuantificador · elementos con peso', () => {
     // --- 3. Un trazo suelto entra a la medición desde su detalle, sin botón -----------------------------------------
     await punto(30);
     await page.reload();
-    // Elementos reemplaza el área de trabajo por su pantalla (y la pestaña se recuerda al recargar): el plano está en Trazos.
-    await page.getByRole('tab', { name: /^Trazos/ }).click();
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(page.locator('.visor__trazo')).toHaveCount(4);
@@ -165,7 +163,7 @@ test.describe('Cuantificador · elementos con peso', () => {
 
     await entrarComo(page, 'residente');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano!.id}`);
-    await page.getByRole('tab', { name: /^Elementos/ }).click();
+    await page.getByRole('tab', { name: /^Trazos/ }).click(); // los elementos con peso viven en la pestaña Trazos
     const lista = page.getByRole('list', { name: 'Elementos con peso' });
     await expect(lista).toContainText(nombre);
     await expect(lista).toContainText('12.5');
