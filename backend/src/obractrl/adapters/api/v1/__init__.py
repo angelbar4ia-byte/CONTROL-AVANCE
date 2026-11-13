@@ -14,6 +14,9 @@ from fastapi import APIRouter
 from obractrl.adapters.api.v1.arbol import router as router_arbol
 from obractrl.adapters.api.v1.arbol_de_obra import router as router_arbol_de_obra
 from obractrl.adapters.api.v1.avance import router as router_avance
+from obractrl.adapters.api.v1.biblioteca_de_elementos import (
+    router as router_biblioteca_de_elementos,
+)
 from obractrl.adapters.api.v1.bitacora import router as router_bitacora
 from obractrl.adapters.api.v1.cambios_de_unidad import router as router_cambios_de_unidad
 from obractrl.adapters.api.v1.cargas import router as router_cargas
@@ -97,6 +100,7 @@ api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_elementos_parametricos)
+api_v1.include_router(router_biblioteca_de_elementos)
 api_v1.include_router(router_vanos_catalogo)
 api_v1.include_router(router_cambios_de_unidad)
 api_v1.include_router(router_arbol_de_obra)

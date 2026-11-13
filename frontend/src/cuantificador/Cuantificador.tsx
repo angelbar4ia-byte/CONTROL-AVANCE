@@ -195,6 +195,9 @@ import { useAccionesDeVano } from './accionesDeVano';
 import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
+import { PantallaDeArtefacto } from './elementos/PantallaDeArtefacto';
+import { PantallaDeElementos } from './elementos/PantallaDeElementos';
+import { PantallaParametrica } from './elementos/PantallaParametrica';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
@@ -512,7 +515,16 @@ export function EspacioDeTrazo({
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
-  type Pestana = 'presupuesto' | 'planos' | 'mediciones' | 'trazos' | 'elementos' | 'trabajos' | 'arbol';
+  type Pestana =
+    | 'presupuesto'
+    | 'planos'
+    | 'mediciones'
+    | 'trazos'
+    | 'elementos'
+    | 'trabajos'
+    | 'arbol'
+    | 'artefacto'
+    | 'parametrico';
   const [pestana, setPestana] = useState<Pestana>(
     () => (useMemoriaDelCuantificador.getState().pestanaPorObra[obraId] as Pestana | undefined) ?? 'presupuesto',
   );
@@ -576,27 +588,28 @@ export function EspacioDeTrazo({
     volteoV: plano?.volteo_vertical ?? false,
   };
   const vistaDelPlano = vistaPedida && vistaPedida.planoId === planoElegido ? vistaPedida.vista : vistaGuardada;
+  // Los cambios de vista se mandan de uno en uno y en orden: dos clics seguidos (girar y voltear) viajan como dos
+  // PUT que reemplazan la vista entera, y si el servidor los atendiera al revés quedaría guardada la vista vieja.
+  const colaDeVista = useRef<Promise<unknown>>(Promise.resolve());
   function cambiarVista(nueva: VistaDelPlano) {
     setVistaPedida({ planoId: planoElegido, vista: nueva });
-    fijarVista.mutate(
-      {
-        planoId: planoElegido,
-        data: {
-          rotacion_grados: nueva.rotacionGrados,
-          volteo_horizontal: nueva.volteoH,
-          volteo_vertical: nueva.volteoV,
-        },
-      },
-      {
-        onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId) });
-        },
-        onError: (err) => {
-          setVistaPedida(null);
-          setAviso(`No se pudo cambiar la vista del plano: ${err.message}`);
-        },
-      },
-    );
+    const planoDeLaVista = planoElegido;
+    colaDeVista.current = colaDeVista.current.then(async () => {
+      try {
+        await fijarVista.mutateAsync({
+          planoId: planoDeLaVista,
+          data: {
+            rotacion_grados: nueva.rotacionGrados,
+            volteo_horizontal: nueva.volteoH,
+            volteo_vertical: nueva.volteoV,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId) });
+      } catch (err) {
+        setVistaPedida(null);
+        setAviso(`No se pudo cambiar la vista del plano: ${err instanceof Error ? err.message : 'error desconocido'}`);
+      }
+    });
   }
   const esImagen = plano !== undefined && ES_IMAGEN.test(plano.archivo_url);
   const esPdf = plano !== undefined && ES_PDF.test(plano.archivo_url);
@@ -941,6 +954,10 @@ export function EspacioDeTrazo({
   const [elementoAVer, setElementoAVer] = useState<string | null>(null);
   /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
   const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
+  // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
+  // Mientras se coloca un elemento (D-604) se ve el plano: Esc termina y vuelve la pantalla.
+  const pantallaPropia =
+    (pestana === 'elementos' || pestana === 'artefacto' || pestana === 'parametrico') && elementoPorColocar === null;
   const ponerElemento = usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut<ErrorApi>();
   const [menuDelVano, setMenuDelVano] = useState<{ id: string; x: number; y: number } | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
@@ -2734,6 +2751,28 @@ export function EspacioDeTrazo({
             Árbol
           </button>
         )}
+        <button
+          type="button"
+          role="tab"
+          id="pestana-artefacto"
+          aria-selected={pestana === 'artefacto'}
+          aria-controls="panel-artefacto"
+          className={pestana === 'artefacto' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('artefacto')}
+        >
+          Artefacto
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="pestana-parametrico"
+          aria-selected={pestana === 'parametrico'}
+          aria-controls="panel-parametrico"
+          className={pestana === 'parametrico' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('parametrico')}
+        >
+          Paramétrico
+        </button>
       </div>
       {pestana === 'arbol' && puedePonerPeso ? (
         <div role="tabpanel" id="panel-arbol" aria-labelledby="pestana-arbol" className="estacion__panel-pestana">
@@ -2811,6 +2850,19 @@ export function EspacioDeTrazo({
               ) : undefined
             }
           />
+        </div>
+      ) : pestana === 'artefacto' || pestana === 'parametrico' ? (
+        <div
+          role="tabpanel"
+          id={`panel-${pestana}`}
+          aria-labelledby={`pestana-${pestana}`}
+          className="estacion__panel-pestana"
+        >
+          <p className="text-mute text-sm" style={{ padding: 10, margin: 0 }}>
+            {pestana === 'artefacto'
+              ? 'Artefacto: los tipos de muro y sus plantillas. Su pantalla está en el área de trabajo.'
+              : 'Paramétrico: los modelos paramétricos de la obra. Su pantalla está en el área de trabajo.'}
+          </p>
         </div>
       ) : pestana === 'elementos' ? (
         <div role="tabpanel" id="panel-elementos" aria-labelledby="pestana-elementos" className="estacion__panel-pestana">
@@ -3161,7 +3213,19 @@ export function EspacioDeTrazo({
           />
         )}
 
-        <div className="estacion__lienzo">
+        {pantallaPropia && (
+          <div className="estacion__pantalla">
+            {aviso && (
+              <div className="text-sm estacion__pantalla-aviso" role="status">
+                {aviso}
+              </div>
+            )}
+            {pestana === 'elementos' && <PantallaDeElementos />}
+            {pestana === 'artefacto' && <PantallaDeArtefacto />}
+            {pestana === 'parametrico' && <PantallaParametrica />}
+          </div>
+        )}
+        <div className="estacion__lienzo" style={pantallaPropia ? { display: 'none' } : undefined}>
           {plano === undefined ? (
             <div className="empty">
               <div className="empty-title">
@@ -3402,7 +3466,7 @@ export function EspacioDeTrazo({
           )}
         </div>
 
-        {detalleAbierto && !compacto && (
+        {detalleAbierto && !compacto && !pantallaPropia && (
           <SeparadorDeAncho
             etiqueta="Ancho del detalle del trazo"
             lado="derecha"
@@ -3414,7 +3478,7 @@ export function EspacioDeTrazo({
             onRestablecer={anchoDetalle.restablecer}
           />
         )}
-        {detalleAbierto && detalle}
+        {detalleAbierto && !pantallaPropia && detalle}
       </div>
 
       {plano !== undefined && (

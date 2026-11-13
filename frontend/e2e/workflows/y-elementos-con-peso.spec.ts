@@ -120,6 +120,8 @@ test.describe('Cuantificador · elementos con peso', () => {
     // --- 3. Un trazo suelto entra a la medición desde su detalle, sin botón -----------------------------------------
     await punto(30);
     await page.reload();
+    // Elementos reemplaza el área de trabajo por su pantalla (y la pestaña se recuerda al recargar): el plano está en Trazos.
+    await page.getByRole('tab', { name: /^Trazos/ }).click();
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(page.locator('.visor__trazo')).toHaveCount(4);
