@@ -69,18 +69,30 @@ class FilaDelCuadro1(BaseModel):
     agua_l: float
 
 
+class DentellonDelCuadro(BaseModel):
+    b2: float
+    b1: float
+    h: float
+    volumen_m3: float
+
+
+class ClaveYNombre(BaseModel):
+    clave: str
+    nombre: str
+
+
 class DefinicionDelElemento(BaseModel):
     clave: str
     nombre: str
     tipo: str
     se_mide_por: str
     concepto: ConceptoDelElemento
-    categoria: dict[str, str]
-    subcategoria: dict[str, str]
+    categoria: ClaveYNombre
+    subcategoria: ClaveYNombre
     parametros_por_defecto: dict[str, Any]
     cuadro_1: list[FilaDelCuadro1]
     fuente: str
-    dentellon: dict[str, float]
+    dentellon: DentellonDelCuadro
     pendientes: list[PendienteDelElemento]
 
 
@@ -109,18 +121,110 @@ class CalculoDelMuroPeticion(BaseModel):
     )
 
 
+class FilaDeCuadro1Usada(BaseModel):
+    H: float
+    B: float
+    B1: float
+
+
+class SeccionDelMuro(BaseModel):
+    alto_m: float
+    corona_m: float
+    base_m: float
+    espesor_medio_m: float
+    manual: bool
+    fila_cuadro_1: FilaDeCuadro1Usada
+    fuera_de_tabla: bool
+
+
+class VolumenDelMuro(BaseModel):
+    muro_m3_ml: float
+    dentellon_m3_ml: float
+    excavacion_dentellon_m3_ml: float
+    total_m3_ml: float
+    piedra_a_comprar_m3_ml: float
+    abundamiento: float
+    cemento_kg_ml: float
+    arena_m3_ml: float
+    agua_l_ml: float
+
+
+class DentellonDelMuro(BaseModel):
+    aplica: bool
+    opcion: bool
+    b2_m: float
+    b1_m: float
+    h_m: float
+
+
+class TuboDelDren(BaseModel):
+    clave: str
+    descripcion: str
+    material: str
+    largo_pieza_m: float
+    ml_por_ml_de_trazo: float
+    lloraderos_por_pieza: float
+    piezas_por_lloradero: float
+    piezas_por_ml_de_trazo: float
+    provisional: bool
+
+
+class FiltroDelDren(BaseModel):
+    espesor_cm: float | None
+    relleno: str
+    longitud_cara_m: float
+    volumen_m3_ml: float | None
+    por_definir: bool
+
+
+class CarpetaDelDren(BaseModel):
+    espesor_m: float
+    volumen_m3_ml: float
+
+
+class DrenDelMuro(BaseModel):
+    aplica: bool
+    hileras: int
+    alturas_m: list[float]
+    separacion_m: float
+    lluvia: str
+    lloraderos_por_ml: float
+    tubo: TuboDelDren
+    filtro: FiltroDelDren
+    carpeta: CarpetaDelDren
+
+
+class InsumoDelDren(BaseModel):
+    clave: str
+    descripcion: str
+    unidad: str
+    provisional: bool = Field(description="Sin precio en el catálogo: Costos lo asigna.")
+    cantidad: float = Field(description="Cantidad por m³ de muro, para sumar al APU del concepto.")
+    detalle: str
+
+
+class HileraDeLloraderos(BaseModel):
+    altura_m: float
+    x_m: list[float]
+
+
+class VistasDelMuro(BaseModel):
+    tramo_m: float
+    hileras: list[HileraDeLloraderos]
+
+
 class CalculoDelMuro(BaseModel):
-    """El resultado completo (secciones anidadas) por metro lineal de trazo."""
+    """El resultado completo por metro lineal de trazo."""
 
     clave: str
     unidad: str
-    concepto: dict[str, Any]
-    seccion: dict[str, Any]
-    volumen: dict[str, float]
-    dentellon: dict[str, Any]
-    dren: dict[str, Any]
-    insumos_por_m3: list[dict[str, Any]]
-    vistas: dict[str, Any]
+    concepto: ConceptoDelElemento
+    seccion: SeccionDelMuro
+    volumen: VolumenDelMuro
+    dentellon: DentellonDelMuro
+    dren: DrenDelMuro
+    insumos_por_m3: list[InsumoDelDren]
+    vistas: VistasDelMuro
     advertencias: list[str]
 
 

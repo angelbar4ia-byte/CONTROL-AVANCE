@@ -20380,44 +20380,29 @@
             "title": "Unidad"
           },
           "concepto": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Concepto"
+            "$ref": "#/components/schemas/ConceptoDelElemento"
           },
           "seccion": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Seccion"
+            "$ref": "#/components/schemas/SeccionDelMuro"
           },
           "volumen": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "type": "object",
-            "title": "Volumen"
+            "$ref": "#/components/schemas/VolumenDelMuro"
           },
           "dentellon": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Dentellon"
+            "$ref": "#/components/schemas/DentellonDelMuro"
           },
           "dren": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Dren"
+            "$ref": "#/components/schemas/DrenDelMuro"
           },
           "insumos_por_m3": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/InsumoDelDren"
             },
             "type": "array",
             "title": "Insumos Por M3"
           },
           "vistas": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Vistas"
+            "$ref": "#/components/schemas/VistasDelMuro"
           },
           "advertencias": {
             "items": {
@@ -20441,7 +20426,7 @@
           "advertencias"
         ],
         "title": "CalculoDelMuro",
-        "description": "El resultado completo (secciones anidadas) por metro lineal de trazo."
+        "description": "El resultado completo por metro lineal de trazo."
       },
       "CalculoDelMuroPeticion": {
         "properties": {
@@ -21158,6 +21143,24 @@
         "title": "CargaRespuesta",
         "description": "Resultado de una carga (§9.4 `CargaDatos.resumen`)."
       },
+      "CarpetaDelDren": {
+        "properties": {
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M"
+          },
+          "volumen_m3_ml": {
+            "type": "number",
+            "title": "Volumen M3 Ml"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espesor_m",
+          "volumen_m3_ml"
+        ],
+        "title": "CarpetaDelDren"
+      },
       "CatalogoBaseRespuesta": {
         "properties": {
           "plantas": {
@@ -21701,6 +21704,24 @@
           "acabado"
         ],
         "title": "ClasificacionDeMuroRespuesta"
+      },
+      "ClaveYNombre": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "ClaveYNombre"
       },
       "ClusterRespuesta": {
         "properties": {
@@ -24799,18 +24820,10 @@
             "$ref": "#/components/schemas/ConceptoDelElemento"
           },
           "categoria": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Categoria"
+            "$ref": "#/components/schemas/ClaveYNombre"
           },
           "subcategoria": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Subcategoria"
+            "$ref": "#/components/schemas/ClaveYNombre"
           },
           "parametros_por_defecto": {
             "additionalProperties": true,
@@ -24829,11 +24842,7 @@
             "title": "Fuente"
           },
           "dentellon": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "type": "object",
-            "title": "Dentellon"
+            "$ref": "#/components/schemas/DentellonDelCuadro"
           },
           "pendientes": {
             "items": {
@@ -24859,6 +24868,67 @@
           "pendientes"
         ],
         "title": "DefinicionDelElemento"
+      },
+      "DentellonDelCuadro": {
+        "properties": {
+          "b2": {
+            "type": "number",
+            "title": "B2"
+          },
+          "b1": {
+            "type": "number",
+            "title": "B1"
+          },
+          "h": {
+            "type": "number",
+            "title": "H"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "b2",
+          "b1",
+          "h",
+          "volumen_m3"
+        ],
+        "title": "DentellonDelCuadro"
+      },
+      "DentellonDelMuro": {
+        "properties": {
+          "aplica": {
+            "type": "boolean",
+            "title": "Aplica"
+          },
+          "opcion": {
+            "type": "boolean",
+            "title": "Opcion"
+          },
+          "b2_m": {
+            "type": "number",
+            "title": "B2 M"
+          },
+          "b1_m": {
+            "type": "number",
+            "title": "B1 M"
+          },
+          "h_m": {
+            "type": "number",
+            "title": "H M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplica",
+          "opcion",
+          "b2_m",
+          "b1_m",
+          "h_m"
+        ],
+        "title": "DentellonDelMuro"
       },
       "DependenciaDTO": {
         "properties": {
@@ -25482,6 +25552,59 @@
           "subido_por"
         ],
         "title": "DocumentoRespuesta"
+      },
+      "DrenDelMuro": {
+        "properties": {
+          "aplica": {
+            "type": "boolean",
+            "title": "Aplica"
+          },
+          "hileras": {
+            "type": "integer",
+            "title": "Hileras"
+          },
+          "alturas_m": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Alturas M"
+          },
+          "separacion_m": {
+            "type": "number",
+            "title": "Separacion M"
+          },
+          "lluvia": {
+            "type": "string",
+            "title": "Lluvia"
+          },
+          "lloraderos_por_ml": {
+            "type": "number",
+            "title": "Lloraderos Por Ml"
+          },
+          "tubo": {
+            "$ref": "#/components/schemas/TuboDelDren"
+          },
+          "filtro": {
+            "$ref": "#/components/schemas/FiltroDelDren"
+          },
+          "carpeta": {
+            "$ref": "#/components/schemas/CarpetaDelDren"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplica",
+          "hileras",
+          "alturas_m",
+          "separacion_m",
+          "lluvia",
+          "lloraderos_por_ml",
+          "tubo",
+          "filtro",
+          "carpeta"
+        ],
+        "title": "DrenDelMuro"
       },
       "EdicionDeProgramaRespuesta": {
         "properties": {
@@ -27913,6 +28036,29 @@
         ],
         "title": "FamiliaRespuesta"
       },
+      "FilaDeCuadro1Usada": {
+        "properties": {
+          "H": {
+            "type": "number",
+            "title": "H"
+          },
+          "B": {
+            "type": "number",
+            "title": "B"
+          },
+          "B1": {
+            "type": "number",
+            "title": "B1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "H",
+          "B",
+          "B1"
+        ],
+        "title": "FilaDeCuadro1Usada"
+      },
       "FilaDeInsumoRespuesta": {
         "properties": {
           "insumo_id": {
@@ -28058,6 +28204,53 @@
           "agua_l"
         ],
         "title": "FilaDelCuadro1"
+      },
+      "FiltroDelDren": {
+        "properties": {
+          "espesor_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Cm"
+          },
+          "relleno": {
+            "type": "string",
+            "title": "Relleno"
+          },
+          "longitud_cara_m": {
+            "type": "number",
+            "title": "Longitud Cara M"
+          },
+          "volumen_m3_ml": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumen M3 Ml"
+          },
+          "por_definir": {
+            "type": "boolean",
+            "title": "Por Definir"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espesor_cm",
+          "relleno",
+          "longitud_cara_m",
+          "volumen_m3_ml",
+          "por_definir"
+        ],
+        "title": "FiltroDelDren"
       },
       "FormaDeTrazo": {
         "properties": {
@@ -28729,6 +28922,27 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HileraDeLloraderos": {
+        "properties": {
+          "altura_m": {
+            "type": "number",
+            "title": "Altura M"
+          },
+          "x_m": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "X M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "altura_m",
+          "x_m"
+        ],
+        "title": "HileraDeLloraderos"
+      },
       "HojaDelVanoPeticion": {
         "properties": {
           "bisagra": {
@@ -29156,6 +29370,46 @@
         },
         "type": "object",
         "title": "InstanciarProgramaPeticion"
+      },
+      "InsumoDelDren": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional",
+            "description": "Sin precio en el catálogo: Costos lo asigna."
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "Cantidad por m³ de muro, para sumar al APU del concepto."
+          },
+          "detalle": {
+            "type": "string",
+            "title": "Detalle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "provisional",
+          "cantidad",
+          "detalle"
+        ],
+        "title": "InsumoDelDren"
       },
       "InsumoRespuesta": {
         "properties": {
@@ -37366,6 +37620,48 @@
         ],
         "title": "SalidaRespuesta"
       },
+      "SeccionDelMuro": {
+        "properties": {
+          "alto_m": {
+            "type": "number",
+            "title": "Alto M"
+          },
+          "corona_m": {
+            "type": "number",
+            "title": "Corona M"
+          },
+          "base_m": {
+            "type": "number",
+            "title": "Base M"
+          },
+          "espesor_medio_m": {
+            "type": "number",
+            "title": "Espesor Medio M"
+          },
+          "manual": {
+            "type": "boolean",
+            "title": "Manual"
+          },
+          "fila_cuadro_1": {
+            "$ref": "#/components/schemas/FilaDeCuadro1Usada"
+          },
+          "fuera_de_tabla": {
+            "type": "boolean",
+            "title": "Fuera De Tabla"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alto_m",
+          "corona_m",
+          "base_m",
+          "espesor_medio_m",
+          "manual",
+          "fila_cuadro_1",
+          "fuera_de_tabla"
+        ],
+        "title": "SeccionDelMuro"
+      },
       "SolicitarCambioPeticion": {
         "properties": {
           "tipo": {
@@ -39028,6 +39324,59 @@
         "title": "TrazosDePlanoRespuesta",
         "description": "`FeatureCollection` de GeoJSON con los trazos de un plano."
       },
+      "TuboDelDren": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "largo_pieza_m": {
+            "type": "number",
+            "title": "Largo Pieza M"
+          },
+          "ml_por_ml_de_trazo": {
+            "type": "number",
+            "title": "Ml Por Ml De Trazo"
+          },
+          "lloraderos_por_pieza": {
+            "type": "number",
+            "title": "Lloraderos Por Pieza"
+          },
+          "piezas_por_lloradero": {
+            "type": "number",
+            "title": "Piezas Por Lloradero"
+          },
+          "piezas_por_ml_de_trazo": {
+            "type": "number",
+            "title": "Piezas Por Ml De Trazo"
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "material",
+          "largo_pieza_m",
+          "ml_por_ml_de_trazo",
+          "lloraderos_por_pieza",
+          "piezas_por_lloradero",
+          "piezas_por_ml_de_trazo",
+          "provisional"
+        ],
+        "title": "TuboDelDren"
+      },
       "UbicacionPeticion": {
         "properties": {
           "etapa_id": {
@@ -40504,6 +40853,80 @@
         "type": "object",
         "title": "VistaPeticion",
         "description": "Cómo se ve el plano (migración 0087). Solo presentación: ninguna cantidad cambia."
+      },
+      "VistasDelMuro": {
+        "properties": {
+          "tramo_m": {
+            "type": "number",
+            "title": "Tramo M"
+          },
+          "hileras": {
+            "items": {
+              "$ref": "#/components/schemas/HileraDeLloraderos"
+            },
+            "type": "array",
+            "title": "Hileras"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tramo_m",
+          "hileras"
+        ],
+        "title": "VistasDelMuro"
+      },
+      "VolumenDelMuro": {
+        "properties": {
+          "muro_m3_ml": {
+            "type": "number",
+            "title": "Muro M3 Ml"
+          },
+          "dentellon_m3_ml": {
+            "type": "number",
+            "title": "Dentellon M3 Ml"
+          },
+          "excavacion_dentellon_m3_ml": {
+            "type": "number",
+            "title": "Excavacion Dentellon M3 Ml"
+          },
+          "total_m3_ml": {
+            "type": "number",
+            "title": "Total M3 Ml"
+          },
+          "piedra_a_comprar_m3_ml": {
+            "type": "number",
+            "title": "Piedra A Comprar M3 Ml"
+          },
+          "abundamiento": {
+            "type": "number",
+            "title": "Abundamiento"
+          },
+          "cemento_kg_ml": {
+            "type": "number",
+            "title": "Cemento Kg Ml"
+          },
+          "arena_m3_ml": {
+            "type": "number",
+            "title": "Arena M3 Ml"
+          },
+          "agua_l_ml": {
+            "type": "number",
+            "title": "Agua L Ml"
+          }
+        },
+        "type": "object",
+        "required": [
+          "muro_m3_ml",
+          "dentellon_m3_ml",
+          "excavacion_dentellon_m3_ml",
+          "total_m3_ml",
+          "piedra_a_comprar_m3_ml",
+          "abundamiento",
+          "cemento_kg_ml",
+          "arena_m3_ml",
+          "agua_l_ml"
+        ],
+        "title": "VolumenDelMuro"
       },
       "obractrl__adapters__api__v1__arbol__PartidaRespuesta": {
         "properties": {
