@@ -42,8 +42,12 @@ test.describe('Cuantificador · hoja de la puerta', () => {
 
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
-    const vano = (await page.locator('[data-vano-id] .visor__vano-zona').first().boundingBox())!;
-    await page.mouse.click(vano.x + vano.width / 2, vano.y + vano.height / 2);
+    // La zona de la puerta existe antes de que el visor encuadre el plano: al principio mide 0.5 px de ancho y en otro
+    // sitio (con la máquina cargada el clic caía ahí y el detalle no abría). Se espera a que tenga su tamaño y su lugar
+    // finales, y el clic de Playwright vuelve a medir justo antes de pulsar.
+    const zona = page.locator('[data-vano-id] .visor__vano-zona').first();
+    await expect.poll(async () => (await zona.boundingBox())?.width ?? 0).toBeGreaterThan(20);
+    await zona.click();
     const detalle = page.getByRole('group', { name: 'Elemento colocado' });
     await expect(detalle).toBeVisible();
 
