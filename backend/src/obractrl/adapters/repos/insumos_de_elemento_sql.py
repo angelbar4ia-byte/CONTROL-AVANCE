@@ -80,8 +80,8 @@ class RepositorioInsumosDeElementoSQL:
 
     async def asegurar_familia(self, nombre: str, *, padre: str | None = None) -> UUID:
         """La familia (o subfamilia, si trae `padre`) de la organización; la crea si no existe. La clave de una familia es su
-        nombre, como la dan de alta los cargadores del catálogo."""
-        fila = (await self._sesion.execute(text("select id from familia where clave = :n"), {"n": nombre})).first()
+        nombre en mayúsculas, como la dan de alta los cargadores del catálogo."""
+        fila = (await self._sesion.execute(text("select id from familia where upper(clave) = upper(:n)"), {"n": nombre})).first()
         if fila:
             return UUID(str(fila[0]))
         id_padre = None
@@ -91,7 +91,7 @@ class RepositorioInsumosDeElementoSQL:
             await self._sesion.execute(
                 text(
                     "insert into familia (org_id, parent_id, clave, nombre, aplica_a) "
-                    "values (app.current_org_id(), cast(:p as uuid), :n, :n, 'material') returning id"
+                    "values (app.current_org_id(), cast(:p as uuid), upper(:n), :n, 'material') returning id"
                 ),
                 {"p": id_padre, "n": nombre},
             )

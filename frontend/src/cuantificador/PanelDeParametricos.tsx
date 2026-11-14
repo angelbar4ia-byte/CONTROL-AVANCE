@@ -26,6 +26,7 @@ import { queryClient } from '@/app/queryClient';
 
 import { ConceptosDelElemento } from './ConceptosDelElemento';
 import { ConceptosPorContexto } from './ConceptosPorContexto';
+import { InsumosDelElemento } from './InsumosDelElemento';
 import {
   CAMPOS_POR_TIPO,
   NOMBRE_DEL_TIPO,
@@ -286,6 +287,15 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
                     onError={onError}
                   />
                   <ConceptosPorContexto elementoId={e.id} clave={e.clave} />
+                  <InsumosDelElemento
+                    elementoId={e.id}
+                    clave={e.clave}
+                    tipo={tipo}
+                    materiales={e.materiales as Record<string, unknown>}
+                    puedeDefinir={puedeDefinir}
+                    onCambio={(aviso) => onCambio(aviso)}
+                    onError={onError}
+                  />
                 </>
               )}
             </li>

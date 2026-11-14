@@ -1,7 +1,7 @@
 -- La familia Cimbra vuelve a colgar de Maderas donde Maderas existe (donde la 0129 la creó, queda como familia sin insumos nuevos).
 update familia c set parent_id = m.id
   from familia m
- where c.clave = 'Cimbra' and c.parent_id is null and m.org_id = c.org_id and m.clave = 'Maderas';
+ where upper(c.clave) = 'CIMBRA' and c.parent_id is null and m.org_id = c.org_id and upper(m.clave) = 'MADERAS';
 
 drop table if exists elemento_insumo;
 alter table insumo drop column if exists provisional;

@@ -61,9 +61,9 @@ def test_ida_y_vuelta_con_datos_previos(base_apartada: str) -> None:
         f"""
         insert into organizacion (id, nombre, slug) values ('{org}', 'Mig', 'mig-{org[:8]}');
         insert into unidad (org_id, clave, nombre) values ('{org}', 'm2', 'm2');
-        insert into familia (id, org_id, clave, nombre) values ('00000000-0000-0000-0000-0000000000a1', '{org}', 'Maderas', 'Maderas');
+        insert into familia (id, org_id, clave, nombre) values ('00000000-0000-0000-0000-0000000000a1', '{org}', 'MADERAS', 'Maderas');
         insert into familia (id, org_id, parent_id, clave, nombre)
-          values ('00000000-0000-0000-0000-0000000000a2', '{org}', '00000000-0000-0000-0000-0000000000a1', 'Cimbra', 'Cimbra');
+          values ('00000000-0000-0000-0000-0000000000a2', '{org}', '00000000-0000-0000-0000-0000000000a1', 'CIMBRA', 'Cimbra');
         insert into insumo (org_id, tipo, clave, descripcion, unidad_id, familia_id, costo_base)
           select '{org}', 'material', 'MAD-00001', 'CIMBRA 3 MTS', u.id, '00000000-0000-0000-0000-0000000000a2', 95 from unidad u where u.org_id = '{org}';
         insert into insumo (org_id, tipo, clave, descripcion, unidad_id, familia_id, costo_base)
@@ -83,16 +83,16 @@ def test_ida_y_vuelta_con_datos_previos(base_apartada: str) -> None:
     # Sin materiales, la firma que da la base es la de siempre (cuatro argumentos como cinco).
     assert _consulta(dsn, "select count(*) from elemento_parametrico where firma = app.firma_elemento(categoria, subcategoria, tipo, parametros)") == [["2"]]
     # La familia Cimbra deja de colgar de Maderas y recibe los insumos de cimbra; lo demás de Maderas se queda.
-    assert _consulta(dsn, "select clave, parent_id is null from familia where clave = 'Cimbra'") == [["Cimbra", "t"]]
+    assert _consulta(dsn, "select clave, parent_id is null from familia where upper(clave) = 'CIMBRA'") == [["CIMBRA", "t"]]
     assert _consulta(dsn, "select i.clave, f.clave from insumo i join familia f on f.id = i.familia_id order by i.clave") == [
-        ["MAD-00001", "Cimbra"], ["MAD-00007", "Maderas"]
+        ["MAD-00001", "CIMBRA"], ["MAD-00007", "MADERAS"]
     ]
     assert _consulta(dsn, "select to_regclass('elemento_insumo') is not null, (select count(*) from information_schema.columns where table_name = 'insumo' and column_name = 'provisional')") == [["t", "1"]]
 
     # --- Se puede volver a correr (idempotente) -----------------------------------------------------------------------
     _psql(dsn, "-q", "-f", str(LA_0129))
     assert _consulta(dsn, "select clave, firma from elemento_parametrico order by clave") == antes
-    assert _consulta(dsn, "select count(*) from familia where clave = 'Cimbra'") == [["1"]]
+    assert _consulta(dsn, "select count(*) from familia where upper(clave) = 'CIMBRA'") == [["1"]]
 
     # --- Con materiales: dos elementos que solo difieren en su concreto ---------------------------------------------
     _psql(
@@ -118,7 +118,7 @@ def test_ida_y_vuelta_con_datos_previos(base_apartada: str) -> None:
     assert firmas["K-1"] == dict(antes)["K-1"] and firmas["CE-1"] == dict(antes)["CE-1"]
     assert firmas["K-2"] == "-" and firmas["K-3"] == "-"
     assert _consulta(dsn, "select count(*) from elemento_parametrico") == [["4"]]
-    assert _consulta(dsn, "select parent_id is not null from familia where clave = 'Cimbra'") == [["t"]]
+    assert _consulta(dsn, "select parent_id is not null from familia where upper(clave) = 'CIMBRA'") == [["t"]]
 
     # --- Y vuelve a subir -------------------------------------------------------------------------------------------
     _psql(dsn, "-q", "-f", str(LA_0129))

@@ -98,14 +98,15 @@ create policy elemento_insumo_scope on elemento_insumo
 grant select, insert, update, delete on elemento_insumo to authenticated, obractrl_api;
 
 -- Familia Cimbra: la subfamilia «Cimbra» de Maderas pasa a ser una familia propia (o se crea).
-update familia set parent_id = null where clave = 'Cimbra' and parent_id is not null;
+-- Las claves de familia las guarda el cargador en mayúsculas (CIMBRA, MADERAS): se compara sin distinguir.
+update familia set parent_id = null where upper(clave) = 'CIMBRA' and parent_id is not null;
 insert into familia (org_id, clave, nombre, aplica_a, iva_aplica)
-select o.id, 'Cimbra', 'Cimbra', 'material', true
+select o.id, 'CIMBRA', 'Cimbra', 'material', true
   from organizacion o
- where not exists (select 1 from familia f where f.org_id = o.id and f.clave = 'Cimbra');
+ where not exists (select 1 from familia f where f.org_id = o.id and upper(f.clave) = 'CIMBRA');
 
 update insumo i set familia_id = f.id
   from familia f
- where f.org_id = i.org_id and f.clave = 'Cimbra'
+ where f.org_id = i.org_id and upper(f.clave) = 'CIMBRA'
    and i.clave in ('MAD-00001', 'MAD-00002', 'MAD-00003', 'MAD-00004', 'MAD-00030')
    and i.familia_id is distinct from f.id;
