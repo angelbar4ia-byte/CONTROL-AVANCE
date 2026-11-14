@@ -59,6 +59,7 @@ from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.propuestas import router as router_propuestas
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
+from obractrl.adapters.api.v1.receta_acero import router as router_receta_acero
 from obractrl.adapters.api.v1.reportes import router as router_reportes
 from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogramaciones
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
@@ -100,6 +101,8 @@ api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_elementos_parametricos)
+# Antes que la biblioteca: `/biblioteca-de-elementos/{clave}/calcular` también casaría con `receta-acero`.
+api_v1.include_router(router_receta_acero)
 api_v1.include_router(router_biblioteca_de_elementos)
 api_v1.include_router(router_vanos_catalogo)
 api_v1.include_router(router_cambios_de_unidad)
