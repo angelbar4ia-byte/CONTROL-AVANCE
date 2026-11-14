@@ -18,7 +18,9 @@ from obractrl.domain.cuantificacion.conceptos_de_elemento import (
     validar_alta,
     validar_contexto,
 )
-from obractrl.domain.cuantificacion.elementos_parametricos import ErrorDeElementoParametrico
+from obractrl.domain.cuantificacion.elementos_parametricos import (
+    ErrorDeElementoParametrico,
+)
 
 D = Decimal
 
