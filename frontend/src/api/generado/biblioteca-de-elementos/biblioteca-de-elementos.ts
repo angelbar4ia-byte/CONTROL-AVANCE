@@ -31,12 +31,136 @@ import type {
   CategoriaDeBiblioteca,
   DefinicionDelElemento,
   HTTPValidationError,
+  RecetaDeAceroCalculada,
+  RecetaDeAceroPeticion,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+/**
+ * @summary Calcula la receta del acero de un elemento lineal o de pieza (solo cálculo)
+ */
+export const calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost = (
+  recetaDeAceroPeticion: RecetaDeAceroPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<RecetaDeAceroCalculada>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/receta-acero/calcular`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: recetaDeAceroPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPostMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost
+        >
+      >,
+      TError,
+      { data: RecetaDeAceroPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost
+      >
+    >,
+    TError,
+    { data: RecetaDeAceroPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost
+        >
+      >,
+      { data: RecetaDeAceroPeticion }
+    > = (props) => {
+      const { data } = props ?? {};
+
+      return calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost(
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost
+      >
+    >
+  >;
+export type CalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPostMutationBody =
+  RecetaDeAceroPeticion;
+export type CalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPostMutationError =
+  HTTPValidationError;
+
+/**
+ * @summary Calcula la receta del acero de un elemento lineal o de pieza (solo cálculo)
+ */
+export const useCalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost =
+  <TError = HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost
+          >
+        >,
+        TError,
+        { data: RecetaDeAceroPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost
+      >
+    >,
+    TError,
+    { data: RecetaDeAceroPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * @summary La biblioteca de elementos por categoría y subcategoría
  */
