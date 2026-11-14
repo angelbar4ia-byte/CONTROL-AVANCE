@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * Uniones de muro (D-629): dos muros que se encuentran en un extremo. En el detalle del primero se ofrecen Conexión,
@@ -51,8 +51,7 @@ test.describe('Cuantificador · uniones de muro', () => {
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
     // Elegir el primer muro con un clic en su mitad (lejos del otro).
-    const caja = (await page.locator(`[data-trazo-id="${a}"]`).boundingBox())!;
-    await page.mouse.click(caja.x + caja.width * 0.3, caja.y + caja.height / 2);
+    await pulsarMarca(page, page.locator(`[data-trazo-id="${a}"]`), { fx: 0.3 });
 
     const uniones = page.getByRole('group', { name: 'Uniones del muro' });
     await expect(uniones).toBeVisible();

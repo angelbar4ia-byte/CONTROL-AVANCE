@@ -325,8 +325,8 @@ export function Visor({
   // Re-encuadrar al cambiar de plano y cuando llega lo que define el encuadre
   // (la imagen, o los primeros trazos: al abrir un plano los trazos llegan *después*
   // de montar el visor, y sin esto quedarían fuera de cuadro). No se re-encuadra
-  // si quien trazaba ya movió la vista: saltarle bajo las manos al guardar el
-  // primer trazo sería peor que no encuadrar.
+  // si quien trazaba ya movió la vista o ya pulsó en el plano (`vistaTocada`):
+  // saltarle bajo las manos al guardar el primer trazo sería peor que no encuadrar.
   const encuadreActual = useRef(encuadre);
   encuadreActual.current = encuadre;
   const vistaTocada = useRef(false);
@@ -334,8 +334,12 @@ export function Visor({
   useEffect(() => {
     vistaTocada.current = false;
   }, [claveDePlano, rotacionGrados, volteoH, volteoV]);
+  // «Listo» observable: la vista ya se encuadró sobre contenido (la imagen o los trazos). Antes de eso los vanos y las marcas
+  // existen pero en otro lugar y con otro tamaño: quien pulse una marca (o una prueba) espera a `data-encuadre="listo"`.
+  const [encuadrado, setEncuadrado] = useState(false);
   useEffect(() => {
     if (!vistaTocada.current) setVista(encuadreActual.current);
+    setEncuadrado(hayTrazos || imagen !== null);
   }, [claveDePlano, imagen, hayTrazos, rotacionGrados, volteoH, volteoV]);
 
   useEffect(() => {
@@ -460,6 +464,9 @@ export function Visor({
 
   function alPresionar(e: React.PointerEvent<SVGSVGElement>) {
     if (e.button > 2) return;
+    // Quien ya pulsó en el plano está trabajando sobre esta vista: guardar su primer trazo no la reencuadra (acercaba a ese
+    // único punto, con dos castillos puestos uno tras otro el segundo clic caía en otra escala y el primero quedaba fuera de la vista).
+    vistaTocada.current = true;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (punteros.current.size === 2) {
@@ -668,6 +675,7 @@ export function Visor({
       ref={svg}
       className="visor"
       data-herramienta={herramienta}
+      data-encuadre={encuadrado ? 'listo' : 'pendiente'}
       viewBox={`${vista.x} ${vista.y} ${vista.ancho} ${vista.alto}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"

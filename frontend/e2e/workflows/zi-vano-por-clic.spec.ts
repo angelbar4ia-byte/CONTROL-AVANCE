@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * El vano se coloca con un clic sobre cualquier muro, línea o área, sin elegirlo antes (D-635): el panel «Cómo se coloca»
@@ -50,8 +50,7 @@ test.describe('Cuantificador · vanos con un clic', () => {
 
     // Un clic sobre el muro coloca la ventana y la barra dice cuánto descontó.
     // El plano se recoloca al guardar el trazo: el clic va al centro del muro tal como se ve ahora.
-    const muro = (await page.locator('.visor__trazo').first().boundingBox())!;
-    await page.mouse.click(muro.x + muro.width * 0.8, muro.y + muro.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.8 });
     await expect(page.getByTestId('vanos')).toBeVisible();
     await expect(page.locator('[data-vano-id]')).toHaveCount(1);
     await expect(page.getByText(/V-01 1\.2 × 1\.2 m descontado de el muro/)).toBeVisible();
@@ -60,8 +59,7 @@ test.describe('Cuantificador · vanos con un clic', () => {
     await page.keyboard.press('Escape');
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
     const vano = page.locator('[data-vano-id] .visor__vano-zona');
-    const v = (await vano.boundingBox())!;
-    await page.mouse.click(v.x + v.width / 2, v.y + v.height / 2);
+    await pulsarMarca(page, vano);
     const asa = page.locator('[data-asa="fin"]');
     await expect(asa).toBeVisible();
     const a = (await asa.boundingBox())!;

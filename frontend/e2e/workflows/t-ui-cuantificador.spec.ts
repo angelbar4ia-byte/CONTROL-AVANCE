@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 
 /** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
@@ -408,14 +408,14 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
 
     // --- La herramienta Borrar: un clic sobre un trazo pide confirmar -------------------------------------
     await barra.getByRole('button', { name: 'Borrar', exact: true }).click();
-    const area = (await page.locator('.visor__trazo path').first().boundingBox())!;
-    await page.mouse.click(area.x + area.width * 0.3, area.y + area.height * 0.5);
+    const areaTrazo = page.locator('.visor__trazo path').first();
+    await pulsarMarca(page, areaTrazo, { fx: 0.3 });
     const dialogo = page.getByRole('dialog', { name: 'Borrar trazo' });
     await expect(dialogo).toContainText('1 enlace');
     await dialogo.getByRole('button', { name: 'Cancelar' }).click();
     expect(await cuantos()).toBe(2);
 
-    await page.mouse.click(area.x + area.width * 0.3, area.y + area.height * 0.5);
+    await pulsarMarca(page, areaTrazo, { fx: 0.3 });
     await dialogo.getByRole('button', { name: 'Borrar trazo' }).click();
     await expect(page.getByRole('status')).toContainText('Trazo borrado');
     await expect(page.locator('.visor__trazo')).toHaveCount(1);
@@ -423,8 +423,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
 
     // --- Seleccionar + Supr (o el botón de la barra) --------------------------------------------------------
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    const linea = (await page.locator('.visor__trazo path').first().boundingBox())!;
-    await page.mouse.click(linea.x + linea.width / 2, linea.y + linea.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo path').first());
     await expect(page.getByText('Trazo elegido')).toBeVisible();
     await page.keyboard.press('Delete');
     await expect(dialogo).toBeVisible();

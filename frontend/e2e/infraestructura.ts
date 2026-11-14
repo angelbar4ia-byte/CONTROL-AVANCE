@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { test as base, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test as base, expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 /**
  * Arnés de los E2E que sí necesitan backend (§11.3).
@@ -265,3 +265,36 @@ export const test = base.extend<{ rastro: void }>({
 test.skip(!hayInfraestructura, MOTIVO_SALTO);
 
 export { expect };
+
+/**
+ * Pulsa una marca o zona del plano (un trazo, un vano, una asa) de forma estable.
+ *
+ * El visor encuadra el plano cuando llegan los trazos, y los vanos o las marcas existen antes: medirlas con `boundingBox()`
+ * y pulsar en coordenadas fijas cae en otro lugar si la máquina va cargada (con 0.5 px de ancho y fuera de sitio al principio).
+ * Aquí se espera a que el visor diga `data-encuadre="listo"`, a que la marca tenga tamaño y no cambie entre dos lecturas
+ * y se pulsa con `locator.click`, que vuelve a medir justo antes de pulsar. `fx` y `fy` (0 a 1) eligen el punto dentro de
+ * la marca; sin ellos, el centro. Se pulsa con `force` porque, con una herramienta de dibujo activa, el lienzo recibe el
+ * clic y no la marca (la comprobación de «recibe el evento» de Playwright no aplica); la posición sigue siendo la de ahora.
+ */
+export async function pulsarMarca(
+  page: Page,
+  marca: Locator,
+  { fx = 0.5, fy = 0.5 }: { fx?: number; fy?: number } = {},
+): Promise<void> {
+  await expect(page.locator('svg.visor[data-encuadre="listo"]')).toBeVisible();
+  const leer = async () => {
+    const b = await marca.boundingBox();
+    return b ? `${b.x.toFixed(1)},${b.y.toFixed(1)},${b.width.toFixed(1)},${b.height.toFixed(1)}` : '';
+  };
+  let previa = '';
+  await expect
+    .poll(async () => {
+      const actual = await leer();
+      const estable = actual !== '' && actual === previa;
+      previa = actual;
+      return estable;
+    }, { intervals: [100] })
+    .toBe(true);
+  const caja = (await marca.boundingBox())!;
+  await marca.click({ force: true, position: { x: caja.width * fx, y: caja.height * fy } });
+}
