@@ -26,6 +26,9 @@ from obractrl.adapters.api.v1.cierres_frente import router as router_cierres_fre
 from obractrl.adapters.api.v1.cierres_obra import router as router_cierres_obra
 from obractrl.adapters.api.v1.cliente import router as router_cliente
 from obractrl.adapters.api.v1.comprobaciones import router as router_comprobaciones
+from obractrl.adapters.api.v1.conceptos_de_elemento import (
+    router as router_conceptos_de_elemento,
+)
 from obractrl.adapters.api.v1.confirmacion_avance import (
     router as router_confirmacion_avance,
 )
@@ -101,6 +104,7 @@ api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_elementos_parametricos)
+api_v1.include_router(router_conceptos_de_elemento)
 # Antes que la biblioteca: `/biblioteca-de-elementos/{clave}/calcular` también casaría con `receta-acero`.
 api_v1.include_router(router_receta_acero)
 api_v1.include_router(router_biblioteca_de_elementos)

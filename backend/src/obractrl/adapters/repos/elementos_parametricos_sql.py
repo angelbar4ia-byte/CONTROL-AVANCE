@@ -114,8 +114,10 @@ class RepositorioElementosParametricosSQL:
         # Los conceptos que tomaban del elemento toman de la versión nueva (y siguen tomando de la anterior en lo congelado).
         await self._sesion.execute(
             text(
-                "insert into elemento_concepto (org_id, elemento_id, concepto_id, unidad, toma, autor_id) "
-                "select org_id, :n, concepto_id, unidad, toma, autor_id from elemento_concepto where elemento_id = :a"
+                "insert into elemento_concepto (org_id, elemento_id, concepto_id, unidad, toma, autor_id, nivel_min, nivel_max, ubicacion, "
+                "alto_hasta_m, estado, clave_propuesta, descripcion) "
+                "select org_id, :n, concepto_id, unidad, toma, autor_id, nivel_min, nivel_max, ubicacion, "
+                "alto_hasta_m, estado, clave_propuesta, descripcion from elemento_concepto where elemento_id = :a"
             ),
             {"n": str(nueva), "a": str(elemento_id)},
         )
@@ -358,7 +360,7 @@ class RepositorioElementosParametricosSQL:
                     """
                     select ec.concepto_id, c.clave, c.descripcion, ec.unidad, ec.toma
                       from elemento_concepto ec join concepto c on c.id = ec.concepto_id
-                     where ec.elemento_id = :e order by lower(c.clave)
+                     where ec.elemento_id = :e and ec.concepto_id is not null and ec.nivel_min is null and ec.nivel_max is null and ec.ubicacion is null and ec.alto_hasta_m is null order by lower(c.clave)
                     """
                 ),
                 {"e": str(elemento_id)},
@@ -372,7 +374,8 @@ class RepositorioElementosParametricosSQL:
                 text(
                     """
                     select ec.elemento_id, ec.concepto_id, c.clave, c.descripcion, ec.unidad, ec.toma
-                      from elemento_concepto ec join concepto c on c.id = ec.concepto_id order by lower(c.clave)
+                      from elemento_concepto ec join concepto c on c.id = ec.concepto_id
+                     where true and ec.concepto_id is not null and ec.nivel_min is null and ec.nivel_max is null and ec.ubicacion is null and ec.alto_hasta_m is null order by lower(c.clave)
                     """
                 )
             )
@@ -387,7 +390,8 @@ class RepositorioElementosParametricosSQL:
                 """
                 insert into elemento_concepto (org_id, elemento_id, concepto_id, unidad, toma, autor_id)
                 select e.org_id, e.id, :c, :u, cast(:t as jsonb), :a from elemento_parametrico e where e.id = :e
-                on conflict (elemento_id, concepto_id) do update set unidad = excluded.unidad, toma = excluded.toma,
+                on conflict (elemento_id, concepto_id, coalesce(nivel_min, 0), coalesce(nivel_max, 0), coalesce(ubicacion, ''),
+                             coalesce(alto_hasta_m, 0)) where concepto_id is not null do update set unidad = excluded.unidad, toma = excluded.toma,
                                                                       autor_id = excluded.autor_id
                 """
             ),
@@ -396,7 +400,10 @@ class RepositorioElementosParametricosSQL:
 
     async def quitar_concepto(self, *, elemento_id: UUID, concepto_id: UUID) -> None:
         await self._sesion.execute(
-            text("delete from elemento_concepto where elemento_id = :e and concepto_id = :c"),
+            text(
+                "delete from elemento_concepto where elemento_id = :e and concepto_id = :c and nivel_min is null and nivel_max is null "
+                "and ubicacion is null and alto_hasta_m is null"
+            ),
             {"e": str(elemento_id), "c": str(concepto_id)},
         )
 
@@ -404,3 +411,84 @@ class RepositorioElementosParametricosSQL:
         return bool(
             (await self._sesion.execute(text("select 1 from concepto where id = :c"), {"c": str(concepto_id)})).first()
         )
+
+    # --- Conceptos por contexto y escalón (0128) -----------------------------------------------------------------
+
+    async def conceptos_por_contexto(self, elemento_id: UUID) -> list[dict[str, Any]]:
+        """Todos los conceptos del elemento: los del catálogo y los propuestos, con su contexto, escalón y estado."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select ec.id, ec.concepto_id, coalesce(c.clave, ec.clave_propuesta) as clave,
+                           coalesce(ec.descripcion, c.descripcion) as descripcion, c.descripcion as descripcion_catalogo,
+                           ec.unidad, ec.toma, ec.ranura, ec.estado, ec.nivel_min, ec.nivel_max, ec.ubicacion, ec.alto_hasta_m
+                      from elemento_concepto ec left join concepto c on c.id = ec.concepto_id
+                     where ec.elemento_id = :e
+                     order by coalesce(ec.nivel_min, 0), coalesce(ec.ubicacion, ''), ec.ranura, coalesce(ec.alto_hasta_m, 0),
+                              lower(coalesce(c.clave, ec.clave_propuesta))
+                    """
+                ),
+                {"e": str(elemento_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def concepto_por_contexto(self, elemento_id: UUID, fila_id: UUID) -> dict[str, Any] | None:
+        for f in await self.conceptos_por_contexto(elemento_id):
+            if f["id"] == fila_id:
+                return f
+        return None
+
+    async def clave_de_concepto(self, concepto_id: UUID) -> str | None:
+        fila = (await self._sesion.execute(text("select clave from concepto where id = :c"), {"c": str(concepto_id)})).first()
+        return str(fila[0]) if fila else None
+
+    async def concepto_con_clave(self, clave: str) -> bool:
+        return bool(
+            (await self._sesion.execute(text("select 1 from concepto where upper(clave) = upper(:k)"), {"k": clave})).first()
+        )
+
+    async def agregar_concepto_por_contexto(
+        self,
+        *,
+        elemento_id: UUID,
+        concepto_id: UUID | None,
+        clave_propuesta: str | None,
+        descripcion: str | None,
+        unidad: str,
+        toma: dict[str, bool],
+        nivel_min: int | None,
+        nivel_max: int | None,
+        ubicacion: str | None,
+        alto_hasta_m: Any,
+        estado: str,
+        autor_id: UUID,
+    ) -> UUID:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into elemento_concepto (org_id, elemento_id, concepto_id, clave_propuesta, descripcion, unidad, toma,
+                                                   nivel_min, nivel_max, ubicacion, alto_hasta_m, estado, autor_id)
+                    select e.org_id, e.id, cast(:c as uuid), :k, :d, :u, cast(:t as jsonb), :nmin, :nmax, :ub, :h, :s, :a
+                      from elemento_parametrico e where e.id = :e
+                    returning id
+                    """
+                ),
+                {
+                    "e": str(elemento_id), "c": str(concepto_id) if concepto_id else None, "k": clave_propuesta, "d": descripcion,
+                    "u": unidad, "t": json.dumps(toma), "nmin": nivel_min, "nmax": nivel_max, "ub": ubicacion, "h": alto_hasta_m,
+                    "s": estado, "a": str(autor_id),
+                },
+            )
+        ).scalar_one()
+        return UUID(str(fila))
+
+    async def cambiar_descripcion_de_concepto(self, fila_id: UUID, descripcion: str | None) -> None:
+        await self._sesion.execute(
+            text("update elemento_concepto set descripcion = :d where id = :i"), {"d": descripcion, "i": str(fila_id)}
+        )
+
+    async def quitar_concepto_por_contexto(self, fila_id: UUID) -> None:
+        await self._sesion.execute(text("delete from elemento_concepto where id = :i"), {"i": str(fila_id)})
