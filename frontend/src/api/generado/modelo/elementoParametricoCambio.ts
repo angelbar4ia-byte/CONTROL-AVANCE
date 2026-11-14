@@ -8,10 +8,16 @@
 import type { ElementoParametricoCambioClave } from "./elementoParametricoCambioClave";
 import type { ElementoParametricoCambioNombre } from "./elementoParametricoCambioNombre";
 import type { ElementoParametricoCambioParametros } from "./elementoParametricoCambioParametros";
+import type { ElementoParametricoCambioCategoria } from "./elementoParametricoCambioCategoria";
+import type { ElementoParametricoCambioSubcategoria } from "./elementoParametricoCambioSubcategoria";
 
 export interface ElementoParametricoCambio {
   clave?: ElementoParametricoCambioClave;
   nombre?: ElementoParametricoCambioNombre;
   /** Solo los que cambian. */
   parametros?: ElementoParametricoCambioParametros;
+  /** Reclasifica el elemento; sin la subcategoría pasa a la primera de la nueva categoría. */
+  categoria?: ElementoParametricoCambioCategoria;
+  /** Cambia el uso dentro de la categoría actual (o de la nueva, si se manda). */
+  subcategoria?: ElementoParametricoCambioSubcategoria;
 }

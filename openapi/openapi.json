@@ -12663,6 +12663,31 @@
         }
       }
     },
+    "/api/v1/elementos-parametricos/clasificacion": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Las categorías y subcategorías de la biblioteca de elementos paramétricos, con el límite de posición de cada una",
+        "operationId": "clasificacion_de_elementos_api_v1_elementos_parametricos_clasificacion_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoriaDeClasificacion"
+                  },
+                  "type": "array",
+                  "title": "Response Clasificacion De Elementos Api V1 Elementos Parametricos Clasificacion Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/elementos-parametricos": {
       "get": {
         "tags": [
@@ -12722,8 +12747,11 @@
           "403": {
             "description": "Lo definen Control de obra y Costos."
           },
+          "409": {
+            "description": "Ya existe un elemento idéntico (misma categoría, subcategoría, medidas y armado): se usa el existente."
+          },
           "422": {
-            "description": "Clave repetida o un parámetro que no vale."
+            "description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."
           }
         },
         "security": [
@@ -12778,8 +12806,11 @@
           "404": {
             "description": "El elemento no existe o está fuera de tu alcance."
           },
+          "409": {
+            "description": "El cambio lo dejaría idéntico a otro elemento: se usa el existente."
+          },
           "422": {
-            "description": "Clave repetida o un parámetro que no vale."
+            "description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."
           }
         }
       },
@@ -13171,6 +13202,47 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/receta-acero/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula la receta del acero de un elemento lineal o de pieza (solo cálculo)",
+        "operationId": "calcular_receta_api_v1_biblioteca_de_elementos_receta_acero_calcular_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecetaDeAceroPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecetaDeAceroCalculada"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -19375,6 +19447,31 @@
         "type": "object",
         "title": "AjusteDeNodoPeticion"
       },
+      "AlambreDeLaReceta": {
+        "properties": {
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          },
+          "kg_por_ml": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg Por Ml"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kg",
+          "kg_por_ml"
+        ],
+        "title": "AlambreDeLaReceta"
+      },
       "AlcancePeticion": {
         "properties": {
           "gente": {
@@ -19547,6 +19644,37 @@
           "alertas"
         ],
         "title": "AlertasDePartesRespuesta"
+      },
+      "AnillosDeLaReceta": {
+        "properties": {
+          "largo_anillo_m": {
+            "type": "number",
+            "title": "Largo Anillo M"
+          },
+          "pza": {
+            "type": "number",
+            "title": "Pza"
+          },
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          },
+          "zonas": {
+            "items": {
+              "$ref": "#/components/schemas/ZonaDeAnilloDeLaReceta"
+            },
+            "type": "array",
+            "title": "Zonas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "largo_anillo_m",
+          "pza",
+          "kg",
+          "zonas"
+        ],
+        "title": "AnillosDeLaReceta"
       },
       "AplicarConversionPeticion": {
         "properties": {
@@ -19851,6 +19979,100 @@
         ],
         "title": "ArmarPrecioPeticion",
         "description": "Con qué se va a hacer un trabajo que no está en el catálogo.\n\nEl jefe de obra lo describió así: *\"el residente dice qué cuadrilla va a\nutilizar, cuántas y el tiempo, también el material, y se crea el precio\"*."
+      },
+      "ArmexDeLaReceta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "largo_pieza_m": {
+            "type": "number",
+            "title": "Largo Pieza M"
+          },
+          "ml": {
+            "type": "number",
+            "title": "Ml"
+          },
+          "piezas_comerciales": {
+            "type": "number",
+            "title": "Piezas Comerciales"
+          },
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
+          "traslape_m": {
+            "type": "number",
+            "title": "Traslape M"
+          },
+          "puntas_m": {
+            "type": "number",
+            "title": "Puntas M"
+          },
+          "corte": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorteDeLaVarilla"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "largo_pieza_m",
+          "ml",
+          "piezas_comerciales",
+          "kg",
+          "traslape_m",
+          "puntas_m",
+          "corte"
+        ],
+        "title": "ArmexDeLaReceta"
+      },
+      "ArmexPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "largo_m": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Largo M",
+            "default": 6.0
+          },
+          "peso_kg_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peso Kg M",
+            "description": "El catálogo no lo da: queda sin dato."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave"
+        ],
+        "title": "ArmexPeticion"
       },
       "ArranqueRespuesta": {
         "properties": {
@@ -21244,6 +21466,54 @@
         ],
         "title": "CategoriaDeBiblioteca"
       },
+      "CategoriaDeClasificacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo",
+            "description": "Con qué tipo de elemento se calcula."
+          },
+          "prefijo": {
+            "type": "string",
+            "title": "Prefijo"
+          },
+          "construida": {
+            "type": "boolean",
+            "title": "Construida"
+          },
+          "subcategorias": {
+            "items": {
+              "$ref": "#/components/schemas/SubcategoriaDeClasificacion"
+            },
+            "type": "array",
+            "title": "Subcategorias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "prefijo",
+          "construida",
+          "subcategorias"
+        ],
+        "title": "CategoriaDeClasificacion"
+      },
       "CategoriaExplosion": {
         "type": "string",
         "enum": [
@@ -21599,6 +21869,32 @@
           "estatus"
         ],
         "title": "CierreRespuesta"
+      },
+      "CimbraDeLaReceta": {
+        "properties": {
+          "m2": {
+            "type": "number",
+            "title": "M2"
+          },
+          "lados": {
+            "type": "integer",
+            "title": "Lados"
+          },
+          "consumos": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumoDeCimbraDeLaReceta"
+            },
+            "type": "array",
+            "title": "Consumos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "m2",
+          "lados",
+          "consumos"
+        ],
+        "title": "CimbraDeLaReceta"
       },
       "ClaseNodo": {
         "type": "string",
@@ -22530,6 +22826,63 @@
         "title": "ConflictoJerarquiaRespuesta",
         "description": "Un nodo cuya ventana capturada no cuadra con la de sus conceptos (§7.5).\n\n**No es un error: es la pregunta.** Las dos cifras viajan las dos porque lo\nque el usuario tiene que decidir es cuál conservar, y darle sólo una lo\nobligaría a ir a buscar la otra a otra pantalla."
       },
+      "ConsumoDeCimbraDeLaReceta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "cantidad"
+        ],
+        "title": "ConsumoDeCimbraDeLaReceta"
+      },
+      "ConsumoDeCimbraPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "por_ml": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Por Ml",
+            "description": "Consumo por metro de elemento."
+          },
+          "por_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Por M2",
+            "description": "Consumo por m² de cimbra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave"
+        ],
+        "title": "ConsumoDeCimbraPeticion"
+      },
       "ConsumoRespuesta": {
         "properties": {
           "obra_id": {
@@ -23065,6 +23418,64 @@
         ],
         "title": "ConversionPeticion",
         "description": "Cómo cuenta un trazo para su concepto (D-633). Los parámetros que no aplican al modo se ignoran."
+      },
+      "CorteDeLaVarilla": {
+        "properties": {
+          "piezas": {
+            "type": "integer",
+            "title": "Piezas"
+          },
+          "modulo_m": {
+            "type": "number",
+            "title": "Modulo M"
+          },
+          "total_m": {
+            "type": "number",
+            "title": "Total M"
+          },
+          "alto_que_cubre_m": {
+            "type": "number",
+            "title": "Alto Que Cubre M"
+          },
+          "necesario_m": {
+            "type": "number",
+            "title": "Necesario M"
+          },
+          "traslape_m": {
+            "type": "number",
+            "title": "Traslape M"
+          },
+          "puntas_m": {
+            "type": "number",
+            "title": "Puntas M"
+          },
+          "sobrante_m": {
+            "type": "number",
+            "title": "Sobrante M"
+          },
+          "excede_maximo": {
+            "type": "boolean",
+            "title": "Excede Maximo"
+          },
+          "cubre_completo": {
+            "type": "boolean",
+            "title": "Cubre Completo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piezas",
+          "modulo_m",
+          "total_m",
+          "alto_que_cubre_m",
+          "necesario_m",
+          "traslape_m",
+          "puntas_m",
+          "sobrante_m",
+          "excede_maximo",
+          "cubre_completo"
+        ],
+        "title": "CorteDeLaVarilla"
       },
       "CostoDeJornadaPeticion": {
         "properties": {
@@ -24998,6 +25409,34 @@
         ],
         "title": "DesfaseDePartesRespuesta"
       },
+      "DesperdicioDeLaReceta": {
+        "properties": {
+          "sobrante_de_corte_m": {
+            "type": "number",
+            "title": "Sobrante De Corte M"
+          },
+          "traslape_m": {
+            "type": "number",
+            "title": "Traslape M"
+          },
+          "puntas_m": {
+            "type": "number",
+            "title": "Puntas M"
+          },
+          "desperdicio_acero_pct": {
+            "type": "number",
+            "title": "Desperdicio Acero Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sobrante_de_corte_m",
+          "traslape_m",
+          "puntas_m",
+          "desperdicio_acero_pct"
+        ],
+        "title": "DesperdicioDeLaReceta"
+      },
       "DestajoNuevoPeticion": {
         "properties": {
           "clave": {
@@ -25606,6 +26045,69 @@
         ],
         "title": "DrenDelMuro"
       },
+      "DriversDeRecetaPeticion": {
+        "properties": {
+          "traslape_armex_cm": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Traslape Armex Cm",
+            "default": 15.0
+          },
+          "traslape_varilla_diametros": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Traslape Varilla Diametros",
+            "default": 40.0
+          },
+          "puntas_inferior_diametros": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Puntas Inferior Diametros",
+            "default": 40.0
+          },
+          "puntas_superior_diametros": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Puntas Superior Diametros",
+            "default": 40.0
+          },
+          "puntas_armex_cm": {
+            "type": "number",
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "Puntas Armex Cm",
+            "default": 50.0
+          },
+          "tolerancia_corte_cm": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Tolerancia Corte Cm",
+            "default": 0.0
+          },
+          "max_piezas_corte": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Max Piezas Corte",
+            "default": 3
+          },
+          "desperdicio_acero_pct": {
+            "type": "number",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Desperdicio Acero Pct",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "title": "DriversDeRecetaPeticion",
+        "description": "Los drivers del acero; lo que no se manda toma el valor por defecto del mockup."
+      },
       "EdicionDeProgramaRespuesta": {
         "properties": {
           "id": {
@@ -26010,6 +26512,32 @@
             ],
             "title": "Parametros",
             "description": "Solo los que cambian."
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria",
+            "description": "Reclasifica el elemento; sin la subcategoría pasa a la primera de la nueva categoría."
+          },
+          "subcategoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategoria",
+            "description": "Cambia el uso dentro de la categoría actual (o de la nueva, si se manda)."
           }
         },
         "type": "object",
@@ -26060,6 +26588,32 @@
             "type": "object",
             "title": "Parametros",
             "description": "Los que falten toman el valor por defecto del tipo."
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria",
+            "description": "Sin categoría ni subcategoría, el tipo toma las de defecto (castillos/muro, cadenas/cerramiento…)."
+          },
+          "subcategoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategoria",
+            "description": "Sola, toma la primera de su categoría."
           }
         },
         "type": "object",
@@ -26095,6 +26649,16 @@
             ],
             "title": "Tipo"
           },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria",
+            "description": "Categoría de la biblioteca (castillos, cadenas, trabes…)."
+          },
+          "subcategoria": {
+            "type": "string",
+            "title": "Subcategoria",
+            "description": "Subcategoría: el uso del elemento (cerramiento, desplante…). Forma parte de su identidad."
+          },
           "parametros": {
             "additionalProperties": {
               "type": "number"
@@ -26118,6 +26682,8 @@
           "clave",
           "nombre",
           "tipo",
+          "categoria",
+          "subcategoria",
           "parametros",
           "receta"
         ],
@@ -35213,6 +35779,252 @@
         "type": "object",
         "title": "PublicarCPUPeticion"
       },
+      "RecetaDeAceroCalculada": {
+        "properties": {
+          "forma": {
+            "type": "string",
+            "title": "Forma"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "longitud_m": {
+            "type": "number",
+            "title": "Longitud M"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "armex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArmexDeLaReceta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "varillas": {
+            "items": {
+              "$ref": "#/components/schemas/VarillaDeLaReceta"
+            },
+            "type": "array",
+            "title": "Varillas"
+          },
+          "anillos": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnillosDeLaReceta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alambre": {
+            "$ref": "#/components/schemas/AlambreDeLaReceta"
+          },
+          "cimbra": {
+            "$ref": "#/components/schemas/CimbraDeLaReceta"
+          },
+          "acero_kg": {
+            "type": "number",
+            "title": "Acero Kg"
+          },
+          "acero_kg_completo": {
+            "type": "boolean",
+            "title": "Acero Kg Completo"
+          },
+          "desperdicio": {
+            "$ref": "#/components/schemas/DesperdicioDeLaReceta"
+          },
+          "totales": {
+            "items": {
+              "$ref": "#/components/schemas/TotalDeLaReceta"
+            },
+            "type": "array",
+            "title": "Totales"
+          },
+          "drivers": {
+            "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "forma",
+          "unidad",
+          "longitud_m",
+          "cantidad",
+          "armex",
+          "varillas",
+          "anillos",
+          "alambre",
+          "cimbra",
+          "acero_kg",
+          "acero_kg_completo",
+          "desperdicio",
+          "totales",
+          "drivers",
+          "advertencias"
+        ],
+        "title": "RecetaDeAceroCalculada"
+      },
+      "RecetaDeAceroPeticion": {
+        "properties": {
+          "forma": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "pieza",
+              "ml"
+            ],
+            "title": "Forma",
+            "description": "castillo = por pieza de altura conocida; pieza = trabe o contratrabe por pieza; ml = por metro de trazo."
+          },
+          "ancho_cm": {
+            "type": "number",
+            "maximum": 500.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Ancho Cm"
+          },
+          "peralte_cm": {
+            "type": "number",
+            "maximum": 500.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Peralte Cm",
+            "description": "Peralte; en un castillo, el largo de la sección."
+          },
+          "longitud_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitud M",
+            "description": "Alto (castillo) o largo (pieza) en METROS; no aplica en ml."
+          },
+          "lados_cimbra": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 0.0,
+            "title": "Lados Cimbra",
+            "default": 0
+          },
+          "varillas": {
+            "items": {
+              "$ref": "#/components/schemas/VarillaPeticion"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Varillas"
+          },
+          "armex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArmexPeticion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "anillos": {
+            "items": {
+              "$ref": "#/components/schemas/ZonaDeAnilloPeticion"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Anillos"
+          },
+          "gancho_cm": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Gancho Cm",
+            "default": 10.0
+          },
+          "recubrimiento_cm": {
+            "type": "number",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Recubrimiento Cm",
+            "default": 2.5
+          },
+          "factor_anillo": {
+            "type": "number",
+            "maximum": 3.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Factor Anillo",
+            "default": 1.0
+          },
+          "alambre_por_amarre_m": {
+            "type": "number",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Alambre Por Amarre M",
+            "default": 0.3
+          },
+          "alambre_peso_kg_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Alambre Peso Kg M",
+            "default": 0.0095
+          },
+          "alambre_kg_ml": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alambre Kg Ml",
+            "description": "Kg por ml del catálogo; vacío = por amarres."
+          },
+          "cimbra": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumoDeCimbraPeticion"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Cimbra"
+          },
+          "cantidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cantidad",
+            "default": 1.0
+          },
+          "drivers": {
+            "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "forma",
+          "ancho_cm",
+          "peralte_cm"
+        ],
+        "title": "RecetaDeAceroPeticion"
+      },
       "RecetaRespuesta": {
         "properties": {
           "unidad": {
@@ -37807,6 +38619,51 @@
         ],
         "title": "SubcategoriaDeBiblioteca"
       },
+      "SubcategoriaDeClasificacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "prefijo": {
+            "type": "string",
+            "title": "Prefijo"
+          },
+          "posiciones": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posiciones",
+            "description": "Dónde del muro se coloca un elemento de esta subcategoría (desplante, cerramiento, remate); `null` si no se coloca por posición."
+          },
+          "en_muro": {
+            "type": "boolean",
+            "title": "En Muro",
+            "description": "Si el elemento se coloca en un muro (las trabes y las zapatas no)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "prefijo",
+          "posiciones",
+          "en_muro"
+        ],
+        "title": "SubcategoriaDeClasificacion"
+      },
       "SujetoEvaluacion": {
         "type": "string",
         "enum": [
@@ -38081,6 +38938,34 @@
           "cimbra_por_lados"
         ],
         "title": "TotalDeElementoRespuesta"
+      },
+      "TotalDeLaReceta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad_exacta": {
+            "type": "number",
+            "title": "Cantidad Exacta"
+          },
+          "cantidad_a_comprar": {
+            "type": "number",
+            "title": "Cantidad A Comprar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "unidad",
+          "cantidad_exacta",
+          "cantidad_a_comprar"
+        ],
+        "title": "TotalDeLaReceta"
       },
       "TrabajoDeObraRespuesta": {
         "properties": {
@@ -40434,6 +41319,140 @@
         ],
         "title": "VanoRespuesta"
       },
+      "VarillaDeLaReceta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "varillas": {
+            "type": "integer",
+            "title": "Varillas"
+          },
+          "largo_pieza_m": {
+            "type": "number",
+            "title": "Largo Pieza M"
+          },
+          "diametro_m": {
+            "type": "number",
+            "title": "Diametro M"
+          },
+          "traslape_m": {
+            "type": "number",
+            "title": "Traslape M"
+          },
+          "puntas_m": {
+            "type": "number",
+            "title": "Puntas M"
+          },
+          "ml": {
+            "type": "number",
+            "title": "Ml"
+          },
+          "piezas_comerciales": {
+            "type": "number",
+            "title": "Piezas Comerciales"
+          },
+          "kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kg"
+          },
+          "corte": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorteDeLaVarilla"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "etiqueta",
+          "numero",
+          "varillas",
+          "largo_pieza_m",
+          "diametro_m",
+          "traslape_m",
+          "puntas_m",
+          "ml",
+          "piezas_comerciales",
+          "kg",
+          "corte"
+        ],
+        "title": "VarillaDeLaReceta"
+      },
+      "VarillaPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "numero": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 2.0,
+            "title": "Numero",
+            "description": "Número de varilla: 3 = 3/8 pulg, 4 = 1/2 pulg…"
+          },
+          "largo_m": {
+            "type": "number",
+            "maximum": 24.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Largo M",
+            "default": 12.0
+          },
+          "peso_kg_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peso Kg M"
+          },
+          "cantidad": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Cantidad",
+            "description": "Cuántas varillas de este tipo lleva el elemento."
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "numero",
+          "cantidad"
+        ],
+        "title": "VarillaPeticion"
+      },
       "VersionCPURespuesta": {
         "properties": {
           "version": {
@@ -40927,6 +41946,104 @@
           "agua_l_ml"
         ],
         "title": "VolumenDelMuro"
+      },
+      "ZonaDeAnilloDeLaReceta": {
+        "properties": {
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "len_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Len Cm"
+          },
+          "sep_cm": {
+            "type": "number",
+            "title": "Sep Cm"
+          },
+          "largo_m": {
+            "type": "number",
+            "title": "Largo M"
+          },
+          "pza": {
+            "type": "number",
+            "title": "Pza"
+          },
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "len_cm",
+          "sep_cm",
+          "largo_m",
+          "pza",
+          "kg"
+        ],
+        "title": "ZonaDeAnilloDeLaReceta"
+      },
+      "ZonaDeAnilloPeticion": {
+        "properties": {
+          "sep_cm": {
+            "type": "number",
+            "maximum": 200.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Sep Cm"
+          },
+          "peso_kg_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Peso Kg M"
+          },
+          "len_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Len Cm",
+            "description": "Largo de la zona (en cada extremo en una trabe por pieza); vacío = el resto o el centro."
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sep_cm",
+          "peso_kg_m"
+        ],
+        "title": "ZonaDeAnilloPeticion"
       },
       "obractrl__adapters__api__v1__arbol__PartidaRespuesta": {
         "properties": {

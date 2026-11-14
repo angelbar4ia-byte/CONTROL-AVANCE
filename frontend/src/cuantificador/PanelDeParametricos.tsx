@@ -13,6 +13,7 @@ import { useEffect, useState, type KeyboardEvent } from 'react';
 import type { ErrorApi } from '@/api/cliente';
 import {
   getListarElementosParametricosApiV1ElementosParametricosGetQueryKey,
+  useClasificacionDeElementosApiV1ElementosParametricosClasificacionGet,
   useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet,
   useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet,
   useActualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch,
@@ -24,7 +25,15 @@ import type { ElementoParametricoRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
 import { ConceptosDelElemento } from './ConceptosDelElemento';
-import { CAMPOS_POR_TIPO, NOMBRE_DEL_TIPO, formatoDeReceta, lineasDeReceta, type TipoParametrico } from './parametricos';
+import {
+  CAMPOS_POR_TIPO,
+  NOMBRE_DEL_TIPO,
+  categoriasDelTipo,
+  formatoDeReceta,
+  lineasDeReceta,
+  rotuloDeUso,
+  type TipoParametrico,
+} from './parametricos';
 import { numeroTecleado } from './volumen';
 
 interface Props {
@@ -52,7 +61,10 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
   const crear = useCrearElementoParametricoApiV1ElementosParametricosPost<ErrorApi>();
   const actualizar = useActualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch<ErrorApi>();
   const eliminar = useEliminarElementoParametricoApiV1ElementosParametricosElementoIdDelete<ErrorApi>();
-  const [nuevo, setNuevo] = useState({ clave: '', nombre: '', tipo: 'castillo' as TipoParametrico });
+  const clasificacion = useClasificacionDeElementosApiV1ElementosParametricosClasificacionGet();
+  const categorias = clasificacion.data ?? [];
+  // Categoría y subcategoría vacías: el servidor usa las de defecto del tipo (castillos/muro, cadenas/cerramiento…).
+  const [nuevo, setNuevo] = useState({ clave: '', nombre: '', tipo: 'castillo' as TipoParametrico, categoria: '', subcategoria: '' });
   const [editando, setEditando] = useState<Readonly<Record<string, string>>>({});
   const [abierto, setAbierto] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
@@ -83,13 +95,32 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
   async function crearElemento() {
     if (nuevo.clave.trim() === '' || nuevo.nombre.trim() === '') return;
     try {
-      const r = await crear.mutateAsync({ data: { clave: nuevo.clave.trim(), nombre: nuevo.nombre.trim(), tipo: nuevo.tipo } });
-      setNuevo({ clave: '', nombre: '', tipo: nuevo.tipo });
+      const r = await crear.mutateAsync({
+        data: {
+          clave: nuevo.clave.trim(),
+          nombre: nuevo.nombre.trim(),
+          tipo: nuevo.tipo,
+          ...(nuevo.categoria !== '' ? { categoria: nuevo.categoria } : {}),
+          ...(nuevo.categoria !== '' && nuevo.subcategoria !== '' ? { subcategoria: nuevo.subcategoria } : {}),
+        },
+      });
+      setNuevo({ clave: '', nombre: '', tipo: nuevo.tipo, categoria: nuevo.categoria, subcategoria: nuevo.subcategoria });
       setAbierto(r.id);
       recargar();
       onCambio(`${nuevo.clave.trim().toUpperCase()} creado con las medidas por defecto: ajústalas.`);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'No se pudo crear el elemento.');
+    }
+  }
+
+  async function reclasificar(e: ElementoParametricoRespuesta, categoria: string, subcategoria: string) {
+    if (categoria === e.categoria && subcategoria === e.subcategoria) return;
+    try {
+      await actualizar.mutateAsync({ elementoId: e.id, data: { categoria, subcategoria } });
+      recargar();
+      onCambio(`${e.clave} pasó a ${rotuloDeUso(categorias, categoria, subcategoria)}.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo cambiar la clasificación.');
     }
   }
 
@@ -165,6 +196,9 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
                   )}
                 </button>
                 <span className="badge badge--outline">{NOMBRE_DEL_TIPO[tipo]}</span>
+                <span className="badge badge--outline" data-uso-del-elemento={e.clave} title="Categoría › subcategoría de la biblioteca: el uso forma parte de la identidad del elemento">
+                  {rotuloDeUso(categorias, e.categoria, e.subcategoria)}
+                </span>
                 {onColocar && (
                   <button
                     type="button"
@@ -185,6 +219,32 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
               </div>
               {abiertoAhora && (
                 <>
+                  {puedeDefinir && (
+                    <div className="arbol-edicion__alta" role="group" aria-label={`Clasificación de ${e.clave}`}>
+                      <select
+                        aria-label={`Categoría de ${e.clave}`}
+                        value={e.categoria}
+                        onChange={(ev) => void reclasificar(e, ev.target.value, '')}
+                      >
+                        {categoriasDelTipo(categorias, e.tipo).map((c) => (
+                          <option key={c.clave} value={c.clave}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={`Subcategoría de ${e.clave}`}
+                        value={e.subcategoria}
+                        onChange={(ev) => void reclasificar(e, e.categoria, ev.target.value)}
+                      >
+                        {(categorias.find((c) => c.clave === e.categoria)?.subcategorias ?? []).map((sc) => (
+                          <option key={sc.clave} value={sc.clave}>
+                            {sc.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="arbol-edicion__alta" role="group" aria-label={`Parámetros de ${e.clave}`}>
                     {CAMPOS_POR_TIPO[tipo].map((c) => {
                       const llave = `${e.id}:${c.clave}`;
@@ -235,7 +295,7 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
           <select
             aria-label="Tipo de elemento paramétrico"
             value={nuevo.tipo}
-            onChange={(ev) => setNuevo((n) => ({ ...n, tipo: ev.target.value as TipoParametrico }))}
+            onChange={(ev) => setNuevo((n) => ({ ...n, tipo: ev.target.value as TipoParametrico, categoria: '', subcategoria: '' }))}
           >
             {(Object.keys(NOMBRE_DEL_TIPO) as TipoParametrico[]).map((t) => (
               <option key={t} value={t}>
@@ -243,6 +303,32 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
               </option>
             ))}
           </select>
+          <select
+            aria-label="Categoría del elemento nuevo"
+            value={nuevo.categoria}
+            onChange={(ev) => setNuevo((n) => ({ ...n, categoria: ev.target.value, subcategoria: '' }))}
+          >
+            <option value="">Categoría por defecto</option>
+            {categoriasDelTipo(categorias, nuevo.tipo).map((c) => (
+              <option key={c.clave} value={c.clave}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+          {nuevo.categoria !== '' && (
+            <select
+              aria-label="Subcategoría del elemento nuevo"
+              value={nuevo.subcategoria}
+              onChange={(ev) => setNuevo((n) => ({ ...n, subcategoria: ev.target.value }))}
+            >
+              <option value="">Primera subcategoría</option>
+              {(categorias.find((c) => c.clave === nuevo.categoria)?.subcategorias ?? []).map((sc) => (
+                <option key={sc.clave} value={sc.clave}>
+                  {sc.nombre}
+                </option>
+              ))}
+            </select>
+          )}
           <input aria-label="Clave del elemento" placeholder="Clave (K-1)" style={{ width: 70 }} value={nuevo.clave} onChange={(ev) => setNuevo((n) => ({ ...n, clave: ev.target.value }))} />
           <input
             aria-label="Nombre del elemento"

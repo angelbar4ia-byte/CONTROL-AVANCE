@@ -7,13 +7,16 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obractrl.adapters.repos.cuantificacion_sql import _hay_columna
+from obractrl.domain.cuantificacion.clasificacion_de_elementos import ElementoDuplicado
 
 __all__ = ["RepositorioElementosParametricosSQL"]
 
-_COLUMNAS = "id, clave, nombre, tipo, parametros"
+_COLUMNAS = "id, clave, nombre, tipo, parametros, categoria, subcategoria, firma"
+_INDICE_DE_FIRMA = "ux_elemento_parametrico_firma"
 
 
 class RepositorioElementosParametricosSQL:
@@ -65,7 +68,18 @@ class RepositorioElementosParametricosSQL:
         ).scalars().all()
         return [UUID(str(f)) for f in filas]
 
-    async def crear_version(self, elemento_id: UUID, *, clave: str, nombre: str, parametros: dict[str, Any], autor_id: UUID) -> UUID:
+    async def crear_version(
+        self,
+        elemento_id: UUID,
+        *,
+        clave: str,
+        nombre: str,
+        parametros: dict[str, Any],
+        autor_id: UUID,
+        categoria: str,
+        subcategoria: str,
+        firma: str,
+    ) -> UUID:
         """Una versión nueva del elemento: la anterior deja de estar vigente; los trazos de obras no asignadas y los vínculos
         con conceptos pasan a la nueva."""
         antes = (
@@ -81,14 +95,17 @@ class RepositorioElementosParametricosSQL:
                     await self._sesion.execute(
                         text(
                             """
-                            insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id, version, raiz_id)
-                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :v, :raiz)
+                            insert into elemento_parametrico
+                                (org_id, clave, nombre, tipo, parametros, autor_id, version, raiz_id, categoria, subcategoria, firma)
+                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :v, :raiz,
+                                    :cat, :sub, :firma)
                             returning id
                             """
                         ),
                         {
                             "clave": clave, "nombre": nombre, "tipo": antes["tipo"], "p": json.dumps(parametros),
                             "autor": str(autor_id), "v": int(antes["version"]) + 1, "raiz": str(antes["raiz_id"]),
+                            "cat": categoria, "sub": subcategoria, "firma": firma,
                         },
                     )
                 ).scalar_one()
@@ -128,36 +145,93 @@ class RepositorioElementosParametricosSQL:
             ).scalar_one()
         )
 
-    async def crear(
-        self, *, clave: str, nombre: str, tipo: str, parametros: dict[str, Any], autor_id: UUID
-    ) -> UUID:
+    async def buscar_duplicado(self, firma: str, *, salvo: UUID | None = None) -> dict[str, Any] | None:
+        """El elemento vigente con esa firma (otro que `salvo`). Los anteriores a la 0127 que quedaron sin firma se comparan
+        con la que calcula la base al vuelo, así el duplicado de un elemento viejo tampoco pasa."""
         fila = (
             await self._sesion.execute(
                 text(
-                    """
-                    insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id)
-                    values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor)
-                    returning id
-                    """
+                    "select id, clave from elemento_parametrico "
+                    "where vigente and coalesce(firma, app.firma_elemento(categoria, subcategoria, tipo, parametros)) = :f "
+                    "and (cast(:salvo as uuid) is null or id <> cast(:salvo as uuid)) order by created_at, id limit 1"
                 ),
-                {"clave": clave, "nombre": nombre, "tipo": tipo, "p": json.dumps(parametros), "autor": str(autor_id)},
+                {"f": firma, "salvo": str(salvo) if salvo else None},
             )
-        ).scalar_one()
+        ).mappings().first()
+        return dict(fila) if fila else None
+
+    async def _dar_por_duplicado(self, error: IntegrityError, firma: str, salvo: UUID | None) -> None:
+        """Dos altas idénticas a la vez: el índice único de la firma ataja a la segunda (la 1.ª ya está confirmada)."""
+        if _INDICE_DE_FIRMA not in str(error.orig) and _INDICE_DE_FIRMA not in str(error):
+            raise error
+        igual = await self.buscar_duplicado(firma, salvo=salvo)
+        raise ElementoDuplicado(igual["clave"] if igual else "otro", igual["id"] if igual else None) from error
+
+    async def crear(
+        self,
+        *,
+        clave: str,
+        nombre: str,
+        tipo: str,
+        parametros: dict[str, Any],
+        autor_id: UUID,
+        categoria: str,
+        subcategoria: str,
+        firma: str,
+    ) -> UUID:
+        try:
+            async with self._sesion.begin_nested():
+                fila = (
+                    await self._sesion.execute(
+                        text(
+                            """
+                            insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id, categoria, subcategoria, firma)
+                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :cat, :sub, :firma)
+                            returning id
+                            """
+                        ),
+                        {
+                            "clave": clave, "nombre": nombre, "tipo": tipo, "p": json.dumps(parametros), "autor": str(autor_id),
+                            "cat": categoria, "sub": subcategoria, "firma": firma,
+                        },
+                    )
+                ).scalar_one()
+        except IntegrityError as e:
+            await self._dar_por_duplicado(e, firma, None)
+            raise
         if await self._con_versiones():
             # La primera versión es su propia raíz: las siguientes comparten la raíz (0120).
             await self._sesion.execute(text("update elemento_parametrico set raiz_id = id where id = :id"), {"id": str(fila)})
         return UUID(str(fila))
 
     async def actualizar(
-        self, elemento_id: UUID, *, clave: str, nombre: str, parametros: dict[str, Any]
+        self,
+        elemento_id: UUID,
+        *,
+        clave: str,
+        nombre: str,
+        parametros: dict[str, Any],
+        categoria: str,
+        subcategoria: str,
+        firma: str | None,
     ) -> None:
-        await self._sesion.execute(
-            text(
-                "update elemento_parametrico set clave = :clave, nombre = :nombre, parametros = cast(:p as jsonb) "
-                "where id = :id"
-            ),
-            {"id": str(elemento_id), "clave": clave, "nombre": nombre, "p": json.dumps(parametros)},
-        )
+        try:
+            async with self._sesion.begin_nested():
+                await self._sesion.execute(
+                    text(
+                        "update elemento_parametrico set clave = :clave, nombre = :nombre, parametros = cast(:p as jsonb), "
+                        "categoria = :cat, subcategoria = :sub, firma = :firma where id = :id"
+                    ),
+                    {
+                        "id": str(elemento_id), "clave": clave, "nombre": nombre, "p": json.dumps(parametros),
+                        "cat": categoria, "sub": subcategoria, "firma": firma,
+                    },
+                )
+        except IntegrityError as e:
+            if firma is None:
+                raise
+            await self._dar_por_duplicado(e, firma, elemento_id)
+            raise
 
     async def eliminar(self, elemento_id: UUID) -> None:
         if await self._con_versiones():
