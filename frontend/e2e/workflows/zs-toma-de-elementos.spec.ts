@@ -81,9 +81,14 @@ test.describe('Cuantificador · lo que toma un concepto de un elemento', () => {
     await expect(page.getByTestId('origen-por-elemento')).toBeVisible();
 
     // --- «Ver el elemento» desde el detalle de un castillo --------------------------------------------------------
-    await page.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    const marca = (await page.locator('.visor__trazo').nth(1).boundingBox())!;
-    await page.mouse.click(marca.x + marca.width / 2, marca.y + marca.height / 2);
+    // El castillo se elige en la lista de la pestaña Trazos y no con un clic sobre su marca: el plano se vuelve a ajustar
+    // al contenido cuando llegan los trazos (con dos puntos juntos se acerca mucho), así que la marca cambia de lugar y
+    // a veces queda fuera de la vista. El detalle del trazo no depende de la pestaña: se vuelve a Presupuesto para que
+    // «Ver el elemento» tenga que cambiar de pestaña.
+    await page.getByRole('tab', { name: /^Trazos/ }).click();
+    await page.getByRole('list', { name: 'Todos los trazos del plano' }).getByRole('listitem').first().click();
+    await expect(page.getByText('Trazo elegido', { exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: /Presupuesto/ }).click();
     await page.getByRole('button', { name: 'Ver el elemento' }).click();
     await expect(page.getByRole('tab', { name: /^Trazos/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('button', { name: `Ocultar ${clave}` })).toBeVisible();
