@@ -13216,6 +13216,302 @@
         }
       }
     },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos-por-contexto": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Los conceptos que paga el elemento, por contexto y escalón de altura",
+        "description": "Sin nivel ni ubicación lista todos los conceptos del elemento y avisa de los escalones que no alcanzan su alto. Con\nellos dice cuáles aplican, cuál paga cada parte y qué avisos hay (parte sin concepto, tomada dos veces, alto sin escalón).",
+        "operationId": "conceptos_por_contexto_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "nivel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 99,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nivel del muro (1 = planta baja): marca el concepto que paga cada parte.",
+              "title": "Nivel"
+            },
+            "description": "Nivel del muro (1 = planta baja): marca el concepto que paga cada parte."
+          },
+          {
+            "name": "ubicacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pretil",
+                    "barda"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ubicación del muro.",
+              "title": "Ubicacion"
+            },
+            "description": "Ubicación del muro."
+          },
+          {
+            "name": "alto_m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMaximum": 100.0,
+                  "exclusiveMinimum": 0.0
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Alto con que se elige el escalón; sin él, el del castillo.",
+              "title": "Alto M"
+            },
+            "description": "Alto con que se elige el escalón; sin él, el del castillo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptosPorContextoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "El elemento paga una parte con un concepto en un contexto (o escalón); uno nuevo queda propuesto",
+        "description": "Un concepto nuevo se guarda `propuesto`: sin precio y sin entrar al catálogo hasta que Control de obra lo autorice.",
+        "operationId": "agregar_concepto_por_contexto_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConceptoPorContextoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptoPorContextoCreado"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento o el concepto no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "La parte ya la toma otro concepto en ese contexto, la clave nueva ya está en el catálogo, o el contexto o la unidad no valen."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos-por-contexto/{fila_id}": {
+      "patch": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Cambiar la descripción de un concepto del elemento (la clave y el «hasta» del escalón son fijos)",
+        "operationId": "cambiar_descripcion_del_concepto_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto__fila_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Fila Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescripcionDelConceptoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento o el concepto no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Quitar un concepto del elemento en su contexto (para corregir una clave o un escalón)",
+        "operationId": "quitar_concepto_por_contexto_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto__fila_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Fila Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento o el concepto no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/receta-acero/calcular": {
       "post": {
         "tags": [
@@ -22469,6 +22765,319 @@
         ],
         "title": "ConceptoNuevoRespuesta"
       },
+      "ConceptoPorContextoCreado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ConceptoPorContextoCreado"
+      },
+      "ConceptoPorContextoPeticion": {
+        "properties": {
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id",
+            "description": "Un concepto del catálogo. Sin él, hay que proponer uno nuevo con `clave_propuesta`."
+          },
+          "clave_propuesta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave Propuesta",
+            "description": "Clave de un concepto NUEVO (queda propuesto, sin precio)."
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 600
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion",
+            "description": "Obligatoria en un concepto nuevo; en uno del catálogo, la que el elemento le da."
+          },
+          "unidad": {
+            "type": "string",
+            "enum": [
+              "pza",
+              "ml",
+              "m²"
+            ],
+            "title": "Unidad"
+          },
+          "toma": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Toma",
+            "description": "Qué materiales toma: concreto, acero, estribos, alambre, cimbra."
+          },
+          "nivel_min": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Min",
+            "description": "Nivel mínimo (1 = planta baja); sin él, desde el primero."
+          },
+          "nivel_max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Max",
+            "description": "Nivel máximo; sin él, sin límite."
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pretil",
+                  "barda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "alto_hasta_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 100.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto Hasta M",
+            "description": "Escalón: el concepto sirve hasta este alto en metros. Queda fijo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidad",
+          "toma"
+        ],
+        "title": "ConceptoPorContextoPeticion"
+      },
+      "ConceptoPorContextoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Identifica la fila (elemento, concepto, contexto, escalón)."
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id",
+            "description": "El concepto del catálogo; `null` si es un concepto nuevo propuesto."
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "La del catálogo o, en uno nuevo, la propuesta."
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "descripcion_catalogo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion Catalogo",
+            "description": "La descripción del catálogo si la fila la cambió; `null` en un concepto nuevo."
+          },
+          "nuevo": {
+            "type": "boolean",
+            "title": "Nuevo",
+            "description": "Concepto que aún no está en el catálogo."
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "propuesto",
+              "autorizado"
+            ],
+            "title": "Estado",
+            "description": "`propuesto` = nuevo, pendiente de autorizar por Control de obra."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "ranura": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "acero",
+                  "colado",
+                  "completo"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ranura",
+            "description": "La parte de la receta que paga, según lo que toma."
+          },
+          "toma": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Toma"
+          },
+          "nivel_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Min"
+          },
+          "nivel_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Max"
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pretil",
+                  "barda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "contexto": {
+            "type": "string",
+            "title": "Contexto",
+            "description": "El contexto en palabras (`niveles 1 a 2`, `nivel 3 en adelante`, `Todo contexto`)."
+          },
+          "alto_hasta_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto Hasta M",
+            "description": "Escalón por altura: sirve hasta este alto. `null` si no es un escalón."
+          },
+          "elegido": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elegido",
+            "description": "Con nivel o ubicación en la consulta: si este concepto es el que paga su parte. `null` sin ellos."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "concepto_id",
+          "clave",
+          "descripcion",
+          "descripcion_catalogo",
+          "nuevo",
+          "estado",
+          "unidad",
+          "ranura",
+          "toma",
+          "nivel_min",
+          "nivel_max",
+          "ubicacion",
+          "contexto",
+          "alto_hasta_m",
+          "elegido"
+        ],
+        "title": "ConceptoPorContextoRespuesta"
+      },
       "ConceptoRespuesta": {
         "properties": {
           "id": {
@@ -22580,6 +23189,81 @@
         "type": "object",
         "title": "ConceptosDelOficioPeticion",
         "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
+      },
+      "ConceptosPorContextoRespuesta": {
+        "properties": {
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto M",
+            "description": "El alto con que se eligen los escalones (el del castillo, o el pedido)."
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pretil",
+                  "barda"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoPorContextoRespuesta"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "por_parte": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Por Parte",
+            "description": "Con nivel o ubicación: la clave del concepto que paga cada grupo (acero, concreto, cimbra)."
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos",
+            "description": "Un alto sin escalón, una parte sin concepto o tomada dos veces."
+          }
+        },
+        "type": "object",
+        "required": [
+          "alto_m",
+          "nivel",
+          "ubicacion",
+          "conceptos",
+          "por_parte",
+          "avisos"
+        ],
+        "title": "ConceptosPorContextoRespuesta"
       },
       "ConexionDeMuro": {
         "properties": {
@@ -25368,6 +26052,21 @@
         ],
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
+      },
+      "DescripcionDelConceptoPeticion": {
+        "properties": {
+          "descripcion": {
+            "type": "string",
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "descripcion"
+        ],
+        "title": "DescripcionDelConceptoPeticion"
       },
       "DesfaseDePartesPeticion": {
         "properties": {

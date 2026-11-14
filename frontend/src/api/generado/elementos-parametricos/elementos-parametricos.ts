@@ -29,7 +29,12 @@ import type {
   CategoriaDeClasificacion,
   ConceptoDelElementoRespuesta,
   ConceptoDelPlanoRespuesta,
+  ConceptoPorContextoCreado,
+  ConceptoPorContextoPeticion,
   ConceptoTomaPeticion,
+  ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  ConceptosPorContextoRespuesta,
+  DescripcionDelConceptoPeticion,
   ElementoEnTrazoPeticion,
   ElementoParametricoCambio,
   ElementoParametricoCreado,
@@ -3741,3 +3746,938 @@ export const useSincronizarTomasApiV1ObrasObraIdTomasSincronizarPost = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Sin nivel ni ubicación lista todos los conceptos del elemento y avisa de los escalones que no alcanzan su alto. Con
+ellos dice cuáles aplican, cuál paga cada parte y qué avisos hay (parte sin concepto, tomada dos veces, alto sin escalón).
+ * @summary Los conceptos que paga el elemento, por contexto y escalón de altura
+ */
+export const conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet =
+  (
+    elementoId: string,
+    params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConceptosPorContextoRespuesta>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto`,
+        method: "GET",
+        params,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfiniteQueryKey =
+  (
+    elementoId?: string,
+    params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryKey =
+  (
+    elementoId?: string,
+    params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  ) => {
+    return [
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfiniteQueryKey(
+        elementoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+        >
+      >
+    > = ({ signal }) =>
+      conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet(
+        elementoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >
+  >;
+export type ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params:
+    | undefined
+    | ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los conceptos que paga el elemento, por contexto y escalón de altura
+ */
+
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetInfiniteQueryOptions(
+      elementoId,
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryKey(
+        elementoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+        >
+      >
+    > = ({ signal }) =>
+      conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet(
+        elementoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+      >
+    >
+  >;
+export type ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryError =
+  void | HTTPValidationError;
+
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params:
+    | undefined
+    | ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los conceptos que paga el elemento, por contexto y escalón de altura
+ */
+
+export function useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryOptions(
+      elementoId,
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Un concepto nuevo se guarda `propuesto`: sin precio y sin entrar al catálogo hasta que Control de obra lo autorice.
+ * @summary El elemento paga una parte con un concepto en un contexto (o escalón); uno nuevo queda propuesto
+ */
+export const agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost =
+  (
+    elementoId: string,
+    conceptoPorContextoPeticion: ConceptoPorContextoPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConceptoPorContextoCreado>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: conceptoPorContextoPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAgregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost
+        >
+      >,
+      TError,
+      { elementoId: string; data: ConceptoPorContextoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost
+      >
+    >,
+    TError,
+    { elementoId: string; data: ConceptoPorContextoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost
+        >
+      >,
+      { elementoId: string; data: ConceptoPorContextoPeticion }
+    > = (props) => {
+      const { elementoId, data } = props ?? {};
+
+      return agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost(
+        elementoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AgregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost
+      >
+    >
+  >;
+export type AgregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPostMutationBody =
+  ConceptoPorContextoPeticion;
+export type AgregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPostMutationError =
+  void;
+
+/**
+ * @summary El elemento paga una parte con un concepto en un contexto (o escalón); uno nuevo queda propuesto
+ */
+export const useAgregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost
+          >
+        >,
+        TError,
+        { elementoId: string; data: ConceptoPorContextoPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof agregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPost
+      >
+    >,
+    TError,
+    { elementoId: string; data: ConceptoPorContextoPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getAgregarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Cambiar la descripción de un concepto del elemento (la clave y el «hasta» del escalón son fijos)
+ */
+export const cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch =
+  (
+    elementoId: string,
+    filaId: string,
+    descripcionDelConceptoPeticion: DescripcionDelConceptoPeticion,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}`,
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        data: descripcionDelConceptoPeticion,
+      },
+      options,
+    );
+  };
+
+export const getCambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch
+        >
+      >,
+      TError,
+      {
+        elementoId: string;
+        filaId: string;
+        data: DescripcionDelConceptoPeticion;
+      },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch
+      >
+    >,
+    TError,
+    {
+      elementoId: string;
+      filaId: string;
+      data: DescripcionDelConceptoPeticion;
+    },
+    TContext
+  > => {
+    const mutationKey = [
+      "cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch
+        >
+      >,
+      {
+        elementoId: string;
+        filaId: string;
+        data: DescripcionDelConceptoPeticion;
+      }
+    > = (props) => {
+      const { elementoId, filaId, data } = props ?? {};
+
+      return cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch(
+        elementoId,
+        filaId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatchMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch
+      >
+    >
+  >;
+export type CambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatchMutationBody =
+  DescripcionDelConceptoPeticion;
+export type CambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar la descripción de un concepto del elemento (la clave y el «hasta» del escalón son fijos)
+ */
+export const useCambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch
+          >
+        >,
+        TError,
+        {
+          elementoId: string;
+          filaId: string;
+          data: DescripcionDelConceptoPeticion;
+        },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof cambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatch
+      >
+    >,
+    TError,
+    {
+      elementoId: string;
+      filaId: string;
+      data: DescripcionDelConceptoPeticion;
+    },
+    TContext
+  > => {
+    const mutationOptions =
+      getCambiarDescripcionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdPatchMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Quitar un concepto del elemento en su contexto (para corregir una clave o un escalón)
+ */
+export const quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete =
+  (
+    elementoId: string,
+    filaId: string,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
+
+export const getQuitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete
+        >
+      >,
+      TError,
+      { elementoId: string; filaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete
+      >
+    >,
+    TError,
+    { elementoId: string; filaId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete
+        >
+      >,
+      { elementoId: string; filaId: string }
+    > = (props) => {
+      const { elementoId, filaId } = props ?? {};
+
+      return quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete(
+        elementoId,
+        filaId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete
+      >
+    >
+  >;
+
+export type QuitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar un concepto del elemento en su contexto (para corregir una clave o un escalón)
+ */
+export const useQuitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete
+          >
+        >,
+        TError,
+        { elementoId: string; filaId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof quitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDelete
+      >
+    >,
+    TError,
+    { elementoId: string; filaId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getQuitarConceptoPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdDeleteMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };

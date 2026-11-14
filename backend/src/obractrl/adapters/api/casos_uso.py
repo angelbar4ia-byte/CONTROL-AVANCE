@@ -127,6 +127,9 @@ from obractrl.application.casos_uso.comprobar_excedente import (
     DeclararPerdidaDeExcedente,
     ValidarExcedente,
 )
+from obractrl.application.casos_uso.conceptos_de_elemento import (
+    GestionarConceptosDeElemento,
+)
 from obractrl.application.casos_uso.conceptos_en_obra import CrearConceptoEnObra
 from obractrl.application.casos_uso.confirmar_avance import (
     ConfirmarAvance,
@@ -445,6 +448,7 @@ __all__ = [
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "GestionarConceptosDeElementoDep",
     "GestionarElementosDep",
     "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
@@ -949,6 +953,22 @@ def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElem
     )
 
 
+def obtener_gestionar_conceptos_de_elemento(sesion: SesionRLS) -> GestionarConceptosDeElemento:
+    elementos = RepositorioElementosParametricosSQL(sesion)
+    return GestionarConceptosDeElemento(
+        elementos=elementos,
+        uow=UnidadDeTrabajoSQL(sesion),
+        sincronizador=SincronizarTomas(
+            elementos=elementos,
+            matrices=RepositorioMatricesSQL(sesion),
+            enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+            actividades=RepositorioActividadesSQL(sesion),
+            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+            desviaciones=RepositorioDesviacionesSQL(sesion),
+        ),
+    )
+
+
 def obtener_gestionar_elementos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarElementos:
     return GestionarElementos(
         elementos=RepositorioElementosSQL(sesion),
@@ -1198,6 +1218,9 @@ AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_prop
 RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
 GestionarElementosParametricosDep = Annotated[
     GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
+]
+GestionarConceptosDeElementoDep = Annotated[
+    GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
