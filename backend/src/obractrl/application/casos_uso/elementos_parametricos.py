@@ -30,6 +30,11 @@ from obractrl.domain.cuantificacion.elementos_parametricos import (
     receta,
     toma_por_unidad,
 )
+from obractrl.domain.cuantificacion.materiales_de_elemento import (
+    claves_de_materiales,
+    normalizar_materiales,
+    validar_materiales,
+)
 
 __all__ = ["ComandoCrearElementoParametrico", "ElementoParametricoNoEncontrado", "GestionarElementosParametricos"]
 
@@ -50,6 +55,7 @@ class ComandoCrearElementoParametrico:
     autor_id: UUID
     categoria: str | None = None
     subcategoria: str | None = None
+    materiales: dict[str, Any] | None = None
 
 
 def _texto(valor: str, que: str, maximo: int) -> str:
@@ -67,9 +73,13 @@ def _con_receta(fila: dict[str, Any]) -> dict[str, Any]:
 
 
 class GestionarElementosParametricos:
-    def __init__(self, *, elementos: Any, uow: UnidadDeTrabajo, sincronizador: Any | None = None) -> None:
+    def __init__(
+        self, *, elementos: Any, uow: UnidadDeTrabajo, sincronizador: Any | None = None, insumos: Any | None = None
+    ) -> None:
         self._elementos = elementos
         self._uow = uow
+        # La base de insumos: con ella se comprueba que los materiales que elige el elemento existen y son de sus familias.
+        self._insumos = insumos
         # Lo que un concepto toma de un elemento escribe la cantidad medida de su matriz (D-639).
         self._sincronizador = sincronizador
 
@@ -88,6 +98,19 @@ class GestionarElementosParametricos:
     async def listar(self) -> list[dict[str, Any]]:
         return [_con_receta(f) for f in await self._elementos.listar()]
 
+    async def _materiales_validos(self, tipo: str, materiales: dict[str, Any] | None) -> dict[str, Any]:
+        """Normaliza los materiales y comprueba cada insumo elegido contra la base: existe, es un material y es de una de las
+        familias de su parte y de su tipo de elemento (M-25)."""
+        limpios = normalizar_materiales(materiales)
+        if not limpios:
+            return limpios
+        if self._insumos is None:
+            raise ErrorDeElementoParametrico("No se pueden elegir materiales: falta la base de insumos.")
+        claves = [c for _, c in claves_de_materiales(limpios)]
+        encontrados = await self._insumos.por_claves(claves)
+        validar_materiales(tipo, limpios, {c: (encontrados[c.upper()][1] if c.upper() in encontrados else None) for c in claves})
+        return limpios
+
     async def _sin_duplicado(self, firma: str, *, salvo: UUID | None = None) -> None:
         """M-29: un elemento igual a otro no se guarda; se usa el existente."""
         igual = await self._elementos.buscar_duplicado(firma, salvo=salvo)
@@ -99,14 +122,15 @@ class GestionarElementosParametricos:
         nombre = _texto(cmd.nombre, "un nombre", 80)
         parametros = normalizar_parametros(cmd.tipo, cmd.parametros)
         categoria, subcategoria = validar_clasificacion(cmd.tipo, cmd.categoria, cmd.subcategoria)
+        materiales = await self._materiales_validos(cmd.tipo, cmd.materiales)
         if await self._elementos.clave_en_uso(clave):
             raise ErrorDeElementoParametrico(f"Ya existe un elemento con la clave {clave}.")
-        firma = firma_de_elemento(categoria, subcategoria, cmd.tipo, parametros)
+        firma = firma_de_elemento(categoria, subcategoria, cmd.tipo, parametros, materiales)
         await self._sin_duplicado(firma)
         async with self._uow:
             nuevo: UUID = await self._elementos.crear(
                 clave=clave, nombre=nombre, tipo=cmd.tipo, parametros=parametros, autor_id=cmd.autor_id,
-                categoria=categoria, subcategoria=subcategoria, firma=firma,
+                categoria=categoria, subcategoria=subcategoria, firma=firma, materiales=materiales,
             )
             await self._uow.commit()
         return nuevo
@@ -126,8 +150,9 @@ class GestionarElementosParametricos:
         autor_id: UUID | None = None,
         categoria: str | None = None,
         subcategoria: str | None = None,
+        materiales: dict[str, Any] | None = None,
     ) -> UUID:
-        """Cambia un elemento. Devuelve el id de la versión vigente (otro, si hubo que crear una versión nueva)."""
+        """Cambia un elemento. `materiales`, si viene, **reemplaza** los que tenía (`{}` los quita); sin él se conservan. Devuelve el id de la versión vigente (otro, si hubo que crear una versión nueva)."""
         actual = await self._elementos.obtener(elemento_id)
         if actual is None:
             raise ElementoParametricoNoEncontrado(f"El elemento {elemento_id} no existe o está fuera de tu alcance.")
@@ -145,10 +170,13 @@ class GestionarElementosParametricos:
             subcategoria if subcategoria is not None else (actual["subcategoria"] if categoria is None else None),
         )
         cambia_la_clasificacion = (nueva_categoria, nueva_subcategoria) != (actual["categoria"], actual["subcategoria"])
+        anteriores = dict(actual.get("materiales") or {})
+        nuevos_materiales = anteriores if materiales is None else await self._materiales_validos(actual["tipo"], materiales)
+        cambian_los_materiales = nuevos_materiales != anteriores
         firma = actual.get("firma")
-        if cambia_la_receta or cambia_la_clasificacion:
-            # M-29: el elemento cambiado no puede quedar igual a otro. La subcategoría forma parte de la identidad (M-32).
-            firma = firma_de_elemento(nueva_categoria, nueva_subcategoria, actual["tipo"], nuevos)
+        if cambia_la_receta or cambia_la_clasificacion or cambian_los_materiales:
+            # M-29: el elemento cambiado no puede quedar igual a otro. La subcategoría y los materiales forman parte de la identidad (M-32).
+            firma = firma_de_elemento(nueva_categoria, nueva_subcategoria, actual["tipo"], nuevos, nuevos_materiales)
             await self._sin_duplicado(firma, salvo=elemento_id)
         if cambia_la_receta and await self._elementos.obras_congeladas_con(elemento_id):
             # D-639: las obras asignadas conservan la versión con que midieron; el resto pasa a la nueva.
@@ -158,6 +186,7 @@ class GestionarElementosParametricos:
                 nueva = await self._elementos.crear_version(
                     elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos, autor_id=autor_id,
                     categoria=nueva_categoria, subcategoria=nueva_subcategoria, firma=str(firma),
+                    materiales=nuevos_materiales,
                 )
                 await self._sincronizar_obras_con(nueva)
                 await self._sincronizar_obras_con(elemento_id)
@@ -167,6 +196,7 @@ class GestionarElementosParametricos:
             await self._elementos.actualizar(
                 elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos,
                 categoria=nueva_categoria, subcategoria=nueva_subcategoria, firma=firma,
+                materiales=nuevos_materiales,
             )
             await self._sincronizar_obras_con(elemento_id)
             await self._uow.commit()

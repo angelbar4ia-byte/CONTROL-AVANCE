@@ -71,6 +71,9 @@ from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.ingenieria_lote_insumos_sql import (
     RepositorioIngenieriaLoteInsumosSQL,
 )
+from obractrl.adapters.repos.insumos_de_elemento_sql import (
+    RepositorioInsumosDeElementoSQL,
+)
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.mano_de_obra_opus_sql import RepositorioManoDeObraOpusSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
@@ -312,6 +315,9 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
     CrearUsuario,
     ResetearContrasena,
 )
+from obractrl.application.casos_uso.insumos_de_elemento import (
+    GestionarInsumosDeElemento,
+)
 from obractrl.application.casos_uso.matrices_de_concepto import (
     GestionarMatricesDeConcepto,
 )
@@ -452,6 +458,7 @@ __all__ = [
     "GestionarElementosDep",
     "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
+    "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
     "GestionarVanosDep",
@@ -941,6 +948,7 @@ def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElem
     elementos = RepositorioElementosParametricosSQL(sesion)
     return GestionarElementosParametricos(
         elementos=elementos,
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
         sincronizador=SincronizarTomas(
             elementos=elementos,
@@ -950,6 +958,15 @@ def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElem
             prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
             desviaciones=RepositorioDesviacionesSQL(sesion),
         ),
+    )
+
+
+def obtener_gestionar_insumos_de_elemento(sesion: SesionRLS) -> GestionarInsumosDeElemento:
+    return GestionarInsumosDeElemento(
+        elementos=RepositorioElementosParametricosSQL(sesion),
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
     )
 
 
@@ -1218,6 +1235,9 @@ AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_prop
 RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
 GestionarElementosParametricosDep = Annotated[
     GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
+]
+GestionarInsumosDeElementoDep = Annotated[
+    GestionarInsumosDeElemento, Depends(obtener_gestionar_insumos_de_elemento)
 ]
 GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)

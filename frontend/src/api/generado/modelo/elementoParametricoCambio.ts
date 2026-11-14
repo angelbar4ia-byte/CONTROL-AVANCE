@@ -10,6 +10,7 @@ import type { ElementoParametricoCambioNombre } from "./elementoParametricoCambi
 import type { ElementoParametricoCambioParametros } from "./elementoParametricoCambioParametros";
 import type { ElementoParametricoCambioCategoria } from "./elementoParametricoCambioCategoria";
 import type { ElementoParametricoCambioSubcategoria } from "./elementoParametricoCambioSubcategoria";
+import type { ElementoParametricoCambioMateriales } from "./elementoParametricoCambioMateriales";
 
 export interface ElementoParametricoCambio {
   clave?: ElementoParametricoCambioClave;
@@ -20,4 +21,6 @@ export interface ElementoParametricoCambio {
   categoria?: ElementoParametricoCambioCategoria;
   /** Cambia el uso dentro de la categoría actual (o de la nueva, si se manda). */
   subcategoria?: ElementoParametricoCambioSubcategoria;
+  /** Reemplaza los materiales del elemento (un objeto vacío los quita); sin él se conservan. */
+  materiales?: ElementoParametricoCambioMateriales;
 }

@@ -154,6 +154,8 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("salida_almacen", "concepto_id", "concepto"),
     ("control_cambio_linea", "concepto_id", "concepto"),
     ("desviacion", "insumo_id", "insumo"),
+    # Un insumo agregado a un elemento paramétrico (0129): sin cascada, para no perderlo en silencio.
+    ("elemento_insumo", "insumo_id", "insumo"),
     ("desviacion", "concepto_id", "concepto"),
     ("obra", "prototipo_id", "prototipo"),
     ("actividad", "cuadrilla_id", "cuadrilla"),

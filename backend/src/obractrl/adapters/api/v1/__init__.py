@@ -51,6 +51,9 @@ from obractrl.adapters.api.v1.expediente import router as router_expediente
 from obractrl.adapters.api.v1.identidad import router as router_identidad
 from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.insumos import router as router_insumos
+from obractrl.adapters.api.v1.insumos_de_elemento import (
+    router as router_insumos_de_elemento,
+)
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.mediciones import router as router_mediciones
 from obractrl.adapters.api.v1.obras import router as router_obras
@@ -105,6 +108,7 @@ api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_elementos_parametricos)
 api_v1.include_router(router_conceptos_de_elemento)
+api_v1.include_router(router_insumos_de_elemento)
 # Antes que la biblioteca: `/biblioteca-de-elementos/{clave}/calcular` también casaría con `receta-acero`.
 api_v1.include_router(router_receta_acero)
 api_v1.include_router(router_biblioteca_de_elementos)
