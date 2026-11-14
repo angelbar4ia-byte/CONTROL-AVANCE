@@ -108,11 +108,11 @@ test.describe('Cuantificador · paramétrico de muro', () => {
 
     // Se cambia el muro a «con cadena» en su detalle y ahora sí se coloca.
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    await page.mouse.click(cajaMuro.x + cajaMuro.width * 0.3, cajaMuro.y + cajaMuro.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.3 });
     await page.getByRole('group', { name: 'Tipo de muro' }).last().getByRole('button', { name: 'Con cadena' }).click();
     await expect.poll(async () => (await trazos())[0]!.properties.muro_tipo).toBe('con_cadena');
     await barra.getByRole('button', { name: /^Vano/ }).click();
-    await page.mouse.click(cajaMuro.x + cajaMuro.width * 0.7, cajaMuro.y + cajaMuro.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.7 });
     await expect.poll(async () => (await vanos()).length).toBe(1);
     const colocado = (await vanos())[0]!;
     expect(colocado.tipo).toBe('castillo');

@@ -276,7 +276,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     await barra.getByRole('button', { name: 'Punto', exact: true }).click();
     const c = (await lienzo.boundingBox())!;
     expect(c.width).toBeGreaterThan(0);
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await pulsarMarca(page, page.locator(`[data-trazo-id="${sala.trazo_id}"]`));
     const alta = page.getByRole('dialog', { name: 'Guardar punto' });
     const valor = await alta.locator('#enlace-actividad-0 option').nth(1).getAttribute('value');
     await alta.getByLabel('Actividad 1').selectOption(valor!);
