@@ -47,6 +47,8 @@ test.describe('Cuantificador · lo que toma un concepto de un elemento', () => {
     const clave = `KT-${sufijo}`.slice(0, 20);
     const elemento = await llamarApi<{ id: string }>(request, 'control', 'POST', '/elementos-parametricos', {
       clave, nombre: 'Castillo de prueba', tipo: 'castillo',
+      // Un elemento idéntico a otro no se guarda (M-29): el alto, único por corrida, lo distingue de los de otros specs.
+      parametros: { alto: 3 + (Date.now() % 1_000_000) / 1e6 },
     });
     await llamarApi(request, 'control', 'PUT', `/elementos-parametricos/${elemento.id}/conceptos/${hab.id}`, {
       unidad: 'pza', toma: { acero: true },

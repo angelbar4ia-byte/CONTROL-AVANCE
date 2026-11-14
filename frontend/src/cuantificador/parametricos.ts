@@ -132,3 +132,23 @@ export function ladosDeCimbra(tipo: TipoParametrico): readonly number[] {
   if (tipo === 'lineal') return [3, 2];
   return [];
 }
+
+/** La clasificación de la biblioteca que manda el servidor (`GET /elementos-parametricos/clasificacion`). */
+export interface CategoriaDeLaBiblioteca {
+  readonly clave: string;
+  readonly nombre: string;
+  readonly tipo: string;
+  readonly subcategorias: readonly { readonly clave: string; readonly nombre: string }[];
+}
+
+/** Las categorías en que cabe un elemento de ese tipo (un castillo no va en Cadenas). */
+export function categoriasDelTipo(categorias: readonly CategoriaDeLaBiblioteca[], tipo: string): readonly CategoriaDeLaBiblioteca[] {
+  return categorias.filter((c) => c.tipo === tipo);
+}
+
+/** «Cadenas › Cadenas de cerramiento»: el uso del elemento, como se rotula en la biblioteca. */
+export function rotuloDeUso(categorias: readonly CategoriaDeLaBiblioteca[], categoria: string, subcategoria: string): string {
+  const c = categorias.find((x) => x.clave === categoria);
+  const s = c?.subcategorias.find((x) => x.clave === subcategoria);
+  return c && s ? `${c.nombre} › ${s.nombre}` : `${categoria} › ${subcategoria}`;
+}

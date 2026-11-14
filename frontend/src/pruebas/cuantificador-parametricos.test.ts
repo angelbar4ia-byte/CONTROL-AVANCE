@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CAMPOS_POR_TIPO, formatoDeReceta, lineasDeReceta } from '@/cuantificador/parametricos';
+import { CAMPOS_POR_TIPO, categoriasDelTipo, formatoDeReceta, lineasDeReceta, rotuloDeUso } from '@/cuantificador/parametricos';
 
 describe('elementos paramétricos', () => {
   it('cada tipo ofrece sus parámetros sin repetir ninguno', () => {
@@ -59,5 +59,32 @@ describe('colocar un elemento en el plano', () => {
     expect(ladosDeCimbra('lineal')).toEqual([3, 2]);
     expect(ladosDeCimbra('zapata')).toEqual([]);
     expect(ladosDeCimbra('losa')).toEqual([]);
+  });
+});
+
+describe('clasificación de la biblioteca', () => {
+  const categorias = [
+    { clave: 'castillos', nombre: 'Castillos', tipo: 'castillo', subcategorias: [{ clave: 'muro', nombre: 'Castillos de muro' }] },
+    {
+      clave: 'cadenas',
+      nombre: 'Cadenas',
+      tipo: 'lineal',
+      subcategorias: [
+        { clave: 'cerramiento', nombre: 'Cadenas de cerramiento' },
+        { clave: 'desplante', nombre: 'Cadenas de desplante' },
+      ],
+    },
+    { clave: 'dalas', nombre: 'Dalas', tipo: 'lineal', subcategorias: [{ clave: 'repison', nombre: 'Dalas de repisón (bajo vanos)' }] },
+  ];
+
+  it('un tipo solo ofrece las categorías en que cabe', () => {
+    expect(categoriasDelTipo(categorias, 'lineal').map((c) => c.clave)).toEqual(['cadenas', 'dalas']);
+    expect(categoriasDelTipo(categorias, 'castillo').map((c) => c.clave)).toEqual(['castillos']);
+    expect(categoriasDelTipo(categorias, 'zapata')).toEqual([]);
+  });
+
+  it('el uso se rotula con categoría y subcategoría, o con las claves si aún no llegó la clasificación', () => {
+    expect(rotuloDeUso(categorias, 'cadenas', 'desplante')).toBe('Cadenas › Cadenas de desplante');
+    expect(rotuloDeUso([], 'cadenas', 'desplante')).toBe('cadenas › desplante');
   });
 });

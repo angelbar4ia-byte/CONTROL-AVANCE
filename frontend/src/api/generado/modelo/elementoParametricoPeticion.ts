@@ -7,6 +7,8 @@
  */
 import type { ElementoParametricoPeticionTipo } from "./elementoParametricoPeticionTipo";
 import type { ElementoParametricoPeticionParametros } from "./elementoParametricoPeticionParametros";
+import type { ElementoParametricoPeticionCategoria } from "./elementoParametricoPeticionCategoria";
+import type { ElementoParametricoPeticionSubcategoria } from "./elementoParametricoPeticionSubcategoria";
 
 export interface ElementoParametricoPeticion {
   /**
@@ -22,4 +24,8 @@ export interface ElementoParametricoPeticion {
   tipo: ElementoParametricoPeticionTipo;
   /** Los que falten toman el valor por defecto del tipo. */
   parametros?: ElementoParametricoPeticionParametros;
+  /** Sin categoría ni subcategoría, el tipo toma las de defecto (castillos/muro, cadenas/cerramiento…). */
+  categoria?: ElementoParametricoPeticionCategoria;
+  /** Sola, toma la primera de su categoría. */
+  subcategoria?: ElementoParametricoPeticionSubcategoria;
 }
