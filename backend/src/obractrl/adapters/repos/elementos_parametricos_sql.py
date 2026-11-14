@@ -15,7 +15,7 @@ from obractrl.domain.cuantificacion.clasificacion_de_elementos import ElementoDu
 
 __all__ = ["RepositorioElementosParametricosSQL"]
 
-_COLUMNAS = "id, clave, nombre, tipo, parametros, categoria, subcategoria, firma"
+_COLUMNAS = "id, clave, nombre, tipo, parametros, categoria, subcategoria, firma, materiales"
 _INDICE_DE_FIRMA = "ux_elemento_parametrico_firma"
 
 
@@ -79,6 +79,7 @@ class RepositorioElementosParametricosSQL:
         categoria: str,
         subcategoria: str,
         firma: str,
+        materiales: dict[str, Any] | None = None,
     ) -> UUID:
         """Una versión nueva del elemento: la anterior deja de estar vigente; los trazos de obras no asignadas y los vínculos
         con conceptos pasan a la nueva."""
@@ -96,20 +97,28 @@ class RepositorioElementosParametricosSQL:
                         text(
                             """
                             insert into elemento_parametrico
-                                (org_id, clave, nombre, tipo, parametros, autor_id, version, raiz_id, categoria, subcategoria, firma)
+                                (org_id, clave, nombre, tipo, parametros, autor_id, version, raiz_id, categoria, subcategoria, firma, materiales)
                             values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :v, :raiz,
-                                    :cat, :sub, :firma)
+                                    :cat, :sub, :firma, cast(:mat as jsonb))
                             returning id
                             """
                         ),
                         {
                             "clave": clave, "nombre": nombre, "tipo": antes["tipo"], "p": json.dumps(parametros),
                             "autor": str(autor_id), "v": int(antes["version"]) + 1, "raiz": str(antes["raiz_id"]),
-                            "cat": categoria, "sub": subcategoria, "firma": firma,
+                            "cat": categoria, "sub": subcategoria, "firma": firma, "mat": json.dumps(materiales or {}),
                         },
                     )
                 ).scalar_one()
             )
+        )
+        # Los insumos agregados al elemento pasan a la versión nueva.
+        await self._sesion.execute(
+            text(
+                "insert into elemento_insumo (org_id, elemento_id, insumo_id, clase, cantidad, autor_id) "
+                "select org_id, :n, insumo_id, clase, cantidad, autor_id from elemento_insumo where elemento_id = :a"
+            ),
+            {"n": str(nueva), "a": str(elemento_id)},
         )
         # Los conceptos que tomaban del elemento toman de la versión nueva (y siguen tomando de la anterior en lo congelado).
         await self._sesion.execute(
@@ -154,7 +163,7 @@ class RepositorioElementosParametricosSQL:
             await self._sesion.execute(
                 text(
                     "select id, clave from elemento_parametrico "
-                    "where vigente and coalesce(firma, app.firma_elemento(categoria, subcategoria, tipo, parametros)) = :f "
+                    "where vigente and coalesce(firma, app.firma_elemento(categoria, subcategoria, tipo, parametros, materiales)) = :f "
                     "and (cast(:salvo as uuid) is null or id <> cast(:salvo as uuid)) order by created_at, id limit 1"
                 ),
                 {"f": firma, "salvo": str(salvo) if salvo else None},
@@ -180,6 +189,7 @@ class RepositorioElementosParametricosSQL:
         categoria: str,
         subcategoria: str,
         firma: str,
+        materiales: dict[str, Any] | None = None,
     ) -> UUID:
         try:
             async with self._sesion.begin_nested():
@@ -187,14 +197,14 @@ class RepositorioElementosParametricosSQL:
                     await self._sesion.execute(
                         text(
                             """
-                            insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id, categoria, subcategoria, firma)
-                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :cat, :sub, :firma)
+                            insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id, categoria, subcategoria, firma, materiales)
+                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :cat, :sub, :firma, cast(:mat as jsonb))
                             returning id
                             """
                         ),
                         {
                             "clave": clave, "nombre": nombre, "tipo": tipo, "p": json.dumps(parametros), "autor": str(autor_id),
-                            "cat": categoria, "sub": subcategoria, "firma": firma,
+                            "cat": categoria, "sub": subcategoria, "firma": firma, "mat": json.dumps(materiales or {}),
                         },
                     )
                 ).scalar_one()
@@ -216,17 +226,18 @@ class RepositorioElementosParametricosSQL:
         categoria: str,
         subcategoria: str,
         firma: str | None,
+        materiales: dict[str, Any] | None = None,
     ) -> None:
         try:
             async with self._sesion.begin_nested():
                 await self._sesion.execute(
                     text(
                         "update elemento_parametrico set clave = :clave, nombre = :nombre, parametros = cast(:p as jsonb), "
-                        "categoria = :cat, subcategoria = :sub, firma = :firma where id = :id"
+                        "categoria = :cat, subcategoria = :sub, firma = :firma, materiales = cast(:mat as jsonb) where id = :id"
                     ),
                     {
                         "id": str(elemento_id), "clave": clave, "nombre": nombre, "p": json.dumps(parametros),
-                        "cat": categoria, "sub": subcategoria, "firma": firma,
+                        "cat": categoria, "sub": subcategoria, "firma": firma, "mat": json.dumps(materiales or {}),
                     },
                 )
         except IntegrityError as e:

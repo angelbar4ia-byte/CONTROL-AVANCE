@@ -9,9 +9,9 @@ identifica su uso (en cadenas: cerramiento o desplante). Tres reglas viven aquí
 2. **La firma anti-duplicados** (`firma_de_elemento`): la categoría, la subcategoría, el tipo y los parámetros (medidas,
    armado, estribos y lados de cimbra). Dos elementos con la misma firma son el mismo elemento y el segundo no se guarda;
    como la subcategoría forma parte de la firma, una cadena de cerramiento y una de desplante con la misma geometría **no**
-   chocan. Los *materiales* del elemento (concreto, alambre) todavía no se guardan en él: entrarán a la firma cuando se
-   guarden (ola 2). La base calcula la misma cadena con `app.firma_elemento` (migración 0127); una prueba de integración
-   comprueba que las dos coincidan.
+   chocan. Desde la migración 0129 también entran los *materiales* del elemento (el insumo del concreto, del alambre, de la
+   varilla, del anillo, del armex y los consumos de cimbra; ver `materiales_de_elemento`). La base calcula la misma cadena
+   con `app.firma_elemento` (migraciones 0127 y 0129); una prueba de integración comprueba que las dos coincidan.
 3. **El límite de posición por subcategoría** (`validar_posicion`): una cadena de desplante solo va al pie del muro; una de
    cerramiento, en el cerramiento o en el remate. La posición no es del elemento sino del muro (un mismo elemento se coloca en
    varias posiciones, M-29): esta regla es la que usará el Artefacto al colocar el elemento.
@@ -204,7 +204,25 @@ def _numero(valor: Any) -> str:
     return "0" if texto in ("-0", "") else texto
 
 
-def firma_de_elemento(categoria: str, subcategoria: str, tipo: str, parametros: dict[str, Any]) -> str:
-    """La identidad de un elemento: dos con la misma firma son duplicados. `parametros` debe venir ya normalizado."""
+def _cuerpo_de_materiales(materiales: dict[str, Any]) -> str:
+    """Los materiales como los escribe la base: por orden de clave, `m.concreto=MEZ-01020`; la cimbra, sus consumos por insumo."""
+    partes = []
+    for k in sorted(materiales):
+        v = materiales[k]
+        if k == "cimbra":
+            partes.append("m.cimbra=" + ",".join(f"{c}:{_numero(v[c])}" for c in sorted(v)))
+        else:
+            partes.append(f"m.{k}={v}")
+    return ";".join(partes)
+
+
+def firma_de_elemento(
+    categoria: str, subcategoria: str, tipo: str, parametros: dict[str, Any], materiales: dict[str, Any] | None = None
+) -> str:
+    """La identidad de un elemento: dos con la misma firma son duplicados. `parametros` y `materiales` deben venir ya
+    normalizados. Sin materiales elegidos la firma es la de antes de la 0129 (los elementos existentes no la cambian)."""
     cuerpo = ";".join(f"{k}={_numero(parametros[k])}" for k in sorted(parametros))
-    return hashlib.sha256(f"{categoria}|{subcategoria}|{tipo}|{cuerpo}".encode()).hexdigest()
+    base = f"{categoria}|{subcategoria}|{tipo}|{cuerpo}"
+    if materiales:
+        base += "|" + _cuerpo_de_materiales(materiales)
+    return hashlib.sha256(base.encode()).hexdigest()

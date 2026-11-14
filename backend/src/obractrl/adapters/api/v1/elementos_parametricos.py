@@ -47,6 +47,23 @@ class RecetaRespuesta(BaseModel):
     cimbra_m2: dict[str, float] = Field(description="m² de cimbra por número de lados.")
 
 
+class MaterialesDelElemento(BaseModel):
+    """Con qué insumo de la base de datos se paga cada parte de la receta del elemento (claves de insumo)."""
+
+    concreto: str | None = Field(default=None, max_length=30, description="Insumo del concreto (Mezclas · Concretos o Prefabricados · Concretos).")
+    alambre: str | None = Field(default=None, max_length=30, description="Insumo del alambre de amarre (Aceros).")
+    varilla: str | None = Field(default=None, max_length=30, description="Insumo de la varilla longitudinal (Acero De Refuerzo).")
+    anillo: str | None = Field(default=None, max_length=30, description="Insumo del anillo o estribo (Aceros).")
+    armex: str | None = Field(default=None, max_length=30, description="Insumo del armex (Aceros).")
+    cimbra: dict[str, float] | None = Field(
+        default=None, description="Consumos de cimbra por unidad de cálculo del elemento: {clave del insumo: consumo} (Cimbra, clavos, alambre)."
+    )
+
+
+def _materiales(m: MaterialesDelElemento | None) -> dict[str, Any] | None:
+    return None if m is None else m.model_dump(exclude_none=True)
+
+
 class ElementoParametricoRespuesta(BaseModel):
     id: UUID
     clave: str
@@ -55,6 +72,9 @@ class ElementoParametricoRespuesta(BaseModel):
     categoria: str = Field(description="Categoría de la biblioteca (castillos, cadenas, trabes…).")
     subcategoria: str = Field(description="Subcategoría: el uso del elemento (cerramiento, desplante…). Forma parte de su identidad.")
     parametros: dict[str, float]
+    materiales: MaterialesDelElemento = Field(
+        default_factory=MaterialesDelElemento, description="Los insumos que el elemento eligió; entran a la firma anti-duplicados."
+    )
     receta: RecetaRespuesta
     version: int = Field(default=1, description="Sube al cambiar la receta con obras asignadas que lo usan (D-639).")
 
@@ -68,6 +88,9 @@ class ElementoParametricoPeticion(BaseModel):
         default=None, max_length=40, description="Sin categoría ni subcategoría, el tipo toma las de defecto (castillos/muro, cadenas/cerramiento…)."
     )
     subcategoria: str | None = Field(default=None, max_length=40, description="Sola, toma la primera de su categoría.")
+    materiales: MaterialesDelElemento | None = Field(
+        default=None, description="Insumos que elige el elemento; deben existir y ser de las familias de su tipo."
+    )
 
 
 class ElementoParametricoCambio(BaseModel):
@@ -76,6 +99,9 @@ class ElementoParametricoCambio(BaseModel):
     parametros: dict[str, float] | None = Field(default=None, description="Solo los que cambian.")
     categoria: str | None = Field(default=None, max_length=40, description="Reclasifica el elemento; sin la subcategoría pasa a la primera de la nueva categoría.")
     subcategoria: str | None = Field(default=None, max_length=40, description="Cambia el uso dentro de la categoría actual (o de la nueva, si se manda).")
+    materiales: MaterialesDelElemento | None = Field(
+        default=None, description="Reemplaza los materiales del elemento (un objeto vacío los quita); sin él se conservan."
+    )
 
 
 class ElementoParametricoCreado(BaseModel):
@@ -117,6 +143,7 @@ def _respuesta(fila: dict[str, Any]) -> ElementoParametricoRespuesta:
         categoria=fila["categoria"],
         subcategoria=fila["subcategoria"],
         parametros={k: float(v) for k, v in fila["parametros"].items()},
+        materiales=MaterialesDelElemento(**dict(fila.get("materiales") or {})),
         version=int(fila.get("version") or 1),
         receta=RecetaRespuesta(**{**r, "cimbra_m2": {str(k): float(v) for k, v in r["cimbra_m2"].items()}}),
     )
@@ -184,7 +211,7 @@ async def listar_elementos_parametricos(caso_uso: GestionarElementosParametricos
     responses={
         403: {"description": "Lo definen Control de obra y Costos."},
         409: {"description": "Ya existe un elemento idéntico (misma categoría, subcategoría, medidas y armado): se usa el existente."},
-        422: {"description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."},
+        422: {"description": "Clave repetida, categoría o subcategoría que no existe, un parámetro que no vale o un material que no existe o es de otra familia."},
     },
 )
 async def crear_elemento_parametrico(
@@ -199,6 +226,7 @@ async def crear_elemento_parametrico(
             autor_id=ctx.usuario_id,
             categoria=peticion.categoria,
             subcategoria=peticion.subcategoria,
+            materiales=_materiales(peticion.materiales),
         )
     )
     return ElementoParametricoCreado(id=nuevo)
@@ -213,7 +241,7 @@ async def crear_elemento_parametrico(
         403: {"description": "Lo definen Control de obra y Costos."},
         404: {"description": "El elemento no existe o está fuera de tu alcance."},
         409: {"description": "El cambio lo dejaría idéntico a otro elemento: se usa el existente."},
-        422: {"description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."},
+        422: {"description": "Clave repetida, categoría o subcategoría que no existe, un parámetro que no vale o un material que no existe o es de otra familia."},
     },
 )
 async def actualizar_elemento_parametrico(
@@ -229,6 +257,7 @@ async def actualizar_elemento_parametrico(
         autor_id=ctx.usuario_id,
         categoria=peticion.categoria,
         subcategoria=peticion.subcategoria,
+        materiales=_materiales(peticion.materiales),
     )
 
 
