@@ -334,8 +334,12 @@ export function Visor({
   useEffect(() => {
     vistaTocada.current = false;
   }, [claveDePlano, rotacionGrados, volteoH, volteoV]);
+  // «Listo» observable: la vista ya se encuadró sobre contenido (la imagen o los trazos). Antes de eso los vanos y las marcas
+  // existen pero en otro lugar y con otro tamaño: quien pulse una marca (o una prueba) espera a `data-encuadre="listo"`.
+  const [encuadrado, setEncuadrado] = useState(false);
   useEffect(() => {
     if (!vistaTocada.current) setVista(encuadreActual.current);
+    setEncuadrado(hayTrazos || imagen !== null);
   }, [claveDePlano, imagen, hayTrazos, rotacionGrados, volteoH, volteoV]);
 
   useEffect(() => {
@@ -668,6 +672,7 @@ export function Visor({
       ref={svg}
       className="visor"
       data-herramienta={herramienta}
+      data-encuadre={encuadrado ? 'listo' : 'pendiente'}
       viewBox={`${vista.x} ${vista.y} ${vista.ancho} ${vista.alto}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"

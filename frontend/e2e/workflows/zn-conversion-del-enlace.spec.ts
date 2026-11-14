@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * «Cómo cuenta para el concepto» (D-633): un muro de 10 m de eje y 0.15 m de grosor sobre un concepto en m². Con el detalle
@@ -47,8 +47,7 @@ test.describe('Cuantificador · cómo cuenta para el concepto', () => {
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad.id}`);
     // Elegir el muro con un clic sobre él.
-    const muro = (await page.locator('.visor__trazo').first().boundingBox())!;
-    await page.mouse.click(muro.x + muro.width / 2, muro.y + muro.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo').first());
 
     const panel = page.getByRole('group', { name: /Cómo cuenta para/ });
     await expect(panel).toBeVisible();

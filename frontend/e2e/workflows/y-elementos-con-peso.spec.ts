@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * Elementos con peso y medición derivada (migración 0089).
@@ -125,8 +125,7 @@ test.describe('Cuantificador · elementos con peso', () => {
     await expect(page.locator('.visor__trazo')).toHaveCount(4);
     // Los puntos son diminutos: se elige el último con un clic sobre su marca.
     const marcas = page.locator('.visor__trazo');
-    const ultima = (await marcas.nth(3).boundingBox())!;
-    await page.mouse.click(ultima.x + ultima.width / 2, ultima.y + ultima.height / 2);
+    await pulsarMarca(page, marcas.nth(3));
     await expect(page.getByText('Trazo elegido')).toBeVisible();
     await page.getByLabel('Medición', { exact: true }).selectOption({ label: 'Castillos K1' });
     await expect(page.getByRole('status')).toContainText('Trazo metido en la medición');

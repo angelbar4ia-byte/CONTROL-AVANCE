@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * El paramétrico de muro (F-22): el muro nace con el tipo y el acabado que se eligen en el panel de la línea, y el tipo se
@@ -55,8 +55,7 @@ test.describe('Cuantificador · paramétrico de muro', () => {
 
     // En el detalle se cambia a tabique.
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    const caja = (await page.locator('.visor__trazo').first().boundingBox())!;
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo').first());
     const detalle = page.getByRole('group', { name: 'Tipo de muro' }).last();
     await expect(detalle.getByRole('button', { name: 'Con cadena' })).toHaveAttribute('aria-pressed', 'true');
     await detalle.getByRole('button', { name: 'Tabique' }).click();
@@ -77,10 +76,8 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await expect(revestimientos.getByRole('status')).toContainText('Dibuja el largo');
 
     // Se dibuja el largo sobre el muro: dos clics sobre su recorrido (en la parte que el panel de opciones no tapa).
-    const sobre = (await page.locator('.visor__trazo').first().boundingBox())!;
-    const y = sobre.y + sobre.height / 2;
-    await page.mouse.click(sobre.x + sobre.width * 0.62, y);
-    await page.mouse.click(sobre.x + sobre.width * 0.9, y);
+    await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.62 });
+    await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.9 });
     await expect.poll(async () => (await trazos()).length).toBe(2);
 
     const hijo = (await llamarApi<{ features: { id: string; geometry: { coordinates: number[][] }; properties: Record<string, unknown> }[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features.find(
@@ -104,8 +101,7 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await barra.getByRole('button', { name: /^Vano/ }).click();
     const opcionesVano = page.getByRole('region', { name: 'Opciones del vano' });
     await opcionesVano.getByRole('button', { name: 'Castillo' }).click();
-    const cajaMuro = (await page.locator('.visor__trazo').first().boundingBox())!;
-    await page.mouse.click(cajaMuro.x + cajaMuro.width * 0.7, cajaMuro.y + cajaMuro.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.7 });
     await expect(page.getByText(/se colocan en un muro/)).toBeVisible(); // el muro sigue siendo tabique
     expect((await vanos()).length).toBe(0);
     expect(await medida()).toBeCloseTo(antes, 4);

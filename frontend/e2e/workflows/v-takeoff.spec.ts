@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 
 /** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
@@ -131,8 +131,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     await expect(barra.getByRole('button', { name: 'Copiar en lote', exact: true })).toBeDisabled();
 
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    const caja = (await page.locator(`[data-trazo-id="${castillo.trazo_id}"]`).boundingBox())!;
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await pulsarMarca(page, page.locator(`[data-trazo-id="${castillo.trazo_id}"]`));
     await expect(page.getByText('Trazo elegido')).toBeVisible();
     await expect(barra.getByRole('button', { name: 'Copiar en lote', exact: true })).toBeEnabled();
     await barra.getByRole('button', { name: 'Copiar en lote', exact: true }).click();
@@ -270,8 +269,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
 
     // Elegir un trazo sobre el plano girado: el clic cae en lo que se ve.
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    const caja = (await page.locator(`[data-trazo-id="${sala.trazo_id}"]`).boundingBox())!;
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await pulsarMarca(page, page.locator(`[data-trazo-id="${sala.trazo_id}"]`));
     await expect(page.getByText('Trazo elegido')).toBeVisible();
 
     // Un punto puesto en el centro de la sala, tal como se ve, cae dentro de la sala en el plano.

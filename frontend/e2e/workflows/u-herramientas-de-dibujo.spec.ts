@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 
 /** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
@@ -311,8 +311,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
 
     // --- Borrar y deshacer: vuelve con sus enlaces ---------------------------------------------------------
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    const caja = (await page.locator('.visor__trazo path').first().boundingBox())!;
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await pulsarMarca(page, page.locator('.visor__trazo path').first());
     await page.keyboard.press('Delete');
     await page.getByRole('dialog', { name: 'Borrar trazo' }).getByRole('button', { name: 'Borrar trazo' }).click();
     await expect(page.locator('.visor__trazo')).toHaveCount(0);
