@@ -19,6 +19,7 @@ from obractrl.adapters.api.v1.cuantificacion import ROLES_QUE_TRAZAN
 from obractrl.application.casos_uso.elementos_parametricos import (
     ComandoCrearElementoParametrico,
 )
+from obractrl.domain.cuantificacion.clasificacion_de_elementos import CATEGORIAS
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     PARAMETROS_POR_TIPO,
     UNIDAD_DE_CALCULO,
@@ -51,6 +52,8 @@ class ElementoParametricoRespuesta(BaseModel):
     clave: str
     nombre: str
     tipo: TipoDeElementoParametrico
+    categoria: str = Field(description="Categoría de la biblioteca (castillos, cadenas, trabes…).")
+    subcategoria: str = Field(description="Subcategoría: el uso del elemento (cerramiento, desplante…). Forma parte de su identidad.")
     parametros: dict[str, float]
     receta: RecetaRespuesta
     version: int = Field(default=1, description="Sube al cambiar la receta con obras asignadas que lo usan (D-639).")
@@ -61,16 +64,41 @@ class ElementoParametricoPeticion(BaseModel):
     nombre: str = Field(min_length=1, max_length=80)
     tipo: TipoDeElementoParametrico
     parametros: dict[str, float] = Field(default_factory=dict, description="Los que falten toman el valor por defecto del tipo.")
+    categoria: str | None = Field(
+        default=None, max_length=40, description="Sin categoría ni subcategoría, el tipo toma las de defecto (castillos/muro, cadenas/cerramiento…)."
+    )
+    subcategoria: str | None = Field(default=None, max_length=40, description="Sola, toma la primera de su categoría.")
 
 
 class ElementoParametricoCambio(BaseModel):
     clave: str | None = Field(default=None, min_length=1, max_length=20)
     nombre: str | None = Field(default=None, min_length=1, max_length=80)
     parametros: dict[str, float] | None = Field(default=None, description="Solo los que cambian.")
+    categoria: str | None = Field(default=None, max_length=40, description="Reclasifica el elemento; sin la subcategoría pasa a la primera de la nueva categoría.")
+    subcategoria: str | None = Field(default=None, max_length=40, description="Cambia el uso dentro de la categoría actual (o de la nueva, si se manda).")
 
 
 class ElementoParametricoCreado(BaseModel):
     id: UUID
+
+
+class SubcategoriaDeClasificacion(BaseModel):
+    clave: str
+    nombre: str
+    prefijo: str
+    posiciones: list[str] | None = Field(
+        description="Dónde del muro se coloca un elemento de esta subcategoría (desplante, cerramiento, remate); `null` si no se coloca por posición."
+    )
+    en_muro: bool = Field(description="Si el elemento se coloca en un muro (las trabes y las zapatas no).")
+
+
+class CategoriaDeClasificacion(BaseModel):
+    clave: str
+    nombre: str
+    tipo: TipoDeElementoParametrico = Field(description="Con qué tipo de elemento se calcula.")
+    prefijo: str
+    construida: bool
+    subcategorias: list[SubcategoriaDeClasificacion]
 
 
 class TipoDeElementoRespuesta(BaseModel):
@@ -86,6 +114,8 @@ def _respuesta(fila: dict[str, Any]) -> ElementoParametricoRespuesta:
         clave=fila["clave"],
         nombre=fila["nombre"],
         tipo=fila["tipo"],
+        categoria=fila["categoria"],
+        subcategoria=fila["subcategoria"],
         parametros={k: float(v) for k, v in fila["parametros"].items()},
         version=int(fila.get("version") or 1),
         receta=RecetaRespuesta(**{**r, "cimbra_m2": {str(k): float(v) for k, v in r["cimbra_m2"].items()}}),
@@ -109,6 +139,34 @@ async def tipos_de_elemento() -> list[TipoDeElementoRespuesta]:
 
 
 @router.get(
+    "/elementos-parametricos/clasificacion",
+    response_model=list[CategoriaDeClasificacion],
+    summary="Las categorías y subcategorías de la biblioteca de elementos paramétricos, con el límite de posición de cada una",
+)
+async def clasificacion_de_elementos() -> list[CategoriaDeClasificacion]:
+    return [
+        CategoriaDeClasificacion(
+            clave=c["clave"],
+            nombre=c["nombre"],
+            tipo=c["tipo"],
+            prefijo=c["prefijo"],
+            construida=c["construida"],
+            subcategorias=[
+                SubcategoriaDeClasificacion(
+                    clave=s["clave"],
+                    nombre=s["nombre"],
+                    prefijo=s["prefijo"],
+                    posiciones=list(s["posiciones"]) if s["posiciones"] else None,
+                    en_muro=s["en_muro"],
+                )
+                for s in c["subcategorias"]
+            ],
+        )
+        for c in CATEGORIAS
+    ]
+
+
+@router.get(
     "/elementos-parametricos",
     response_model=list[ElementoParametricoRespuesta],
     summary="Los elementos paramétricos de la organización, con la receta de una muestra",
@@ -125,7 +183,8 @@ async def listar_elementos_parametricos(caso_uso: GestionarElementosParametricos
     dependencies=[Depends(exigir_rol(*ROLES_QUE_DEFINEN))],
     responses={
         403: {"description": "Lo definen Control de obra y Costos."},
-        422: {"description": "Clave repetida o un parámetro que no vale."},
+        409: {"description": "Ya existe un elemento idéntico (misma categoría, subcategoría, medidas y armado): se usa el existente."},
+        422: {"description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."},
     },
 )
 async def crear_elemento_parametrico(
@@ -138,6 +197,8 @@ async def crear_elemento_parametrico(
             tipo=peticion.tipo,
             parametros=dict(peticion.parametros),
             autor_id=ctx.usuario_id,
+            categoria=peticion.categoria,
+            subcategoria=peticion.subcategoria,
         )
     )
     return ElementoParametricoCreado(id=nuevo)
@@ -151,7 +212,8 @@ async def crear_elemento_parametrico(
     responses={
         403: {"description": "Lo definen Control de obra y Costos."},
         404: {"description": "El elemento no existe o está fuera de tu alcance."},
-        422: {"description": "Clave repetida o un parámetro que no vale."},
+        409: {"description": "El cambio lo dejaría idéntico a otro elemento: se usa el existente."},
+        422: {"description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."},
     },
 )
 async def actualizar_elemento_parametrico(
@@ -165,6 +227,8 @@ async def actualizar_elemento_parametrico(
         nombre=peticion.nombre,
         parametros=dict(peticion.parametros) if peticion.parametros is not None else None,
         autor_id=ctx.usuario_id,
+        categoria=peticion.categoria,
+        subcategoria=peticion.subcategoria,
     )
 
 

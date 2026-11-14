@@ -12663,6 +12663,31 @@
         }
       }
     },
+    "/api/v1/elementos-parametricos/clasificacion": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Las categorías y subcategorías de la biblioteca de elementos paramétricos, con el límite de posición de cada una",
+        "operationId": "clasificacion_de_elementos_api_v1_elementos_parametricos_clasificacion_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoriaDeClasificacion"
+                  },
+                  "type": "array",
+                  "title": "Response Clasificacion De Elementos Api V1 Elementos Parametricos Clasificacion Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/elementos-parametricos": {
       "get": {
         "tags": [
@@ -12722,8 +12747,11 @@
           "403": {
             "description": "Lo definen Control de obra y Costos."
           },
+          "409": {
+            "description": "Ya existe un elemento idéntico (misma categoría, subcategoría, medidas y armado): se usa el existente."
+          },
           "422": {
-            "description": "Clave repetida o un parámetro que no vale."
+            "description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."
           }
         },
         "security": [
@@ -12778,8 +12806,11 @@
           "404": {
             "description": "El elemento no existe o está fuera de tu alcance."
           },
+          "409": {
+            "description": "El cambio lo dejaría idéntico a otro elemento: se usa el existente."
+          },
           "422": {
-            "description": "Clave repetida o un parámetro que no vale."
+            "description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."
           }
         }
       },
@@ -21435,6 +21466,54 @@
         ],
         "title": "CategoriaDeBiblioteca"
       },
+      "CategoriaDeClasificacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo",
+            "description": "Con qué tipo de elemento se calcula."
+          },
+          "prefijo": {
+            "type": "string",
+            "title": "Prefijo"
+          },
+          "construida": {
+            "type": "boolean",
+            "title": "Construida"
+          },
+          "subcategorias": {
+            "items": {
+              "$ref": "#/components/schemas/SubcategoriaDeClasificacion"
+            },
+            "type": "array",
+            "title": "Subcategorias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "prefijo",
+          "construida",
+          "subcategorias"
+        ],
+        "title": "CategoriaDeClasificacion"
+      },
       "CategoriaExplosion": {
         "type": "string",
         "enum": [
@@ -26433,6 +26512,32 @@
             ],
             "title": "Parametros",
             "description": "Solo los que cambian."
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria",
+            "description": "Reclasifica el elemento; sin la subcategoría pasa a la primera de la nueva categoría."
+          },
+          "subcategoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategoria",
+            "description": "Cambia el uso dentro de la categoría actual (o de la nueva, si se manda)."
           }
         },
         "type": "object",
@@ -26483,6 +26588,32 @@
             "type": "object",
             "title": "Parametros",
             "description": "Los que falten toman el valor por defecto del tipo."
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria",
+            "description": "Sin categoría ni subcategoría, el tipo toma las de defecto (castillos/muro, cadenas/cerramiento…)."
+          },
+          "subcategoria": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subcategoria",
+            "description": "Sola, toma la primera de su categoría."
           }
         },
         "type": "object",
@@ -26518,6 +26649,16 @@
             ],
             "title": "Tipo"
           },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria",
+            "description": "Categoría de la biblioteca (castillos, cadenas, trabes…)."
+          },
+          "subcategoria": {
+            "type": "string",
+            "title": "Subcategoria",
+            "description": "Subcategoría: el uso del elemento (cerramiento, desplante…). Forma parte de su identidad."
+          },
           "parametros": {
             "additionalProperties": {
               "type": "number"
@@ -26541,6 +26682,8 @@
           "clave",
           "nombre",
           "tipo",
+          "categoria",
+          "subcategoria",
           "parametros",
           "receta"
         ],
@@ -38475,6 +38618,51 @@
           "elementos"
         ],
         "title": "SubcategoriaDeBiblioteca"
+      },
+      "SubcategoriaDeClasificacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "prefijo": {
+            "type": "string",
+            "title": "Prefijo"
+          },
+          "posiciones": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posiciones",
+            "description": "Dónde del muro se coloca un elemento de esta subcategoría (desplante, cerramiento, remate); `null` si no se coloca por posición."
+          },
+          "en_muro": {
+            "type": "boolean",
+            "title": "En Muro",
+            "description": "Si el elemento se coloca en un muro (las trabes y las zapatas no)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "prefijo",
+          "posiciones",
+          "en_muro"
+        ],
+        "title": "SubcategoriaDeClasificacion"
       },
       "SujetoEvaluacion": {
         "type": "string",

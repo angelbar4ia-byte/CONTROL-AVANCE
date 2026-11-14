@@ -14,6 +14,10 @@ export interface ElementoParametricoRespuesta {
   clave: string;
   nombre: string;
   tipo: ElementoParametricoRespuestaTipo;
+  /** Categoría de la biblioteca (castillos, cadenas, trabes…). */
+  categoria: string;
+  /** Subcategoría: el uso del elemento (cerramiento, desplante…). Forma parte de su identidad. */
+  subcategoria: string;
   parametros: ElementoParametricoRespuestaParametros;
   receta: RecetaRespuesta;
   /** Sube al cambiar la receta con obras asignadas que lo usan (D-639). */

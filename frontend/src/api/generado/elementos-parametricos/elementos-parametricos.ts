@@ -26,6 +26,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CategoriaDeClasificacion,
   ConceptoDelElementoRespuesta,
   ConceptoDelPlanoRespuesta,
   ConceptoTomaPeticion,
@@ -425,6 +426,480 @@ export function useTiposDeElementoApiV1ElementosParametricosTiposGet<
 } {
   const queryOptions =
     getTiposDeElementoApiV1ElementosParametricosTiposGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Las categorías y subcategorías de la biblioteca de elementos paramétricos, con el límite de posición de cada una
+ */
+export const clasificacionDeElementosApiV1ElementosParametricosClasificacionGet =
+  (options?: SecondParameter<typeof peticion>, signal?: AbortSignal) => {
+    return peticion<CategoriaDeClasificacion[]>(
+      {
+        url: `/api/v1/elementos-parametricos/clasificacion`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfiniteQueryKey =
+  () => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/clasificacion`,
+    ] as const;
+  };
+
+export const getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetQueryKey =
+  () => {
+    return [`/api/v1/elementos-parametricos/clasificacion`] as const;
+  };
+
+export const getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+        >
+      >
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+        >
+      >
+    > = ({ signal }) =>
+      clasificacionDeElementosApiV1ElementosParametricosClasificacionGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >
+  >;
+export type ClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfiniteQueryError =
+  unknown;
+
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las categorías y subcategorías de la biblioteca de elementos paramétricos, con el límite de posición de cada una
+ */
+
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+        >
+      >
+    > = ({ signal }) =>
+      clasificacionDeElementosApiV1ElementosParametricosClasificacionGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ClasificacionDeElementosApiV1ElementosParametricosClasificacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+      >
+    >
+  >;
+export type ClasificacionDeElementosApiV1ElementosParametricosClasificacionGetQueryError =
+  unknown;
+
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las categorías y subcategorías de la biblioteca de elementos paramétricos, con el límite de posición de cada una
+ */
+
+export function useClasificacionDeElementosApiV1ElementosParametricosClasificacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof clasificacionDeElementosApiV1ElementosParametricosClasificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getClasificacionDeElementosApiV1ElementosParametricosClasificacionGetQueryOptions(
+      options,
+    );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

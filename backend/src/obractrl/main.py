@@ -134,6 +134,7 @@ from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.cierres.obra import ErrorDeCierreDeObra
 from obractrl.domain.cierres.reglas import ErrorDeCierre
+from obractrl.domain.cuantificacion.clasificacion_de_elementos import ElementoDuplicado
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 from obractrl.domain.desviacion.desviacion import ErrorDeDesviacion
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
@@ -1594,6 +1595,18 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
         )
 
     # --- Cuantificador (cerebro MODELO.md §1b, migración 0057) ----------
+
+    @app.exception_handler(ElementoDuplicado)
+    async def _elemento_duplicado(request: Request, exc: ElementoDuplicado) -> JSONResponse:
+        # 409: la petición es válida pero choca con un elemento que ya existe (M-29). `clave_igual` dice cuál usar.
+        return _problema(
+            request,
+            status=409,
+            tipo="elemento-duplicado",
+            titulo="Ya existe un elemento idéntico",
+            detalle=str(exc),
+            clave_igual=exc.clave_igual,
+        )
 
     @app.exception_handler(ErrorDeCuantificacion)
     async def _cuantificacion(

@@ -16,6 +16,12 @@ from obractrl.application.casos_uso.tomas_de_elemento import (
     totales_de_trazos,
 )
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
+from obractrl.domain.cuantificacion.clasificacion_de_elementos import (
+    ElementoDuplicado,
+    firma_de_elemento,
+    validar_clasificacion,
+    validar_posicion,
+)
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     GEOMETRIA_DEL_TIPO,
     MATERIALES_DE_UN_ELEMENTO,
@@ -42,6 +48,8 @@ class ComandoCrearElementoParametrico:
     tipo: str
     parametros: dict[str, Any]
     autor_id: UUID
+    categoria: str | None = None
+    subcategoria: str | None = None
 
 
 def _texto(valor: str, que: str, maximo: int) -> str:
@@ -80,18 +88,33 @@ class GestionarElementosParametricos:
     async def listar(self) -> list[dict[str, Any]]:
         return [_con_receta(f) for f in await self._elementos.listar()]
 
+    async def _sin_duplicado(self, firma: str, *, salvo: UUID | None = None) -> None:
+        """M-29: un elemento igual a otro no se guarda; se usa el existente."""
+        igual = await self._elementos.buscar_duplicado(firma, salvo=salvo)
+        if igual is not None:
+            raise ElementoDuplicado(igual["clave"], igual["id"])
+
     async def crear(self, cmd: ComandoCrearElementoParametrico) -> UUID:
         clave = _texto(cmd.clave, "una clave", 20).upper()
         nombre = _texto(cmd.nombre, "un nombre", 80)
         parametros = normalizar_parametros(cmd.tipo, cmd.parametros)
+        categoria, subcategoria = validar_clasificacion(cmd.tipo, cmd.categoria, cmd.subcategoria)
         if await self._elementos.clave_en_uso(clave):
             raise ErrorDeElementoParametrico(f"Ya existe un elemento con la clave {clave}.")
+        firma = firma_de_elemento(categoria, subcategoria, cmd.tipo, parametros)
+        await self._sin_duplicado(firma)
         async with self._uow:
             nuevo: UUID = await self._elementos.crear(
-                clave=clave, nombre=nombre, tipo=cmd.tipo, parametros=parametros, autor_id=cmd.autor_id
+                clave=clave, nombre=nombre, tipo=cmd.tipo, parametros=parametros, autor_id=cmd.autor_id,
+                categoria=categoria, subcategoria=subcategoria, firma=firma,
             )
             await self._uow.commit()
         return nuevo
+
+    async def validar_posicion(self, elemento_id: UUID, posicion: str) -> None:
+        """La posición en que el muro coloca el elemento debe ser una de las que permite su subcategoría (M-32)."""
+        elemento = await self._elemento(elemento_id)
+        validar_posicion(elemento["categoria"], elemento["subcategoria"], posicion)
 
     async def actualizar(
         self,
@@ -101,6 +124,8 @@ class GestionarElementosParametricos:
         nombre: str | None,
         parametros: dict[str, Any] | None,
         autor_id: UUID | None = None,
+        categoria: str | None = None,
+        subcategoria: str | None = None,
     ) -> UUID:
         """Cambia un elemento. Devuelve el id de la versión vigente (otro, si hubo que crear una versión nueva)."""
         actual = await self._elementos.obtener(elemento_id)
@@ -113,20 +138,36 @@ class GestionarElementosParametricos:
         if await self._elementos.clave_en_uso(nueva_clave, salvo=elemento_id):
             raise ErrorDeElementoParametrico(f"Ya existe un elemento con la clave {nueva_clave}.")
         cambia_la_receta = nuevos != normalizar_parametros(actual["tipo"], dict(actual["parametros"] or {}))
+        # Cambiar la categoría sin la subcategoría pasa a la primera de la nueva; la subcategoría sola cambia dentro de la actual.
+        nueva_categoria, nueva_subcategoria = validar_clasificacion(
+            actual["tipo"],
+            categoria if categoria is not None else actual["categoria"],
+            subcategoria if subcategoria is not None else (actual["subcategoria"] if categoria is None else None),
+        )
+        cambia_la_clasificacion = (nueva_categoria, nueva_subcategoria) != (actual["categoria"], actual["subcategoria"])
+        firma = actual.get("firma")
+        if cambia_la_receta or cambia_la_clasificacion:
+            # M-29: el elemento cambiado no puede quedar igual a otro. La subcategoría forma parte de la identidad (M-32).
+            firma = firma_de_elemento(nueva_categoria, nueva_subcategoria, actual["tipo"], nuevos)
+            await self._sin_duplicado(firma, salvo=elemento_id)
         if cambia_la_receta and await self._elementos.obras_congeladas_con(elemento_id):
             # D-639: las obras asignadas conservan la versión con que midieron; el resto pasa a la nueva.
             async with self._uow:
                 if autor_id is None:
                     raise ErrorDeElementoParametrico("Falta quién cambia el elemento.")
                 nueva = await self._elementos.crear_version(
-                    elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos, autor_id=autor_id
+                    elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos, autor_id=autor_id,
+                    categoria=nueva_categoria, subcategoria=nueva_subcategoria, firma=str(firma),
                 )
                 await self._sincronizar_obras_con(nueva)
                 await self._sincronizar_obras_con(elemento_id)
                 await self._uow.commit()
             return nueva
         async with self._uow:
-            await self._elementos.actualizar(elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos)
+            await self._elementos.actualizar(
+                elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos,
+                categoria=nueva_categoria, subcategoria=nueva_subcategoria, firma=firma,
+            )
             await self._sincronizar_obras_con(elemento_id)
             await self._uow.commit()
         return elemento_id

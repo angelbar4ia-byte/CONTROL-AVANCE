@@ -29,6 +29,8 @@ test.describe('Cuantificador · colocar un elemento', () => {
       clave,
       nombre: 'Castillo de prueba',
       tipo: 'castillo',
+      // Un elemento idéntico a otro no se guarda (M-29): el alto, único por corrida, lo distingue de los de otros specs.
+      parametros: { alto: 2 + (Date.now() % 1_000_000) / 1e6 },
     });
 
     await entrarComo(page, 'control');
