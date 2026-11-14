@@ -26,7 +26,13 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AgregarInsumosPeticion,
+  AgregarInsumosRespuesta,
+  BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  CantidadDelInsumoPeticion,
   CategoriaDeClasificacion,
+  ComparacionRespuesta,
+  CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
   ConceptoDelElementoRespuesta,
   ConceptoDelPlanoRespuesta,
   ConceptoPorContextoCreado,
@@ -41,7 +47,13 @@ import type {
   ElementoParametricoPeticion,
   ElementoParametricoRespuesta,
   ElementosDelPlanoRespuesta,
+  FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  FamiliasDeInsumosRespuesta,
   HTTPValidationError,
+  InsumoDeElementoRespuesta,
+  InsumoProvisionalCreado,
+  InsumoProvisionalPeticion,
+  InsumosDelElementoRespuesta,
   TipoDeElementoRespuesta,
 } from ".././modelo";
 
@@ -4681,3 +4693,2608 @@ export const useQuitarConceptoPorContextoApiV1ElementosParametricosElementoIdCon
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Salen todas las familias (M-55); las `usual` son las que el tipo admite. La losa aún no tiene lista.
+ * @summary Las clases y familias de insumos, con las que admite un tipo de elemento
+ */
+export const familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet = (
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<FamiliasDeInsumosRespuesta>(
+    {
+      url: `/api/v1/elementos-parametricos/familias-de-insumos`,
+      method: "GET",
+      params,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfiniteQueryKey =
+  (
+    params?: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/familias-de-insumos`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetQueryKey =
+  (
+    params?: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  ) => {
+    return [
+      `/api/v1/elementos-parametricos/familias-de-insumos`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+        >
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfiniteQueryKey(
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+        >
+      >
+    > = ({ signal }) =>
+      familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet(
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >
+  >;
+export type FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las clases y familias de insumos, con las que admite un tipo de elemento
+ */
+
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetInfiniteQueryOptions(
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetQueryKey(
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+        >
+      >
+    > = ({ signal }) =>
+      familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet(
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+      >
+    >
+  >;
+export type FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetQueryError =
+  HTTPValidationError;
+
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las clases y familias de insumos, con las que admite un tipo de elemento
+ */
+
+export function useFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  params: FamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof familiasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getFamiliasDeInsumosApiV1ElementosParametricosFamiliasDeInsumosGetQueryOptions(
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Buscar insumos de la base de datos para agregar al elemento (clase, familia y texto)
+ */
+export const buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet =
+  (
+    elementoId: string,
+    params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<InsumoDeElementoRespuesta[]>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/insumos-disponibles`,
+        method: "GET",
+        params,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfiniteQueryKey =
+  (
+    elementoId?: string,
+    params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/insumos-disponibles`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetQueryKey =
+  (
+    elementoId?: string,
+    params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  ) => {
+    return [
+      `/api/v1/elementos-parametricos/${elementoId}/insumos-disponibles`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfiniteQueryKey(
+        elementoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+        >
+      >
+    > = ({ signal }) =>
+      buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet(
+        elementoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >
+  >;
+export type BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params:
+    | undefined
+    | BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Buscar insumos de la base de datos para agregar al elemento (clase, familia y texto)
+ */
+
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetInfiniteQueryOptions(
+      elementoId,
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetQueryKey(
+        elementoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+        >
+      >
+    > = ({ signal }) =>
+      buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet(
+        elementoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+      >
+    >
+  >;
+export type BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetQueryError =
+  void | HTTPValidationError;
+
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params:
+    | undefined
+    | BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Buscar insumos de la base de datos para agregar al elemento (clase, familia y texto)
+ */
+
+export function useBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof buscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getBuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetQueryOptions(
+      elementoId,
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Los materiales que eligió el elemento y los insumos que se le agregaron
+ */
+export const insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet =
+  (
+    elementoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<InsumosDelElementoRespuesta>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/insumos`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfiniteQueryKey =
+  (elementoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/insumos`,
+    ] as const;
+  };
+
+export const getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetQueryKey =
+  (elementoId?: string) => {
+    return [`/api/v1/elementos-parametricos/${elementoId}/insumos`] as const;
+  };
+
+export const getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfiniteQueryKey(
+        elementoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+        >
+      >
+    > = ({ signal }) =>
+      insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet(
+        elementoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type InsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >
+  >;
+export type InsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los materiales que eligió el elemento y los insumos que se le agregaron
+ */
+
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetInfiniteQueryOptions(
+      elementoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetQueryKey(
+        elementoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+        >
+      >
+    > = ({ signal }) =>
+      insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet(
+        elementoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type InsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+      >
+    >
+  >;
+export type InsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetQueryError =
+  void | HTTPValidationError;
+
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los materiales que eligió el elemento y los insumos que se le agregaron
+ */
+
+export function useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof insumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGetQueryOptions(
+      elementoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Agregar uno o varios insumos permitidos al elemento
+ */
+export const agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost = (
+  elementoId: string,
+  agregarInsumosPeticion: AgregarInsumosPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<AgregarInsumosRespuesta>(
+    {
+      url: `/api/v1/elementos-parametricos/${elementoId}/insumos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: agregarInsumosPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAgregarInsumosApiV1ElementosParametricosElementoIdInsumosPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost
+        >
+      >,
+      TError,
+      { elementoId: string; data: AgregarInsumosPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost
+      >
+    >,
+    TError,
+    { elementoId: string; data: AgregarInsumosPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost
+        >
+      >,
+      { elementoId: string; data: AgregarInsumosPeticion }
+    > = (props) => {
+      const { elementoId, data } = props ?? {};
+
+      return agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost(
+        elementoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AgregarInsumosApiV1ElementosParametricosElementoIdInsumosPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost
+      >
+    >
+  >;
+export type AgregarInsumosApiV1ElementosParametricosElementoIdInsumosPostMutationBody =
+  AgregarInsumosPeticion;
+export type AgregarInsumosApiV1ElementosParametricosElementoIdInsumosPostMutationError =
+  void;
+
+/**
+ * @summary Agregar uno o varios insumos permitidos al elemento
+ */
+export const useAgregarInsumosApiV1ElementosParametricosElementoIdInsumosPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost
+          >
+        >,
+        TError,
+        { elementoId: string; data: AgregarInsumosPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof agregarInsumosApiV1ElementosParametricosElementoIdInsumosPost
+      >
+    >,
+    TError,
+    { elementoId: string; data: AgregarInsumosPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getAgregarInsumosApiV1ElementosParametricosElementoIdInsumosPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Cambiar la cantidad de un insumo agregado al elemento
+ */
+export const cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch =
+  (
+    elementoId: string,
+    insumoId: string,
+    cantidadDelInsumoPeticion: CantidadDelInsumoPeticion,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/insumos/${insumoId}`,
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        data: cantidadDelInsumoPeticion,
+      },
+      options,
+    );
+  };
+
+export const getCambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch
+        >
+      >,
+      TError,
+      { elementoId: string; insumoId: string; data: CantidadDelInsumoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch
+      >
+    >,
+    TError,
+    { elementoId: string; insumoId: string; data: CantidadDelInsumoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch
+        >
+      >,
+      { elementoId: string; insumoId: string; data: CantidadDelInsumoPeticion }
+    > = (props) => {
+      const { elementoId, insumoId, data } = props ?? {};
+
+      return cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch(
+        elementoId,
+        insumoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatchMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch
+      >
+    >
+  >;
+export type CambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatchMutationBody =
+  CantidadDelInsumoPeticion;
+export type CambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar la cantidad de un insumo agregado al elemento
+ */
+export const useCambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch
+          >
+        >,
+        TError,
+        {
+          elementoId: string;
+          insumoId: string;
+          data: CantidadDelInsumoPeticion;
+        },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof cambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatch
+      >
+    >,
+    TError,
+    { elementoId: string; insumoId: string; data: CantidadDelInsumoPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCambiarCantidadDelInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdPatchMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Quitar un insumo del elemento
+ */
+export const quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete =
+  (
+    elementoId: string,
+    insumoId: string,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/insumos/${insumoId}`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
+
+export const getQuitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete
+        >
+      >,
+      TError,
+      { elementoId: string; insumoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete
+      >
+    >,
+    TError,
+    { elementoId: string; insumoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete
+        >
+      >,
+      { elementoId: string; insumoId: string }
+    > = (props) => {
+      const { elementoId, insumoId } = props ?? {};
+
+      return quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete(
+        elementoId,
+        insumoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete
+      >
+    >
+  >;
+
+export type QuitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar un insumo del elemento
+ */
+export const useQuitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete
+          >
+        >,
+        TError,
+        { elementoId: string; insumoId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof quitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDelete
+      >
+    >,
+    TError,
+    { elementoId: string; insumoId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getQuitarInsumoApiV1ElementosParametricosElementoIdInsumosInsumoIdDeleteMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Solo se crea en las familias de su tipo de elemento; nunca lleva precio: Costos se lo asigna. Queda disponible en
+todos los selectores. El andamio de herramienta y equipo es la sugerencia de partida.
+ * @summary Crear un insumo desde el elemento: provisional y sin precio
+ */
+export const crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost =
+  (
+    elementoId: string,
+    insumoProvisionalPeticion: InsumoProvisionalPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<InsumoProvisionalCreado>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/insumos-nuevos`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: insumoProvisionalPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCrearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost
+        >
+      >,
+      TError,
+      { elementoId: string; data: InsumoProvisionalPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost
+      >
+    >,
+    TError,
+    { elementoId: string; data: InsumoProvisionalPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost
+        >
+      >,
+      { elementoId: string; data: InsumoProvisionalPeticion }
+    > = (props) => {
+      const { elementoId, data } = props ?? {};
+
+      return crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost(
+        elementoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CrearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost
+      >
+    >
+  >;
+export type CrearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPostMutationBody =
+  InsumoProvisionalPeticion;
+export type CrearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPostMutationError =
+  void;
+
+/**
+ * @summary Crear un insumo desde el elemento: provisional y sin precio
+ */
+export const useCrearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost
+          >
+        >,
+        TError,
+        { elementoId: string; data: InsumoProvisionalPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof crearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPost
+      >
+    >,
+    TError,
+    { elementoId: string; data: InsumoProvisionalPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCrearInsumoProvisionalApiV1ElementosParametricosElementoIdInsumosNuevosPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Compara cada concepto que paga una parte del elemento con su composición real del catálogo (auxiliares expandidos):
+cantidad del elemento contra la del catálogo, diferencia en % y marca `=` (hasta 3 %), `≈` (hasta 8 %) o `≠`. La mano de
+obra no se compara. Lo que el catálogo contradice no se corrige: se muestra.
+ * @summary Insumo por insumo: lo que calcula el elemento contra el concepto del catálogo
+ */
+export const compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet =
+  (
+    elementoId: string,
+    params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ComparacionRespuesta>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/comparacion`,
+        method: "GET",
+        params,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfiniteQueryKey =
+  (
+    elementoId?: string,
+    params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/comparacion`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetQueryKey =
+  (
+    elementoId?: string,
+    params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  ) => {
+    return [
+      `/api/v1/elementos-parametricos/${elementoId}/comparacion`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfiniteQueryKey(
+        elementoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+        >
+      >
+    > = ({ signal }) =>
+      compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet(
+        elementoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >
+  >;
+export type CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params:
+    | undefined
+    | CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Insumo por insumo: lo que calcula el elemento contra el concepto del catálogo
+ */
+
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetInfiniteQueryOptions(
+      elementoId,
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetQueryKey(
+        elementoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+        >
+      >
+    > = ({ signal }) =>
+      compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet(
+        elementoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+      >
+    >
+  >;
+export type CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params:
+    | undefined
+    | CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Insumo por insumo: lo que calcula el elemento contra el concepto del catálogo
+ */
+
+export function useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  params?: CompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof compararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGetQueryOptions(
+      elementoId,
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}

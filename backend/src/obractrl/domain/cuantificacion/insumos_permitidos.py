@@ -241,7 +241,7 @@ def validar_permitido(tipo: str, insumo: Insumo) -> None:
 
 
 _CLAVE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{1,29}$")
-_UNIDAD = re.compile(r"^[A-Za-z0-9²³%./ ]{1,12}$")
+_UNIDAD = re.compile(r"^[\w²³%./ ]{1,12}$")
 
 
 @dataclass(frozen=True, slots=True)

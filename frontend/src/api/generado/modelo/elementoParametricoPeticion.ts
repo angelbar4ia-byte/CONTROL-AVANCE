@@ -9,6 +9,7 @@ import type { ElementoParametricoPeticionTipo } from "./elementoParametricoPetic
 import type { ElementoParametricoPeticionParametros } from "./elementoParametricoPeticionParametros";
 import type { ElementoParametricoPeticionCategoria } from "./elementoParametricoPeticionCategoria";
 import type { ElementoParametricoPeticionSubcategoria } from "./elementoParametricoPeticionSubcategoria";
+import type { ElementoParametricoPeticionMateriales } from "./elementoParametricoPeticionMateriales";
 
 export interface ElementoParametricoPeticion {
   /**
@@ -28,4 +29,6 @@ export interface ElementoParametricoPeticion {
   categoria?: ElementoParametricoPeticionCategoria;
   /** Sola, toma la primera de su categoría. */
   subcategoria?: ElementoParametricoPeticionSubcategoria;
+  /** Insumos que elige el elemento; deben existir y ser de las familias de su tipo. */
+  materiales?: ElementoParametricoPeticionMateriales;
 }

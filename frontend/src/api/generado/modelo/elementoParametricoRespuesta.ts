@@ -7,6 +7,7 @@
  */
 import type { ElementoParametricoRespuestaTipo } from "./elementoParametricoRespuestaTipo";
 import type { ElementoParametricoRespuestaParametros } from "./elementoParametricoRespuestaParametros";
+import type { MaterialesDelElemento } from "./materialesDelElemento";
 import type { RecetaRespuesta } from "./recetaRespuesta";
 
 export interface ElementoParametricoRespuesta {
@@ -19,6 +20,8 @@ export interface ElementoParametricoRespuesta {
   /** Subcategoría: el uso del elemento (cerramiento, desplante…). Forma parte de su identidad. */
   subcategoria: string;
   parametros: ElementoParametricoRespuestaParametros;
+  /** Los insumos que el elemento eligió; entran a la firma anti-duplicados. */
+  materiales?: MaterialesDelElemento;
   receta: RecetaRespuesta;
   /** Sube al cambiar la receta con obras asignadas que lo usan (D-639). */
   version?: number;

@@ -63,7 +63,7 @@ class FamiliasDeInsumosRespuesta(BaseModel):
     )
 
 
-class InsumoRespuesta(BaseModel):
+class InsumoDeElementoRespuesta(BaseModel):
     id: UUID | None
     clave: str
     descripcion: str
@@ -81,14 +81,14 @@ class MaterialElegido(BaseModel):
     material: Literal["concreto", "alambre", "varilla", "anillo", "armex", "cimbra"]
     clave: str
     consumo: float | None = Field(description="En la cimbra, el consumo por unidad de cálculo del elemento.")
-    insumo: InsumoRespuesta | None = Field(description="`null` si la clave ya no existe en la base de datos.")
+    insumo: InsumoDeElementoRespuesta | None = Field(description="`null` si la clave ya no existe en la base de datos.")
 
 
 class InsumoAgregado(BaseModel):
     id: UUID
     clase: ClaseDeInsumo
     cantidad: float = Field(description="Por unidad de cálculo del elemento.")
-    insumo: InsumoRespuesta
+    insumo: InsumoDeElementoRespuesta
 
 
 class InsumosDelElementoRespuesta(BaseModel):
@@ -176,8 +176,8 @@ class ComparacionRespuesta(BaseModel):
     conceptos: list[ConceptoComparado]
 
 
-def _insumo(f: dict[str, object]) -> InsumoRespuesta:
-    return InsumoRespuesta(**f)  # type: ignore[arg-type]
+def _insumo(f: dict[str, object]) -> InsumoDeElementoRespuesta:
+    return InsumoDeElementoRespuesta(**f)  # type: ignore[arg-type]
 
 
 @router.get(
@@ -194,7 +194,7 @@ async def familias_de_insumos(
 
 @router.get(
     "/elementos-parametricos/{elemento_id}/insumos-disponibles",
-    response_model=list[InsumoRespuesta],
+    response_model=list[InsumoDeElementoRespuesta],
     summary="Buscar insumos de la base de datos para agregar al elemento (clase, familia y texto)",
     responses={404: {"description": "El elemento no existe o está fuera de tu alcance."}},
 )
@@ -205,7 +205,7 @@ async def buscar_insumos(
     familia: Annotated[str | None, Query(max_length=80, description="Familia o subfamilia.")] = None,
     q: Annotated[str | None, Query(max_length=80, description="Texto en la clave, la descripción o la familia.")] = None,
     limite: Annotated[int, Query(ge=1, le=500)] = 100,
-) -> list[InsumoRespuesta]:
+) -> list[InsumoDeElementoRespuesta]:
     return [_insumo(f) for f in await caso_uso.buscar(elemento_id, clase=clase, familia=familia, q=q, limite=limite)]
 
 

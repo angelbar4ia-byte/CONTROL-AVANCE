@@ -12751,7 +12751,7 @@
             "description": "Ya existe un elemento idéntico (misma categoría, subcategoría, medidas y armado): se usa el existente."
           },
           "422": {
-            "description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."
+            "description": "Clave repetida, categoría o subcategoría que no existe, un parámetro que no vale o un material que no existe o es de otra familia."
           }
         },
         "security": [
@@ -12810,7 +12810,7 @@
             "description": "El cambio lo dejaría idéntico a otro elemento: se usa el existente."
           },
           "422": {
-            "description": "Clave repetida, categoría o subcategoría que no existe, o un parámetro que no vale."
+            "description": "Clave repetida, categoría o subcategoría que no existe, un parámetro que no vale o un material que no existe o es de otra familia."
           }
         }
       },
@@ -13495,6 +13495,546 @@
           },
           "403": {
             "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento o el concepto no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/familias-de-insumos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Las clases y familias de insumos, con las que admite un tipo de elemento",
+        "description": "Salen todas las familias (M-55); las `usual` son las que el tipo admite. La losa aún no tiene lista.",
+        "operationId": "familias_de_insumos_api_v1_elementos_parametricos_familias_de_insumos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "castillo",
+                "lineal",
+                "zapata",
+                "losa"
+              ],
+              "type": "string",
+              "description": "El tipo de elemento.",
+              "title": "Tipo"
+            },
+            "description": "El tipo de elemento."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamiliasDeInsumosRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/insumos-disponibles": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Buscar insumos de la base de datos para agregar al elemento (clase, familia y texto)",
+        "operationId": "buscar_insumos_api_v1_elementos_parametricos__elemento_id__insumos_disponibles_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "clase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "material",
+                    "trabajo",
+                    "mano_obra",
+                    "herramienta"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Clase"
+            }
+          },
+          {
+            "name": "familia",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Familia o subfamilia.",
+              "title": "Familia"
+            },
+            "description": "Familia o subfamilia."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Texto en la clave, la descripción o la familia.",
+              "title": "Q"
+            },
+            "description": "Texto en la clave, la descripción o la familia."
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limite"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InsumoDeElementoRespuesta"
+                  },
+                  "title": "Response Buscar Insumos Api V1 Elementos Parametricos  Elemento Id  Insumos Disponibles Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/insumos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Los materiales que eligió el elemento y los insumos que se le agregaron",
+        "operationId": "insumos_del_elemento_api_v1_elementos_parametricos__elemento_id__insumos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumosDelElementoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Agregar uno o varios insumos permitidos al elemento",
+        "operationId": "agregar_insumos_api_v1_elementos_parametricos__elemento_id__insumos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgregarInsumosPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgregarInsumosRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento o un insumo no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Un insumo es de una familia que el tipo de elemento no admite (el mensaje dice cuáles sí)."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/insumos/{insumo_id}": {
+      "patch": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Cambiar la cantidad de un insumo agregado al elemento",
+        "operationId": "cambiar_cantidad_del_insumo_api_v1_elementos_parametricos__elemento_id__insumos__insumo_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CantidadDelInsumoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no tiene ese insumo."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Quitar un insumo del elemento",
+        "operationId": "quitar_insumo_api_v1_elementos_parametricos__elemento_id__insumos__insumo_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no tiene ese insumo."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/insumos-nuevos": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Crear un insumo desde el elemento: provisional y sin precio",
+        "description": "Solo se crea en las familias de su tipo de elemento; nunca lleva precio: Costos se lo asigna. Queda disponible en\ntodos los selectores. El andamio de herramienta y equipo es la sugerencia de partida.",
+        "operationId": "crear_insumo_provisional_api_v1_elementos_parametricos__elemento_id__insumos_nuevos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsumoProvisionalPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoProvisionalCreado"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La clave ya existe, la unidad no existe o la familia no es de las que admite el tipo de elemento."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/comparacion": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Insumo por insumo: lo que calcula el elemento contra el concepto del catálogo",
+        "description": "Compara cada concepto que paga una parte del elemento con su composición real del catálogo (auxiliares expandidos):\ncantidad del elemento contra la del catálogo, diferencia en % y marca `=` (hasta 3 %), `≈` (hasta 8 %) o `≠`. La mano de\nobra no se compara. Lo que el catálogo contradice no se corrige: se muestra.",
+        "operationId": "comparar_con_el_catalogo_api_v1_elementos_parametricos__elemento_id__comparacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo este concepto del elemento; sin él, todos.",
+              "title": "Fila Id"
+            },
+            "description": "Solo este concepto del elemento; sin él, todos."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparacionRespuesta"
+                }
+              }
+            }
           },
           "404": {
             "description": "El elemento o el concepto no existen o están fuera de tu alcance."
@@ -19661,6 +20201,39 @@
         "title": "AgregarDocumentoPeticion",
         "description": "Alta de un documento del expediente (§7.9)."
       },
+      "AgregarInsumosPeticion": {
+        "properties": {
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoParaAgregar"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Insumos",
+            "description": "Todo o nada: si uno es de otra familia no se agrega ninguno."
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumos"
+        ],
+        "title": "AgregarInsumosPeticion"
+      },
+      "AgregarInsumosRespuesta": {
+        "properties": {
+          "agregados": {
+            "type": "integer",
+            "title": "Agregados",
+            "description": "Los que ya estaban en el elemento no se repiten."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agregados"
+        ],
+        "title": "AgregarInsumosRespuesta"
+      },
       "AgregarRespuestasPeticion": {
         "properties": {
           "respuestas": {
@@ -21440,6 +22013,21 @@
         ],
         "title": "CandidatoDeUnionRespuesta"
       },
+      "CantidadDelInsumoPeticion": {
+        "properties": {
+          "cantidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad"
+        ],
+        "title": "CantidadDelInsumoPeticion"
+      },
       "CapturaAvancePeticion": {
         "properties": {
           "cant_ejecutada": {
@@ -22192,6 +22780,62 @@
         ],
         "title": "CimbraDeLaReceta"
       },
+      "ClaseDeInsumoRespuesta": {
+        "properties": {
+          "clase": {
+            "type": "string",
+            "enum": [
+              "material",
+              "trabajo",
+              "mano_obra",
+              "herramienta"
+            ],
+            "title": "Clase"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "admitidas": {
+            "type": "string",
+            "title": "Admitidas",
+            "description": "Las familias que admite el tipo en esta clase, en palabras."
+          },
+          "familias_usuales": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Familias Usuales"
+          },
+          "familias": {
+            "items": {
+              "$ref": "#/components/schemas/FamiliaDeInsumo"
+            },
+            "type": "array",
+            "title": "Familias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clase",
+          "nombre",
+          "descripcion",
+          "total",
+          "admitidas",
+          "familias_usuales",
+          "familias"
+        ],
+        "title": "ClaseDeInsumoRespuesta"
+      },
       "ClaseNodo": {
         "type": "string",
         "enum": [
@@ -22394,6 +23038,126 @@
           "igual"
         ],
         "title": "ComparacionDeMedida"
+      },
+      "ComparacionRespuesta": {
+        "properties": {
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "umbral_igual_pct": {
+            "type": "number",
+            "title": "Umbral Igual Pct"
+          },
+          "umbral_aproximado_pct": {
+            "type": "number",
+            "title": "Umbral Aproximado Pct"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoComparado"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_id",
+          "umbral_igual_pct",
+          "umbral_aproximado_pct",
+          "conceptos"
+        ],
+        "title": "ComparacionRespuesta"
+      },
+      "ConceptoComparado": {
+        "properties": {
+          "fila_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Fila Id",
+            "description": "La fila del concepto en el elemento (`conceptos-por-contexto`)."
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "type": "string",
+            "title": "Concepto Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "propuesto",
+              "autorizado"
+            ],
+            "title": "Estado"
+          },
+          "toma": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Toma"
+          },
+          "sin_catalogo": {
+            "type": "boolean",
+            "title": "Sin Catalogo",
+            "description": "Concepto nuevo propuesto: no tiene composición en el catálogo con qué comparar."
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeComparacion"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "mano_de_obra": {
+            "items": {
+              "$ref": "#/components/schemas/ManoDeObraDelCatalogo"
+            },
+            "type": "array",
+            "title": "Mano De Obra",
+            "description": "Mano de obra y destajo del concepto: el elemento no los calcula y no se comparan."
+          },
+          "resumen": {
+            "$ref": "#/components/schemas/ResumenDeComparacion"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide",
+            "description": "Ningún insumo es ≠ y ninguno sale solo en un lado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "fila_id",
+          "concepto_clave",
+          "concepto_descripcion",
+          "unidad",
+          "estado",
+          "toma",
+          "sin_catalogo",
+          "avisos",
+          "filas",
+          "mano_de_obra",
+          "resumen",
+          "coincide"
+        ],
+        "title": "ConceptoComparado"
       },
       "ConceptoDelElemento": {
         "properties": {
@@ -27237,6 +28001,17 @@
             ],
             "title": "Subcategoria",
             "description": "Cambia el uso dentro de la categoría actual (o de la nueva, si se manda)."
+          },
+          "materiales": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialesDelElemento"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reemplaza los materiales del elemento (un objeto vacío los quita); sin él se conservan."
           }
         },
         "type": "object",
@@ -27313,6 +28088,17 @@
             ],
             "title": "Subcategoria",
             "description": "Sola, toma la primera de su categoría."
+          },
+          "materiales": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaterialesDelElemento"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Insumos que elige el elemento; deben existir y ser de las familias de su tipo."
           }
         },
         "type": "object",
@@ -27364,6 +28150,10 @@
             },
             "type": "object",
             "title": "Parametros"
+          },
+          "materiales": {
+            "$ref": "#/components/schemas/MaterialesDelElemento",
+            "description": "Los insumos que el elemento eligió; entran a la firma anti-duplicados."
           },
           "receta": {
             "$ref": "#/components/schemas/RecetaRespuesta"
@@ -29250,6 +30040,43 @@
         "title": "ExtraRespuesta",
         "description": "Lo que quedó dado de alta (§11.2)."
       },
+      "FamiliaDeInsumo": {
+        "properties": {
+          "familia": {
+            "type": "string",
+            "title": "Familia"
+          },
+          "subfamilia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subfamilia"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Cuántos insumos hay en ella."
+          },
+          "usual": {
+            "type": "boolean",
+            "title": "Usual",
+            "description": "Si es de las familias que el tipo de elemento admite; las demás se muestran con una marca y no se pueden agregar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "familia",
+          "subfamilia",
+          "total",
+          "usual"
+        ],
+        "title": "FamiliaDeInsumo"
+      },
       "FamiliaRespuesta": {
         "properties": {
           "id": {
@@ -29300,6 +30127,117 @@
           "nombre"
         ],
         "title": "FamiliaRespuesta"
+      },
+      "FamiliasDeInsumosRespuesta": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo"
+          },
+          "clases": {
+            "items": {
+              "$ref": "#/components/schemas/ClaseDeInsumoRespuesta"
+            },
+            "type": "array",
+            "title": "Clases"
+          },
+          "sugerencias_de_herramienta": {
+            "items": {
+              "$ref": "#/components/schemas/SugerenciaDeHerramienta"
+            },
+            "type": "array",
+            "title": "Sugerencias De Herramienta",
+            "description": "Herramienta y equipo no trae insumos en el catálogo: el andamio se ofrece como sugerencia (insumo provisional sin precio)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "clases",
+          "sugerencias_de_herramienta"
+        ],
+        "title": "FamiliasDeInsumosRespuesta"
+      },
+      "FilaDeComparacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "catalogo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogo",
+            "description": "Cantidad por unidad del concepto en el catálogo (con sus auxiliares expandidos); `null` si el catálogo no lo trae."
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento",
+            "description": "Cantidad que calcula el elemento; `null` si no lo trae."
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct",
+            "description": "(elemento − catálogo) ÷ catálogo × 100."
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca",
+            "description": "= hasta 3 %, ≈ hasta 8 %, ≠ más; `solo_catalogo` / `solo_elemento` si un lado no lo trae."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "catalogo",
+          "elemento",
+          "diferencia_pct",
+          "marca"
+        ],
+        "title": "FilaDeComparacion"
       },
       "FilaDeCuadro1Usada": {
         "properties": {
@@ -30636,6 +31574,156 @@
         "type": "object",
         "title": "InstanciarProgramaPeticion"
       },
+      "InsumoAgregado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "material",
+              "trabajo",
+              "mano_obra",
+              "herramienta"
+            ],
+            "title": "Clase"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "Por unidad de cálculo del elemento."
+          },
+          "insumo": {
+            "$ref": "#/components/schemas/InsumoDeElementoRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clase",
+          "cantidad",
+          "insumo"
+        ],
+        "title": "InsumoAgregado"
+      },
+      "InsumoDeElementoRespuesta": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "clase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "material",
+                  "trabajo",
+                  "mano_obra",
+                  "herramienta"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clase"
+          },
+          "familia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia"
+          },
+          "subfamilia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subfamilia"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "precio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio",
+            "description": "`null` si el insumo no tiene precio (provisional): Costos se lo asigna."
+          },
+          "sin_precio": {
+            "type": "boolean",
+            "title": "Sin Precio"
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional",
+            "description": "Creado desde un elemento, sin precio hasta que Costos lo asigne."
+          },
+          "permitido": {
+            "type": "boolean",
+            "title": "Permitido",
+            "description": "Si el tipo de este elemento admite su familia: solo esos se pueden agregar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "descripcion",
+          "clase",
+          "familia",
+          "subfamilia",
+          "unidad",
+          "precio",
+          "sin_precio",
+          "provisional",
+          "permitido"
+        ],
+        "title": "InsumoDeElementoRespuesta"
+      },
       "InsumoDelDren": {
         "properties": {
           "clave": {
@@ -30675,6 +31763,108 @@
           "detalle"
         ],
         "title": "InsumoDelDren"
+      },
+      "InsumoParaAgregar": {
+        "properties": {
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "cantidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Cantidad",
+            "description": "Por unidad de cálculo del elemento; 0 = por definir.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo_id"
+        ],
+        "title": "InsumoParaAgregar"
+      },
+      "InsumoProvisionalCreado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsumoProvisionalCreado"
+      },
+      "InsumoProvisionalPeticion": {
+        "properties": {
+          "clase": {
+            "type": "string",
+            "enum": [
+              "material",
+              "trabajo",
+              "mano_obra",
+              "herramienta"
+            ],
+            "title": "Clase"
+          },
+          "clave": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 2,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 1,
+            "title": "Unidad",
+            "description": "Una unidad del catálogo (pza, kg, m3, jornal…) o su sinónimo."
+          },
+          "familia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia",
+            "description": "Una de las familias que admite el tipo; en herramienta y equipo no se manda."
+          },
+          "subfamilia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subfamilia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clase",
+          "clave",
+          "descripcion",
+          "unidad"
+        ],
+        "title": "InsumoProvisionalPeticion"
       },
       "InsumoRespuesta": {
         "properties": {
@@ -30831,6 +32021,47 @@
           "descripcion"
         ],
         "title": "InsumoRespuesta"
+      },
+      "InsumosDelElementoRespuesta": {
+        "properties": {
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo"
+          },
+          "materiales": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialElegido"
+            },
+            "type": "array",
+            "title": "Materiales"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoAgregado"
+            },
+            "type": "array",
+            "title": "Insumos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_id",
+          "tipo",
+          "materiales",
+          "insumos"
+        ],
+        "title": "InsumosDelElementoRespuesta"
       },
       "InsumosProgramadosRespuesta": {
         "properties": {
@@ -31780,6 +33011,46 @@
         ],
         "title": "LugarDeLaPartidaRespuesta"
       },
+      "ManoDeObraDelCatalogo": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "costo"
+        ],
+        "title": "ManoDeObraDelCatalogo"
+      },
       "MarcaDeCambioRespuesta": {
         "properties": {
           "enlace_viejo_id": {
@@ -31883,6 +33154,57 @@
         ],
         "title": "MarcaDeCambioRespuesta"
       },
+      "MaterialElegido": {
+        "properties": {
+          "material": {
+            "type": "string",
+            "enum": [
+              "concreto",
+              "alambre",
+              "varilla",
+              "anillo",
+              "armex",
+              "cimbra"
+            ],
+            "title": "Material"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "consumo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consumo",
+            "description": "En la cimbra, el consumo por unidad de cálculo del elemento."
+          },
+          "insumo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsumoDeElementoRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si la clave ya no existe en la base de datos."
+          }
+        },
+        "type": "object",
+        "required": [
+          "material",
+          "clave",
+          "consumo",
+          "insumo"
+        ],
+        "title": "MaterialElegido"
+      },
       "MaterialTomadoRespuesta": {
         "properties": {
           "cantidad": {
@@ -31900,6 +33222,93 @@
           "unidad"
         ],
         "title": "MaterialTomadoRespuesta"
+      },
+      "MaterialesDelElemento": {
+        "properties": {
+          "concreto": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concreto",
+            "description": "Insumo del concreto (Mezclas · Concretos o Prefabricados · Concretos)."
+          },
+          "alambre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alambre",
+            "description": "Insumo del alambre de amarre (Aceros)."
+          },
+          "varilla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Varilla",
+            "description": "Insumo de la varilla longitudinal (Acero De Refuerzo)."
+          },
+          "anillo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anillo",
+            "description": "Insumo del anillo o estribo (Aceros)."
+          },
+          "armex": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Armex",
+            "description": "Insumo del armex (Aceros)."
+          },
+          "cimbra": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cimbra",
+            "description": "Consumos de cimbra por unidad de cálculo del elemento: {clave del insumo: consumo} (Cimbra, clavos, alambre)."
+          }
+        },
+        "type": "object",
+        "title": "MaterialesDelElemento",
+        "description": "Con qué insumo de la base de datos se paga cada parte de la receta del elemento (claves de insumo)."
       },
       "MatricesDeActividadRespuesta": {
         "properties": {
@@ -38655,6 +40064,42 @@
         "title": "ResumenDeCierreRespuesta",
         "description": "Renglón de la bandeja de cierres de obra (§5.1)."
       },
+      "ResumenDeComparacion": {
+        "properties": {
+          "igual": {
+            "type": "integer",
+            "title": "Igual",
+            "description": "Insumos con la marca `=`."
+          },
+          "aproximado": {
+            "type": "integer",
+            "title": "Aproximado",
+            "description": "Insumos con la marca `≈`."
+          },
+          "distinto": {
+            "type": "integer",
+            "title": "Distinto",
+            "description": "Insumos con la marca `≠`."
+          },
+          "solo_catalogo": {
+            "type": "integer",
+            "title": "Solo Catalogo"
+          },
+          "solo_elemento": {
+            "type": "integer",
+            "title": "Solo Elemento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "igual",
+          "aproximado",
+          "distinto",
+          "solo_catalogo",
+          "solo_elemento"
+        ],
+        "title": "ResumenDeComparacion"
+      },
       "ResumenDeObraRespuesta": {
         "properties": {
           "obra_id": {
@@ -39362,6 +40807,34 @@
           "en_muro"
         ],
         "title": "SubcategoriaDeClasificacion"
+      },
+      "SugerenciaDeHerramienta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "subfamilia": {
+            "type": "string",
+            "title": "Subfamilia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "subfamilia"
+        ],
+        "title": "SugerenciaDeHerramienta"
       },
       "SujetoEvaluacion": {
         "type": "string",
