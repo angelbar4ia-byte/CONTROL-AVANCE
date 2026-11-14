@@ -38,6 +38,9 @@ test.describe('Cuantificador · biblioteca de elementos y muro MCT-01010', () =>
 
     // --- 1. El orden de las pestañas ---------------------------------------------------------------------
     const pestanas = page.getByRole('tablist', { name: 'Panel lateral' });
+    // Trabajos y Árbol salen cuando se conoce el rol: leer la lista antes daba una de 7 pestañas y fallaba una de cada ~25 corridas.
+    await expect(pestanas.getByRole('tab', { name: /^Árbol/ })).toBeVisible();
+    await expect(pestanas.getByRole('tab', { name: /^Trabajos/ })).toBeVisible();
     const nombres = await pestanas.getByRole('tab').allInnerTexts();
     const orden = ['Presupuesto', 'Planos', 'Mediciones', 'Trazos', 'Elementos', 'Trabajos', 'Árbol', 'Artefacto', 'Paramétrico'];
     expect(orden.map((n) => nombres.findIndex((t) => t.startsWith(n)))).toEqual(
