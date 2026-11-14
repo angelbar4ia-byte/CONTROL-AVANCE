@@ -25,6 +25,7 @@ import type { ElementoParametricoRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
 import { ConceptosDelElemento } from './ConceptosDelElemento';
+import { ConceptosPorContexto } from './ConceptosPorContexto';
 import {
   CAMPOS_POR_TIPO,
   NOMBRE_DEL_TIPO,
@@ -284,6 +285,7 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
                     onCambio={(aviso) => onCambio(aviso)}
                     onError={onError}
                   />
+                  <ConceptosPorContexto elementoId={e.id} clave={e.clave} />
                 </>
               )}
             </li>
