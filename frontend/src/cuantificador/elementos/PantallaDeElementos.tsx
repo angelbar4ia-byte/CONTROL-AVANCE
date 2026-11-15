@@ -1,8 +1,9 @@
 /**
  * El área de trabajo de la pestaña «Elementos»: solo la tarjeta del elemento elegido en la biblioteca (que vive en el
- * panel izquierdo). Hoy la biblioteca trae un solo elemento paramétrico: el muro de contención de piedra MCT-01010.
+ * panel izquierdo). Hoy la biblioteca trae dos elementos paramétricos: los muros de piedra MCT-01010 (contención) y CIM-01010 (cimentación).
  */
 
+import { TarjetaMuroCimentacion } from './TarjetaMuroCimentacion';
 import { TarjetaMuroContencion } from './TarjetaMuroContencion';
 
 export function PantallaDeElementos({ clave }: { readonly clave: string | null }) {
@@ -11,6 +12,8 @@ export function PantallaDeElementos({ clave }: { readonly clave: string | null }
       <div className="pantalla-elementos__tarjeta">
         {clave === 'MCT-01010' ? (
           <TarjetaMuroContencion clave={clave} />
+        ) : clave === 'CIM-01010' ? (
+          <TarjetaMuroCimentacion clave={clave} />
         ) : (
           <div className="empty">
             <div className="empty-title">Elige un elemento de la biblioteca</div>

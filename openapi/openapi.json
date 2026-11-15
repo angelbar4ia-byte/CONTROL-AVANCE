@@ -14654,6 +14654,99 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/CIM-01010/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula el muro de cimentación de piedra por metro lineal de trazo",
+        "operationId": "calcular_cimiento_api_v1_biblioteca_de_elementos_CIM_01010_calcular_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelCimientoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDelCimiento"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/{clave}/calcular-trazo": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula un muro de piedra sobre un trazo con pendiente (altura inicial, corona a nivel)",
+        "operationId": "calcular_el_trazo_api_v1_biblioteca_de_elementos__clave__calcular_trazo_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrazoDelMuroPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDelTrazo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/{clave}/calcular": {
       "post": {
         "tags": [
@@ -21999,6 +22092,117 @@
         ],
         "title": "CalculoDeConversionRespuesta"
       },
+      "CalculoDelCimiento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDelElemento"
+          },
+          "seccion": {
+            "$ref": "#/components/schemas/SeccionDelCimiento"
+          },
+          "escarpio": {
+            "$ref": "#/components/schemas/EscarpioDelCimiento"
+          },
+          "volumen": {
+            "$ref": "#/components/schemas/VolumenDelMuro"
+          },
+          "dentellon": {
+            "$ref": "#/components/schemas/DentellonDelMuro"
+          },
+          "contraste": {
+            "$ref": "#/components/schemas/ContrasteConElConcepto"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "unidad",
+          "concepto",
+          "seccion",
+          "escarpio",
+          "volumen",
+          "dentellon",
+          "contraste",
+          "advertencias"
+        ],
+        "title": "CalculoDelCimiento",
+        "description": "El resultado completo del muro de cimentación por metro lineal de trazo."
+      },
+      "CalculoDelCimientoPeticion": {
+        "properties": {
+          "alto_m": {
+            "type": "number",
+            "maximum": 20.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Alto M",
+            "description": "Altura del muro de cimentación en METROS."
+          },
+          "caras": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Caras",
+            "description": "Caras inclinadas: 1 (lindero, la otra es vertical) o 2 (simétrico).",
+            "default": 1
+          },
+          "dentellon": {
+            "type": "boolean",
+            "title": "Dentellon",
+            "description": "Opcional; solo aplica desde 2.00 m de altura.",
+            "default": false
+          },
+          "corona_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corona M",
+            "description": "Corona a mano; vacío usa 40 cm."
+          },
+          "base_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base M",
+            "description": "Base a mano; vacío usa el escarpio 1.5 : 1."
+          }
+        },
+        "type": "object",
+        "required": [
+          "alto_m"
+        ],
+        "title": "CalculoDelCimientoPeticion"
+      },
       "CalculoDelMuro": {
         "properties": {
           "clave": {
@@ -22156,6 +22360,91 @@
           "alto_m"
         ],
         "title": "CalculoDelMuroPeticion"
+      },
+      "CalculoDelTrazo": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDelElemento"
+          },
+          "longitud_m": {
+            "type": "number",
+            "title": "Longitud M"
+          },
+          "longitud_real_m": {
+            "type": "number",
+            "title": "Longitud Real M"
+          },
+          "altura_inicial_m": {
+            "type": "number",
+            "title": "Altura Inicial M"
+          },
+          "pendiente_pct": {
+            "type": "number",
+            "title": "Pendiente Pct"
+          },
+          "altura_final_m": {
+            "type": "number",
+            "title": "Altura Final M"
+          },
+          "altura_minima_m": {
+            "type": "number",
+            "title": "Altura Minima M"
+          },
+          "altura_maxima_m": {
+            "type": "number",
+            "title": "Altura Maxima M"
+          },
+          "rebanadas": {
+            "type": "integer",
+            "title": "Rebanadas"
+          },
+          "volumen": {
+            "$ref": "#/components/schemas/VolumenDelTrazo"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDelTrazo"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "perfil": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoDelPerfil"
+            },
+            "type": "array",
+            "title": "Perfil"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "concepto",
+          "longitud_m",
+          "longitud_real_m",
+          "altura_inicial_m",
+          "pendiente_pct",
+          "altura_final_m",
+          "altura_minima_m",
+          "altura_maxima_m",
+          "rebanadas",
+          "volumen",
+          "insumos",
+          "perfil",
+          "advertencias"
+        ],
+        "title": "CalculoDelTrazo"
       },
       "CalendarioPeticion": {
         "properties": {
@@ -25084,6 +25373,53 @@
         ],
         "title": "ConsumoRespuesta",
         "description": "Fila de `v_consumo_vs_presupuesto`: consumo real vs teórico (§7.7, §10.5)."
+      },
+      "ContrasteConElConcepto": {
+        "properties": {
+          "concepto": {
+            "type": "string",
+            "title": "Concepto"
+          },
+          "version_vigente": {
+            "type": "integer",
+            "title": "Version Vigente"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDelContraste"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "mano_de_obra": {
+            "items": {
+              "$ref": "#/components/schemas/ManoDeObraDelContraste"
+            },
+            "type": "array",
+            "title": "Mano De Obra"
+          },
+          "resumen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resumen"
+          },
+          "version_propuesta": {
+            "$ref": "#/components/schemas/VersionPropuestaDelConcepto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "version_vigente",
+          "filas",
+          "mano_de_obra",
+          "resumen",
+          "version_propuesta"
+        ],
+        "title": "ContrasteConElConcepto",
+        "description": "El elemento contra el concepto del catálogo por m³ de mampostería (la mano de obra no se compara)."
       },
       "ContratistaRespuesta": {
         "properties": {
@@ -29576,6 +29912,58 @@
         ],
         "title": "EscalaRespuesta"
       },
+      "EscarpioDelCimiento": {
+        "properties": {
+          "minimo": {
+            "type": "number",
+            "title": "Minimo"
+          },
+          "angulo_minimo_grados": {
+            "type": "number",
+            "title": "Angulo Minimo Grados"
+          },
+          "real": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real"
+          },
+          "angulo_real_grados": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Angulo Real Grados"
+          },
+          "cumple": {
+            "type": "boolean",
+            "title": "Cumple"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minimo",
+          "angulo_minimo_grados",
+          "real",
+          "angulo_real_grados",
+          "cumple",
+          "fuente"
+        ],
+        "title": "EscarpioDelCimiento"
+      },
       "EspecialidadRespuesta": {
         "properties": {
           "id": {
@@ -31231,6 +31619,82 @@
         ],
         "title": "FilaDeInsumoRespuesta"
       },
+      "FilaDelContraste": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "catalogo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogo"
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "marca": {
+            "type": "string",
+            "title": "Marca"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "catalogo",
+          "elemento",
+          "diferencia",
+          "diferencia_pct",
+          "marca"
+        ],
+        "title": "FilaDelContraste"
+      },
       "FilaDelCuadro1": {
         "properties": {
           "H": {
@@ -32727,6 +33191,44 @@
         ],
         "title": "InsumoDelDren"
       },
+      "InsumoDelTrazo": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional"
+          },
+          "cantidad_total": {
+            "type": "number",
+            "title": "Cantidad Total"
+          },
+          "cantidad_por_m3": {
+            "type": "number",
+            "title": "Cantidad Por M3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "provisional",
+          "cantidad_total",
+          "cantidad_por_m3"
+        ],
+        "title": "InsumoDelTrazo"
+      },
       "InsumoParaAgregar": {
         "properties": {
           "insumo_id": {
@@ -34013,6 +34515,46 @@
           "costo"
         ],
         "title": "ManoDeObraDelCatalogo"
+      },
+      "ManoDeObraDelContraste": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "costo"
+        ],
+        "title": "ManoDeObraDelContraste"
       },
       "MarcaDeCambioRespuesta": {
         "properties": {
@@ -39072,6 +39614,24 @@
         "type": "object",
         "title": "PublicarCPUPeticion"
       },
+      "PuntoDelPerfil": {
+        "properties": {
+          "s_m": {
+            "type": "number",
+            "title": "S M"
+          },
+          "altura_m": {
+            "type": "number",
+            "title": "Altura M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "s_m",
+          "altura_m"
+        ],
+        "title": "PuntoDelPerfil"
+      },
       "RecetaDeAceroCalculada": {
         "properties": {
           "forma": {
@@ -41779,6 +42339,44 @@
         ],
         "title": "SalidaRespuesta"
       },
+      "SeccionDelCimiento": {
+        "properties": {
+          "alto_m": {
+            "type": "number",
+            "title": "Alto M"
+          },
+          "corona_m": {
+            "type": "number",
+            "title": "Corona M"
+          },
+          "base_m": {
+            "type": "number",
+            "title": "Base M"
+          },
+          "espesor_medio_m": {
+            "type": "number",
+            "title": "Espesor Medio M"
+          },
+          "caras": {
+            "type": "integer",
+            "title": "Caras"
+          },
+          "manual": {
+            "type": "boolean",
+            "title": "Manual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alto_m",
+          "corona_m",
+          "base_m",
+          "espesor_medio_m",
+          "caras",
+          "manual"
+        ],
+        "title": "SeccionDelCimiento"
+      },
       "SeccionDelMuro": {
         "properties": {
           "alto_m": {
@@ -42910,6 +43508,44 @@
           "lados_cimbra"
         ],
         "title": "TrazoConElementoRespuesta"
+      },
+      "TrazoDelMuroPeticion": {
+        "properties": {
+          "longitud_m": {
+            "type": "number",
+            "maximum": 500.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Longitud M",
+            "description": "Largo del trazo en planta, en metros."
+          },
+          "altura_inicial_m": {
+            "type": "number",
+            "maximum": 20.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Altura Inicial M",
+            "description": "Altura en el primer punto del trazo, en metros."
+          },
+          "pendiente_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": -100.0,
+            "title": "Pendiente Pct",
+            "description": "Pendiente del terreno en %: positiva, el muro crece hacia el final; negativa, decrece. La corona va a nivel.",
+            "default": 0.0
+          },
+          "parametros": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parametros"
+          }
+        },
+        "type": "object",
+        "required": [
+          "longitud_m",
+          "altura_inicial_m"
+        ],
+        "title": "TrazoDelMuroPeticion",
+        "description": "El trazo con pendiente de un muro de piedra. `parametros` son los del muro (sin la altura): los de\n`CalculoDelMuroPeticion` para MCT-01010 o los de `CalculoDelCimientoPeticion` para CIM-01010."
       },
       "TrazoEliminadoRespuesta": {
         "properties": {
@@ -45299,6 +45935,29 @@
         ],
         "title": "VersionNuevaPeticion"
       },
+      "VersionPropuestaDelConcepto": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "cambio": {
+            "type": "string",
+            "title": "Cambio"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "cambio",
+          "estado"
+        ],
+        "title": "VersionPropuestaDelConcepto"
+      },
       "VersionPublicadaRespuesta": {
         "properties": {
           "id": {
@@ -45519,6 +46178,29 @@
           "agua_l_ml"
         ],
         "title": "VolumenDelMuro"
+      },
+      "VolumenDelTrazo": {
+        "properties": {
+          "muro_m3": {
+            "type": "number",
+            "title": "Muro M3"
+          },
+          "dentellon_m3": {
+            "type": "number",
+            "title": "Dentellon M3"
+          },
+          "total_m3": {
+            "type": "number",
+            "title": "Total M3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "muro_m3",
+          "dentellon_m3",
+          "total_m3"
+        ],
+        "title": "VolumenDelTrazo"
       },
       "ZonaDeAnilloDeLaReceta": {
         "properties": {

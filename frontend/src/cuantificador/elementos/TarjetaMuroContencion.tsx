@@ -17,6 +17,7 @@ import {
 import type { CalculoDelMuro, CalculoDelMuroPeticion } from '@/api/generado/modelo';
 
 import { numeroTecleado } from '../volumen';
+import { TrazoDelMuro } from './TrazoDelMuro';
 import { VistasDelMuro } from './VistasDelMuro';
 
 function num(n: number | null | undefined, dec = 2): string {
@@ -90,6 +91,11 @@ export function TarjetaMuroContencion({ clave }: Props) {
       setBase(String(Math.round(calculo.seccion.base_m * 100)));
     }
   }
+
+  const parametrosDelTrazo = useMemo(() => {
+    const { alto_m: _alto, ...resto } = peticion ?? { alto_m: 0 };
+    return resto as Record<string, unknown>;
+  }, [peticion]);
 
   const d = definicion.data;
   if (definicion.isLoading) return <p className="text-mute text-sm">Cargando el elemento…</p>;
@@ -275,6 +281,8 @@ export function TarjetaMuroContencion({ clave }: Props) {
           </section>
         </>
       )}
+
+      <TrazoDelMuro clave={clave} parametros={parametrosDelTrazo} />
 
       <details className="mct__bloque">
         <summary>Cuadro 1 del manual (volumetría de 1 m lineal)</summary>
