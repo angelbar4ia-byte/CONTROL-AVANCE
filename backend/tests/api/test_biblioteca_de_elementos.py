@@ -20,6 +20,10 @@ def test_la_biblioteca_trae_la_categoria_y_la_subcategoria(cliente: TestClient) 
     r = cliente.get("/biblioteca-de-elementos")
     assert r.status_code == 200
     cat = next(c for c in r.json() if c["clave"] == "contencion")
+    cim = next(c for c in r.json() if c["clave"] == "muros_cimentacion")
+    assert cim["nombre"] == "Muros de cimentación"
+    assert cim["subcategorias"][0]["nombre"] == "Mampostería de piedra"
+    assert cim["subcategorias"][0]["elementos"][0]["clave"] == "CIM-01010"
     assert cat["nombre"] == "Muros de contención"
     assert cat["subcategorias"][0]["nombre"] == "Mampostería"
     assert cat["subcategorias"][0]["elementos"][0]["clave"] == "MCT-01010"
@@ -64,7 +68,7 @@ def test_calcular_rechaza_lo_que_no_vale(cliente: TestClient) -> None:
     assert malo.status_code == 422
     assert (
         cliente.post(
-            "/biblioteca-de-elementos/CIM-01010/calcular", json={"alto_m": 3}
+            "/biblioteca-de-elementos/XX-1/calcular", json={"alto_m": 3}
         ).status_code
         == 404
     )
@@ -78,3 +82,71 @@ def test_la_biblioteca_trae_tambien_la_familia_de_estructura(cliente: TestClient
     assert cats["trabes"]["subcategorias"][0]["nombre"] == "Trabes de losa (catálogo)"
     # Su definición no es la del muro: vive en /biblioteca-de-elementos/estructura/{clave}.
     assert cliente.get("/biblioteca-de-elementos/T-1-15x25").status_code == 404
+
+
+def test_calcular_el_cimiento_devuelve_el_escarpio_y_el_contraste(
+    cliente: TestClient,
+) -> None:
+    r = cliente.post(
+        "/biblioteca-de-elementos/CIM-01010/calcular",
+        json={"alto_m": 2.0, "dentellon": True},
+    )
+    assert r.status_code == 200
+    c = r.json()
+    assert c["seccion"]["base_m"] == pytest.approx(1.73)
+    assert c["volumen"]["dentellon_m3_ml"] == pytest.approx(0.21)
+    assert c["escarpio"]["cumple"] is True
+    assert c["contraste"]["version_propuesta"]["version"] == 2
+    assert (
+        cliente.get("/biblioteca-de-elementos/CIM-01010").json()["categoria"]["nombre"]
+        == "Muros de cimentación"
+    )
+    malo = cliente.post(
+        "/biblioteca-de-elementos/CIM-01010/calcular", json={"alto_m": 2, "caras": 3}
+    )
+    assert malo.status_code == 422
+    sin_base = cliente.post(
+        "/biblioteca-de-elementos/CIM-01010/calcular",
+        json={"alto_m": 2, "corona_m": 1.0, "base_m": 0.5},
+    )
+    assert sin_base.status_code == 422
+
+
+def test_calcular_el_trazo_de_los_dos_muros(cliente: TestClient) -> None:
+    for clave, params in (
+        ("MCT-01010", {"dentellon": False}),
+        ("CIM-01010", {"caras": 2}),
+    ):
+        r = cliente.post(
+            f"/biblioteca-de-elementos/{clave}/calcular-trazo",
+            json={
+                "longitud_m": 8,
+                "altura_inicial_m": 2.0,
+                "pendiente_pct": 5,
+                "parametros": params,
+            },
+        )
+        assert r.status_code == 200, r.text
+        c = r.json()
+        assert c["clave"] == clave
+        assert c["altura_final_m"] == pytest.approx(2.4)
+        assert c["volumen"]["total_m3"] > 0
+        assert len(c["perfil"]) == c["rebanadas"]
+    assert (
+        cliente.post(
+            "/biblioteca-de-elementos/XX-1/calcular-trazo",
+            json={"longitud_m": 8, "altura_inicial_m": 2.0},
+        ).status_code
+        == 404
+    )
+    assert (
+        cliente.post(
+            "/biblioteca-de-elementos/MCT-01010/calcular-trazo",
+            json={
+                "longitud_m": 8,
+                "altura_inicial_m": 2.0,
+                "parametros": {"lluvia": "media"},
+            },
+        ).status_code
+        == 422
+    )

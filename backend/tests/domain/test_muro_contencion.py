@@ -169,14 +169,14 @@ def test_parametros_que_no_valen_se_rechazan(mal: dict) -> None:
         calcular(**mal)
 
 
-def test_la_biblioteca_trae_solo_el_muro_de_piedra() -> None:
+def test_la_biblioteca_trae_los_dos_muros_de_piedra() -> None:
     elementos = [
         e["clave"] for c in BIBLIOTECA for s in c["subcategorias"] for e in s["elementos"]
     ]
-    assert elementos == ["MCT-01010"]
+    assert elementos == ["MCT-01010", "CIM-01010"]
     d = elemento_de_la_biblioteca("MCT-01010")
     assert d is not None
     assert d["concepto"]["clave"] == "MCT-01011"
     assert len(d["cuadro_1"]) == 11
     assert {p["clave"] for p in d["pendientes"]} >= {"Q34", "Q47"}
-    assert elemento_de_la_biblioteca("CIM-01010") is None
+    assert elemento_de_la_biblioteca("XX-1") is None

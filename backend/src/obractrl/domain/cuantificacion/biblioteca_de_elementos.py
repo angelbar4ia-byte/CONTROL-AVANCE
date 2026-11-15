@@ -1,15 +1,17 @@
 """La biblioteca de elementos: categorías y subcategorías que clasifican a los elementos paramétricos.
 
-Trae el muro de contención de piedra MCT-01010 (categoría «Muros de contención», subcategoría «Mampostería») y los
-elementos estructurales de la Ola 3B (trabes, contratrabes, nervaduras, zapata Z-1 y columna C-1; ver `elementos_lineales`).
-Los demás (castillos, cadenas, losas…) pasarán aquí cuando se construyan. Cada familia aporta sus categorías y aquí se
-unen por clave de categoría y de subcategoría. Función pura, sin base de datos.
+Hoy trae **dos elementos**: el muro de contención de piedra MCT-01010 (categoría «Muros de contención», subcategoría
+«Mampostería») y el muro de cimentación de piedra CIM-01010 (categoría «Muros de cimentación», subcategoría «Mampostería
+de piedra»); los dos se pagan con el concepto MCT-01011. Además los elementos estructurales de la Ola 3B (trabes, contratrabes, nervaduras, Z-1 y C-1; ver `elementos_lineales`), unidos por clave de categoría
+y subcategoría. Los demás (castillos, cadenas, losas…) siguen definiéndose en el panel
+de la pestaña Elementos y pasarán aquí cuando se construyan. Función pura, sin base de datos.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from obractrl.domain.cuantificacion import muro_cimentacion
 from obractrl.domain.cuantificacion.elementos_lineales import (
     categorias_de_biblioteca as _categorias_de_estructura,
 )
@@ -48,23 +50,32 @@ _MCT_01010: dict[str, Any] = {
     },
 }
 
+_CIM_01010: dict[str, Any] = {
+    "clave": muro_cimentacion.CLAVE_ELEMENTO,
+    "nombre": "Muro de cimentación de piedra",
+    "tipo": "muro_de_cimentacion_de_piedra",
+    "se_mide_por": "metro lineal de trazo",
+    "concepto": {
+        "clave": CLAVE_CONCEPTO,
+        "descripcion": DESCRIPCION_CONCEPTO,
+        "unidad": "m3",
+    },
+    "parametros_por_defecto": {"alto_m": 1.0, "caras": 1, "dentellon": False},
+}
+
 def _unir(*familias: tuple[dict[str, Any], ...]) -> tuple[dict[str, Any], ...]:
     """Une las categorías de cada familia: la misma categoría (o subcategoría) de dos familias es una sola, con sus elementos juntos."""
     categorias: dict[str, dict[str, Any]] = {}
     for familia in familias:
         for cat in familia:
-            destino = categorias.setdefault(
-                cat["clave"], {**cat, "subcategorias": {}}
-            )
+            destino = categorias.setdefault(cat["clave"], {**cat, "subcategorias": {}})
             for sub in cat["subcategorias"]:
                 previa = destino["subcategorias"].setdefault(sub["clave"], {**sub, "elementos": ()})
                 previa["elementos"] = (*previa["elementos"], *sub["elementos"])
-    return tuple(
-        {**c, "subcategorias": tuple(c["subcategorias"].values())} for c in categorias.values()
-    )
+    return tuple({**c, "subcategorias": tuple(c["subcategorias"].values())} for c in categorias.values())
 
 
-_CONTENCION: tuple[dict[str, Any], ...] = (
+_EXISTENTES: tuple[dict[str, Any], ...] = (
     {
         "clave": "contencion",
         "nombre": "Muros de contención",
@@ -78,20 +89,33 @@ _CONTENCION: tuple[dict[str, Any], ...] = (
             },
         ),
     },
+    {
+        "clave": "muros_cimentacion",
+        "nombre": "Muros de cimentación",
+        "prefijo": "CIM",
+        "subcategorias": (
+            {
+                "clave": "piedra",
+                "nombre": "Mampostería de piedra",
+                "prefijo": "CIM",
+                "elementos": (_CIM_01010,),
+            },
+        ),
+    },
 )
 
-BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(_CONTENCION, _categorias_de_estructura())
+BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(_EXISTENTES, _categorias_de_estructura())
 
 
 def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
-    """La definición del elemento con el Cuadro 1 del muro de contención. Los elementos de estructura (trabes, Z-1, C-1…) tienen
-    su propia definición en `/biblioteca-de-elementos/lineales/{clave}`: aquí no."""
+    # Los elementos de estructura tienen su definición en `/biblioteca-de-elementos/estructura/{clave}`.
     if clave in _claves_de_estructura():
         return None
     for categoria in BIBLIOTECA:
         for sub in categoria["subcategorias"]:
             for elemento in sub["elementos"]:
                 if elemento["clave"] == clave:
+                    cimiento = clave == muro_cimentacion.CLAVE_ELEMENTO
                     return {
                         **elemento,
                         "categoria": {
@@ -99,9 +123,17 @@ def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
                             "nombre": categoria["nombre"],
                         },
                         "subcategoria": {"clave": sub["clave"], "nombre": sub["nombre"]},
-                        "cuadro_1": [dict(f) for f in CUADRO_1],
-                        "fuente": FUENTE_CUADRO_1,
+                        # El cimiento no usa el Cuadro 1: su sección sale del escarpio.
+                        "cuadro_1": [] if cimiento else [dict(f) for f in CUADRO_1],
+                        "fuente": muro_cimentacion.FUENTE_ESCARPIO
+                        if cimiento
+                        else FUENTE_CUADRO_1,
                         "dentellon": dict(DENTELLON),
-                        "pendientes": [dict(p) for p in PENDIENTES],
+                        "pendientes": [
+                            dict(p)
+                            for p in (
+                                muro_cimentacion.PENDIENTES if cimiento else PENDIENTES
+                            )
+                        ],
                     }
     return None

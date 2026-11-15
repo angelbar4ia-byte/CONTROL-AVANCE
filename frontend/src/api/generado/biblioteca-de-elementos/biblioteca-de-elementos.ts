@@ -26,10 +26,13 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CalculoDelCimiento,
+  CalculoDelCimientoPeticion,
   CalculoDelElementoEstructural,
   CalculoDelElementoEstructuralPeticion,
   CalculoDelMuro,
   CalculoDelMuroPeticion,
+  CalculoDelTrazo,
   CategoriaDeBiblioteca,
   CorreccionDelCatalogo,
   CorreccionPropuesta,
@@ -40,6 +43,7 @@ import type {
   RecetaDeAceroCalculada,
   RecetaDeAceroPeticion,
   RechazoDeCorreccionPeticion,
+  TrazoDelMuroPeticion,
   VersionDeLaCorreccion,
 } from ".././modelo";
 
@@ -2487,6 +2491,252 @@ export function useDefinicionDelElementoApiV1BibliotecaDeElementosClaveGet<
   return query;
 }
 
+/**
+ * @summary Calcula el muro de cimentación de piedra por metro lineal de trazo
+ */
+export const calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost = (
+  calculoDelCimientoPeticion: CalculoDelCimientoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CalculoDelCimiento>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/CIM-01010/calcular`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: calculoDelCimientoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCalcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPostMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost
+        >
+      >,
+      TError,
+      { data: CalculoDelCimientoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost
+      >
+    >,
+    TError,
+    { data: CalculoDelCimientoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost
+        >
+      >,
+      { data: CalculoDelCimientoPeticion }
+    > = (props) => {
+      const { data } = props ?? {};
+
+      return calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost(
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost
+      >
+    >
+  >;
+export type CalcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPostMutationBody =
+  CalculoDelCimientoPeticion;
+export type CalcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPostMutationError =
+  HTTPValidationError;
+
+/**
+ * @summary Calcula el muro de cimentación de piedra por metro lineal de trazo
+ */
+export const useCalcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost =
+  <TError = HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost
+          >
+        >,
+        TError,
+        { data: CalculoDelCimientoPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPost
+      >
+    >,
+    TError,
+    { data: CalculoDelCimientoPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularCimientoApiV1BibliotecaDeElementosCIM01010CalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Calcula un muro de piedra sobre un trazo con pendiente (altura inicial, corona a nivel)
+ */
+export const calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost = (
+  clave: string,
+  trazoDelMuroPeticion: TrazoDelMuroPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CalculoDelTrazo>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/${clave}/calcular-trazo`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: trazoDelMuroPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCalcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPostMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost
+        >
+      >,
+      TError,
+      { clave: string; data: TrazoDelMuroPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost
+      >
+    >,
+    TError,
+    { clave: string; data: TrazoDelMuroPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost
+        >
+      >,
+      { clave: string; data: TrazoDelMuroPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost
+      >
+    >
+  >;
+export type CalcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPostMutationBody =
+  TrazoDelMuroPeticion;
+export type CalcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPostMutationError =
+  HTTPValidationError;
+
+/**
+ * @summary Calcula un muro de piedra sobre un trazo con pendiente (altura inicial, corona a nivel)
+ */
+export const useCalcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost =
+  <TError = HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost
+          >
+        >,
+        TError,
+        { clave: string; data: TrazoDelMuroPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPost
+      >
+    >,
+    TError,
+    { clave: string; data: TrazoDelMuroPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularElTrazoApiV1BibliotecaDeElementosClaveCalcularTrazoPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * @summary Calcula el muro de contención de piedra por metro lineal de trazo
  */
