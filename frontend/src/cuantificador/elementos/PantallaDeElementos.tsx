@@ -1,11 +1,14 @@
 /**
  * El área de trabajo de la pestaña «Elementos»: solo la tarjeta del elemento elegido en la biblioteca (que vive en el
- * panel izquierdo): el muro de contención de piedra MCT-01010 y los castillos, aparentes y columnas forjadas.
+ * panel izquierdo): los muros de piedra MCT-01010 (contención) y CIM-01010 (cimentación) y los castillos, aparentes y columnas
+ * forjadas.
  */
 
 import { useBibliotecaDeElementosApiV1BibliotecaDeElementosGet } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
 
 import { TarjetaEstructura } from './TarjetaEstructura';
+
+import { TarjetaMuroCimentacion } from './TarjetaMuroCimentacion';
 import { TarjetaMuroContencion } from './TarjetaMuroContencion';
 
 export function PantallaDeElementos({ clave }: { readonly clave: string | null }) {
@@ -21,6 +24,8 @@ export function PantallaDeElementos({ clave }: { readonly clave: string | null }
           <TarjetaMuroContencion clave={clave} />
         ) : clave && esDeEstructura ? (
           <TarjetaEstructura clave={clave} />
+        ) : clave === 'CIM-01010' ? (
+          <TarjetaMuroCimentacion clave={clave} />
         ) : (
           <div className="empty">
             <div className="empty-title">Elige un elemento de la biblioteca</div>
