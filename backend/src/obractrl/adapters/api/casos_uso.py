@@ -37,6 +37,9 @@ from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQ
 from obractrl.adapters.repos.confirmaciones_sql import RepositorioConfirmacionesSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
+from obractrl.adapters.repos.correcciones_de_catalogo_sql import (
+    RepositorioCorreccionesDeCatalogoSQL,
+)
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioElementosSQL,
@@ -154,6 +157,9 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
 from obractrl.application.casos_uso.consultar_planeacion import (
     AsignarFrenteDeObra,
     ConsultarPlaneacion,
+)
+from obractrl.application.casos_uso.correcciones_de_catalogo import (
+    GestionarCorreccionesDeCatalogo,
 )
 from obractrl.application.casos_uso.cotizacion_al_cliente import (
     ConsultarCotizaciones,
@@ -470,6 +476,7 @@ __all__ = [
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "GestionarConceptosDeElementoDep",
+    "GestionarCorreccionesDeCatalogoDep",
     "GestionarElementosDep",
     "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
@@ -1049,6 +1056,12 @@ def obtener_autorizar_elementos(sesion: SesionRLS) -> AutorizarElementos:
     )
 
 
+def obtener_gestionar_correcciones_de_catalogo(sesion: SesionRLS) -> GestionarCorreccionesDeCatalogo:
+    return GestionarCorreccionesDeCatalogo(
+        correcciones=RepositorioCorreccionesDeCatalogoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
 def obtener_gestionar_elementos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarElementos:
     return GestionarElementos(
         elementos=RepositorioElementosSQL(sesion),
@@ -1309,6 +1322,9 @@ ActualizarApuDesdeElementoDep = Annotated[
     ActualizarApuDesdeElemento, Depends(obtener_actualizar_apu_desde_elemento)
 ]
 AutorizarElementosDep = Annotated[AutorizarElementos, Depends(obtener_autorizar_elementos)]
+GestionarCorreccionesDeCatalogoDep = Annotated[
+    GestionarCorreccionesDeCatalogo, Depends(obtener_gestionar_correcciones_de_catalogo)
+]
 GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)
 ]

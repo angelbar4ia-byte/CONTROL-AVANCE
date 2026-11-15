@@ -30,22 +30,30 @@ import type {
   CalculoDeEstructuraPeticion,
   CalculoDelCimiento,
   CalculoDelCimientoPeticion,
+  CalculoDelElementoEstructural,
+  CalculoDelElementoEstructuralPeticion,
   CalculoDelMuro,
   CalculoDelMuroPeticion,
   CalculoDelTrazo,
   CategoriaDeBiblioteca,
   ConceptoPorAlturaPeticion,
   ConciliacionDeEstructura,
+  CorreccionDelCatalogo,
+  CorreccionPropuesta,
   DefinicionDeEstructura,
   DefinicionDelElemento,
+  DefinicionDelElementoEstructural,
   HTTPValidationError,
+  ProponerCorreccionPeticion,
   PropuestaCreada,
   PropuestaDeEstructura,
   RecetaDeAceroCalculada,
   RecetaDeAceroPeticion,
+  RechazoDeCorreccionPeticion,
   RechazoDeLaPropuesta,
   ResultadoDeProponer,
   TrazoDelMuroPeticion,
+  VersionDeLaCorreccion,
   VersionDeLaPropuesta,
 } from ".././modelo";
 
@@ -2792,6 +2800,1433 @@ export const useRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarP
   > => {
     const mutationOptions =
       getRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ */
+export const definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<DefinicionDelElementoEstructural>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >;
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ */
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >;
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ */
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Calcula un elemento estructural por ml o por pieza y lo contrasta con el catálogo (solo cálculo)
+ */
+export const calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost =
+  (
+    clave: string,
+    calculoDelElementoEstructuralPeticion: CalculoDelElementoEstructuralPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<CalculoDelElementoEstructural>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}/calcular`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelElementoEstructuralPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelElementoEstructuralPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelElementoEstructuralPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
+        >
+      >,
+      { clave: string; data: CalculoDelElementoEstructuralPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
+      >
+    >
+  >;
+export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationBody =
+  CalculoDelElementoEstructuralPeticion;
+export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationError =
+  void;
+
+/**
+ * @summary Calcula un elemento estructural por ml o por pieza y lo contrasta con el catálogo (solo cálculo)
+ */
+export const useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelElementoEstructuralPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelElementoEstructuralPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Las correcciones conocidas al catálogo, con su estado y su historial de versiones
+ */
+export const correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CorreccionDelCatalogo[]>(
+    { url: `/api/v1/correcciones-de-catalogo`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfiniteQueryKey =
+  () => {
+    return ["infinite", `/api/v1/correcciones-de-catalogo`] as const;
+  };
+
+export const getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryKey =
+  () => {
+    return [`/api/v1/correcciones-de-catalogo`] as const;
+  };
+
+export const getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+      >
+    >,
+    TError = void,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+      >
+    > = ({ signal }) =>
+      correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >
+  >;
+export type CorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfiniteQueryError =
+  void;
+
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >
+  >,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las correcciones conocidas al catálogo, con su estado y su historial de versiones
+ */
+
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >,
+    TError = void,
+  >(options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+      >
+    > = ({ signal }) =>
+      correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+    >
+  >;
+export type CorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryError =
+  void;
+
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGet<
+  TData = Awaited<
+    ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+  >,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGet<
+  TData = Awaited<
+    ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGet<
+  TData = Awaited<
+    ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las correcciones conocidas al catálogo, con su estado y su historial de versiones
+ */
+
+export function useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGet<
+  TData = Awaited<
+    ReturnType<typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet>
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof correccionesDeCatalogoApiV1CorreccionesDeCatalogoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryOptions(
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Proponer la corrección como versión nueva del concepto (Costos: pendiente; Control de obra: autorizada)
+ */
+export const proponerCorreccionApiV1CorreccionesDeCatalogoPost = (
+  proponerCorreccionPeticion: ProponerCorreccionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CorreccionPropuesta>(
+    {
+      url: `/api/v1/correcciones-de-catalogo`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: proponerCorreccionPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getProponerCorreccionApiV1CorreccionesDeCatalogoPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof proponerCorreccionApiV1CorreccionesDeCatalogoPost>
+      >,
+      TError,
+      { data: ProponerCorreccionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof proponerCorreccionApiV1CorreccionesDeCatalogoPost>
+    >,
+    TError,
+    { data: ProponerCorreccionPeticion },
+    TContext
+  > => {
+    const mutationKey = ["proponerCorreccionApiV1CorreccionesDeCatalogoPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof proponerCorreccionApiV1CorreccionesDeCatalogoPost>
+      >,
+      { data: ProponerCorreccionPeticion }
+    > = (props) => {
+      const { data } = props ?? {};
+
+      return proponerCorreccionApiV1CorreccionesDeCatalogoPost(
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerCorreccionApiV1CorreccionesDeCatalogoPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof proponerCorreccionApiV1CorreccionesDeCatalogoPost>
+    >
+  >;
+export type ProponerCorreccionApiV1CorreccionesDeCatalogoPostMutationBody =
+  ProponerCorreccionPeticion;
+export type ProponerCorreccionApiV1CorreccionesDeCatalogoPostMutationError =
+  void;
+
+/**
+ * @summary Proponer la corrección como versión nueva del concepto (Costos: pendiente; Control de obra: autorizada)
+ */
+export const useProponerCorreccionApiV1CorreccionesDeCatalogoPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof proponerCorreccionApiV1CorreccionesDeCatalogoPost>
+      >,
+      TError,
+      { data: ProponerCorreccionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof proponerCorreccionApiV1CorreccionesDeCatalogoPost>>,
+  TError,
+  { data: ProponerCorreccionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getProponerCorreccionApiV1CorreccionesDeCatalogoPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Autorizar la corrección: nace la versión siguiente del concepto (el catálogo no se edita)
+ */
+export const autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost =
+  (
+    correccionId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionDeLaCorreccion>(
+      {
+        url: `/api/v1/correcciones-de-catalogo/${correccionId}/autorizar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost
+        >
+      >,
+      TError,
+      { correccionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost
+      >
+    >,
+    TError,
+    { correccionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost
+        >
+      >,
+      { correccionId: string }
+    > = (props) => {
+      const { correccionId } = props ?? {};
+
+      return autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost(
+        correccionId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost
+      >
+    >
+  >;
+
+export type AutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPostMutationError =
+  void;
+
+/**
+ * @summary Autorizar la corrección: nace la versión siguiente del concepto (el catálogo no se edita)
+ */
+export const useAutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost
+          >
+        >,
+        TError,
+        { correccionId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof autorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost
+      >
+    >,
+    TError,
+    { correccionId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Rechazar la corrección: no se aplica y queda en el historial
+ */
+export const rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost =
+  (
+    correccionId: string,
+    rechazoDeCorreccionPeticion: RechazoDeCorreccionPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/correcciones-de-catalogo/${correccionId}/rechazar`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: rechazoDeCorreccionPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getRechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost
+        >
+      >,
+      TError,
+      { correccionId: string; data: RechazoDeCorreccionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost
+      >
+    >,
+    TError,
+    { correccionId: string; data: RechazoDeCorreccionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost
+        >
+      >,
+      { correccionId: string; data: RechazoDeCorreccionPeticion }
+    > = (props) => {
+      const { correccionId, data } = props ?? {};
+
+      return rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost(
+        correccionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost
+      >
+    >
+  >;
+export type RechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPostMutationBody =
+  RechazoDeCorreccionPeticion;
+export type RechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPostMutationError =
+  void;
+
+/**
+ * @summary Rechazar la corrección: no se aplica y queda en el historial
+ */
+export const useRechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost
+          >
+        >,
+        TError,
+        { correccionId: string; data: RechazoDeCorreccionPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof rechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost
+      >
+    >,
+    TError,
+    { correccionId: string; data: RechazoDeCorreccionPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getRechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPostMutationOptions(
         options,
       );
 

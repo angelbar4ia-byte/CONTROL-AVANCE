@@ -38,11 +38,17 @@ from obractrl.adapters.api.v1.confirmacion_avance import (
 from obractrl.adapters.api.v1.control_cambio import (
     router as router_control_cambio,
 )
+from obractrl.adapters.api.v1.correcciones_de_catalogo import (
+    router as router_correcciones_de_catalogo,
+)
 from obractrl.adapters.api.v1.cuantificacion import router as router_cuantificacion
 from obractrl.adapters.api.v1.desviaciones import router as router_desviaciones
 from obractrl.adapters.api.v1.dispositivos import router as router_dispositivos
 from obractrl.adapters.api.v1.elementos_de_estructura import (
     router as router_elementos_de_estructura,
+)
+from obractrl.adapters.api.v1.elementos_estructurales import (
+    router as router_elementos_estructurales,
 )
 from obractrl.adapters.api.v1.elementos_parametricos import (
     router as router_elementos_parametricos,
@@ -119,6 +125,8 @@ api_v1.include_router(router_insumos_de_elemento)
 # Antes que la biblioteca: `/biblioteca-de-elementos/{clave}/calcular` también casaría con `receta-acero`.
 api_v1.include_router(router_receta_acero)
 api_v1.include_router(router_elementos_de_estructura)
+api_v1.include_router(router_elementos_estructurales)
+api_v1.include_router(router_correcciones_de_catalogo)
 api_v1.include_router(router_biblioteca_de_elementos)
 api_v1.include_router(router_vanos_catalogo)
 api_v1.include_router(router_cambios_de_unidad)

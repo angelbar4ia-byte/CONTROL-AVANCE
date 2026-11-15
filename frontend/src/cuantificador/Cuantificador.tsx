@@ -3225,7 +3225,7 @@ export function EspacioDeTrazo({
                 {aviso}
               </div>
             )}
-            {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} />}
+            {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} rol={sesion?.rol} />}
             {pestana === 'artefacto' && <PantallaDeArtefacto />}
             {pestana === 'parametrico' && <PantallaParametrica />}
           </div>

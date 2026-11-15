@@ -175,7 +175,7 @@ def test_la_biblioteca_trae_los_dos_muros_de_piedra() -> None:
         for c in BIBLIOTECA
         for s in c["subcategorias"]
         for e in s["elementos"]
-        if e.get("tipo") != "estructura_de_catalogo"  # los castillos, aparentes y forjadas (3A) tienen su propia prueba
+        if str(e.get("tipo")).startswith("muro_de")  # los castillos (3A) y la estructura lineal (3B) tienen su propia prueba
     ]
     assert elementos == ["MCT-01010", "CIM-01010"]
     d = elemento_de_la_biblioteca("MCT-01010")
