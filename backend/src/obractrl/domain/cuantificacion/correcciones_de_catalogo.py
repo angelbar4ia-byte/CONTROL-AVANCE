@@ -7,8 +7,8 @@ catálogo vigente, la versión propuesta y lo que calcula el elemento.
 
 Hay dos clases de propuesta:
 
-- `version_de_concepto`: cambia coeficientes de un concepto que ya está en el catálogo (EST-10071 trae 0.8333 pza de armex
-  donde 6.00 m ÷ 6 m son 1.0; los kg del anillo pasan a lo que el elemento calcula; el concreto de los aparentes pasa a la
+- `version_de_concepto`: cambia coeficientes de un concepto que ya está en el catálogo (EST-10070, 10071 y 10072 traen menos armex
+  del que pide el corte con puntas de 50 cm (Q22); los kg del anillo pasan a lo que el elemento calcula; el concreto de los aparentes pasa a la
   medida de su título). Un destajo que no corresponde a la medida **no se cambia aquí**: queda anotado «por definir» para
   Costos (no se inventan destajos ni precios).
 - `concepto_nuevo`: un concepto que el catálogo no trae (el armex 10×15 del colado de K-8, una forjada de otra altura). Nace
@@ -57,6 +57,8 @@ __all__ = [
 CLASES_DE_PROPUESTA = ("version_de_concepto", "concepto_nuevo")
 
 COEFICIENTES_DEL_CATALOGO: dict[tuple[str, str], float] = {
+    ("EST-10072", "ACE-00020"): 0.333333,
+    ("EST-10070", "ACE-00020"): 0.666667,
     ("EST-10071", "ACE-00020"): 0.833333,
     ("EST-10020", "ACE-00003"): 1.9173,
     ("EST-10021", "ACE-00003"): 2.739,
@@ -88,7 +90,7 @@ _DESTAJO_POR_DEFINIR = {
 """Aparentes cuyo destajo no corresponde a la medida de su título (Q81). No se cambia ni se inventa: queda por definir."""
 
 _MOTIVOS = {
-    "Q79": "Q79: el catálogo trae 0.8333 pza de armex para 6.00 m y 6.00 m ÷ 6 m son 1.0 pza.",
+    "Q22": "Q22: el armex de K-7 se corta con módulos de 1 a 6 m, traslape de 15 cm y puntas de 50 cm (confirmado por el usuario): el catálogo trae menos armex del que ese corte pide.",
     "Q78": "Q78: los kg de anillo del catálogo son menores que el perímetro del núcleo más el gancho; se igualan al cálculo del elemento.",
     "Q81": "Q81: el concreto del aparente se lleva a la medida de su título.",
 }
@@ -128,8 +130,9 @@ def correcciones_de(clave: str) -> list[dict[str, Any]]:
             cambios: list[dict[str, Any]] = []
             motivos: list[str] = []
             if (esc.clave, "ACE-00020") in COEFICIENTES_DEL_CATALOGO:
-                cambios.append(_cambio(esc.clave, "ACE-00020", 1.0))
-                motivos.append(_MOTIVOS["Q79"])
+                # Q22: el cálculo con puntas de 50 cm manda (1.33 pza a 6.00 m, 1.0 a 4.00 m, 0.5 a 2.00 m).
+                cambios.append(_cambio(esc.clave, "ACE-00020", _insumos_de_escalon(e, c, esc.hasta_m)["ACE-00020"]))
+                motivos.append(_MOTIVOS["Q22"])
             ins = e.armado.anillo_insumo
             if ins and (esc.clave, ins) in COEFICIENTES_DEL_CATALOGO:
                 real = _insumos_de_escalon(e, c, esc.hasta_m)[ins]

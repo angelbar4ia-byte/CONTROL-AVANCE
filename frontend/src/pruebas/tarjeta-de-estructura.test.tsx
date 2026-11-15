@@ -117,7 +117,7 @@ const CONCILIACION = {
       en_catalogo: true,
       propuestas: [{ id: 'p1', estado: 'pendiente', version: null, resumen: 'Nueva versión de EST-10071', clase: 'version_de_concepto' }],
       filas: [
-        { clave: 'ACE-00020', descripcion: 'Armex 10x15', unidad: 'pza', catalogo: 0.833333, elemento: 1.3333, diferencia: 0.5, diferencia_pct: 60, marca: '≠', motivo: null, propuesta: { valor: 1, estado: 'pendiente', propuesta_id: 'p1', marca: '≠', diferencia_pct: 33 } },
+        { clave: 'ACE-00020', descripcion: 'Armex 10x15', unidad: 'pza', catalogo: 0.833333, elemento: 1.3333, diferencia: 0.5, diferencia_pct: 60, marca: '≠', motivo: null, propuesta: { valor: 1.3333, estado: 'pendiente', propuesta_id: 'p1', marca: '≠', diferencia_pct: 0 } },
         { clave: 'MEZ-07010', descripcion: 'MEZCLA CEMENTO-ARENA 1:4', unidad: 'm3', catalogo: 0.0021, elemento: null, diferencia: null, diferencia_pct: null, marca: 'solo_catalogo', motivo: 'Mortero 1:4: el catálogo no dice para qué es (Q82).', propuesta: null },
       ],
       mano_de_obra: [{ clave: 'MOE-02027', descripcion: 'MO CASTILLOS K7', unidad: 'm', cantidad: 1, costo: 140 }],
@@ -129,7 +129,7 @@ const CONCILIACION = {
 
 const PROPUESTA = {
   id: 'p1', elemento_clave: 'EST-02170', concepto_clave: 'EST-10071', clase: 'version_de_concepto', estado: 'pendiente', version: null,
-  resumen: 'Nueva versión de EST-10071: ACE-00020 0.833333 → 1', cambios: [{ insumo: 'ACE-00020', unidad: 'pza', antes: 0.833333, despues: 1 }],
+  resumen: 'Nueva versión de EST-10071: ACE-00020 0.833333 → 1.333333', cambios: [{ insumo: 'ACE-00020', unidad: 'pza', antes: 0.833333, despues: 1.333333 }],
   motivos: ['Q79'], destajo_por_definir: null, propuso_nombre: 'Ana de Costos', propuso_rol: 'costos', propuesto_en: '2026-11-15T10:00:00Z',
   decidio_nombre: null, decidio_rol: null, decidido_en: null, motivo: null,
 };
@@ -169,7 +169,7 @@ describe('TarjetaEstructura', () => {
     render(<TarjetaEstructura clave="EST-02170" />);
     const fila = document.querySelector('[data-conciliacion="EST-10071"] [data-insumo="ACE-00020"]') as HTMLElement;
     expect(within(fila).getByText('0.8333')).toBeInTheDocument();
-    expect(fila).toHaveTextContent('1.0000 (pendiente)');
+    expect(fila).toHaveTextContent('1.3333 (pendiente)');
     expect(fila).toHaveTextContent('1.3333');
     expect(fila).toHaveTextContent('≠');
     const sola = document.querySelector('[data-conciliacion="EST-10071"] [data-insumo="MEZ-07010"]') as HTMLElement;

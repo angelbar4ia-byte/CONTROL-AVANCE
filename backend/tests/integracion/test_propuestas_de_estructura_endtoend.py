@@ -150,28 +150,28 @@ async def test_costos_propone_las_correcciones_y_control_las_autoriza_con_su_num
     assert (await residente.post(f"{RUTA}/EST-02170/propuestas/correcciones")).status_code == 403
     creadas = await costos.post(f"{RUTA}/EST-02170/propuestas/correcciones")
     assert creadas.status_code == 201, creadas.text
-    assert len(creadas.json()["creadas"]) == 1  # solo EST-10071 se corrige en K-7
+    assert len(creadas.json()["creadas"]) == 3  # el armex de EST-10070, 10071 y 10072
     # Es idempotente: lo ya propuesto no se vuelve a proponer.
     otra = await costos.post(f"{RUTA}/EST-02170/propuestas/correcciones")
-    assert otra.json() == {"creadas": [], "omitidas": ["EST-10071"]}
+    assert otra.json()["creadas"] == [] and sorted(otra.json()["omitidas"]) == ["EST-10070", "EST-10071", "EST-10072"]
 
-    (p,) = (await costos.get(f"{RUTA}/EST-02170/propuestas")).json()
+    p = next(x for x in (await costos.get(f"{RUTA}/EST-02170/propuestas")).json() if x["concepto_clave"] == "EST-10071")
     assert (p["estado"], p["version"], p["clase"], p["concepto_clave"]) == ("pendiente", None, "version_de_concepto", "EST-10071")
-    assert p["cambios"] == [{"insumo": "ACE-00020", "unidad": "pza", "antes": 0.833333, "despues": 1.0}]
+    assert p["cambios"] == [{"insumo": "ACE-00020", "unidad": "pza", "antes": 0.833333, "despues": pytest.approx(4 / 3, abs=1e-6)}]
     assert p["propuso_rol"] == "costos" and p["motivos"]
 
     # La conciliación muestra la versión propuesta junto al catálogo vigente (que no cambió).
     c = await costos.get(f"{RUTA}/EST-02170/conciliacion")
     fila = next(f for b in c.json()["conceptos"] if b["concepto_clave"] == "EST-10071" for f in b["filas"] if f["clave"] == "ACE-00020")
     assert fila["catalogo"] == pytest.approx(0.833333)
-    assert fila["propuesta"]["valor"] == 1.0 and fila["propuesta"]["estado"] == "pendiente"
+    assert fila["propuesta"]["valor"] == pytest.approx(4 / 3, abs=1e-6) and fila["propuesta"]["estado"] == "pendiente"
 
     pendientes = (await control.get(f"{PROPUESTAS}/pendientes")).json()
-    assert [x["concepto_clave"] for x in pendientes] == ["EST-10071"]
+    assert sorted(x["concepto_clave"] for x in pendientes) == ["EST-10070", "EST-10071", "EST-10072"]
     assert (await costos.post(f"{PROPUESTAS}/{p['id']}/autorizar")).status_code == 403
     ok = await control.post(f"{PROPUESTAS}/{p['id']}/autorizar")
     assert ok.status_code == 200 and ok.json() == {"version": 2}
-    (v,) = (await control.get(f"{RUTA}/EST-02170/propuestas")).json()
+    v = next(x for x in (await control.get(f"{RUTA}/EST-02170/propuestas")).json() if x["id"] == p["id"])
     assert (v["estado"], v["version"], v["decidio_rol"]) == ("autorizada", 2, "control_obra")
     assert (await control.post(f"{PROPUESTAS}/{p['id']}/autorizar")).status_code == 422
     # El catálogo no se tocó: el APU del concepto sigue como estaba.
@@ -203,10 +203,10 @@ async def test_lo_que_propone_control_de_obra_nace_autorizado(control, escenario
 
 async def test_un_rechazo_lleva_su_motivo_y_deja_proponer_de_nuevo(control, costos, escenario) -> None:
     await costos.post(f"{RUTA}/EST-02170/propuestas/correcciones")
-    (p,) = (await costos.get(f"{RUTA}/EST-02170/propuestas")).json()
+    p = next(x for x in (await costos.get(f"{RUTA}/EST-02170/propuestas")).json() if x["concepto_clave"] == "EST-10071")
     assert (await costos.post(f"{PROPUESTAS}/{p['id']}/rechazar", json={"motivo": "x"})).status_code == 403
     assert (await control.post(f"{PROPUESTAS}/{p['id']}/rechazar", json={"motivo": "  Falta confirmar  con el estructurista "})).status_code == 204
-    (r,) = (await control.get(f"{RUTA}/EST-02170/propuestas")).json()
+    r = next(x for x in (await control.get(f"{RUTA}/EST-02170/propuestas")).json() if x["id"] == p["id"])
     assert (r["estado"], r["version"], r["motivo"]) == ("rechazada", None, "Falta confirmar con el estructurista")
     assert (await control.post(f"{PROPUESTAS}/{p['id']}/rechazar", json={})).status_code == 422
     nueva = await costos.post(f"{RUTA}/EST-02170/propuestas/correcciones")
