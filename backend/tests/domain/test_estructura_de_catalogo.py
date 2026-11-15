@@ -233,13 +233,17 @@ def _por_concepto(clave: str) -> dict:
     return next(p for p in correcciones_de(clave) if p["clase"] == "version_de_concepto")
 
 
-def test_est_10071_pasa_a_una_pieza_de_armex() -> None:
-    """Q79: 0.8333 → 1.0 pza como nueva versión; el catálogo no se toca."""
-    p = next(x for x in correcciones_de("EST-02170") if x["concepto_clave"] == "EST-10071")
-    assert p["clase"] == "version_de_concepto"
-    assert p["detalle"]["cambios"] == [{"insumo": "ACE-00020", "unidad": "pza", "antes": 0.833333, "despues": 1.0}]
-    assert "EST-10071" in p["resumen"]
-    assert not any(x["concepto_clave"] in ("EST-10070", "EST-10072") for x in correcciones_de("EST-02170"))
+def test_el_armex_de_k7_se_propone_con_lo_que_pide_el_corte() -> None:
+    """Q22 confirmado: puntas de 50 cm; EST-10071 pasa a 1.33 pza, EST-10070 a 1.0 y EST-10072 a 0.5 como nuevas versiones."""
+    esperado = {"EST-10071": (0.833333, 4 / 3), "EST-10070": (0.666667, 1.0), "EST-10072": (0.333333, 0.5)}
+    propuestas = {x["concepto_clave"]: x for x in correcciones_de("EST-02170") if x["clase"] == "version_de_concepto"}
+    assert set(propuestas) == set(esperado)
+    for concepto, (antes, despues) in esperado.items():
+        (cambio,) = propuestas[concepto]["detalle"]["cambios"]
+        assert (cambio["insumo"], cambio["unidad"], cambio["antes"]) == ("ACE-00020", "pza", antes)
+        assert cambio["despues"] == pytest.approx(despues, abs=1e-6)
+        assert concepto in propuestas[concepto]["resumen"]
+        assert any("Q22" in m for m in propuestas[concepto]["detalle"]["motivos"])
 
 
 def test_los_kg_de_anillo_se_igualan_al_calculo_del_elemento() -> None:
@@ -258,7 +262,7 @@ def test_las_correcciones_de_anillo_cubren_cada_acero_con_anillos_y_no_se_repite
     for e in ELEMENTOS_DE_ESTRUCTURA:
         conceptos.extend(p["concepto_clave"] for p in correcciones_de(e))
     assert len(conceptos) == len(set(conceptos))  # un concepto lo propone un solo elemento (la forjada usa el de su núcleo)
-    for esperado in ("EST-10020", "EST-10021", "EST-10031", "EST-10041", "EST-10051", "EST-10060", "EST-10081", "EST-10071"):
+    for esperado in ("EST-10020", "EST-10021", "EST-10031", "EST-10041", "EST-10051", "EST-10060", "EST-10081", "EST-10070", "EST-10071", "EST-10072"):
         assert esperado in conceptos
     assert "EST-10011" not in conceptos
 
