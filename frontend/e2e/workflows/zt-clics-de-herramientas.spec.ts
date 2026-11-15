@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Los clics de cada herramienta. Con el botón izquierdo cada herramienta hace lo suyo; con el derecho (sin arrastrar):
@@ -34,7 +34,7 @@ test.describe('Cuantificador · clics de las herramientas', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     const punto = (fx: number, fy: number) => [c.x + c.width * fx, c.y + c.height * fy] as const;
     const clic = async (fx: number, fy: number, boton: 'left' | 'right' = 'left') => {
       const [x, y] = punto(fx, fy);

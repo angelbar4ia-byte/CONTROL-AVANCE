@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * «Colocar este elemento» (D-604): se elige el elemento en la pestaña Trazos, se traza con la herramienta que le toca
@@ -41,7 +41,7 @@ test.describe('Cuantificador · colocar un elemento', () => {
 
     // Dos piezas con Punto: cada trazo nace marcado como el elemento, sin pedir concepto.
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     await page.mouse.click(c.x + c.width * 0.7, c.y + c.height * 0.4);
     await expect(page.getByRole('status')).toContainText(`${clave} colocado`);
     await page.mouse.click(c.x + c.width * 0.8, c.y + c.height * 0.6);

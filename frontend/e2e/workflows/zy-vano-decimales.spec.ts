@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Altura y «del piso a la ventana» del vano por línea: se pueden escribir con punto («0.75») y se eligen con botones de
@@ -30,7 +30,7 @@ test.describe('Cuantificador · vano por línea: decimales y valores usuales', (
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     // La herramienta Vano necesita un muro: se dibuja uno con Línea.
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
     await page.mouse.click(c.x + c.width * 0.62, c.y + c.height * 0.6);

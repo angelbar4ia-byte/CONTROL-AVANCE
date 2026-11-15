@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * El paramétrico de muro (F-22): el muro nace con el tipo y el acabado que se eligen en el panel de la línea, y el tipo se
@@ -33,7 +33,7 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
 
     // Con grosor (un muro) aparece «Tipo de muro»; se elige con cadena y se quita la pintura de la fachada.
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();

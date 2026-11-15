@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Enlaces entre hojas (Fase 2): una zona del plano que lleva a otra hoja de la obra.
@@ -41,7 +41,7 @@ test.describe('Cuantificador · enlaces entre hojas', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${planta.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     const clic = (fx: number, fy: number) => page.mouse.click(c.x + c.width * fx, c.y + c.height * fy);
 
     // --- 1. Marcar la zona ---------------------------------------------------------------------------------

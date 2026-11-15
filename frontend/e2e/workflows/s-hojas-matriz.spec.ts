@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Hojas «matriz» del cuantificador (cerebro WORKFLOWS.md §8.9; D-565, D-583).
@@ -116,7 +116,7 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
     const cabeza = control.locator('.opciones__cabeza[aria-expanded="true"]');
     if ((await cabeza.count()) > 0) await cabeza.first().click();
     const lienzo = control.getByRole('img', { name: 'Plano con sus trazos' });
-    const caja = (await lienzo.boundingBox())!;
+    const caja = (await cajaEstable(control, lienzo));
     await control.mouse.click(caja.x + caja.width * 0.4, caja.y + caja.height * 0.5);
     await control.mouse.click(caja.x + caja.width * 0.8, caja.y + caja.height * 0.5);
     // Con la matriz elegida el trazo se guarda solo, enlazado a ella, sin cajón.
