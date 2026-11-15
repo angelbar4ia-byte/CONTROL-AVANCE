@@ -298,3 +298,31 @@ export async function pulsarMarca(
   const caja = (await marca.boundingBox())!;
   await marca.click({ force: true, position: { x: caja.width * fx, y: caja.height * fy } });
 }
+
+/**
+ * La caja del lienzo del plano (o de cualquier locator) una vez que el diseño asentó.
+ *
+ * Medir `lienzo.boundingBox()` justo después de `goto` y dibujar en esas coordenadas falla cuando los paneles (la franja de la
+ * actividad, el árbol, el detalle) todavía están llegando: el lienzo cambia de lugar y el clic cae en otro sitio. Aquí se
+ * lee la caja hasta que no cambia en tres lecturas seguidas, separadas 150 ms, y esa es la que se devuelve.
+ */
+export async function cajaEstable(
+  _page: Page,
+  lienzo: Locator,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  let previa = '';
+  let iguales = 0;
+  await expect
+    .poll(
+      async () => {
+        const b = await lienzo.boundingBox();
+        const actual = b ? `${b.x.toFixed(1)},${b.y.toFixed(1)},${b.width.toFixed(1)},${b.height.toFixed(1)}` : '';
+        iguales = actual !== '' && actual === previa ? iguales + 1 : 0;
+        previa = actual;
+        return iguales >= 2;
+      },
+      { intervals: [150], timeout: 15_000 },
+    )
+    .toBe(true);
+  return (await lienzo.boundingBox())!;
+}

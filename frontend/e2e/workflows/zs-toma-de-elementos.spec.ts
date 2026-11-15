@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * Lo que un concepto toma de un elemento (D-630, D-639): un concepto con una matriz «Habilitado» (en piezas) que toma el
@@ -67,7 +67,7 @@ test.describe('Cuantificador · lo que toma un concepto de un elemento', () => {
     await page.getByRole('tab', { name: /^Trazos/ }).click();
     await page.getByRole('button', { name: `Colocar ${clave} en el plano` }).click();
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     await page.mouse.click(c.x + c.width * 0.7, c.y + c.height * 0.4);
     await expect(page.getByRole('status')).toContainText(`${clave} colocado`);
     await page.mouse.click(c.x + c.width * 0.8, c.y + c.height * 0.6);

@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 
 /** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
@@ -120,7 +120,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await funciones(page).getByRole('button', { name: 'Calcular volumen' }).click();
     const volumen = page.getByRole('region', { name: 'Calcular volumen' });
     await expect(volumen).toContainText('Elige un trazo en el plano');
-    const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
+    const caja = (await cajaEstable(page, page.getByRole('img', { name: 'Plano con sus trazos' })));
     // Se elige el cuadrado: es el trazo de área, el que está a la izquierda del encuadre.
     const cuadrado = page.locator('.visor__trazo').first();
     const c = (await cuadrado.locator('path').boundingBox())!;
@@ -171,7 +171,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(page.locator('.visor__trazo')).toHaveCount(1);
-    const caja = (await lienzo.boundingBox())!;
+    const caja = (await cajaEstable(page, lienzo));
     const vista = async () => (await lienzo.getAttribute('viewBox'))!.split(' ').map(Number) as [number, number, number, number];
 
     // --- 6. La rueda acerca y aleja; el clic derecho arrastra el plano ----------------------------------
@@ -201,7 +201,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     const opciones = page.getByRole('region', { name: 'Opciones de la línea' });
     await opciones.getByRole('button', { name: '0.15 m' }).click();
     await opciones.getByRole('button', { name: 'Derecha' }).click();
-    const lienzo2 = (await lienzo.boundingBox())!;
+    const lienzo2 = (await cajaEstable(page, lienzo));
     const en = (fx: number, fy: number) => ({ x: lienzo2.x + lienzo2.width * fx, y: lienzo2.y + lienzo2.height * fy });
     await page.mouse.click(en(0.55, 0.8).x, en(0.55, 0.8).y);
     await page.mouse.click(en(0.8, 0.8).x, en(0.8, 0.8).y); // la línea de dos clics se cierra sola
@@ -232,7 +232,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await page.getByRole('button', { name: 'Punto', exact: true }).click();
     const opcionesPunto = page.getByRole('region', { name: 'Opciones del punto' });
     await opcionesPunto.getByRole('button', { name: 'Castillo' }).click();
-    const lienzo3 = (await lienzo.boundingBox())!;
+    const lienzo3 = (await cajaEstable(page, lienzo));
     await page.mouse.move(lienzo3.x + lienzo3.width * 0.3, lienzo3.y + lienzo3.height * 0.8);
     await expect(page.getByTestId('fantasma')).toBeVisible(); // la forma sigue al cursor
     await page.mouse.click(lienzo3.x + lienzo3.width * 0.3, lienzo3.y + lienzo3.height * 0.8);
@@ -289,7 +289,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(page.locator('.visor__trazo')).toHaveCount(1);
-    const caja = (await lienzo.boundingBox())!;
+    const caja = (await cajaEstable(page, lienzo));
     const ancho = async () => Number((await lienzo.getAttribute('viewBox'))!.split(' ')[2]);
 
     // --- 10. Dos dedos separándose acercan; juntándose alejan; uno arrastra -----------------------------
@@ -394,7 +394,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await expect(page.locator('.visor__trazo')).toHaveCount(2);
 
     // --- Una muesca de la rueda acerca poco: entre 3 y 10 % ------------------------------------------------
-    const caja = (await lienzo.boundingBox())!;
+    const caja = (await cajaEstable(page, lienzo));
     const ancho = async () => Number((await lienzo.getAttribute('viewBox'))!.split(' ')[2]);
     const w0 = await ancho();
     await page.mouse.move(caja.x + caja.width / 2, caja.y + caja.height / 2);

@@ -4,7 +4,7 @@
  * podría escribir.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { numeroTecleado } from './volumen';
 
@@ -19,12 +19,18 @@ interface Props {
 export function CampoDecimal({ etiqueta, valor, onValor, className, ancho = 70 }: Props) {
   const [texto, setTexto] = useState(String(valor));
   const editando = useRef(false);
-  // Si el valor cambia desde fuera (un botón de valores usuales), el campo lo muestra; lo tecleado que ya lo representa se respeta.
-  // Mientras se está escribiendo no se reescribe: un valor derivado de otros campos no debe pisar lo que se teclea ni rellenar el campo
-  // recién borrado.
-  useEffect(() => {
+  // Si el valor cambia desde fuera (un botón de valores usuales, o un campo del que este se deriva), el campo lo muestra; lo
+  // tecleado que ya lo representa se respeta. Mientras se está escribiendo no se reescribe: un valor derivado de otros campos no
+  // debe pisar lo que se teclea ni rellenar el campo recién borrado.
+  //
+  // Se ajusta **al renderizar** y no en un efecto: un efecto pasivo pendiente corría justo al enfocar el campo (React vacía los
+  // efectos antes de atender el evento, y `editando` aún era falso), reescribía el texto con el valor derivado y lo que se
+  // tecleaba después se agregaba a ese texto («1.7» + «2» = «1.72» en lugar de «2.1» con el campo vaciado).
+  const [valorVisto, setValorVisto] = useState(valor);
+  if (valor !== valorVisto) {
+    setValorVisto(valor);
     if (!editando.current && numeroTecleado(texto) !== valor) setTexto(String(valor));
-  }, [valor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
   return (
     <input
       aria-label={etiqueta}
