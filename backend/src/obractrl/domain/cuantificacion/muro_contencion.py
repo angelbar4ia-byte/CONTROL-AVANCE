@@ -28,6 +28,10 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from obractrl.domain.cuantificacion.comparacion_con_catalogo import (
+    FilaDeComposicion,
+    comparar_con_concepto,
+)
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
@@ -41,8 +45,10 @@ __all__ = [
     "EntradaMuroDeContencion",
     "ErrorDeMuroDeContencion",
     "calcular_muro_de_contencion",
+    "contraste_con_el_concepto",
     "fila_del_cuadro_1",
     "piezas_de_tubo",
+    "volumen_de_mamposteria",
 ]
 
 CLAVE_ELEMENTO = "MCT-01010"
@@ -178,6 +184,7 @@ DENTELLON = {
     "volumen_m3": 0.21,
 }
 ABUNDAMIENTO_DE_LA_PIEDRA = 1.5
+PIEDRA_POR_VIAJE_M3 = 6.0
 POR_M3_DE_MAMPOSTERIA = {"cemento_kg": 83.3, "arena_m3": 0.408, "agua_l": 79.0}
 
 DREN = {
@@ -254,6 +261,69 @@ PENDIENTES: tuple[dict[str, str], ...] = (
         "texto": "El elemento no calcula volteo ni deslizamiento: la estabilidad la valida el estructurista.",
     },
 )
+
+
+def volumen_de_mamposteria(muro_m3_ml: float, dentellon_m3_ml: float) -> dict[str, float]:
+    """Volumen por metro de trazo y lo que pide de piedra, cemento, arena y agua. Lo comparten los dos muros de piedra
+    (contención y cimentación): ambos se pagan con el mismo concepto por m³."""
+    total = muro_m3_ml + dentellon_m3_ml
+    return {
+        "muro_m3_ml": muro_m3_ml,
+        "dentellon_m3_ml": dentellon_m3_ml,
+        "excavacion_dentellon_m3_ml": dentellon_m3_ml,
+        "total_m3_ml": total,
+        "piedra_a_comprar_m3_ml": total * ABUNDAMIENTO_DE_LA_PIEDRA,
+        "abundamiento": ABUNDAMIENTO_DE_LA_PIEDRA,
+        "cemento_kg_ml": total * POR_M3_DE_MAMPOSTERIA["cemento_kg"],
+        "arena_m3_ml": total * POR_M3_DE_MAMPOSTERIA["arena_m3"],
+        "agua_l_ml": total * POR_M3_DE_MAMPOSTERIA["agua_l"],
+    }
+
+
+def contraste_con_el_concepto() -> dict[str, Any]:
+    """El elemento contra el concepto MCT-01011 del catálogo, por m³ de mampostería.
+
+    Cifras del catálogo (verificadas en `ANALISIS_DE_BASICOS_CONCEPTOS.csv`): el concepto lleva 0.34 m³ de MEZ-03060
+    (5 sacos de cemento, 0.085714 viaje de 14 m³ de arena y 0.015 pipa por m³ de mezcla), 0.10 viaje de 6 m³ de piedra de
+    cerro (PET-00004) y el destajo MOP-00303 de $450 por m³. El elemento pide 1.5 m³ de piedra por m³ (abundamiento del
+    manual) = 0.25 viaje: el catálogo se queda corto. **No se corrige el catálogo**: la corrección sale como `version_propuesta`
+    (nueva versión del concepto, pendiente de autorizar por Control de obra) y aquí solo se muestra la diferencia.
+    """
+    mezcla = 0.34
+    composicion = [
+        FilaDeComposicion("ADH-00005", mezcla * 5.0, "CEMENTO SACO DE 50 KG", "BTS"),
+        FilaDeComposicion("PET-00015", mezcla * 0.085714, "ARENA DE RIO 14 M3", "SERV"),
+        FilaDeComposicion("SER-00003", mezcla * 0.015, "PIPA 10000", "SERV"),
+        FilaDeComposicion(
+            "PET-00004", 0.10, "PIEDRA DE CERRO (FACHADAS Y INTERIORES) 6 M3", "SERV"
+        ),
+        FilaDeComposicion(
+            "MOP-00303",
+            1.0,
+            "MO MAMPOSTEO DE PIEDRA",
+            "M3",
+            es_mano_de_obra=True,
+            costo=450.0,
+        ),
+    ]
+    elemento = {
+        "ADH-00005": POR_M3_DE_MAMPOSTERIA["cemento_kg"] / 50.0,
+        "PET-00015": POR_M3_DE_MAMPOSTERIA["arena_m3"] / 14.0,
+        "PET-00004": ABUNDAMIENTO_DE_LA_PIEDRA / PIEDRA_POR_VIAJE_M3,
+    }
+    cmp = comparar_con_concepto(elemento, composicion)
+    return {
+        "concepto": CLAVE_CONCEPTO,
+        "version_vigente": 1,
+        "filas": cmp["filas"],
+        "mano_de_obra": cmp["mano_de_obra"],
+        "resumen": cmp["resumen"],
+        "version_propuesta": {
+            "version": 2,
+            "cambio": "PET-00004: de 0.10 a 0.25 viaje de 6 m³ por m³ de muro (1.5 m³ de piedra por m³).",
+            "estado": "propuesta, pendiente de autorizar por Control de obra",
+        },
+    }
 
 
 class ErrorDeMuroDeContencion(ErrorDeCuantificacion):
@@ -483,17 +553,7 @@ def calcular_muro_de_contencion(e: EntradaMuroDeContencion) -> dict[str, Any]:
             "fila_cuadro_1": {"H": fila["H"], "B": fila["B"], "B1": fila["B1"]},
             "fuera_de_tabla": fuera,
         },
-        "volumen": {
-            "muro_m3_ml": vm,
-            "dentellon_m3_ml": den,
-            "excavacion_dentellon_m3_ml": den,
-            "total_m3_ml": vt,
-            "piedra_a_comprar_m3_ml": vt * ABUNDAMIENTO_DE_LA_PIEDRA,
-            "abundamiento": ABUNDAMIENTO_DE_LA_PIEDRA,
-            "cemento_kg_ml": vt * POR_M3_DE_MAMPOSTERIA["cemento_kg"],
-            "arena_m3_ml": vt * POR_M3_DE_MAMPOSTERIA["arena_m3"],
-            "agua_l_ml": vt * POR_M3_DE_MAMPOSTERIA["agua_l"],
-        },
+        "volumen": volumen_de_mamposteria(vm, den),
         "dentellon": {
             "aplica": aplica_dentellon,
             "opcion": bool(e.dentellon),
