@@ -9,6 +9,7 @@ import type { ElementoParametricoRespuestaTipo } from "./elementoParametricoResp
 import type { ElementoParametricoRespuestaParametros } from "./elementoParametricoRespuestaParametros";
 import type { MaterialesDelElemento } from "./materialesDelElemento";
 import type { RecetaRespuesta } from "./recetaRespuesta";
+import type { ElementoParametricoRespuestaEstadoAutorizacion } from "./elementoParametricoRespuestaEstadoAutorizacion";
 
 export interface ElementoParametricoRespuesta {
   id: string;
@@ -25,4 +26,10 @@ export interface ElementoParametricoRespuesta {
   receta: RecetaRespuesta;
   /** Sube al cambiar la receta con obras asignadas que lo usan (D-639). */
   version?: number;
+  /** `pendiente` = elemento nuevo que propuso Costos: se usa como provisional hasta que Control de obra lo autorice. */
+  estado_autorizacion?: ElementoParametricoRespuestaEstadoAutorizacion;
+  /** La última versión que Control de obra autorizó (0 = ninguna todavía). */
+  version_autorizada?: number;
+  /** Cuántas propuestas del elemento o de sus conceptos esperan a Control de obra. */
+  revisiones_pendientes?: number;
 }

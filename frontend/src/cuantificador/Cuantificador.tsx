@@ -2835,6 +2835,7 @@ export function EspacioDeTrazo({
           <PanelDeParametricos
             planoId={planoElegido}
             puedeDefinir={puedePonerPeso}
+            puedeAutorizar={sesion?.rol === 'control_obra'}
             onCambio={(aviso) => {
               if (aviso) setAviso(aviso);
             }}

@@ -8,18 +8,30 @@
 
 import { useState } from 'react';
 
-import { useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet } from '@/api/generado/elementos-parametricos/elementos-parametricos';
+import type { ErrorApi } from '@/api/cliente';
+import {
+  getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryKey,
+  getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryKey,
+  useAutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost,
+  useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet,
+} from '@/api/generado/elementos-parametricos/elementos-parametricos';
+import { queryClient } from '@/app/queryClient';
 
 interface Props {
   readonly elementoId: string;
   readonly clave: string;
+  /** Control de obra autoriza los conceptos nuevos que propone Costos. */
+  readonly puedeAutorizar?: boolean;
+  readonly onCambio?: (aviso: string) => void;
+  readonly onError?: (mensaje: string) => void;
 }
 
 const NIVELES = [1, 2, 3, 4] as const;
 const RANURA: Record<string, string> = { acero: 'Acero', colado: 'Colado y cimbra', completo: 'Completo' };
 
-export function ConceptosPorContexto({ elementoId, clave }: Props) {
+export function ConceptosPorContexto({ elementoId, clave, puedeAutorizar = false, onCambio, onError }: Props) {
   const [nivel, setNivel] = useState<number | null>(null);
+  const autorizar = useAutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost<ErrorApi>();
   const lista = useConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGet(
     elementoId,
     nivel === null ? undefined : { nivel },
@@ -27,6 +39,19 @@ export function ConceptosPorContexto({ elementoId, clave }: Props) {
   const filas = lista.data?.conceptos ?? [];
   const avisos = lista.data?.avisos ?? [];
   if (lista.isSuccess && filas.length === 0) return null;
+
+  async function autorizarConcepto(filaId: string, claveDelConcepto: string) {
+    try {
+      const r = await autorizar.mutateAsync({ elementoId, filaId });
+      void queryClient.invalidateQueries({
+        queryKey: getConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetQueryKey(elementoId),
+      });
+      void queryClient.invalidateQueries({ queryKey: getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryKey(elementoId) });
+      onCambio?.(`${claveDelConcepto} autorizado sin precio: versión ${r.version}. Costos define su APU y su destajo.`);
+    } catch (err) {
+      onError?.(err instanceof Error ? err.message : 'No se pudo autorizar el concepto.');
+    }
+  }
 
   return (
     <div role="group" aria-label={`Conceptos por contexto de ${clave}`} data-conceptos-por-contexto={clave} style={{ display: 'grid', gap: 4 }}>
@@ -59,6 +84,24 @@ export function ConceptosPorContexto({ elementoId, clave }: Props) {
           <span className={c.estado === 'propuesto' ? 'badge badge--warn' : 'badge badge--ok'} data-estado-del-concepto={c.clave}>
             {c.estado === 'propuesto' ? 'Nuevo, pendiente de autorizar' : 'Autorizado'}
           </span>
+          {c.version !== null && c.version !== undefined && (
+            <span className="badge" data-version-del-concepto={c.clave}>v{c.version}</span>
+          )}
+          {c.con_propuesta && <span className="badge badge--warn">APU: propuesta pendiente</span>}
+          {c.estado === 'propuesto' && c.nuevo && (
+            <span className="text-xs text-mute">No cuenta en el presupuesto hasta autorizarse; sin precio.</span>
+          )}
+          {c.estado === 'propuesto' && puedeAutorizar && (
+            <button
+              type="button"
+              className="btn btn--primary"
+              data-autorizar-concepto={c.clave}
+              disabled={autorizar.isPending}
+              onClick={() => void autorizarConcepto(c.id, c.clave)}
+            >
+              Autorizar concepto
+            </button>
+          )}
           {c.elegido === true && <span className="badge">Paga en este nivel</span>}
         </div>
       ))}

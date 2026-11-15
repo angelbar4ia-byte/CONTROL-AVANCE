@@ -29,12 +29,16 @@ import {
 } from '@/api/generado/elementos-parametricos/elementos-parametricos';
 import { queryClient } from '@/app/queryClient';
 
+import { ApuDelConcepto } from './ApuDelConcepto';
+
 interface Props {
   readonly elementoId: string;
   readonly clave: string;
   readonly tipo: 'castillo' | 'lineal' | 'zapata' | 'losa';
   readonly materiales: Readonly<Record<string, unknown>>;
   readonly puedeDefinir: boolean;
+  /** Control de obra autoriza; Costos propone. */
+  readonly puedeAutorizar?: boolean;
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
 }
@@ -185,7 +189,7 @@ function VentanaDeInsumos({ elementoId, tipo, onCerrar, onAgregado, onError }: {
   );
 }
 
-export function InsumosDelElemento({ elementoId, clave, tipo, materiales, puedeDefinir, onCambio, onError }: Props) {
+export function InsumosDelElemento({ elementoId, clave, tipo, materiales, puedeDefinir, puedeAutorizar = false, onCambio, onError }: Props) {
   const [abierta, setAbierta] = useState(false);
   const detalle = useInsumosDelElementoApiV1ElementosParametricosElementoIdInsumosGet(elementoId);
   const comparacion = useCompararConElCatalogoApiV1ElementosParametricosElementoIdComparacionGet(elementoId);
@@ -206,9 +210,13 @@ export function InsumosDelElemento({ elementoId, clave, tipo, materiales, puedeD
     else nuevos[parte] = valor;
     for (const k of Object.keys(nuevos)) if (nuevos[k] === null || nuevos[k] === undefined) delete nuevos[k];
     try {
-      await actualizar.mutateAsync({ elementoId, data: { materiales: nuevos as never } });
+      const r = await actualizar.mutateAsync({ elementoId, data: { materiales: nuevos as never } });
       recargar();
-      onCambio(`${clave}: material actualizado.`);
+      onCambio(
+        r && typeof r === 'object' && 'revision_id' in r
+          ? `${clave}: el cambio de material quedó propuesto y espera la autorización de Control de obra.`
+          : `${clave}: material actualizado.`,
+      );
     } catch (err) {
       fallo(err instanceof Error ? err.message : 'No se pudo cambiar el material.');
     }
@@ -296,6 +304,16 @@ export function InsumosDelElemento({ elementoId, clave, tipo, materiales, puedeD
               ))}
             </tbody>
           </table>
+          {puedeDefinir && (
+            <ApuDelConcepto
+              elementoId={elementoId}
+              filaId={c.fila_id}
+              concepto={c.concepto_clave}
+              puedeAutorizar={puedeAutorizar}
+              onCambio={(aviso) => { recargar(); onCambio(aviso); }}
+              onError={fallo}
+            />
+          )}
         </details>
       ))}
     </div>
