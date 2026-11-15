@@ -354,6 +354,9 @@ from obractrl.application.casos_uso.propuestas import (
 from obractrl.application.casos_uso.propuestas_de_estructura import (
     GestionarPropuestasDeEstructura,
 )
+from obractrl.application.casos_uso.propuestas_de_tabique import (
+    GestionarPropuestasDeTabique,
+)
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
@@ -484,6 +487,7 @@ __all__ = [
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
     "GestionarPropuestasDeEstructuraDep",
+    "GestionarPropuestasDeTabiqueDep",
     "GestionarVanosDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
@@ -1003,6 +1007,13 @@ def obtener_gestionar_propuestas_de_estructura(sesion: SesionRLS) -> GestionarPr
     )
 
 
+def obtener_gestionar_propuestas_de_tabique(sesion: SesionRLS) -> GestionarPropuestasDeTabique:
+    return GestionarPropuestasDeTabique(
+        propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_gestionar_conceptos_de_elemento(sesion: SesionRLS) -> GestionarConceptosDeElemento:
     elementos = RepositorioElementosParametricosSQL(sesion)
     return GestionarConceptosDeElemento(
@@ -1317,6 +1328,9 @@ GestionarInsumosDeElementoDep = Annotated[
 ]
 GestionarPropuestasDeEstructuraDep = Annotated[
     GestionarPropuestasDeEstructura, Depends(obtener_gestionar_propuestas_de_estructura)
+]
+GestionarPropuestasDeTabiqueDep = Annotated[
+    GestionarPropuestasDeTabique, Depends(obtener_gestionar_propuestas_de_tabique)
 ]
 ActualizarApuDesdeElementoDep = Annotated[
     ActualizarApuDesdeElemento, Depends(obtener_actualizar_apu_desde_elemento)

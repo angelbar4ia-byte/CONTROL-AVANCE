@@ -34,6 +34,8 @@ import type {
   CalculoDelElementoEstructuralPeticion,
   CalculoDelMuro,
   CalculoDelMuroPeticion,
+  CalculoDelTabique,
+  CalculoDelTabiquePeticion,
   CalculoDelTrazo,
   CategoriaDeBiblioteca,
   ConceptoPorAlturaPeticion,
@@ -43,6 +45,8 @@ import type {
   DefinicionDeEstructura,
   DefinicionDelElemento,
   DefinicionDelElementoEstructural,
+  DefinicionDelTabique,
+  FilaDeTabiqueRevision,
   HTTPValidationError,
   ProponerCorreccionPeticion,
   PropuestaCreada,
@@ -3437,6 +3441,1873 @@ export const useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraL
   > => {
     const mutationOptions =
       getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary La tabla de revisión de claves, nombres nominales, espesores reales y contraste con el catálogo de los aparejos
+ */
+export const tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet =
+  (options?: SecondParameter<typeof peticion>, signal?: AbortSignal) => {
+    return peticion<FilaDeTabiqueRevision[]>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/tabique/tabla-de-revision`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfiniteQueryKey =
+  () => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/tabique/tabla-de-revision`,
+    ] as const;
+  };
+
+export const getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetQueryKey =
+  () => {
+    return [
+      `/api/v1/biblioteca-de-elementos/tabique/tabla-de-revision`,
+    ] as const;
+  };
+
+export const getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+        >
+      >
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+        >
+      >
+    > = ({ signal }) =>
+      tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type TablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >
+  >;
+export type TablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfiniteQueryError =
+  unknown;
+
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La tabla de revisión de claves, nombres nominales, espesores reales y contraste con el catálogo de los aparejos
+ */
+
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+        >
+      >
+    > = ({ signal }) =>
+      tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type TablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+      >
+    >
+  >;
+export type TablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetQueryError =
+  unknown;
+
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La tabla de revisión de claves, nombres nominales, espesores reales y contraste con el catálogo de los aparejos
+ */
+
+export function useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof tablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGetQueryOptions(
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary La ficha de un muro de tabique, aparejo o piso de petatillo de la biblioteca
+ */
+export const definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet = (
+  clave: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<DefinicionDelTabique>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/tabique/${clave}`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/tabique/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetQueryKey =
+  (clave?: string) => {
+    return [`/api/v1/biblioteca-de-elementos/tabique/${clave}`] as const;
+  };
+
+export const getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >
+  >;
+export type DefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha de un muro de tabique, aparejo o piso de petatillo de la biblioteca
+ */
+
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+      >
+    >
+  >;
+export type DefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha de un muro de tabique, aparejo o piso de petatillo de la biblioteca
+ */
+
+export function useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Calcula un muro de tabique, aparejo o piso por m² (o ml de hilada) y lo contrasta con el catálogo (solo cálculo)
+ */
+export const calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost =
+  (
+    clave: string,
+    calculoDelTabiquePeticion: CalculoDelTabiquePeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<CalculoDelTabique>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/tabique/${clave}/calcular`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelTabiquePeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelTabiquePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelTabiquePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost
+        >
+      >,
+      { clave: string; data: CalculoDelTabiquePeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost
+      >
+    >
+  >;
+export type CalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPostMutationBody =
+  CalculoDelTabiquePeticion;
+export type CalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPostMutationError =
+  void;
+
+/**
+ * @summary Calcula un muro de tabique, aparejo o piso por m² (o ml de hilada) y lo contrasta con el catálogo (solo cálculo)
+ */
+export const useCalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelTabiquePeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelTabiquePeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del elemento de tabique
+ */
+export const propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<PropuestaDeEstructura[]>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/tabique/${clave}/propuestas`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/tabique/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/tabique/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del elemento de tabique
+ */
+
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del elemento de tabique
+ */
+
+export function usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Proponer el concepto nuevo de un aparejo que el catálogo no trae (clave provisional, sin destajo ni precio)
+ */
+export const proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/tabique/${clave}/propuestas/concepto-nuevo`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost
+        >
+      >,
+      TError,
+      { clave: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost
+      >
+    >,
+    TError,
+    { clave: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost
+        >
+      >,
+      { clave: string }
+    > = (props) => {
+      const { clave } = props ?? {};
+
+      return proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost(
+        clave,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost
+      >
+    >
+  >;
+
+export type ProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPostMutationError =
+  void;
+
+/**
+ * @summary Proponer el concepto nuevo de un aparejo que el catálogo no trae (clave provisional, sin destajo ni precio)
+ */
+export const useProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost
+          >
+        >,
+        TError,
+        { clave: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost
+      >
+    >,
+    TError,
+    { clave: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Confirmar el cálculo: proponer como nueva versión del concepto los coeficientes que difieren del catálogo
+ */
+export const proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost =
+  (
+    clave: string,
+    calculoDelTabiquePeticion: CalculoDelTabiquePeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/tabique/${clave}/propuestas/actualizar-apu`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelTabiquePeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelTabiquePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelTabiquePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost
+        >
+      >,
+      { clave: string; data: CalculoDelTabiquePeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost
+      >
+    >
+  >;
+export type ProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPostMutationBody =
+  CalculoDelTabiquePeticion;
+export type ProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPostMutationError =
+  void;
+
+/**
+ * @summary Confirmar el cálculo: proponer como nueva versión del concepto los coeficientes que difieren del catálogo
+ */
+export const useProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelTabiquePeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelTabiquePeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPostMutationOptions(
         options,
       );
 
