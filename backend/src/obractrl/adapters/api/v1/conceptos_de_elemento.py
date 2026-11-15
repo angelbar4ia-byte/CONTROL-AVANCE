@@ -47,6 +47,8 @@ class ConceptoPorContextoRespuesta(BaseModel):
     contexto: str = Field(description="El contexto en palabras (`niveles 1 a 2`, `nivel 3 en adelante`, `Todo contexto`).")
     alto_hasta_m: float | None = Field(description="Escalón por altura: sirve hasta este alto. `null` si no es un escalón.")
     elegido: bool | None = Field(description="Con nivel o ubicación en la consulta: si este concepto es el que paga su parte. `null` sin ellos.")
+    version: int | None = Field(default=None, description="La última versión autorizada del concepto en el elemento; `null` si aún no tiene (concepto nuevo propuesto).")
+    con_propuesta: bool = Field(default=False, description="Hay una propuesta pendiente de Control de obra sobre este concepto (la actualización de su APU).")
 
 
 class ConceptosPorContextoRespuesta(BaseModel):
@@ -97,6 +99,8 @@ def _fila(f: dict[str, object]) -> ConceptoPorContextoRespuesta:
         contexto=f["contexto"],  # type: ignore[arg-type]
         alto_hasta_m=float(alto) if alto is not None else None,  # type: ignore[arg-type]
         elegido=f["elegido"],  # type: ignore[arg-type]
+        version=f.get("version"),  # type: ignore[arg-type]
+        con_propuesta=bool(f.get("con_propuesta")),
     )
 
 
@@ -155,6 +159,7 @@ async def agregar_concepto_por_contexto(
             nivel_max=peticion.nivel_max,
             ubicacion=peticion.ubicacion,
             alto_hasta_m=peticion.alto_hasta_m,
+            rol=ctx.rol,
         )
     )
     return ConceptoPorContextoCreado(id=nuevo)

@@ -92,6 +92,9 @@ from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
+from obractrl.adapters.repos.versiones_de_elemento_sql import (
+    RepositorioVersionesDeElementoSQL,
+)
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorConceptosBase,
@@ -116,8 +119,12 @@ from obractrl.application.casos_uso.aplicar_catalogo_mano_de_obra import (
     AplicadorCatalogoManoDeObra,
     AplicadorSemillaCuadrillas,
 )
+from obractrl.application.casos_uso.apu_desde_elemento import ActualizarApuDesdeElemento
 from obractrl.application.casos_uso.arbol import ArmarArbol
 from obractrl.application.casos_uso.arbol_de_obra import ArbolDeObra
+from obractrl.application.casos_uso.autorizacion_de_elementos import (
+    AutorizarElementos,
+)
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
     ObtenerCPU,
@@ -364,6 +371,7 @@ __all__ = [
     "AbrirCierreDeObraDep",
     "AbrirIncidenciaDep",
     "AceptarPropuestasDep",
+    "ActualizarApuDesdeElementoDep",
     "ActualizarObraDep",
     "ActualizarUsuarioDep",
     "AgregarActividadNuevaDep",
@@ -381,6 +389,7 @@ __all__ = [
     "AsignarAlcanceDep",
     "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
+    "AutorizarElementosDep",
     "CalibrarEscalaDePlanoDep",
     "CambiarEstadoDePartesDep",
     "CambioDeUnidadDep",
@@ -949,6 +958,7 @@ def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElem
     return GestionarElementosParametricos(
         elementos=elementos,
         insumos=RepositorioInsumosDeElementoSQL(sesion),
+        versiones=RepositorioVersionesDeElementoSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
         sincronizador=SincronizarTomas(
             elementos=elementos,
@@ -974,6 +984,7 @@ def obtener_gestionar_conceptos_de_elemento(sesion: SesionRLS) -> GestionarConce
     elementos = RepositorioElementosParametricosSQL(sesion)
     return GestionarConceptosDeElemento(
         elementos=elementos,
+        versiones=RepositorioVersionesDeElementoSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
         sincronizador=SincronizarTomas(
             elementos=elementos,
@@ -983,6 +994,42 @@ def obtener_gestionar_conceptos_de_elemento(sesion: SesionRLS) -> GestionarConce
             prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
             desviaciones=RepositorioDesviacionesSQL(sesion),
         ),
+    )
+
+
+def obtener_actualizar_apu_desde_elemento(sesion: SesionRLS) -> ActualizarApuDesdeElemento:
+    return ActualizarApuDesdeElemento(
+        elementos=RepositorioElementosParametricosSQL(sesion),
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        versiones=RepositorioVersionesDeElementoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_autorizar_elementos(sesion: SesionRLS) -> AutorizarElementos:
+    elementos = RepositorioElementosParametricosSQL(sesion)
+    sincronizador = SincronizarTomas(
+        elementos=elementos,
+        matrices=RepositorioMatricesSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+    )
+    versiones = RepositorioVersionesDeElementoSQL(sesion)
+    insumos = RepositorioInsumosDeElementoSQL(sesion)
+    return AutorizarElementos(
+        elementos=elementos,
+        versiones=versiones,
+        conceptos=RepositorioConceptosSQL(sesion),
+        insumos=insumos,
+        uow=UnidadDeTrabajoSQL(sesion),
+        elementos_uc=GestionarElementosParametricos(
+            elementos=elementos, insumos=insumos, versiones=versiones, uow=UnidadDeTrabajoSQL(sesion), sincronizador=sincronizador
+        ),
+        apu_uc=obtener_actualizar_apu_desde_elemento(sesion),
+        sincronizador=sincronizador,
     )
 
 
@@ -1239,6 +1286,10 @@ GestionarElementosParametricosDep = Annotated[
 GestionarInsumosDeElementoDep = Annotated[
     GestionarInsumosDeElemento, Depends(obtener_gestionar_insumos_de_elemento)
 ]
+ActualizarApuDesdeElementoDep = Annotated[
+    ActualizarApuDesdeElemento, Depends(obtener_actualizar_apu_desde_elemento)
+]
+AutorizarElementosDep = Annotated[AutorizarElementos, Depends(obtener_autorizar_elementos)]
 GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)
 ]

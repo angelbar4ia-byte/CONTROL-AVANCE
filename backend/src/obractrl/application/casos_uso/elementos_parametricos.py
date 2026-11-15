@@ -16,6 +16,12 @@ from obractrl.application.casos_uso.tomas_de_elemento import (
     totales_de_trazos,
 )
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
+from obractrl.domain.cuantificacion.autorizacion_de_elementos import (
+    diferencias,
+    estado_de_alta,
+    requiere_autorizacion_el_cambio,
+    siguiente_version,
+)
 from obractrl.domain.cuantificacion.clasificacion_de_elementos import (
     ElementoDuplicado,
     firma_de_elemento,
@@ -36,7 +42,7 @@ from obractrl.domain.cuantificacion.materiales_de_elemento import (
     validar_materiales,
 )
 
-__all__ = ["ComandoCrearElementoParametrico", "ElementoParametricoNoEncontrado", "GestionarElementosParametricos"]
+__all__ = ["ComandoCrearElementoParametrico", "ElementoParametricoNoEncontrado", "GestionarElementosParametricos", "ResultadoDelCambio"]
 
 
 _NOMBRE_DE_GEOMETRIA = {"punto": "un punto", "linea": "una línea", "area": "un área"}
@@ -56,6 +62,20 @@ class ComandoCrearElementoParametrico:
     categoria: str | None = None
     subcategoria: str | None = None
     materiales: dict[str, Any] | None = None
+    rol: str | None = None
+    """El rol de quien lo crea: el elemento de Control de obra nace autorizado (versión 1); el de Costos, pendiente. Sin rol (uso
+    interno) nace autorizado."""
+
+
+@dataclass(frozen=True, slots=True)
+class ResultadoDelCambio:
+    """Lo que pasó con un cambio: se aplicó (Control de obra) o quedó como propuesta pendiente (Costos sobre un elemento autorizado)."""
+
+    aplicado: bool
+    elemento_id: UUID
+    revision_id: UUID | None = None
+    version: int | None = None
+    resumen: str = ""
 
 
 def _texto(valor: str, que: str, maximo: int) -> str:
@@ -74,9 +94,17 @@ def _con_receta(fila: dict[str, Any]) -> dict[str, Any]:
 
 class GestionarElementosParametricos:
     def __init__(
-        self, *, elementos: Any, uow: UnidadDeTrabajo, sincronizador: Any | None = None, insumos: Any | None = None
+        self,
+        *,
+        elementos: Any,
+        uow: UnidadDeTrabajo,
+        sincronizador: Any | None = None,
+        insumos: Any | None = None,
+        versiones: Any | None = None,
     ) -> None:
         self._elementos = elementos
+        # El historial de propuestas y versiones (0130); sin él, el elemento no lleva versiones por autorización.
+        self._versiones = versiones
         self._uow = uow
         # La base de insumos: con ella se comprueba que los materiales que elige el elemento existen y son de sus familias.
         self._insumos = insumos
@@ -127,13 +155,29 @@ class GestionarElementosParametricos:
             raise ErrorDeElementoParametrico(f"Ya existe un elemento con la clave {clave}.")
         firma = firma_de_elemento(categoria, subcategoria, cmd.tipo, parametros, materiales)
         await self._sin_duplicado(firma)
+        estado = estado_de_alta(cmd.rol) if cmd.rol is not None else "autorizado"
         async with self._uow:
             nuevo: UUID = await self._elementos.crear(
                 clave=clave, nombre=nombre, tipo=cmd.tipo, parametros=parametros, autor_id=cmd.autor_id,
-                categoria=categoria, subcategoria=subcategoria, firma=firma, materiales=materiales,
+                categoria=categoria, subcategoria=subcategoria, firma=firma, materiales=materiales, estado_autorizacion=estado,
             )
+            if self._versiones is not None and cmd.rol is not None and estado == "autorizado":
+                # Control de obra no pide autorización: el alta queda como su versión 1.
+                await self._registrar_version(nuevo, f"Alta del elemento {clave}", cmd.autor_id, cmd.rol, version=1)
             await self._uow.commit()
         return nuevo
+
+    async def _registrar_version(
+        self, elemento_id: UUID, resumen: str, usuario_id: UUID, rol: str, *, version: int | None = None, detalle: dict[str, Any] | None = None
+    ) -> int:
+        """Guarda como versión autorizada un cambio que Control de obra hace (o el alta de su elemento)."""
+        raiz = await self._versiones.raiz_de(elemento_id)
+        numero = version if version is not None else siguiente_version(await self._versiones.autorizadas(raiz, None))
+        await self._versiones.registrar(
+            elemento_id=elemento_id, raiz_id=raiz, fila_id=None, clase="elemento", estado="autorizada", version=numero,
+            resumen=resumen, detalle=detalle or {}, propuso_id=usuario_id, propuso_rol=rol, decidio_id=usuario_id, decidio_rol=rol,
+        )
+        return numero
 
     async def validar_posicion(self, elemento_id: UUID, posicion: str) -> None:
         """La posición en que el muro coloca el elemento debe ser una de las que permite su subcategoría (M-32)."""
@@ -151,8 +195,13 @@ class GestionarElementosParametricos:
         categoria: str | None = None,
         subcategoria: str | None = None,
         materiales: dict[str, Any] | None = None,
+        rol: str | None = None,
+        validar_solamente: bool = False,
     ) -> UUID:
-        """Cambia un elemento. `materiales`, si viene, **reemplaza** los que tenía (`{}` los quita); sin él se conservan. Devuelve el id de la versión vigente (otro, si hubo que crear una versión nueva)."""
+        """Cambia un elemento. `materiales`, si viene, **reemplaza** los que tenía (`{}` los quita); sin él se conservan. Devuelve el id de la versión vigente (otro, si hubo que crear una versión nueva).
+
+        Con `rol` (Control de obra) el cambio de un elemento autorizado queda guardado como su versión siguiente. Con
+        `validar_solamente` comprueba todo lo que comprobaría al guardar y no escribe nada (así se valida una propuesta)."""
         actual = await self._elementos.obtener(elemento_id)
         if actual is None:
             raise ElementoParametricoNoEncontrado(f"El elemento {elemento_id} no existe o está fuera de tu alcance.")
@@ -178,6 +227,22 @@ class GestionarElementosParametricos:
             # M-29: el elemento cambiado no puede quedar igual a otro. La subcategoría y los materiales forman parte de la identidad (M-32).
             firma = firma_de_elemento(nueva_categoria, nueva_subcategoria, actual["tipo"], nuevos, nuevos_materiales)
             await self._sin_duplicado(firma, salvo=elemento_id)
+        if validar_solamente:
+            return elemento_id
+        # Control de obra no pide autorización: lo que cambia en un elemento autorizado queda como su versión siguiente.
+        resumen = "; ".join(
+            diferencias(
+                {k: actual.get(k) for k in ("clave", "nombre", "categoria", "subcategoria", "parametros", "materiales")},
+                {
+                    "clave": nueva_clave, "nombre": nuevo_nombre, "categoria": nueva_categoria,
+                    "subcategoria": nueva_subcategoria, "parametros": nuevos, "materiales": nuevos_materiales,
+                },
+            )
+        )
+        con_version = (
+            self._versiones is not None and rol is not None and autor_id is not None and bool(resumen)
+            and actual.get("estado_autorizacion", "autorizado") == "autorizado"
+        )
         if cambia_la_receta and await self._elementos.obras_congeladas_con(elemento_id):
             # D-639: las obras asignadas conservan la versión con que midieron; el resto pasa a la nueva.
             async with self._uow:
@@ -190,6 +255,8 @@ class GestionarElementosParametricos:
                 )
                 await self._sincronizar_obras_con(nueva)
                 await self._sincronizar_obras_con(elemento_id)
+                if con_version:
+                    await self._registrar_version(nueva, resumen, autor_id, str(rol))  # type: ignore[arg-type]
                 await self._uow.commit()
             return nueva
         async with self._uow:
@@ -199,8 +266,59 @@ class GestionarElementosParametricos:
                 materiales=nuevos_materiales,
             )
             await self._sincronizar_obras_con(elemento_id)
+            if con_version:
+                await self._registrar_version(elemento_id, resumen, autor_id, str(rol))  # type: ignore[arg-type]
             await self._uow.commit()
         return elemento_id
+
+    async def cambiar(
+        self,
+        elemento_id: UUID,
+        *,
+        usuario_id: UUID,
+        rol: str,
+        clave: str | None = None,
+        nombre: str | None = None,
+        parametros: dict[str, Any] | None = None,
+        categoria: str | None = None,
+        subcategoria: str | None = None,
+        materiales: dict[str, Any] | None = None,
+    ) -> ResultadoDelCambio:
+        """El cambio de un elemento según quién lo hace. Control de obra lo aplica y queda como su versión siguiente; Costos, sobre
+        un elemento ya autorizado, lo **propone**: se valida igual, pero no se aplica hasta que Control de obra lo autorice."""
+        actual = await self._elemento(elemento_id)
+        if self._versiones is None or not requiere_autorizacion_el_cambio(rol, actual.get("estado_autorizacion", "autorizado")):
+            nuevo = await self.actualizar(
+                elemento_id, clave=clave, nombre=nombre, parametros=parametros, autor_id=usuario_id, categoria=categoria,
+                subcategoria=subcategoria, materiales=materiales, rol=rol,
+            )
+            version = None
+            if self._versiones is not None:
+                autorizadas = await self._versiones.autorizadas(await self._versiones.raiz_de(nuevo), None)
+                version = max(autorizadas, default=None)
+            return ResultadoDelCambio(aplicado=True, elemento_id=nuevo, version=version)
+        # Costos propone: comprueba lo mismo que comprobaría al guardar y deja el cambio pendiente.
+        await self.actualizar(
+            elemento_id, clave=clave, nombre=nombre, parametros=parametros, autor_id=usuario_id, categoria=categoria,
+            subcategoria=subcategoria, materiales=materiales, validar_solamente=True,
+        )
+        propuesto = {
+            k: v
+            for k, v in {
+                "clave": clave, "nombre": nombre, "parametros": parametros, "categoria": categoria, "subcategoria": subcategoria,
+                "materiales": materiales,
+            }.items()
+            if v is not None
+        }
+        resumen = "; ".join(diferencias({k: actual.get(k) for k in propuesto}, propuesto)) or "Sin cambios"
+        raiz = await self._versiones.raiz_de(elemento_id)
+        async with self._uow:
+            revision = await self._versiones.registrar(
+                elemento_id=elemento_id, raiz_id=raiz, fila_id=None, clase="elemento", estado="pendiente", version=None,
+                resumen=resumen, detalle={"cambio": propuesto}, propuso_id=usuario_id, propuso_rol=rol,
+            )
+            await self._uow.commit()
+        return ResultadoDelCambio(aplicado=False, elemento_id=elemento_id, revision_id=revision, resumen=resumen)
 
     async def eliminar(self, elemento_id: UUID) -> None:
         if await self._elementos.obtener(elemento_id) is None:

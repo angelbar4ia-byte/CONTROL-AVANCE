@@ -51,6 +51,8 @@ class ComandoAgregarConceptoDeElemento:
     nivel_max: int | None = None
     ubicacion: str | None = None
     alto_hasta_m: Decimal | None = None
+    rol: str | None = None
+    """El rol de quien lo agrega: con él el concepto del catálogo queda como versión 1 del concepto del elemento."""
 
 
 def _concepto(f: dict[str, Any]) -> ConceptoDeElemento:
@@ -68,9 +70,13 @@ def _concepto(f: dict[str, Any]) -> ConceptoDeElemento:
 
 
 class GestionarConceptosDeElemento:
-    def __init__(self, *, elementos: Any, uow: UnidadDeTrabajo, sincronizador: Any | None = None) -> None:
+    def __init__(
+        self, *, elementos: Any, uow: UnidadDeTrabajo, sincronizador: Any | None = None, versiones: Any | None = None
+    ) -> None:
         self._elementos = elementos
         self._uow = uow
+        # El historial de versiones (0130): cada concepto del catálogo que se enlaza queda como su versión 1.
+        self._versiones = versiones
         # Solo el concepto sin contexto ni escalón alimenta las tomas de las matrices (D-639); los demás esperan a la fase del Cuantificador.
         self._sincronizador = sincronizador
 
@@ -157,6 +163,15 @@ class GestionarConceptosDeElemento:
                 unidad=cmd.unidad, toma=toma, nivel_min=contexto.nivel_min, nivel_max=contexto.nivel_max,
                 ubicacion=contexto.ubicacion, alto_hasta_m=alto, estado=estado, autor_id=cmd.autor_id,
             )
+            if self._versiones is not None and cmd.rol is not None and estado == "autorizado":
+                raiz = await self._versiones.raiz_de(cmd.elemento_id)
+                control = cmd.rol == "control_obra"
+                await self._versiones.registrar(
+                    elemento_id=cmd.elemento_id, raiz_id=raiz, fila_id=fila_id, clase="concepto", estado="autorizada", version=1,
+                    resumen=f"Concepto {clave} del catálogo enlazado al elemento", detalle={"clave": clave},
+                    propuso_id=cmd.autor_id, propuso_rol=cmd.rol, decidio_id=cmd.autor_id if control else None,
+                    decidio_rol="control_obra" if control else None,
+                )
             await self._sincronizar_si_es_general(cmd.elemento_id, nuevo)
             await self._uow.commit()
         return fila_id
