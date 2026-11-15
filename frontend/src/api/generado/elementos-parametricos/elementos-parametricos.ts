@@ -28,6 +28,7 @@ import type {
 import type {
   AgregarInsumosPeticion,
   AgregarInsumosRespuesta,
+  AutorizacionDelElemento,
   BuscarInsumosApiV1ElementosParametricosElementoIdInsumosDisponiblesGetParams,
   CantidadDelInsumoPeticion,
   CategoriaDeClasificacion,
@@ -40,6 +41,9 @@ import type {
   ConceptoTomaPeticion,
   ConceptosPorContextoApiV1ElementosParametricosElementoIdConceptosPorContextoGetParams,
   ConceptosPorContextoRespuesta,
+  ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  ConciliacionRespuesta,
+  ConfirmarApuRespuesta,
   DescripcionDelConceptoPeticion,
   ElementoEnTrazoPeticion,
   ElementoParametricoCambio,
@@ -54,7 +58,12 @@ import type {
   InsumoProvisionalCreado,
   InsumoProvisionalPeticion,
   InsumosDelElementoRespuesta,
+  PendienteDeAutorizar,
+  PlanDeApuRespuesta,
+  PropuestaDeCambio,
+  RechazoPeticion,
   TipoDeElementoRespuesta,
+  VersionAutorizada,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -1509,7 +1518,8 @@ export const useCrearElementoParametricoApiV1ElementosParametricosPost = <
 };
 /**
  * Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la
-anterior y el resto pasa a la nueva.
+anterior y el resto pasa a la nueva. El cambio de Control de obra se aplica y queda como la versión siguiente del elemento;
+el de Costos sobre un elemento autorizado es una **propuesta** (202): no se aplica hasta que Control de obra la autorice.
  * @summary Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico
  */
 export const actualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch =
@@ -1518,7 +1528,7 @@ export const actualizarElementoParametricoApiV1ElementosParametricosElementoIdPa
     elementoParametricoCambio: ElementoParametricoCambio,
     options?: SecondParameter<typeof peticion>,
   ) => {
-    return peticion<void>(
+    return peticion<PropuestaDeCambio | void>(
       {
         url: `/api/v1/elementos-parametricos/${elementoId}`,
         method: "PATCH",
@@ -4693,6 +4703,2678 @@ export const useQuitarConceptoPorContextoApiV1ElementosParametricosElementoIdCon
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * @summary El estado de autorización del elemento y su historial de propuestas y versiones
+ */
+export const autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet =
+  (
+    elementoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<AutorizacionDelElemento>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/autorizacion`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfiniteQueryKey =
+  (elementoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/autorizacion`,
+    ] as const;
+  };
+
+export const getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryKey =
+  (elementoId?: string) => {
+    return [
+      `/api/v1/elementos-parametricos/${elementoId}/autorizacion`,
+    ] as const;
+  };
+
+export const getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfiniteQueryKey(
+        elementoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+        >
+      >
+    > = ({ signal }) =>
+      autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet(
+        elementoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type AutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >
+  >;
+export type AutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary El estado de autorización del elemento y su historial de propuestas y versiones
+ */
+
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetInfiniteQueryOptions(
+      elementoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryKey(
+        elementoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+        >
+      >
+    > = ({ signal }) =>
+      autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet(
+        elementoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type AutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+      >
+    >
+  >;
+export type AutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary El estado de autorización del elemento y su historial de propuestas y versiones
+ */
+
+export function useAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getAutorizacionDelElementoApiV1ElementosParametricosElementoIdAutorizacionGetQueryOptions(
+      elementoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Todo lo que espera la autorización de Control de obra: elementos, conceptos y propuestas
+ */
+export const autorizacionesPendientesApiV1AutorizacionesPendientesGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<PendienteDeAutorizar[]>(
+    { url: `/api/v1/autorizaciones-pendientes`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfiniteQueryKey =
+  () => {
+    return ["infinite", `/api/v1/autorizaciones-pendientes`] as const;
+  };
+
+export const getAutorizacionesPendientesApiV1AutorizacionesPendientesGetQueryKey =
+  () => {
+    return [`/api/v1/autorizaciones-pendientes`] as const;
+  };
+
+export const getAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+        >
+      >
+    >,
+    TError = void,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+        >
+      >
+    > = ({ signal }) =>
+      autorizacionesPendientesApiV1AutorizacionesPendientesGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type AutorizacionesPendientesApiV1AutorizacionesPendientesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >
+  >;
+export type AutorizacionesPendientesApiV1AutorizacionesPendientesGetInfiniteQueryError =
+  void;
+
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Todo lo que espera la autorización de Control de obra: elementos, conceptos y propuestas
+ */
+
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getAutorizacionesPendientesApiV1AutorizacionesPendientesGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getAutorizacionesPendientesApiV1AutorizacionesPendientesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >,
+    TError = void,
+  >(options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getAutorizacionesPendientesApiV1AutorizacionesPendientesGetQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+        >
+      >
+    > = ({ signal }) =>
+      autorizacionesPendientesApiV1AutorizacionesPendientesGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type AutorizacionesPendientesApiV1AutorizacionesPendientesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+      >
+    >
+  >;
+export type AutorizacionesPendientesApiV1AutorizacionesPendientesGetQueryError =
+  void;
+
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGet<
+  TData = Awaited<
+    ReturnType<typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet>
+  >,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGet<
+  TData = Awaited<
+    ReturnType<typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet>
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGet<
+  TData = Awaited<
+    ReturnType<typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet>
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Todo lo que espera la autorización de Control de obra: elementos, conceptos y propuestas
+ */
+
+export function useAutorizacionesPendientesApiV1AutorizacionesPendientesGet<
+  TData = Awaited<
+    ReturnType<typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet>
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizacionesPendientesApiV1AutorizacionesPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getAutorizacionesPendientesApiV1AutorizacionesPendientesGetQueryOptions(
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Autorizar un elemento nuevo que propuso Costos: queda como su versión 1
+ */
+export const autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost =
+  (
+    elementoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionAutorizada>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/autorizar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizarElementoApiV1ElementosParametricosElementoIdAutorizarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost
+        >
+      >,
+      TError,
+      { elementoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost
+      >
+    >,
+    TError,
+    { elementoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost
+        >
+      >,
+      { elementoId: string }
+    > = (props) => {
+      const { elementoId } = props ?? {};
+
+      return autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost(
+        elementoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AutorizarElementoApiV1ElementosParametricosElementoIdAutorizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost
+      >
+    >
+  >;
+
+export type AutorizarElementoApiV1ElementosParametricosElementoIdAutorizarPostMutationError =
+  void;
+
+/**
+ * @summary Autorizar un elemento nuevo que propuso Costos: queda como su versión 1
+ */
+export const useAutorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost
+          >
+        >,
+        TError,
+        { elementoId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof autorizarElementoApiV1ElementosParametricosElementoIdAutorizarPost
+      >
+    >,
+    TError,
+    { elementoId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAutorizarElementoApiV1ElementosParametricosElementoIdAutorizarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Autorizar un concepto nuevo del elemento: entra al catálogo sin precio y desde aquí cuenta en el presupuesto
+ */
+export const autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost =
+  (
+    elementoId: string,
+    filaId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionAutorizada>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/autorizar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost
+        >
+      >,
+      TError,
+      { elementoId: string; filaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost
+      >
+    >,
+    TError,
+    { elementoId: string; filaId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost
+        >
+      >,
+      { elementoId: string; filaId: string }
+    > = (props) => {
+      const { elementoId, filaId } = props ?? {};
+
+      return autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost(
+        elementoId,
+        filaId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost
+      >
+    >
+  >;
+
+export type AutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPostMutationError =
+  void;
+
+/**
+ * @summary Autorizar un concepto nuevo del elemento: entra al catálogo sin precio y desde aquí cuenta en el presupuesto
+ */
+export const useAutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost
+          >
+        >,
+        TError,
+        { elementoId: string; filaId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof autorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPost
+      >
+    >,
+    TError,
+    { elementoId: string; filaId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAutorizarConceptoDelElementoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdAutorizarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Autorizar la propuesta de Costos (un cambio del elemento o la actualización de un APU): se aplica y nace la versión
+ */
+export const autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost =
+  (
+    revisionId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionAutorizada>(
+      {
+        url: `/api/v1/revisiones-de-elementos/${revisionId}/autorizar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost
+        >
+      >,
+      TError,
+      { revisionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost
+      >
+    >,
+    TError,
+    { revisionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost
+        >
+      >,
+      { revisionId: string }
+    > = (props) => {
+      const { revisionId } = props ?? {};
+
+      return autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost(
+        revisionId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AutorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost
+      >
+    >
+  >;
+
+export type AutorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPostMutationError =
+  void;
+
+/**
+ * @summary Autorizar la propuesta de Costos (un cambio del elemento o la actualización de un APU): se aplica y nace la versión
+ */
+export const useAutorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost
+          >
+        >,
+        TError,
+        { revisionId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof autorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPost
+      >
+    >,
+    TError,
+    { revisionId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAutorizarRevisionApiV1RevisionesDeElementosRevisionIdAutorizarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Rechazar la propuesta de Costos: no se aplica y queda en el historial
+ */
+export const rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost =
+  (
+    revisionId: string,
+    rechazoPeticion: RechazoPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/revisiones-de-elementos/${revisionId}/rechazar`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: rechazoPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getRechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost
+        >
+      >,
+      TError,
+      { revisionId: string; data: RechazoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost
+      >
+    >,
+    TError,
+    { revisionId: string; data: RechazoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost
+        >
+      >,
+      { revisionId: string; data: RechazoPeticion }
+    > = (props) => {
+      const { revisionId, data } = props ?? {};
+
+      return rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost(
+        revisionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost
+      >
+    >
+  >;
+export type RechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPostMutationBody =
+  RechazoPeticion;
+export type RechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPostMutationError =
+  void;
+
+/**
+ * @summary Rechazar la propuesta de Costos: no se aplica y queda en el historial
+ */
+export const useRechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost
+          >
+        >,
+        TError,
+        { revisionId: string; data: RechazoPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof rechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPost
+      >
+    >,
+    TError,
+    { revisionId: string; data: RechazoPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getRechazarRevisionApiV1RevisionesDeElementosRevisionIdRechazarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Lo que haría «Confirmar cálculo → actualizar APU»: el APU contra el cálculo del elemento, insumo por insumo
+ */
+export const planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet =
+  (
+    elementoId: string,
+    filaId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<PlanDeApuRespuesta>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/apu`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfiniteQueryKey =
+  (elementoId?: string, filaId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/apu`,
+    ] as const;
+  };
+
+export const getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetQueryKey =
+  (elementoId?: string, filaId?: string) => {
+    return [
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/apu`,
+    ] as const;
+  };
+
+export const getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    filaId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfiniteQueryKey(
+        elementoId,
+        filaId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+        >
+      >
+    > = ({ signal }) =>
+      planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet(
+        elementoId,
+        filaId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!(elementoId && filaId),
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >
+  >;
+export type PlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que haría «Confirmar cálculo → actualizar APU»: el APU contra el cálculo del elemento, insumo por insumo
+ */
+
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetInfiniteQueryOptions(
+      elementoId,
+      filaId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    filaId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetQueryKey(
+        elementoId,
+        filaId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+        >
+      >
+    > = ({ signal }) =>
+      planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet(
+        elementoId,
+        filaId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!(elementoId && filaId),
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+      >
+    >
+  >;
+export type PlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetQueryError =
+  void | HTTPValidationError;
+
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet<
+  TData = Awaited<
+    ReturnType<
+      typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet<
+  TData = Awaited<
+    ReturnType<
+      typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet<
+  TData = Awaited<
+    ReturnType<
+      typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que haría «Confirmar cálculo → actualizar APU»: el APU contra el cálculo del elemento, insumo por insumo
+ */
+
+export function usePlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet<
+  TData = Awaited<
+    ReturnType<
+      typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPlanDeApuApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuGetQueryOptions(
+      elementoId,
+      filaId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Confirmar el cálculo del elemento y actualizar el APU del concepto (Control de obra lo aplica; Costos lo propone)
+ */
+export const confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost =
+  (
+    elementoId: string,
+    filaId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConfirmarApuRespuesta>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/apu/confirmar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getConfirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost
+        >
+      >,
+      TError,
+      { elementoId: string; filaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost
+      >
+    >,
+    TError,
+    { elementoId: string; filaId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost
+        >
+      >,
+      { elementoId: string; filaId: string }
+    > = (props) => {
+      const { elementoId, filaId } = props ?? {};
+
+      return confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost(
+        elementoId,
+        filaId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ConfirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost
+      >
+    >
+  >;
+
+export type ConfirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPostMutationError =
+  void;
+
+/**
+ * @summary Confirmar el cálculo del elemento y actualizar el APU del concepto (Control de obra lo aplica; Costos lo propone)
+ */
+export const useConfirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost
+          >
+        >,
+        TError,
+        { elementoId: string; filaId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof confirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPost
+      >
+    >,
+    TError,
+    { elementoId: string; filaId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getConfirmarCalculoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdApuConfirmarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Conciliación en las dos direcciones: el estimado por APU contra la salida de material del cálculo del elemento
+ */
+export const conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet =
+  (
+    elementoId: string,
+    filaId: string,
+    params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConciliacionRespuesta>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/conciliacion`,
+        method: "GET",
+        params,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfiniteQueryKey =
+  (
+    elementoId?: string,
+    filaId?: string,
+    params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/conciliacion`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetQueryKey =
+  (
+    elementoId?: string,
+    filaId?: string,
+    params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  ) => {
+    return [
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos-por-contexto/${filaId}/conciliacion`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    filaId: string,
+    params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfiniteQueryKey(
+        elementoId,
+        filaId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+        >
+      >
+    > = ({ signal }) =>
+      conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet(
+        elementoId,
+        filaId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!(elementoId && filaId),
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >
+  >;
+export type ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params:
+    | undefined
+    | ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Conciliación en las dos direcciones: el estimado por APU contra la salida de material del cálculo del elemento
+ */
+
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetInfiniteQueryOptions(
+      elementoId,
+      filaId,
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    filaId: string,
+    params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetQueryKey(
+        elementoId,
+        filaId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+        >
+      >
+    > = ({ signal }) =>
+      conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet(
+        elementoId,
+        filaId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!(elementoId && filaId),
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+      >
+    >
+  >;
+export type ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params:
+    | undefined
+    | ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Conciliación en las dos direcciones: el estimado por APU contra la salida de material del cálculo del elemento
+ */
+
+export function useConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  filaId: string,
+  params?: ConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConciliacionDelConceptoApiV1ElementosParametricosElementoIdConceptosPorContextoFilaIdConciliacionGetQueryOptions(
+      elementoId,
+      filaId,
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * Salen todas las familias (M-55); las `usual` son las que el tipo admite. La losa aún no tiene lista.
  * @summary Las clases y familias de insumos, con las que admite un tipo de elemento

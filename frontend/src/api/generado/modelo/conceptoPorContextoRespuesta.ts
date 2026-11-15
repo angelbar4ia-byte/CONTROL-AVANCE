@@ -15,6 +15,7 @@ import type { ConceptoPorContextoRespuestaNivelMax } from "./conceptoPorContexto
 import type { ConceptoPorContextoRespuestaUbicacion } from "./conceptoPorContextoRespuestaUbicacion";
 import type { ConceptoPorContextoRespuestaAltoHastaM } from "./conceptoPorContextoRespuestaAltoHastaM";
 import type { ConceptoPorContextoRespuestaElegido } from "./conceptoPorContextoRespuestaElegido";
+import type { ConceptoPorContextoRespuestaVersion } from "./conceptoPorContextoRespuestaVersion";
 
 export interface ConceptoPorContextoRespuesta {
   /** Identifica la fila (elemento, concepto, contexto, escalón). */
@@ -43,4 +44,8 @@ export interface ConceptoPorContextoRespuesta {
   alto_hasta_m: ConceptoPorContextoRespuestaAltoHastaM;
   /** Con nivel o ubicación en la consulta: si este concepto es el que paga su parte. `null` sin ellos. */
   elegido: ConceptoPorContextoRespuestaElegido;
+  /** La última versión autorizada del concepto en el elemento; `null` si aún no tiene (concepto nuevo propuesto). */
+  version?: ConceptoPorContextoRespuestaVersion;
+  /** Hay una propuesta pendiente de Control de obra sobre este concepto (la actualización de su APU). */
+  con_propuesta?: boolean;
 }

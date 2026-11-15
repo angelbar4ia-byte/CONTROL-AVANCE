@@ -11,6 +11,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import GestionarElementosParametricosDep
@@ -77,6 +78,12 @@ class ElementoParametricoRespuesta(BaseModel):
     )
     receta: RecetaRespuesta
     version: int = Field(default=1, description="Sube al cambiar la receta con obras asignadas que lo usan (D-639).")
+    estado_autorizacion: Literal["autorizado", "pendiente"] = Field(
+        default="autorizado",
+        description="`pendiente` = elemento nuevo que propuso Costos: se usa como provisional hasta que Control de obra lo autorice.",
+    )
+    version_autorizada: int = Field(default=0, description="La última versión que Control de obra autorizó (0 = ninguna todavía).")
+    revisiones_pendientes: int = Field(default=0, description="Cuántas propuestas del elemento o de sus conceptos esperan a Control de obra.")
 
 
 class ElementoParametricoPeticion(BaseModel):
@@ -106,6 +113,16 @@ class ElementoParametricoCambio(BaseModel):
 
 class ElementoParametricoCreado(BaseModel):
     id: UUID
+    estado_autorizacion: Literal["autorizado", "pendiente"] = Field(
+        default="autorizado", description="El de Control de obra nace autorizado (versión 1); el de Costos, pendiente."
+    )
+
+
+class PropuestaDeCambio(BaseModel):
+    """El cambio de Costos sobre un elemento autorizado: no se aplica hasta que Control de obra lo autorice."""
+
+    revision_id: UUID
+    resumen: str = Field(description="Lo que cambia, en palabras.")
 
 
 class SubcategoriaDeClasificacion(BaseModel):
@@ -145,6 +162,9 @@ def _respuesta(fila: dict[str, Any]) -> ElementoParametricoRespuesta:
         parametros={k: float(v) for k, v in fila["parametros"].items()},
         materiales=MaterialesDelElemento(**dict(fila.get("materiales") or {})),
         version=int(fila.get("version") or 1),
+        estado_autorizacion=fila.get("estado_autorizacion") or "autorizado",
+        version_autorizada=int(fila.get("version_autorizada") or 0),
+        revisiones_pendientes=int(fila.get("revisiones_pendientes") or 0),
         receta=RecetaRespuesta(**{**r, "cimbra_m2": {str(k): float(v) for k, v in r["cimbra_m2"].items()}}),
     )
 
@@ -227,9 +247,10 @@ async def crear_elemento_parametrico(
             categoria=peticion.categoria,
             subcategoria=peticion.subcategoria,
             materiales=_materiales(peticion.materiales),
+            rol=ctx.rol,
         )
     )
-    return ElementoParametricoCreado(id=nuevo)
+    return ElementoParametricoCreado(id=nuevo, estado_autorizacion="autorizado" if ctx.rol == "control_obra" else "pendiente")
 
 
 @router.patch(
@@ -238,6 +259,10 @@ async def crear_elemento_parametrico(
     summary="Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico",
     dependencies=[Depends(exigir_rol(*ROLES_QUE_DEFINEN))],
     responses={
+        202: {
+            "model": PropuestaDeCambio,
+            "description": "Costos propuso el cambio de un elemento autorizado: queda pendiente hasta que Control de obra lo autorice.",
+        },
         403: {"description": "Lo definen Control de obra y Costos."},
         404: {"description": "El elemento no existe o está fuera de tu alcance."},
         409: {"description": "El cambio lo dejaría idéntico a otro elemento: se usa el existente."},
@@ -246,19 +271,25 @@ async def crear_elemento_parametrico(
 )
 async def actualizar_elemento_parametrico(
     elemento_id: UUID, peticion: ElementoParametricoCambio, ctx: ContextoActual, caso_uso: GestionarElementosParametricosDep
-) -> None:
+) -> Response:
     """Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la
-    anterior y el resto pasa a la nueva."""
-    await caso_uso.actualizar(
+    anterior y el resto pasa a la nueva. El cambio de Control de obra se aplica y queda como la versión siguiente del elemento;
+    el de Costos sobre un elemento autorizado es una **propuesta** (202): no se aplica hasta que Control de obra la autorice."""
+    resultado = await caso_uso.cambiar(
         elemento_id,
+        usuario_id=ctx.usuario_id,
+        rol=ctx.rol,
         clave=peticion.clave,
         nombre=peticion.nombre,
         parametros=dict(peticion.parametros) if peticion.parametros is not None else None,
-        autor_id=ctx.usuario_id,
         categoria=peticion.categoria,
         subcategoria=peticion.subcategoria,
         materiales=_materiales(peticion.materiales),
     )
+    if resultado.aplicado:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    cuerpo = PropuestaDeCambio(revision_id=resultado.revision_id, resumen=resultado.resumen)  # type: ignore[arg-type]
+    return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=cuerpo.model_dump(mode="json"))
 
 
 @router.delete(

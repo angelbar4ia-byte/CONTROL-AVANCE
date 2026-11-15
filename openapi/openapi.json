@@ -12767,7 +12767,7 @@
           "elementos parametricos"
         ],
         "summary": "Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico",
-        "description": "Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la\nanterior y el resto pasa a la nueva.",
+        "description": "Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la\nanterior y el resto pasa a la nueva. El cambio de Control de obra se aplica y queda como la versión siguiente del elemento;\nel de Costos sobre un elemento autorizado es una **propuesta** (202): no se aplica hasta que Control de obra la autorice.",
         "operationId": "actualizar_elemento_parametrico_api_v1_elementos_parametricos__elemento_id__patch",
         "security": [
           {
@@ -12799,6 +12799,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "202": {
+            "description": "Costos propuso el cambio de un elemento autorizado: queda pendiente hasta que Control de obra lo autorice.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestaDeCambio"
+                }
+              }
+            }
           },
           "403": {
             "description": "Lo definen Control de obra y Costos."
@@ -13498,6 +13508,490 @@
           },
           "404": {
             "description": "El elemento o el concepto no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/autorizacion": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "El estado de autorización del elemento y su historial de propuestas y versiones",
+        "operationId": "autorizacion_del_elemento_api_v1_elementos_parametricos__elemento_id__autorizacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorizacionDelElemento"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/autorizaciones-pendientes": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Todo lo que espera la autorización de Control de obra: elementos, conceptos y propuestas",
+        "operationId": "autorizaciones_pendientes_api_v1_autorizaciones_pendientes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PendienteDeAutorizar"
+                  },
+                  "type": "array",
+                  "title": "Response Autorizaciones Pendientes Api V1 Autorizaciones Pendientes Get"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo ven Control de obra y Costos."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/autorizar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Autorizar un elemento nuevo que propuso Costos: queda como su versión 1",
+        "operationId": "autorizar_elemento_api_v1_elementos_parametricos__elemento_id__autorizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionAutorizada"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue decidido, o el cambio ya no es válido."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos-por-contexto/{fila_id}/autorizar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Autorizar un concepto nuevo del elemento: entra al catálogo sin precio y desde aquí cuenta en el presupuesto",
+        "operationId": "autorizar_concepto_del_elemento_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto__fila_id__autorizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Fila Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionAutorizada"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue decidido, o el cambio ya no es válido."
+          }
+        }
+      }
+    },
+    "/api/v1/revisiones-de-elementos/{revision_id}/autorizar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Autorizar la propuesta de Costos (un cambio del elemento o la actualización de un APU): se aplica y nace la versión",
+        "operationId": "autorizar_revision_api_v1_revisiones_de_elementos__revision_id__autorizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionAutorizada"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue decidido, o el cambio ya no es válido."
+          }
+        }
+      }
+    },
+    "/api/v1/revisiones-de-elementos/{revision_id}/rechazar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Rechazar la propuesta de Costos: no se aplica y queda en el historial",
+        "operationId": "rechazar_revision_api_v1_revisiones_de_elementos__revision_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue decidido, o el cambio ya no es válido."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos-por-contexto/{fila_id}/apu": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Lo que haría «Confirmar cálculo → actualizar APU»: el APU contra el cálculo del elemento, insumo por insumo",
+        "operationId": "plan_de_apu_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto__fila_id__apu_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Fila Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDeApuRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo ven Control de obra y Costos."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos-por-contexto/{fila_id}/apu/confirmar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Confirmar el cálculo del elemento y actualizar el APU del concepto (Control de obra lo aplica; Costos lo propone)",
+        "operationId": "confirmar_calculo_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto__fila_id__apu_confirmar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Fila Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmarApuRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El concepto es nuevo (sin APU), el cálculo ya coincide con el APU o hay una propuesta pendiente."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos-por-contexto/{fila_id}/conciliacion": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Conciliación en las dos direcciones: el estimado por APU contra la salida de material del cálculo del elemento",
+        "operationId": "conciliacion_del_concepto_api_v1_elementos_parametricos__elemento_id__conceptos_por_contexto__fila_id__conciliacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "fila_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Fila Id"
+            }
+          },
+          {
+            "name": "cantidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1000000,
+              "exclusiveMinimum": 0,
+              "description": "Cuántas unidades del concepto (m², ml, pza) se concilian.",
+              "default": 1.0,
+              "title": "Cantidad"
+            },
+            "description": "Cuántas unidades del concepto (m², ml, pza) se concilian."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConciliacionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo ven Control de obra y Costos."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
           },
           "422": {
             "description": "Validation Error",
@@ -21198,6 +21692,51 @@
         "title": "AsignarFrentePeticion",
         "description": "El trato de un frente en una obra.\n\nLos tres campos se escriben aunque vengan nulos: vaciar el contratista\n—\"ya no sé quién lo lleva\"— es un cambio tan válido como ponerlo."
       },
+      "AutorizacionDelElemento": {
+        "properties": {
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "autorizado",
+              "pendiente"
+            ],
+            "title": "Estado"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "La última versión autorizada del elemento; `null` si aún no tiene."
+          },
+          "versiones": {
+            "items": {
+              "$ref": "#/components/schemas/VersionDeElemento"
+            },
+            "type": "array",
+            "title": "Versiones",
+            "description": "Propuestas y versiones del elemento y de sus conceptos, de la más nueva a la más vieja."
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_id",
+          "estado",
+          "version",
+          "versiones"
+        ],
+        "title": "AutorizacionDelElemento"
+      },
       "AvanceRespuesta": {
         "properties": {
           "actividad_id": {
@@ -23819,6 +24358,24 @@
             ],
             "title": "Elegido",
             "description": "Con nivel o ubicación en la consulta: si este concepto es el que paga su parte. `null` sin ellos."
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "La última versión autorizada del concepto en el elemento; `null` si aún no tiene (concepto nuevo propuesto)."
+          },
+          "con_propuesta": {
+            "type": "boolean",
+            "title": "Con Propuesta",
+            "description": "Hay una propuesta pendiente de Control de obra sobre este concepto (la actualización de su APU).",
+            "default": false
           }
         },
         "type": "object",
@@ -24029,6 +24586,91 @@
         ],
         "title": "ConceptosPorContextoRespuesta"
       },
+      "ConciliacionRespuesta": {
+        "properties": {
+          "fila_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Fila Id"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "sin_catalogo": {
+            "type": "boolean",
+            "title": "Sin Catalogo"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "manda": {
+            "type": "string",
+            "const": "apu",
+            "title": "Manda"
+          },
+          "tolerancia_pct": {
+            "type": "number",
+            "title": "Tolerancia Pct"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeConciliacion"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "importe_apu": {
+            "type": "number",
+            "title": "Importe Apu"
+          },
+          "importe_salida": {
+            "type": "number",
+            "title": "Importe Salida"
+          },
+          "sin_precio": {
+            "type": "boolean",
+            "title": "Sin Precio",
+            "description": "Algún insumo no tiene precio: su importe queda vacío (no se inventa)."
+          },
+          "resumen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resumen"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fila_id",
+          "concepto_clave",
+          "unidad",
+          "sin_catalogo",
+          "cantidad",
+          "manda",
+          "tolerancia_pct",
+          "filas",
+          "importe_apu",
+          "importe_salida",
+          "sin_precio",
+          "resumen",
+          "avisos"
+        ],
+        "title": "ConciliacionRespuesta"
+      },
       "ConexionDeMuro": {
         "properties": {
           "extremo": {
@@ -24183,6 +24825,53 @@
           "momento"
         ],
         "title": "ConfirmacionRespuesta"
+      },
+      "ConfirmarApuRespuesta": {
+        "properties": {
+          "aplicado": {
+            "type": "boolean",
+            "title": "Aplicado",
+            "description": "`true` si el APU ya cambió (Control de obra); `false` si quedó propuesto (Costos)."
+          },
+          "revision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Revision Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "pu_antes": {
+            "type": "number",
+            "title": "Pu Antes"
+          },
+          "pu_despues": {
+            "type": "number",
+            "title": "Pu Despues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplicado",
+          "revision_id",
+          "version",
+          "resumen",
+          "pu_antes",
+          "pu_despues"
+        ],
+        "title": "ConfirmarApuRespuesta"
       },
       "ConfirmarPeticion": {
         "properties": {
@@ -28023,6 +28712,16 @@
             "type": "string",
             "format": "uuid",
             "title": "Id"
+          },
+          "estado_autorizacion": {
+            "type": "string",
+            "enum": [
+              "autorizado",
+              "pendiente"
+            ],
+            "title": "Estado Autorizacion",
+            "description": "El de Control de obra nace autorizado (versión 1); el de Costos, pendiente.",
+            "default": "autorizado"
           }
         },
         "type": "object",
@@ -28163,6 +28862,28 @@
             "title": "Version",
             "description": "Sube al cambiar la receta con obras asignadas que lo usan (D-639).",
             "default": 1
+          },
+          "estado_autorizacion": {
+            "type": "string",
+            "enum": [
+              "autorizado",
+              "pendiente"
+            ],
+            "title": "Estado Autorizacion",
+            "description": "`pendiente` = elemento nuevo que propuso Costos: se usa como provisional hasta que Control de obra lo autorice.",
+            "default": "autorizado"
+          },
+          "version_autorizada": {
+            "type": "integer",
+            "title": "Version Autorizada",
+            "description": "La última versión que Control de obra autorizó (0 = ninguna todavía).",
+            "default": 0
+          },
+          "revisiones_pendientes": {
+            "type": "integer",
+            "title": "Revisiones Pendientes",
+            "description": "Cuántas propuestas del elemento o de sus conceptos esperan a Control de obra.",
+            "default": 0
           }
         },
         "type": "object",
@@ -30239,6 +30960,156 @@
         ],
         "title": "FilaDeComparacion"
       },
+      "FilaDeConciliacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "estimado": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimado",
+            "description": "Cantidad × lo que lleva el APU."
+          },
+          "salida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salida",
+            "description": "Cantidad × lo que calcula el elemento."
+          },
+          "diferencia_cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Cantidad"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo"
+          },
+          "importe_apu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe Apu"
+          },
+          "importe_salida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe Salida"
+          },
+          "diferencia_importe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Importe"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          },
+          "sentido": {
+            "type": "string",
+            "enum": [
+              "se_justifican",
+              "difieren",
+              "estimado_sin_salida",
+              "salida_sin_estimado"
+            ],
+            "title": "Sentido"
+          },
+          "avisa": {
+            "type": "boolean",
+            "title": "Avisa",
+            "description": "Fuera de ±3 %: solo un aviso visual."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "estimado",
+          "salida",
+          "diferencia_cantidad",
+          "diferencia_pct",
+          "costo",
+          "importe_apu",
+          "importe_salida",
+          "diferencia_importe",
+          "marca",
+          "sentido",
+          "avisa"
+        ],
+        "title": "FilaDeConciliacion"
+      },
       "FilaDeCuadro1Usada": {
         "properties": {
           "H": {
@@ -30407,6 +31278,98 @@
           "agua_l"
         ],
         "title": "FilaDelCuadro1"
+      },
+      "FilaDelPlanDeApu": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "apu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apu",
+            "description": "Lo que el APU lleva del insumo por unidad del concepto (con los auxiliares expandidos)."
+          },
+          "calculo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calculo",
+            "description": "Lo que calcula el elemento por unidad del concepto."
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          },
+          "accion": {
+            "type": "string",
+            "enum": [
+              "sin_cambio",
+              "actualizar",
+              "agregar",
+              "en_auxiliar",
+              "solo_apu",
+              "sin_insumo"
+            ],
+            "title": "Accion",
+            "description": "Qué haría confirmar el cálculo con este insumo."
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "apu",
+          "calculo",
+          "diferencia_pct",
+          "marca",
+          "accion",
+          "motivo"
+        ],
+        "title": "FilaDelPlanDeApu"
       },
       "FiltroDelDren": {
         "properties": {
@@ -36350,6 +37313,105 @@
         "title": "PendienteBandejaRespuesta",
         "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
       },
+      "PendienteDeAutorizar": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "revision",
+              "elemento_nuevo",
+              "concepto_nuevo"
+            ],
+            "title": "Tipo"
+          },
+          "ref": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ref",
+            "description": "La propuesta (`revision`), el elemento (`elemento_nuevo`) o el concepto del elemento (`concepto_nuevo`)."
+          },
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "elemento_nombre": {
+            "type": "string",
+            "title": "Elemento Nombre"
+          },
+          "fila_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fila Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "elemento",
+              "concepto",
+              "apu"
+            ],
+            "title": "Clase"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "propuso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Nombre"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Desde"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "ref",
+          "elemento_id",
+          "elemento_clave",
+          "elemento_nombre",
+          "fila_id",
+          "concepto_clave",
+          "clase",
+          "resumen",
+          "propuso_nombre",
+          "desde"
+        ],
+        "title": "PendienteDeAutorizar"
+      },
       "PendienteDelElemento": {
         "properties": {
           "clave": {
@@ -36445,6 +37507,108 @@
         ],
         "title": "PerfilRespuesta",
         "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
+      },
+      "PlanDeApuRespuesta": {
+        "properties": {
+          "fila_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Fila Id"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "type": "string",
+            "title": "Concepto Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "sin_catalogo": {
+            "type": "boolean",
+            "title": "Sin Catalogo",
+            "description": "Concepto nuevo: no tiene APU en el catálogo."
+          },
+          "manda": {
+            "type": "string",
+            "const": "apu",
+            "title": "Manda"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDelPlanDeApu"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          },
+          "hay_cambios": {
+            "type": "boolean",
+            "title": "Hay Cambios"
+          },
+          "pu_vigente": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pu Vigente",
+            "description": "El precio unitario del APU vigente."
+          },
+          "pu_con_el_calculo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pu Con El Calculo",
+            "description": "El precio unitario si se confirma el cálculo."
+          },
+          "propuesta_pendiente": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Pendiente",
+            "description": "Hay una propuesta de actualización esperando a Control de obra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "fila_id",
+          "concepto_clave",
+          "concepto_descripcion",
+          "unidad",
+          "sin_catalogo",
+          "manda",
+          "filas",
+          "avisos",
+          "hay_cambios",
+          "pu_vigente",
+          "pu_con_el_calculo",
+          "propuesta_pendiente"
+        ],
+        "title": "PlanDeApuRespuesta"
       },
       "PlaneacionRespuesta": {
         "properties": {
@@ -37567,6 +38731,27 @@
         ],
         "title": "ProponerTrazosRespuesta"
       },
+      "PropuestaDeCambio": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Revision Id"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen",
+            "description": "Lo que cambia, en palabras."
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision_id",
+          "resumen"
+        ],
+        "title": "PropuestaDeCambio",
+        "description": "El cambio de Costos sobre un elemento autorizado: no se aplica hasta que Control de obra lo autorice."
+      },
       "PropuestaDeRedisenoRespuesta": {
         "properties": {
           "actividad_id": {
@@ -38257,6 +39442,24 @@
           "motivo"
         ],
         "title": "RechazarReprogramacionPeticion"
+      },
+      "RechazoPeticion": {
+        "properties": {
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "title": "RechazoPeticion"
       },
       "RedisenoPeticion": {
         "properties": {
@@ -43625,6 +44828,19 @@
         ],
         "title": "VarillaPeticion"
       },
+      "VersionAutorizada": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "VersionAutorizada"
+      },
       "VersionCPURespuesta": {
         "properties": {
           "version": {
@@ -43757,6 +44973,191 @@
           "vigente"
         ],
         "title": "VersionCuadrillaRespuesta"
+      },
+      "VersionDeElemento": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "elemento",
+              "concepto",
+              "apu"
+            ],
+            "title": "Clase",
+            "description": "Qué cambió: el elemento, un concepto nuevo del elemento o el APU de un concepto."
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "autorizada",
+              "rechazada"
+            ],
+            "title": "Estado"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "El número de la versión; `null` mientras la propuesta está pendiente o si se rechazó."
+          },
+          "fila_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fila Id",
+            "description": "El concepto del elemento al que se refiere; `null` si es del elemento."
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "propuso_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Id"
+          },
+          "propuso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Nombre"
+          },
+          "propuso_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Rol"
+          },
+          "propuesto_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Propuesto En"
+          },
+          "decidio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Id"
+          },
+          "decidio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Nombre"
+          },
+          "decidio_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Rol"
+          },
+          "decidido_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidido En"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo",
+            "description": "Por qué se rechazó."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clase",
+          "estado",
+          "version",
+          "fila_id",
+          "concepto_clave",
+          "resumen",
+          "propuso_id",
+          "propuso_nombre",
+          "propuso_rol",
+          "propuesto_en",
+          "decidio_id",
+          "decidio_nombre",
+          "decidio_rol",
+          "decidido_en",
+          "motivo"
+        ],
+        "title": "VersionDeElemento"
       },
       "VersionDeVanoRespuesta": {
         "properties": {

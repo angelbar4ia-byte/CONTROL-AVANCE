@@ -25,6 +25,7 @@ import type { ElementoParametricoRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
 import { ConceptosDelElemento } from './ConceptosDelElemento';
+import { AutorizacionDelElemento } from './AutorizacionDelElemento';
 import { ConceptosPorContexto } from './ConceptosPorContexto';
 import { InsumosDelElemento } from './InsumosDelElemento';
 import {
@@ -42,6 +43,8 @@ interface Props {
   /** El plano elegido: de él salen los totales de lo colocado. */
   readonly planoId: string;
   readonly puedeDefinir: boolean;
+  /** Control de obra autoriza lo que Costos propone (elementos, conceptos nuevos y la actualización del APU). */
+  readonly puedeAutorizar?: boolean;
   readonly onCambio: (aviso?: string) => void;
   readonly onError: (mensaje: string) => void;
   /** «Colocar este elemento»: elige la herramienta y marca lo que se trace como este elemento (D-604). */
@@ -56,7 +59,14 @@ function enEnter(e: KeyboardEvent<HTMLInputElement>) {
   if (e.key === 'Enter') e.currentTarget.blur();
 }
 
-export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, onColocar, colocandoId = null, abrirId = null }: Props) {
+/** Costos propone el cambio de un elemento autorizado: el servidor responde con la propuesta y no lo aplica hasta que Control de obra la autorice. */
+function avisoDePropuesta(clave: string, respuesta: unknown): string | undefined {
+  return respuesta && typeof respuesta === 'object' && 'revision_id' in respuesta
+    ? `${clave}: el cambio quedó propuesto y espera la autorización de Control de obra.`
+    : undefined;
+}
+
+export function PanelDeParametricos({ planoId, puedeDefinir, puedeAutorizar = false, onCambio, onError, onColocar, colocandoId = null, abrirId = null }: Props) {
   const consulta = useListarElementosParametricosApiV1ElementosParametricosGet();
   const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: planoId !== '' } });
   const conceptosDelPlano = useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(planoId, { query: { enabled: planoId !== '' } });
@@ -86,9 +96,9 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
     const valor = numeroTecleado(texto);
     if (!Number.isFinite(valor) || valor === Number(e.parametros[clave])) return;
     try {
-      await actualizar.mutateAsync({ elementoId: e.id, data: { parametros: { [clave]: valor } } });
+      const r = await actualizar.mutateAsync({ elementoId: e.id, data: { parametros: { [clave]: valor } } });
       recargar();
-      onCambio();
+      onCambio(avisoDePropuesta(e.clave, r));
     } catch (err) {
       onError(err instanceof Error ? err.message : 'No se pudo cambiar el parámetro.');
     }
@@ -118,9 +128,9 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
   async function reclasificar(e: ElementoParametricoRespuesta, categoria: string, subcategoria: string) {
     if (categoria === e.categoria && subcategoria === e.subcategoria) return;
     try {
-      await actualizar.mutateAsync({ elementoId: e.id, data: { categoria, subcategoria } });
+      const r = await actualizar.mutateAsync({ elementoId: e.id, data: { categoria, subcategoria } });
       recargar();
-      onCambio(`${e.clave} pasó a ${rotuloDeUso(categorias, categoria, subcategoria)}.`);
+      onCambio(avisoDePropuesta(e.clave, r) ?? `${e.clave} pasó a ${rotuloDeUso(categorias, categoria, subcategoria)}.`);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'No se pudo cambiar la clasificación.');
     }
@@ -286,13 +296,27 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
                     onCambio={(aviso) => onCambio(aviso)}
                     onError={onError}
                   />
-                  <ConceptosPorContexto elementoId={e.id} clave={e.clave} />
+                  <AutorizacionDelElemento
+                    elementoId={e.id}
+                    clave={e.clave}
+                    puedeAutorizar={puedeAutorizar}
+                    onCambio={(aviso) => onCambio(aviso)}
+                    onError={onError}
+                  />
+                  <ConceptosPorContexto
+                    elementoId={e.id}
+                    clave={e.clave}
+                    puedeAutorizar={puedeAutorizar}
+                    onCambio={(aviso) => onCambio(aviso)}
+                    onError={onError}
+                  />
                   <InsumosDelElemento
                     elementoId={e.id}
                     clave={e.clave}
                     tipo={tipo}
                     materiales={e.materiales as Record<string, unknown>}
                     puedeDefinir={puedeDefinir}
+                    puedeAutorizar={puedeAutorizar}
                     onCambio={(aviso) => onCambio(aviso)}
                     onError={onError}
                   />

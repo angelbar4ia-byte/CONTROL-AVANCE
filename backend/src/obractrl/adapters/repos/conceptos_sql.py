@@ -342,6 +342,60 @@ class RepositorioConceptosSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def cpu_vigente(self, concepto_id: UUID) -> dict[str, Any] | None:
+        """La versión vigente del CPU del concepto (sin variante), si la hay."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    "select id, version, precio_unitario, precio_destajo from cpu "
+                    "where concepto_id = :id and vigente and variante is null"
+                ),
+                {"id": str(concepto_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None
+
+    async def renglones_del_apu(self, concepto_id: UUID) -> list[dict[str, Any]]:
+        """Los renglones **propios** del APU que están en vigor: la composición viva (`cpu_id` nulo) y la de la versión vigente,
+        con la clave del insumo. Es lo que «Confirmar cálculo → actualizar APU» cambia y copia a la versión nueva."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select e.id, e.cpu_id, e.tipo_hijo, e.insumo_id, i.clave as insumo_clave, e.concepto_hijo_id,
+                           e.categoria, e.cantidad, e.rendimiento, e.costo_unitario, e.importe, e.orden
+                      from explosion e left join insumo i on i.id = e.insumo_id
+                     where e.concepto_id = :id
+                       and (e.cpu_id is null
+                            or e.cpu_id = (select c.id from cpu c where c.concepto_id = :id and c.vigente and c.variante is null))
+                     order by e.orden, e.id
+                    """
+                ),
+                {"id": str(concepto_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def actualizar_renglon_del_apu(
+        self, renglon_id: UUID, *, cantidad: Decimal, rendimiento: Decimal, importe: Decimal
+    ) -> None:
+        await self._sesion.execute(
+            text(
+                "update explosion set cantidad = cast(:c as numeric), rendimiento = cast(:r as numeric), "
+                "importe = cast(:i as numeric), updated_at = now() where id = :id"
+            ),
+            {"id": str(renglon_id), "c": cantidad, "r": rendimiento, "i": importe},
+        )
+
+    async def fijar_precio_del_cpu(self, cpu_id: UUID, *, precio_unitario: Decimal, precio_destajo: Decimal) -> None:
+        await self._sesion.execute(
+            text(
+                "update cpu set precio_unitario = cast(:pu as numeric), precio_destajo = cast(:pd as numeric), updated_at = now() "
+                "where id = :id"
+            ),
+            {"id": str(cpu_id), "pu": precio_unitario, "pd": precio_destajo},
+        )
+
     async def alcanza(self, desde: UUID, objetivo: UUID) -> bool:
         """¿`objetivo` está dentro de la composición (a cualquier profundidad) de `desde`?
 

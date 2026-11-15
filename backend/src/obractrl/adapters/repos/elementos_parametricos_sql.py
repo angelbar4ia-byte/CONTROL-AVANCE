@@ -15,7 +15,7 @@ from obractrl.domain.cuantificacion.clasificacion_de_elementos import ElementoDu
 
 __all__ = ["RepositorioElementosParametricosSQL"]
 
-_COLUMNAS = "id, clave, nombre, tipo, parametros, categoria, subcategoria, firma, materiales"
+_COLUMNAS = "id, clave, nombre, tipo, parametros, categoria, subcategoria, firma, materiales, autor_id"
 _INDICE_DE_FIRMA = "ux_elemento_parametrico_firma"
 
 
@@ -27,7 +27,19 @@ class RepositorioElementosParametricosSQL:
         return await _hay_columna(self._sesion, "elemento_parametrico", "vigente")
 
     async def _columnas(self) -> str:
-        return _COLUMNAS + (", version, raiz_id" if await self._con_versiones() else ", 1 as version, id as raiz_id")
+        base = _COLUMNAS + (", version, raiz_id" if await self._con_versiones() else ", 1 as version, id as raiz_id")
+        if not await _hay_columna(self._sesion, "elemento_parametrico", "estado_autorizacion"):
+            return base + ", 'autorizado' as estado_autorizacion, 0 as version_autorizada, 0 as revisiones_pendientes"
+        # La versión que sube al autorizar (0130) y cuántas propuestas esperan a Control de obra; todas las versiones de la receta
+        # (0120) comparten raíz.
+        return (
+            base
+            + ", estado_autorizacion"
+            + ", coalesce((select max(v.version) from elemento_version v where v.raiz_id = coalesce(elemento_parametrico.raiz_id, elemento_parametrico.id)"
+            " and v.fila_id is null and v.estado = 'autorizada'), 0) as version_autorizada"
+            + ", (select count(*) from elemento_version v where v.raiz_id = coalesce(elemento_parametrico.raiz_id, elemento_parametrico.id)"
+            " and v.estado = 'pendiente') as revisiones_pendientes"
+        )
 
     async def listar(self) -> list[dict[str, Any]]:
         """El catálogo: las versiones vigentes."""
@@ -85,7 +97,9 @@ class RepositorioElementosParametricosSQL:
         con conceptos pasan a la nueva."""
         antes = (
             await self._sesion.execute(
-                text("select tipo, coalesce(raiz_id, id) as raiz_id, version from elemento_parametrico where id = :id"),
+                text(
+                    "select tipo, coalesce(raiz_id, id) as raiz_id, version, estado_autorizacion from elemento_parametrico where id = :id"
+                ),
                 {"id": str(elemento_id)},
             )
         ).mappings().one()
@@ -97,9 +111,10 @@ class RepositorioElementosParametricosSQL:
                         text(
                             """
                             insert into elemento_parametrico
-                                (org_id, clave, nombre, tipo, parametros, autor_id, version, raiz_id, categoria, subcategoria, firma, materiales)
+                                (org_id, clave, nombre, tipo, parametros, autor_id, version, raiz_id, categoria, subcategoria, firma, materiales,
+                                 estado_autorizacion)
                             values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :v, :raiz,
-                                    :cat, :sub, :firma, cast(:mat as jsonb))
+                                    :cat, :sub, :firma, cast(:mat as jsonb), :est)
                             returning id
                             """
                         ),
@@ -107,6 +122,7 @@ class RepositorioElementosParametricosSQL:
                             "clave": clave, "nombre": nombre, "tipo": antes["tipo"], "p": json.dumps(parametros),
                             "autor": str(autor_id), "v": int(antes["version"]) + 1, "raiz": str(antes["raiz_id"]),
                             "cat": categoria, "sub": subcategoria, "firma": firma, "mat": json.dumps(materiales or {}),
+                            "est": antes["estado_autorizacion"],
                         },
                     )
                 ).scalar_one()
@@ -127,6 +143,28 @@ class RepositorioElementosParametricosSQL:
                 "alto_hasta_m, estado, clave_propuesta, descripcion) "
                 "select org_id, :n, concepto_id, unidad, toma, autor_id, nivel_min, nivel_max, ubicacion, "
                 "alto_hasta_m, estado, clave_propuesta, descripcion from elemento_concepto where elemento_id = :a"
+            ),
+            {"n": str(nueva), "a": str(elemento_id)},
+        )
+        # El historial de cada concepto pasa con él (la fila copiada se reconoce por su concepto, contexto y escalón).
+        await self._sesion.execute(
+            text(
+                """
+                insert into elemento_version (org_id, elemento_id, raiz_id, fila_id, clase, estado, version, resumen, detalle, propuso_id,
+                                              propuso_rol, propuesto_en, decidio_id, decidio_rol, decidido_en, motivo)
+                select v.org_id, :n, v.raiz_id, nuevo.id, v.clase, v.estado, v.version, v.resumen, v.detalle, v.propuso_id,
+                       v.propuso_rol, v.propuesto_en, v.decidio_id, v.decidio_rol, v.decidido_en, v.motivo
+                  from elemento_version v
+                  join elemento_concepto viejo on viejo.id = v.fila_id and viejo.elemento_id = :a
+                  join elemento_concepto nuevo on nuevo.elemento_id = :n
+                   and nuevo.concepto_id is not distinct from viejo.concepto_id
+                   and nuevo.clave_propuesta is not distinct from viejo.clave_propuesta
+                   and nuevo.nivel_min is not distinct from viejo.nivel_min
+                   and nuevo.nivel_max is not distinct from viejo.nivel_max
+                   and nuevo.ubicacion is not distinct from viejo.ubicacion
+                   and nuevo.alto_hasta_m is not distinct from viejo.alto_hasta_m
+                 where v.estado <> 'pendiente'
+                """
             ),
             {"n": str(nueva), "a": str(elemento_id)},
         )
@@ -190,6 +228,7 @@ class RepositorioElementosParametricosSQL:
         subcategoria: str,
         firma: str,
         materiales: dict[str, Any] | None = None,
+        estado_autorizacion: str = "autorizado",
     ) -> UUID:
         try:
             async with self._sesion.begin_nested():
@@ -197,14 +236,16 @@ class RepositorioElementosParametricosSQL:
                     await self._sesion.execute(
                         text(
                             """
-                            insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id, categoria, subcategoria, firma, materiales)
-                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :cat, :sub, :firma, cast(:mat as jsonb))
+                            insert into elemento_parametrico (org_id, clave, nombre, tipo, parametros, autor_id, categoria, subcategoria, firma, materiales,
+                                                              estado_autorizacion)
+                            values (app.current_org_id(), :clave, :nombre, :tipo, cast(:p as jsonb), :autor, :cat, :sub, :firma, cast(:mat as jsonb), :est)
                             returning id
                             """
                         ),
                         {
                             "clave": clave, "nombre": nombre, "tipo": tipo, "p": json.dumps(parametros), "autor": str(autor_id),
                             "cat": categoria, "sub": subcategoria, "firma": firma, "mat": json.dumps(materiales or {}),
+                            "est": estado_autorizacion,
                         },
                     )
                 ).scalar_one()
@@ -433,7 +474,9 @@ class RepositorioElementosParametricosSQL:
                     """
                     select ec.id, ec.concepto_id, coalesce(c.clave, ec.clave_propuesta) as clave,
                            coalesce(ec.descripcion, c.descripcion) as descripcion, c.descripcion as descripcion_catalogo,
-                           ec.unidad, ec.toma, ec.ranura, ec.estado, ec.nivel_min, ec.nivel_max, ec.ubicacion, ec.alto_hasta_m
+                           ec.unidad, ec.toma, ec.ranura, ec.estado, ec.nivel_min, ec.nivel_max, ec.ubicacion, ec.alto_hasta_m, ec.autor_id,
+                           (select max(v.version) from elemento_version v where v.fila_id = ec.id and v.estado = 'autorizada') as version,
+                           exists (select 1 from elemento_version v where v.fila_id = ec.id and v.estado = 'pendiente') as con_propuesta
                       from elemento_concepto ec left join concepto c on c.id = ec.concepto_id
                      where ec.elemento_id = :e
                      order by coalesce(ec.nivel_min, 0), coalesce(ec.ubicacion, ''), ec.ranura, coalesce(ec.alto_hasta_m, 0),
@@ -503,3 +546,19 @@ class RepositorioElementosParametricosSQL:
 
     async def quitar_concepto_por_contexto(self, fila_id: UUID) -> None:
         await self._sesion.execute(text("delete from elemento_concepto where id = :i"), {"i": str(fila_id)})
+
+    # --- Autorización (0130) ----------------------------------------------------------------------------------------
+
+    async def fijar_estado_de_autorizacion(self, elemento_id: UUID, estado: str) -> None:
+        await self._sesion.execute(
+            text("update elemento_parametrico set estado_autorizacion = :s where id = :i"), {"s": estado, "i": str(elemento_id)}
+        )
+
+    async def autorizar_concepto(self, fila_id: UUID, concepto_id: UUID) -> None:
+        """El concepto nuevo ya existe en el catálogo: la fila lo enlaza y deja de ser una propuesta."""
+        await self._sesion.execute(
+            text(
+                "update elemento_concepto set concepto_id = :c, estado = 'autorizado', clave_propuesta = null where id = :i"
+            ),
+            {"c": str(concepto_id), "i": str(fila_id)},
+        )
