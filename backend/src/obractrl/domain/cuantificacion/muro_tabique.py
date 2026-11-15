@@ -417,7 +417,7 @@ def _entrada_de_biblioteca(e: AparejoDeTabique) -> dict[str, Any]:
     return {
         "clave": e.clave,
         "nombre": e.nombre,
-        "tipo": "muro_de_tabique",
+        "tipo": "tabique",
         "se_mide_por": "metro lineal de una hilada" if e.medida == "ml" else "m²",
         "concepto": {"clave": c.clave, "descripcion": c.descripcion, "unidad": e.medida},
     }
@@ -729,7 +729,7 @@ def definicion_de(clave: str) -> dict[str, Any]:
         "clave": e.clave,
         "nombre": e.nombre,
         "nombre_nominal": e.nombre_nominal,
-        "tipo": "muro_de_tabique",
+        "tipo": "tabique",
         "medida": e.medida,
         "se_mide_por": "metro lineal de una hilada" if e.medida == "ml" else "m²",
         "categoria": {"clave": e.categoria[0], "nombre": e.categoria[1]},

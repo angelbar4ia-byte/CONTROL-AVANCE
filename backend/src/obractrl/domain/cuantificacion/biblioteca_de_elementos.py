@@ -113,7 +113,7 @@ def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
     for categoria in BIBLIOTECA:
         for sub in categoria["subcategorias"]:
             for elemento in sub["elementos"]:
-                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES and elemento.get("tipo") != "muro_de_tabique":
+                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES and elemento.get("tipo") != "tabique":
                     cimiento = clave == muro_cimentacion.CLAVE_ELEMENTO
                     return {
                         **elemento,

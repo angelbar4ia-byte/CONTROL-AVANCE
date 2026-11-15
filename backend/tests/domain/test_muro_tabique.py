@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import pytest
 
-from obractrl.domain.cuantificacion.biblioteca_de_elementos import BIBLIOTECA, elemento_de_la_biblioteca
+from obractrl.domain.cuantificacion.biblioteca_de_elementos import (
+    BIBLIOTECA,
+    elemento_de_la_biblioteca,
+)
 from obractrl.domain.cuantificacion.muro_tabique import (
     ELEMENTOS_DE_TABIQUE,
     ElementoDeTabiqueNoEncontrado,
@@ -192,7 +195,7 @@ def test_la_biblioteca_trae_muros_de_tabique_y_pisos_de_petatillo() -> None:
     assert [e["clave"] for e in muros["elementos"]] == ["EST-02005", "EST-02010", "EST-02020", "EST-02030", "EST-02040", "EST-02050", "AUX-04010"]
     pisos = cats["pisos"]["subcategorias"][0]
     assert pisos["nombre"] == "Pisos de petatillo (tabique)" and [e["clave"] for e in pisos["elementos"]] == ["ACA-02090"]
-    assert all(e["tipo"] == "muro_de_tabique" for e in muros["elementos"])
+    assert all(e["tipo"] == "tabique" for e in muros["elementos"])
     assert elemento_de_la_biblioteca("EST-02010") is None  # su ficha es /tabique/…
     assert "MCT-01010" in str(BIBLIOTECA)  # no pierde lo que ya traía
 

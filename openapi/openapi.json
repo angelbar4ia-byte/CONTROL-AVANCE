@@ -15130,6 +15130,280 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/tabique/tabla-de-revision": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La tabla de revisión de claves, nombres nominales, espesores reales y contraste con el catálogo de los aparejos",
+        "operationId": "tabla_de_revision_de_tabique_api_v1_biblioteca_de_elementos_tabique_tabla_de_revision_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FilaDeTabiqueRevision"
+                  },
+                  "type": "array",
+                  "title": "Response Tabla De Revision De Tabique Api V1 Biblioteca De Elementos Tabique Tabla De Revision Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/tabique/{clave}": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La ficha de un muro de tabique, aparejo o piso de petatillo de la biblioteca",
+        "operationId": "definicion_del_tabique_api_v1_biblioteca_de_elementos_tabique__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDelTabique"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de tabique con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/tabique/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula un muro de tabique, aparejo o piso por m² (o ml de hilada) y lo contrasta con el catálogo (solo cálculo)",
+        "operationId": "calcular_tabique_api_v1_biblioteca_de_elementos_tabique__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelTabiquePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDelTabique"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de tabique con esa clave."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/tabique/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Las versiones de concepto propuestas, autorizadas y rechazadas del elemento de tabique",
+        "operationId": "propuestas_de_tabique_api_v1_biblioteca_de_elementos_tabique__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas De Tabique Api V1 Biblioteca De Elementos Tabique  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de tabique con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/tabique/{clave}/propuestas/concepto-nuevo": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Proponer el concepto nuevo de un aparejo que el catálogo no trae (clave provisional, sin destajo ni precio)",
+        "operationId": "proponer_concepto_nuevo_api_v1_biblioteca_de_elementos_tabique__clave__propuestas_concepto_nuevo_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de tabique con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "El elemento ya está en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/tabique/{clave}/propuestas/actualizar-apu": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Confirmar el cálculo: proponer como nueva versión del concepto los coeficientes que difieren del catálogo",
+        "operationId": "proponer_actualizacion_de_apu_api_v1_biblioteca_de_elementos_tabique__clave__propuestas_actualizar_apu_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelTabiquePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de tabique con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
     "/api/v1/correcciones-de-catalogo": {
       "get": {
         "tags": [
@@ -23611,6 +23885,241 @@
         ],
         "title": "CalculoDelMuroPeticion"
       },
+      "CalculoDelTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "medida": {
+            "type": "string",
+            "enum": [
+              "m2",
+              "ml"
+            ],
+            "title": "Medida"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoElegido"
+          },
+          "pieza": {
+            "$ref": "#/components/schemas/PiezaDeTabique"
+          },
+          "parametros": {
+            "$ref": "#/components/schemas/ParametrosDelTabique"
+          },
+          "geometria": {
+            "$ref": "#/components/schemas/GeometriaDelTabique"
+          },
+          "piezas": {
+            "$ref": "#/components/schemas/PiezasCalculadas"
+          },
+          "mezcla": {
+            "$ref": "#/components/schemas/MezclaCalculada"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDelTabique"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "mezcla_compuesta": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDeLaMezcla"
+            },
+            "type": "array",
+            "title": "Mezcla Compuesta"
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDelTabique"
+          },
+          "herramienta": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonDeHerramientaCalculado"
+            },
+            "type": "array",
+            "title": "Herramienta"
+          },
+          "conciliacion": {
+            "items": {
+              "$ref": "#/components/schemas/ConciliacionDelTabique"
+            },
+            "type": "array",
+            "title": "Conciliacion"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "medida",
+          "unidad",
+          "cantidad",
+          "nivel",
+          "concepto",
+          "pieza",
+          "parametros",
+          "geometria",
+          "piezas",
+          "mezcla",
+          "insumos",
+          "mezcla_compuesta",
+          "mano_de_obra",
+          "herramienta",
+          "conciliacion",
+          "avisos"
+        ],
+        "title": "CalculoDelTabique"
+      },
+      "CalculoDelTabiquePeticion": {
+        "properties": {
+          "cantidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cantidad",
+            "description": "m² de muro (o metros de la hilada del sardinel), ya sin huecos.",
+            "default": 1.0
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel",
+            "description": "Nivel del plano; desde el 3.º EST-02010 paga EST-02011."
+          },
+          "nivel_desde_3er_nivel": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "Nivel Desde 3Er Nivel",
+            "default": 3
+          },
+          "junta_cm": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Junta Cm",
+            "default": 2.0
+          },
+          "junta_entre_hileras_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Junta Entre Hileras Cm"
+          },
+          "desperdicio_de_pieza_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Desperdicio De Pieza Pct",
+            "default": 12.0
+          },
+          "desperdicio_de_mezcla_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Desperdicio De Mezcla Pct",
+            "default": 5.0
+          },
+          "pieza_alto_cm": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pieza Alto Cm",
+            "default": 6.0
+          },
+          "pieza_largo_cm": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Pieza Largo Cm",
+            "default": 26.0
+          },
+          "cama_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cama Cm",
+            "description": "Solo el petatillo."
+          },
+          "tipo_de_sardinel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo De Sardinel",
+            "description": "Solo el sardinel; hoy solo existe «parado»."
+          },
+          "herramienta": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonDeHerramienta"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Herramienta"
+          }
+        },
+        "type": "object",
+        "title": "CalculoDelTabiquePeticion"
+      },
       "CalculoDelTrazo": {
         "properties": {
           "clave": {
@@ -25208,6 +25717,24 @@
         ],
         "title": "ClaveYNombreDeEstructura"
       },
+      "ClaveYNombreDeTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "ClaveYNombreDeTabique"
+      },
       "ClaveYNombreDelElemento": {
         "properties": {
           "clave": {
@@ -25627,6 +26154,29 @@
         ],
         "title": "ConceptoConciliado"
       },
+      "ConceptoDeConciliacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad"
+        ],
+        "title": "ConceptoDeConciliacion"
+      },
       "ConceptoDeLaDefinicion": {
         "properties": {
           "ranura": {
@@ -26007,6 +26557,133 @@
           "fuera_catalogo"
         ],
         "title": "ConceptoDelReporteRespuesta"
+      },
+      "ConceptoDelTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "catalogo",
+              "propuesto"
+            ],
+            "title": "Estado"
+          },
+          "clave_provisional": {
+            "type": "boolean",
+            "title": "Clave Provisional",
+            "description": "Concepto nuevo propuesto: su clave es provisional hasta que Control de obra la confirme."
+          },
+          "en_catalogo": {
+            "type": "boolean",
+            "title": "En Catalogo"
+          },
+          "destajo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DestajoDelCatalogo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El destajo del catálogo; `null` = sin destajo."
+          },
+          "nivel_desde": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Desde",
+            "description": "Desde qué nivel lo paga el elemento (3.er nivel); `null` = el concepto base."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "etiqueta",
+          "descripcion",
+          "unidad",
+          "estado",
+          "clave_provisional",
+          "en_catalogo",
+          "destajo",
+          "nivel_desde"
+        ],
+        "title": "ConceptoDelTabique"
+      },
+      "ConceptoElegido": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "catalogo",
+              "propuesto"
+            ],
+            "title": "Estado"
+          },
+          "clave_provisional": {
+            "type": "boolean",
+            "title": "Clave Provisional"
+          },
+          "nivel_desde": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Desde"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "etiqueta",
+          "estado",
+          "clave_provisional",
+          "nivel_desde"
+        ],
+        "title": "ConceptoElegido"
       },
       "ConceptoNuevoPeticion": {
         "properties": {
@@ -26772,6 +27449,69 @@
           "conceptos"
         ],
         "title": "ConciliacionDeEstructura"
+      },
+      "ConciliacionDelTabique": {
+        "properties": {
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeConciliacion"
+          },
+          "sobre": {
+            "type": "string",
+            "title": "Sobre"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeConciliacionDelTabique"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "mano_de_obra": {
+            "items": {
+              "$ref": "#/components/schemas/ManoDeObraDelCatalogoDelTabique"
+            },
+            "type": "array",
+            "title": "Mano De Obra",
+            "description": "El destajo del catálogo: el elemento no lo calcula."
+          },
+          "resumen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resumen"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide"
+          },
+          "fuente_de_las_filas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fuente De Las Filas"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "sobre",
+          "filas",
+          "mano_de_obra",
+          "resumen",
+          "coincide",
+          "fuente_de_las_filas",
+          "avisos"
+        ],
+        "title": "ConciliacionDelTabique"
       },
       "ConciliacionRespuesta": {
         "properties": {
@@ -30162,6 +30902,151 @@
         ],
         "title": "DefinicionDelElementoEstructural"
       },
+      "DefinicionDelTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nombre_nominal": {
+            "type": "string",
+            "title": "Nombre Nominal"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "medida": {
+            "type": "string",
+            "enum": [
+              "m2",
+              "ml"
+            ],
+            "title": "Medida"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeTabique"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeTabique"
+          },
+          "espesor_nominal_cm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Nominal Cm"
+          },
+          "espesor_real_cm": {
+            "type": "number",
+            "title": "Espesor Real Cm"
+          },
+          "aparejo": {
+            "type": "string",
+            "title": "Aparejo"
+          },
+          "aparejo_largo": {
+            "type": "string",
+            "title": "Aparejo Largo"
+          },
+          "aparejo_texto": {
+            "type": "string",
+            "title": "Aparejo Texto"
+          },
+          "planta_nota": {
+            "type": "string",
+            "title": "Planta Nota"
+          },
+          "pieza": {
+            "$ref": "#/components/schemas/PiezaDeTabique"
+          },
+          "mezcla": {
+            "type": "string",
+            "title": "Mezcla"
+          },
+          "parametros_por_defecto": {
+            "$ref": "#/components/schemas/ParametrosDelTabique"
+          },
+          "tipos_de_sardinel": {
+            "items": {
+              "$ref": "#/components/schemas/TipoDeSardinel"
+            },
+            "type": "array",
+            "title": "Tipos De Sardinel"
+          },
+          "hiladas": {
+            "items": {
+              "$ref": "#/components/schemas/HiladaDelAparejo"
+            },
+            "type": "array",
+            "title": "Hiladas"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelTabique"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "avisos_de_catalogo": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos De Catalogo"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDelTabique"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "nombre_nominal",
+          "tipo",
+          "medida",
+          "se_mide_por",
+          "categoria",
+          "subcategoria",
+          "espesor_nominal_cm",
+          "espesor_real_cm",
+          "aparejo",
+          "aparejo_largo",
+          "aparejo_texto",
+          "planta_nota",
+          "pieza",
+          "mezcla",
+          "parametros_por_defecto",
+          "tipos_de_sardinel",
+          "hiladas",
+          "conceptos",
+          "fuente",
+          "avisos_de_catalogo",
+          "pendientes"
+        ],
+        "title": "DefinicionDelTabique"
+      },
       "DentellonDelCuadro": {
         "properties": {
           "b2": {
@@ -30333,6 +31218,29 @@
           "desperdicio_acero_pct"
         ],
         "title": "DesperdicioDeLaReceta"
+      },
+      "DestajoDelCatalogo": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad"
+        ],
+        "title": "DestajoDelCatalogo"
       },
       "DestajoNuevoPeticion": {
         "properties": {
@@ -34116,6 +35024,89 @@
         ],
         "title": "FilaDeConciliacionDelElemento"
       },
+      "FilaDeConciliacionDelTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "catalogo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogo"
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "catalogo",
+          "elemento",
+          "diferencia",
+          "diferencia_pct",
+          "marca"
+        ],
+        "title": "FilaDeConciliacionDelTabique"
+      },
       "FilaDeCuadro1Usada": {
         "properties": {
           "H": {
@@ -34138,6 +35129,44 @@
           "B1"
         ],
         "title": "FilaDeCuadro1Usada"
+      },
+      "FilaDeHilera": {
+        "properties": {
+          "orientacion": {
+            "type": "string",
+            "title": "Orientacion"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "visible_cm": {
+            "type": "number",
+            "title": "Visible Cm"
+          },
+          "alto_cm": {
+            "type": "number",
+            "title": "Alto Cm"
+          },
+          "espesor_cm": {
+            "type": "number",
+            "title": "Espesor Cm"
+          },
+          "piezas_netas_m2": {
+            "type": "number",
+            "title": "Piezas Netas M2"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orientacion",
+          "etiqueta",
+          "visible_cm",
+          "alto_cm",
+          "espesor_cm",
+          "piezas_netas_m2"
+        ],
+        "title": "FilaDeHilera"
       },
       "FilaDeInsumoRespuesta": {
         "properties": {
@@ -34236,6 +35265,73 @@
           "total"
         ],
         "title": "FilaDeInsumoRespuesta"
+      },
+      "FilaDeTabiqueRevision": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "catalogo",
+              "propuesto"
+            ],
+            "title": "Estado"
+          },
+          "nombre_nominal": {
+            "type": "string",
+            "title": "Nombre Nominal"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "espesor_real_cm": {
+            "type": "number",
+            "title": "Espesor Real Cm"
+          },
+          "aparejo": {
+            "type": "string",
+            "title": "Aparejo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "piezas_por_unidad": {
+            "type": "number",
+            "title": "Piezas Por Unidad"
+          },
+          "mezcla_m3_por_unidad": {
+            "type": "number",
+            "title": "Mezcla M3 Por Unidad"
+          },
+          "contraste": {
+            "type": "string",
+            "title": "Contraste"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "provisional",
+          "estado",
+          "nombre_nominal",
+          "nombre",
+          "espesor_real_cm",
+          "aparejo",
+          "unidad",
+          "piezas_por_unidad",
+          "mezcla_m3_por_unidad",
+          "contraste"
+        ],
+        "title": "FilaDeTabiqueRevision"
       },
       "FilaDelContraste": {
         "properties": {
@@ -35203,6 +36299,47 @@
         "title": "GenerarObraPeticion",
         "description": "Workflow A (§11.3 A.2)."
       },
+      "GeometriaDelTabique": {
+        "properties": {
+          "espesor_real_cm": {
+            "type": "number",
+            "title": "Espesor Real Cm"
+          },
+          "espesor_minimo_cm": {
+            "type": "number",
+            "title": "Espesor Minimo Cm"
+          },
+          "espesor_medio_cm": {
+            "type": "number",
+            "title": "Espesor Medio Cm"
+          },
+          "hilada_promedio_cm": {
+            "type": "number",
+            "title": "Hilada Promedio Cm"
+          },
+          "piezas_por_hilada": {
+            "type": "number",
+            "title": "Piezas Por Hilada"
+          },
+          "hiladas": {
+            "items": {
+              "$ref": "#/components/schemas/HiladaCalculada"
+            },
+            "type": "array",
+            "title": "Hiladas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espesor_real_cm",
+          "espesor_minimo_cm",
+          "espesor_medio_cm",
+          "hilada_promedio_cm",
+          "piezas_por_hilada",
+          "hiladas"
+        ],
+        "title": "GeometriaDelTabique"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -35215,6 +36352,53 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HiladaCalculada": {
+        "properties": {
+          "peso": {
+            "type": "number",
+            "title": "Peso"
+          },
+          "espesor_cm": {
+            "type": "number",
+            "title": "Espesor Cm"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeHilera"
+            },
+            "type": "array",
+            "title": "Filas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peso",
+          "espesor_cm",
+          "filas"
+        ],
+        "title": "HiladaCalculada"
+      },
+      "HiladaDelAparejo": {
+        "properties": {
+          "peso": {
+            "type": "number",
+            "title": "Peso"
+          },
+          "filas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Filas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peso",
+          "filas"
+        ],
+        "title": "HiladaDelAparejo"
       },
       "HileraDeLloraderos": {
         "properties": {
@@ -35904,6 +37088,44 @@
         ],
         "title": "InsumoDeElementoRespuesta"
       },
+      "InsumoDeLaMezcla": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_m3": {
+            "type": "number",
+            "title": "Por M3"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "linea": {
+            "type": "string",
+            "title": "Linea"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_m3",
+          "total",
+          "linea"
+        ],
+        "title": "InsumoDeLaMezcla"
+      },
       "InsumoDelDren": {
         "properties": {
           "clave": {
@@ -35943,6 +37165,60 @@
           "detalle"
         ],
         "title": "InsumoDelDren"
+      },
+      "InsumoDelTabique": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "tabique",
+              "mezcla"
+            ],
+            "title": "Parte"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_unidad": {
+            "type": "number",
+            "title": "Por Unidad"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "a_comprar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Comprar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_unidad",
+          "total",
+          "a_comprar"
+        ],
+        "title": "InsumoDelTabique"
       },
       "InsumoDelTrazo": {
         "properties": {
@@ -37323,6 +38599,46 @@
         ],
         "title": "ManoDeObraDelCatalogo"
       },
+      "ManoDeObraDelCatalogoDelTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "costo"
+        ],
+        "title": "ManoDeObraDelCatalogoDelTabique"
+      },
       "ManoDeObraDelContraste": {
         "properties": {
           "clave": {
@@ -37381,6 +38697,44 @@
           "nota"
         ],
         "title": "ManoDeObraDelElemento"
+      },
+      "ManoDeObraDelTabique": {
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "destajo_del_catalogo",
+              "sin_destajo"
+            ],
+            "title": "Estado"
+          },
+          "destajo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DestajoDelCatalogo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado",
+          "destajo",
+          "cantidad",
+          "nota"
+        ],
+        "title": "ManoDeObraDelTabique"
       },
       "MarcaDeCambioRespuesta": {
         "properties": {
@@ -38114,6 +39468,30 @@
         ],
         "title": "MedidaCuantificacion",
         "description": "Qué métrica del trazo alimenta la cantidad (ENLACE_CUANTIFICACION.\nmedida, MODELO.md §1b). `AREA`/`PERIMETRO`/`LONGITUD` se calculan en\nSQL con `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría\n(§12.11: el dominio nunca toca PostGIS); `CONTEO` no es una función de\nPostGIS, es \"este trazo cuenta como una instancia\"."
+      },
+      "MezclaCalculada": {
+        "properties": {
+          "neta_por_unidad": {
+            "type": "number",
+            "title": "Neta Por Unidad"
+          },
+          "por_unidad": {
+            "type": "number",
+            "title": "Por Unidad",
+            "description": "Con el desperdicio de mezcla."
+          },
+          "total_m3": {
+            "type": "number",
+            "title": "Total M3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "neta_por_unidad",
+          "por_unidad",
+          "total_m3"
+        ],
+        "title": "MezclaCalculada"
       },
       "ModificacionPeticion": {
         "properties": {
@@ -39964,6 +41342,80 @@
         "title": "PaginaBitacora",
         "description": "Página con el total, para que la UI pueda decir \"1-50 de 3 240\"."
       },
+      "ParametrosDelTabique": {
+        "properties": {
+          "junta_cm": {
+            "type": "number",
+            "title": "Junta Cm"
+          },
+          "junta_entre_hileras_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Junta Entre Hileras Cm"
+          },
+          "desperdicio_de_pieza_pct": {
+            "type": "number",
+            "title": "Desperdicio De Pieza Pct"
+          },
+          "desperdicio_de_mezcla_pct": {
+            "type": "number",
+            "title": "Desperdicio De Mezcla Pct"
+          },
+          "cama_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cama Cm",
+            "description": "Solo el petatillo: la cama de mortero (0 cm por defecto)."
+          },
+          "tipo_de_sardinel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo De Sardinel",
+            "description": "Solo el sardinel."
+          },
+          "nivel_desde_3er_nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Desde 3Er Nivel",
+            "description": "Solo EST-02010/02011: desde qué nivel se paga EST-02011."
+          }
+        },
+        "type": "object",
+        "required": [
+          "junta_cm",
+          "junta_entre_hileras_cm",
+          "desperdicio_de_pieza_pct",
+          "desperdicio_de_mezcla_pct",
+          "cama_cm",
+          "tipo_de_sardinel",
+          "nivel_desde_3er_nivel"
+        ],
+        "title": "ParametrosDelTabique"
+      },
       "ParametrosReporte": {
         "properties": {
           "obra_id": {
@@ -40880,6 +42332,24 @@
         ],
         "title": "PendienteDelElementoEstructural"
       },
+      "PendienteDelTabique": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "PendienteDelTabique"
+      },
       "PendienteRespuesta": {
         "properties": {
           "clave": {
@@ -40957,6 +42427,63 @@
         ],
         "title": "PerfilRespuesta",
         "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
+      },
+      "PiezaDeTabique": {
+        "properties": {
+          "insumo": {
+            "type": "string",
+            "title": "Insumo"
+          },
+          "ancho_cm": {
+            "type": "number",
+            "title": "Ancho Cm"
+          },
+          "alto_cm": {
+            "type": "number",
+            "title": "Alto Cm"
+          },
+          "largo_cm": {
+            "type": "number",
+            "title": "Largo Cm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo",
+          "ancho_cm",
+          "alto_cm",
+          "largo_cm"
+        ],
+        "title": "PiezaDeTabique"
+      },
+      "PiezasCalculadas": {
+        "properties": {
+          "netas_por_unidad": {
+            "type": "number",
+            "title": "Netas Por Unidad"
+          },
+          "por_unidad": {
+            "type": "number",
+            "title": "Por Unidad",
+            "description": "Con el desperdicio de pieza."
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "a_comprar": {
+            "type": "integer",
+            "title": "A Comprar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "netas_por_unidad",
+          "por_unidad",
+          "total",
+          "a_comprar"
+        ],
+        "title": "PiezasCalculadas"
       },
       "PlanDeApuRespuesta": {
         "properties": {
@@ -43890,6 +45417,64 @@
         "title": "RendimientoPorCuadrillaRespuesta",
         "description": "Lo que produjo cada cuadrilla (§5.1).\n\nSin contraparte presupuestada: el presupuesto es por concepto y no reparte\nel trabajo entre cuadrillas. Lo comparable es su `rendimiento` de catálogo."
       },
+      "RenglonDeHerramienta": {
+        "properties": {
+          "descripcion": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unidad"
+          },
+          "por_unidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Por Unidad",
+            "description": "Cantidad por m² (o por ml); sin precio."
+          }
+        },
+        "type": "object",
+        "required": [
+          "descripcion",
+          "unidad",
+          "por_unidad"
+        ],
+        "title": "RenglonDeHerramienta"
+      },
+      "RenglonDeHerramientaCalculado": {
+        "properties": {
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_unidad": {
+            "type": "number",
+            "title": "Por Unidad"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "descripcion",
+          "unidad",
+          "por_unidad",
+          "total"
+        ],
+        "title": "RenglonDeHerramientaCalculado"
+      },
       "RenglonEnsamblePeticion": {
         "properties": {
           "cantidad": {
@@ -46288,6 +47873,24 @@
         ],
         "title": "TipoDeReporteRespuesta",
         "description": "Un renglón del catálogo, para que el cliente arme su menú."
+      },
+      "TipoDeSardinel": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion"
+        ],
+        "title": "TipoDeSardinel"
       },
       "TipoExpedienteDoc": {
         "type": "string",
