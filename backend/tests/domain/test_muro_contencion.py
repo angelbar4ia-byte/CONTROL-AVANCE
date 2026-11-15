@@ -171,7 +171,11 @@ def test_parametros_que_no_valen_se_rechazan(mal: dict) -> None:
 
 def test_la_biblioteca_trae_solo_el_muro_de_piedra() -> None:
     elementos = [
-        e["clave"] for c in BIBLIOTECA for s in c["subcategorias"] for e in s["elementos"]
+        e["clave"]
+        for c in BIBLIOTECA
+        for s in c["subcategorias"]
+        for e in s["elementos"]
+        if e.get("tipo") != "estructura_de_catalogo"  # los castillos, aparentes y forjadas (3A) tienen su propia prueba
     ]
     assert elementos == ["MCT-01010"]
     d = elemento_de_la_biblioteca("MCT-01010")

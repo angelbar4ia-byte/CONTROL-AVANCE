@@ -19,7 +19,7 @@ def cliente() -> TestClient:
 def test_la_biblioteca_trae_la_categoria_y_la_subcategoria(cliente: TestClient) -> None:
     r = cliente.get("/biblioteca-de-elementos")
     assert r.status_code == 200
-    (cat,) = r.json()
+    cat = next(c for c in r.json() if c["clave"] == "contencion")
     assert cat["nombre"] == "Muros de contención"
     assert cat["subcategorias"][0]["nombre"] == "Mampostería"
     assert cat["subcategorias"][0]["elementos"][0]["clave"] == "MCT-01010"
