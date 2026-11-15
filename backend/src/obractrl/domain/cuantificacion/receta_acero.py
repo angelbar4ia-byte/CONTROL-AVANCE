@@ -16,6 +16,7 @@ metro lineal de trazo** (cadena, trabe por ml):
 - **Anillos por zonas** (pza y kg). Largo del anillo = perímetro del núcleo (sección menos el recubrimiento por lado)
   × ``factor_anillo`` + gancho. La calibración del mockup con el catálogo es perímetro × 1.10 + 16.5 cm de gancho
   (0.825 m el anillo 10×20), pero eso lo trae el elemento (`factor_anillo`, `gancho_cm`), no es una constante aquí.
+  Con ``factor_anillo`` 0 el anillo es una pieza de **largo fijo** (`gancho_cm`), como el de una nervadura.
   Zonas: ``len_cm`` es el largo de la zona (en cada extremo, en una trabe por pieza) y ``None`` es el resto/centro.
   En pieza el primer anillo de la primera zona se suma a ``ceil(largo ÷ separación)``; en ml es ``largo ÷ separación``.
 - **Alambre de amarre**: kg por ml del catálogo si se da, o amarres (varillas × anillos × metros por amarre) × kg/m.
@@ -308,8 +309,10 @@ def _validar(e: EntradaRecetaAcero) -> float:
             raise ErrorDeRecetaAcero("Cada zona de anillos lleva separación mayor que cero y largo no negativo.")
     if not (0 <= e.recubrimiento_cm < min(e.ancho_cm, e.peralte_cm) / 2):
         raise ErrorDeRecetaAcero("El recubrimiento no cabe en la sección.")
-    if e.gancho_cm < 0 or not (e.factor_anillo > 0):
-        raise ErrorDeRecetaAcero("El gancho no es negativo y el factor del anillo es mayor que cero.")
+    if e.gancho_cm < 0 or e.factor_anillo < 0:
+        raise ErrorDeRecetaAcero("El gancho y el factor del anillo no pueden ser negativos.")
+    if e.factor_anillo == 0 and not (e.gancho_cm > 0):
+        raise ErrorDeRecetaAcero("Un anillo de largo fijo (factor 0) necesita su largo en `gancho_cm`.")
     return largo
 
 
