@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from obractrl.domain.cuantificacion import muro_cimentacion
+from obractrl.domain.cuantificacion.estructura_de_catalogo import CATEGORIAS_DE_ESTRUCTURA
 from obractrl.domain.cuantificacion.muro_contencion import (
     CLAVE_CONCEPTO,
     CLAVE_ELEMENTO,
@@ -57,6 +58,7 @@ _CIM_01010: dict[str, Any] = {
 }
 
 BIBLIOTECA: tuple[dict[str, Any], ...] = (
+    *CATEGORIAS_DE_ESTRUCTURA,
     {
         "clave": "contencion",
         "nombre": "Muros de contención",
@@ -90,7 +92,7 @@ def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
     for categoria in BIBLIOTECA:
         for sub in categoria["subcategorias"]:
             for elemento in sub["elementos"]:
-                if elemento["clave"] == clave:
+                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo":
                     cimiento = clave == muro_cimentacion.CLAVE_ELEMENTO
                     return {
                         **elemento,
