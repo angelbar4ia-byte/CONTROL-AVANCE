@@ -16,6 +16,13 @@ const MCT = {
   se_mide_por: 'metro lineal de trazo',
   concepto: { clave: 'MCT-01011', descripcion: 'MURO DE MAMPOSTERÍA DE PIEDRA DE CERRO', unidad: 'm3' },
 };
+const CIM = {
+  clave: 'CIM-01010',
+  nombre: 'Muro de cimentación de piedra',
+  tipo: 'muro_de_cimentacion_de_piedra',
+  se_mide_por: 'metro lineal de trazo',
+  concepto: MCT.concepto,
+};
 const CATEGORIAS: CategoriaDeBiblioteca[] = [
   {
     clave: 'contencion',
@@ -56,5 +63,23 @@ describe('BibliotecaDeElementos', () => {
     fireEvent.click(screen.getByRole('button', { name: /Mampostería/ }));
     fireEvent.click(screen.getByRole('button', { name: /MCT-01010/ }));
     expect(onElegir).toHaveBeenCalledWith('MCT-01010');
+  });
+
+  it('la categoría de cimentación abre su subcategoría de piedra y avisa la clave del muro', () => {
+    const onElegir = vi.fn();
+    const categorias: CategoriaDeBiblioteca[] = [
+      ...CATEGORIAS,
+      {
+        clave: 'muros_cimentacion',
+        nombre: 'Muros de cimentación',
+        prefijo: 'CIM',
+        subcategorias: [{ clave: 'piedra', nombre: 'Mampostería de piedra', prefijo: 'CIM', elementos: [CIM] }],
+      },
+    ];
+    render(<BibliotecaDeElementos categorias={categorias} elegida="CIM-01010" onElegir={onElegir} />);
+    expect(screen.getByRole('button', { name: /Muros de cimentación/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /Mampostería de piedra/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /CIM-01010/ }));
+    expect(onElegir).toHaveBeenCalledWith('CIM-01010');
   });
 });
