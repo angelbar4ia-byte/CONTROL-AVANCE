@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Con un concepto elegido, cerrar la figura guarda el trazo solo (D-588): la cantidad cambia al cerrar,
@@ -38,7 +38,7 @@ test.describe('Cuantificador · trazo directo', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     const clic = (fx: number, fy: number) => page.mouse.click(c.x + c.width * fx, c.y + c.height * fy);
     const rect = async (x1: number, y1: number, x2: number, y2: number) => {
       await barra.getByRole('button', { name: 'Rectángulo', exact: true }).click();

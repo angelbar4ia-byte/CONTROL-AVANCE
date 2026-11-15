@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 
 /** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
@@ -67,7 +67,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
       await expect(lienzo).toBeVisible();
     };
     const en = async (fx: number, fy: number) => {
-      const c = (await lienzo.boundingBox())!;
+      const c = (await cajaEstable(page, lienzo));
       return { x: c.x + c.width * fx, y: c.y + c.height * fy };
     };
     const clic = async (fx: number, fy: number) => {
@@ -286,7 +286,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
 
     // --- Guardar un trazo y deshacerlo / rehacerlo ---------------------------------------------------------
     await barra.getByRole('button', { name: 'Rectángulo', exact: true }).click();
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     await page.mouse.click(c.x + c.width * 0.45, c.y + c.height * 0.5);
     await page.mouse.click(c.x + c.width * 0.8, c.y + c.height * 0.85);
     const alta = page.getByRole('dialog', { name: 'Guardar polígono' });
@@ -374,7 +374,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     await expect(lienzo).toBeVisible();
     await expect(page.getByText(/Escala 1 u = 0\.5000 m/)).toBeVisible();
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     const guardar = async (nombre: string, medida: string) => {
       const alta = page.getByRole('dialog', { name: nombre });
       const valor = await alta.locator('#enlace-actividad-0 option').nth(1).getAttribute('value');

@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Mediciones, la capa sombra del cuantificador (migración 0088).
@@ -53,7 +53,7 @@ test.describe('Cuantificador · mediciones', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     const clic = (fx: number, fy: number) => page.mouse.click(c.x + c.width * fx, c.y + c.height * fy);
     const panel = page.getByRole('region', { name: 'Mediciones del plano' });
     const rect = async (x1: number, y1: number, x2: number, y2: number) => {

@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 
 /** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
@@ -69,7 +69,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     await expect(cabeza).toHaveAttribute('aria-expanded', 'false');
     await expect(opciones.getByRole('button', { name: '33 %' })).toHaveCount(0);
 
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     await page.mouse.click(c.x + c.width * 0.3, c.y + c.height * 0.6);
     await page.mouse.click(c.x + c.width * 0.8, c.y + c.height * 0.6);
 
@@ -136,7 +136,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     await expect(barra.getByRole('button', { name: 'Copiar en lote', exact: true })).toBeEnabled();
     await barra.getByRole('button', { name: 'Copiar en lote', exact: true }).click();
 
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     for (const [i, fx] of [0.45, 0.6, 0.75].entries()) {
       await page.mouse.click(c.x + c.width * fx, c.y + c.height * 0.65);
       await expect(page.getByRole('status')).toContainText(`Copia ${i + 1} hecha`);
@@ -168,7 +168,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano!.id}`);
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(lienzo).toBeVisible();
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     const en = (fx: number, fy: number) => ({ x: c.x + c.width * fx, y: c.y + c.height * fy });
 
     await page.getByRole('button', { name: 'Nota', exact: true }).click();
@@ -274,7 +274,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
 
     // Un punto puesto en el centro de la sala, tal como se ve, cae dentro de la sala en el plano.
     await barra.getByRole('button', { name: 'Punto', exact: true }).click();
-    const c = (await lienzo.boundingBox())!;
+    const c = (await cajaEstable(page, lienzo));
     expect(c.width).toBeGreaterThan(0);
     await pulsarMarca(page, page.locator(`[data-trazo-id="${sala.trazo_id}"]`));
     const alta = page.getByRole('dialog', { name: 'Guardar punto' });

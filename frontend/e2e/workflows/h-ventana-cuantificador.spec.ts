@@ -1,12 +1,4 @@
-import {
-  actividadDe,
-  entrarComo,
-  expect,
-  hayRoles,
-  llamarApi,
-  motivoSinRoles,
-  test,
-} from '../infraestructura';
+import { actividadDe, cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Cuantificador · la herramienta puntual: una ventana flotante sobre la
@@ -69,7 +61,7 @@ test.describe('Cuantificador · ventana flotante', () => {
     // --- 2. Trazar y ver el renglón actualizarse ------------------------
     const lienzo = ventana.getByRole('img', { name: 'Plano con sus trazos' });
     await lienzo.scrollIntoViewIfNeeded();
-    const caja = (await lienzo.boundingBox())!;
+    const caja = (await cajaEstable(page, lienzo));
     await ventana.getByRole('button', { name: 'Polígono', exact: true }).click();
     for (const [fx, fy] of [
       [0.3, 0.2],
