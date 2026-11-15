@@ -52,13 +52,13 @@ test.describe('Cuantificador · elementos estructurales de la biblioteca', () =>
     await biblioteca.getByRole('button', { name: /^T-1-15x25\b/ }).click();
     const trabe = area.getByRole('article', { name: /T-1-15x25/ });
     await expect(trabe.getByTestId('ee-seccion')).toContainText('15 × 25 cm (ancho × peralte)');
-    await expect(trabe.getByTestId('ee-concreto')).toContainText('0,0394 m³ por metro');
-    await expect(trabe.getByTestId('ee-cimbra')).toContainText('0,65 m² (3 lados)');
+    await expect(trabe.getByTestId('ee-concreto')).toContainText('0.0394 m³ por metro');
+    await expect(trabe.getByTestId('ee-cimbra')).toContainText('0.65 m² (3 lados)');
     await expect(trabe.getByTestId('ee-sin-mano-de-obra')).toBeVisible();
     const conciliacion = trabe.locator('[data-conciliacion="AUX-00008"]');
     await expect(conciliacion.locator('tr[data-marca="="]')).toHaveCount(2); // anillo y alambre iguales al catálogo
     await expect(conciliacion.locator('tr[data-marca="≈"]')).toContainText('ACR-00001'); // varilla: traslape de 40 diámetros contra 8 %
-    await expect(conciliacion.locator('tr[data-marca="≈"]')).toContainText('-4,4 %');
+    await expect(conciliacion.locator('tr[data-marca="≈"]')).toContainText('-4.4 %');
     // El colado y la cimbra por ml quedan por registrar: sin clave EJ-7xx y sin destajo.
     const camino = trabe.getByRole('region', { name: 'Colado, cimbra y destajo' });
     await expect(camino).toHaveAttribute('data-camino', 'por_registrar');
@@ -69,20 +69,20 @@ test.describe('Cuantificador · elementos estructurales de la biblioteca', () =>
     // Por pieza de 6 m, con zonas de anillo en los extremos.
     await trabe.getByLabel('Se mide por').selectOption('pieza');
     await trabe.getByLabel('Largo de la pieza en metros').fill('6');
-    await expect(trabe.getByTestId('ee-concreto')).toContainText('0,2363 m³ por pieza');
+    await expect(trabe.getByTestId('ee-concreto')).toContainText('0.2363 m³ por pieza');
     await expect(trabe.getByText('Cortes, traslapes y anillos del acero')).toBeVisible();
     await trabe.getByLabel(/Anillos con zona más cerrada/).check();
-    await expect(trabe.getByTestId('ee-concreto')).toContainText('0,2363 m³ por pieza');
-    await expect(trabe.getByRole('region', { name: 'Conciliación con el catálogo' })).toContainText('por metro (de la pieza de 6,00 m)');
+    await expect(trabe.getByTestId('ee-concreto')).toContainText('0.2363 m³ por pieza');
+    await expect(trabe.getByRole('region', { name: 'Conciliación con el catálogo' })).toContainText('por metro (de la pieza de 6.00 m)');
     await trabe.getByLabel('Se mide por').selectOption('ml');
-    await expect(trabe.getByTestId('ee-concreto')).toContainText('0,0394 m³ por metro');
+    await expect(trabe.getByTestId('ee-concreto')).toContainText('0.0394 m³ por metro');
 
     // La nervadura no lleva cimbra; la contratrabe, dos costados.
     await biblioteca.getByRole('button', { name: /^N-1-12x25\b/ }).click();
     const nervadura = area.getByRole('article', { name: /N-1-12x25/ });
-    await expect(nervadura.getByTestId('ee-cimbra')).toContainText('0,00 m² (0 lados)');
+    await expect(nervadura.getByTestId('ee-cimbra')).toContainText('0.00 m² (0 lados)');
     await biblioteca.getByRole('button', { name: /^CT1-15x25\b/ }).click();
-    await expect(area.getByRole('article', { name: /CT1-15x25/ }).getByTestId('ee-cimbra')).toContainText('0,50 m² (2 lados)');
+    await expect(area.getByRole('article', { name: /CT1-15x25/ }).getByTestId('ee-cimbra')).toContainText('0.50 m² (2 lados)');
 
     // --- 3. Z-1 y C-1 ------------------------------------------------------------------------------------------------
     await biblioteca.getByRole('button', { name: /^Z-1\b/ }).click();
@@ -93,7 +93,7 @@ test.describe('Cuantificador · elementos estructurales de la biblioteca', () =>
     await expect(zapata.getByLabel('Se mide por')).toHaveCount(0);
     await biblioteca.getByRole('button', { name: /^C-1\b/ }).click();
     const columna = area.getByRole('article', { name: /C-1/ });
-    await expect(columna.getByTestId('ee-concreto')).toContainText('0,5670 m³ por pieza'); // 0.30 × 0.30 × 6.00 × 1.05
+    await expect(columna.getByTestId('ee-concreto')).toContainText('0.5670 m³ por pieza'); // 0.30 × 0.30 × 6.00 × 1.05
     await columna.getByLabel('Altura de la columna en metros').fill('7');
     await expect(columna.getByRole('list', { name: 'Advertencias' })).toContainText('pasa del escalón');
     await expect(columna.locator('[data-conciliacion="EST-12011"]')).toBeVisible();
