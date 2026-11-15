@@ -14587,6 +14587,456 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La ficha de un castillo, aparente o columna forjada de la biblioteca",
+        "operationId": "definicion_de_estructura_api_v1_biblioteca_de_elementos_estructura__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDeEstructura"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de estructura con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula un castillo, aparente o columna forjada con su alto (solo cálculo)",
+        "operationId": "calcular_estructura_api_v1_biblioteca_de_elementos_estructura__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDeEstructuraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDeEstructura"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de estructura con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}/conciliacion": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "El elemento contra el concepto del catálogo, insumo por insumo, con las versiones propuestas",
+        "operationId": "conciliacion_de_estructura_api_v1_biblioteca_de_elementos_estructura__clave__conciliacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConciliacionDeEstructura"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de estructura con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Las versiones de concepto propuestas, autorizadas y rechazadas del elemento",
+        "operationId": "propuestas_de_estructura_api_v1_biblioteca_de_elementos_estructura__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas De Estructura Api V1 Biblioteca De Elementos Estructura  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de estructura con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}/propuestas/correcciones": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Proponer las correcciones del catálogo de este elemento como nuevas versiones de concepto",
+        "operationId": "proponer_correcciones_api_v1_biblioteca_de_elementos_estructura__clave__propuestas_correcciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de estructura con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}/propuestas/concepto-por-altura": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Proponer el concepto nuevo de una columna forjada con otra altura que 4.20 m",
+        "operationId": "proponer_concepto_por_altura_api_v1_biblioteca_de_elementos_estructura__clave__propuestas_concepto_por_altura_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConceptoPorAlturaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestaCreada"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de estructura con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/propuestas-de-estructura/pendientes": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Las propuestas de estructura que esperan la autorización de Control de obra",
+        "operationId": "propuestas_pendientes_api_v1_propuestas_de_estructura_pendientes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "type": "array",
+                  "title": "Response Propuestas Pendientes Api V1 Propuestas De Estructura Pendientes Get"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo ven Control de obra y Costos."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/propuestas-de-estructura/{propuesta_id}/autorizar": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Autorizar la propuesta: nace la versión siguiente del concepto",
+        "operationId": "autorizar_propuesta_api_v1_propuestas_de_estructura__propuesta_id__autorizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "propuesta_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Propuesta Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDeLaPropuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "La propuesta no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue decidida."
+          }
+        }
+      }
+    },
+    "/api/v1/propuestas-de-estructura/{propuesta_id}/rechazar": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Rechazar la propuesta (con el motivo)",
+        "operationId": "rechazar_propuesta_api_v1_propuestas_de_estructura__propuesta_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "propuesta_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Propuesta Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazoDeLaPropuesta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "La propuesta no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ya fue decidida."
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos": {
       "get": {
         "tags": [
@@ -21008,6 +21458,38 @@
         ],
         "title": "AlertasDePartesRespuesta"
       },
+      "AnilloDelArmado": {
+        "properties": {
+          "insumo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insumo"
+          },
+          "sep_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sep Cm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo",
+          "sep_cm"
+        ],
+        "title": "AnilloDelArmado"
+      },
       "AnillosDeLaReceta": {
         "properties": {
           "largo_anillo_m": {
@@ -21304,6 +21786,66 @@
           "expira_en"
         ],
         "title": "ArchivoDePlanoRespuesta"
+      },
+      "ArmadoDeEstructura": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "armex",
+              "varillas"
+            ],
+            "title": "Tipo"
+          },
+          "armex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Armex"
+          },
+          "varillas": {
+            "items": {
+              "$ref": "#/components/schemas/VarillaDelArmado"
+            },
+            "type": "array",
+            "title": "Varillas"
+          },
+          "anillo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnilloDelArmado"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alambre_kg_ml": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alambre Kg Ml"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "armex",
+          "varillas",
+          "anillo",
+          "alambre_kg_ml"
+        ],
+        "title": "ArmadoDeEstructura"
       },
       "ArmarPrecioPeticion": {
         "properties": {
@@ -21999,6 +22541,185 @@
         ],
         "title": "CalculoDeConversionRespuesta"
       },
+      "CalculoDeEstructura": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal"
+            ],
+            "title": "Tipo"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "subcategoria": {
+            "type": "string",
+            "title": "Subcategoria"
+          },
+          "posicion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion"
+          },
+          "seccion": {
+            "$ref": "#/components/schemas/SeccionDeEstructura"
+          },
+          "alto_m": {
+            "type": "number",
+            "title": "Alto M"
+          },
+          "alto_fijo": {
+            "type": "boolean",
+            "title": "Alto Fijo"
+          },
+          "unidad_de_calculo": {
+            "type": "string",
+            "title": "Unidad De Calculo"
+          },
+          "lados_cimbra": {
+            "type": "integer",
+            "title": "Lados Cimbra"
+          },
+          "armado": {
+            "$ref": "#/components/schemas/ArmadoDeEstructura"
+          },
+          "acero": {
+            "$ref": "#/components/schemas/RecetaDeAceroCalculada"
+          },
+          "colado": {
+            "$ref": "#/components/schemas/ColadoDeEstructura"
+          },
+          "forro": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ForroDeEstructura"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoCalculado"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "concepto_nuevo_por_altura": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConceptoNuevoPorAltura"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "solo_en_catalogo": {
+            "items": {
+              "$ref": "#/components/schemas/SoloEnElCatalogo"
+            },
+            "type": "array",
+            "title": "Solo En Catalogo"
+          },
+          "pendientes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "alias",
+          "nombre",
+          "tipo",
+          "categoria",
+          "subcategoria",
+          "posicion",
+          "seccion",
+          "alto_m",
+          "alto_fijo",
+          "unidad_de_calculo",
+          "lados_cimbra",
+          "armado",
+          "acero",
+          "colado",
+          "forro",
+          "conceptos",
+          "concepto_nuevo_por_altura",
+          "solo_en_catalogo",
+          "pendientes",
+          "advertencias",
+          "fuente"
+        ],
+        "title": "CalculoDeEstructura"
+      },
+      "CalculoDeEstructuraPeticion": {
+        "properties": {
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto M",
+            "description": "Alto en METROS; vacío usa la altura estándar de 3.00 m (4.20 m en la forjada)."
+          },
+          "drivers": {
+            "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          }
+        },
+        "type": "object",
+        "title": "CalculoDeEstructuraPeticion"
+      },
       "CalculoDelMuro": {
         "properties": {
           "clave": {
@@ -22329,6 +23050,34 @@
         ],
         "title": "CambiarPrototipoPeticion"
       },
+      "CambioDeLaPropuesta": {
+        "properties": {
+          "insumo": {
+            "type": "string",
+            "title": "Insumo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad",
+            "default": ""
+          },
+          "antes": {
+            "type": "number",
+            "title": "Antes"
+          },
+          "despues": {
+            "type": "number",
+            "title": "Despues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo",
+          "antes",
+          "despues"
+        ],
+        "title": "CambioDeLaPropuesta"
+      },
       "CambioDeUnidadPeticion": {
         "properties": {
           "unidad_id": {
@@ -22628,6 +23377,59 @@
         ],
         "title": "CapturaAvancePeticion",
         "description": "Captura de avance (§6).\n\nLas mismas reglas se reflejan en el cliente para UX y se aplican de forma\nautoritativa en el servidor (§11.1)."
+      },
+      "CaraDelForro": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "caras": {
+            "type": "integer",
+            "title": "Caras"
+          },
+          "largo_m": {
+            "type": "number",
+            "title": "Largo M"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "hilada_m": {
+            "type": "number",
+            "title": "Hilada M"
+          },
+          "pza_por_m2": {
+            "type": "number",
+            "title": "Pza Por M2"
+          },
+          "pza_netas": {
+            "type": "number",
+            "title": "Pza Netas"
+          },
+          "mezcla_neta_m3": {
+            "type": "number",
+            "title": "Mezcla Neta M3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "etiqueta",
+          "caras",
+          "largo_m",
+          "area_m2",
+          "hilada_m",
+          "pza_por_m2",
+          "pza_netas",
+          "mezcla_neta_m3"
+        ],
+        "title": "CaraDelForro"
       },
       "CargaDeParteRespuesta": {
         "properties": {
@@ -23498,6 +24300,24 @@
         ],
         "title": "ClaveYNombre"
       },
+      "ClaveYNombreDeEstructura": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "ClaveYNombreDeEstructura"
+      },
       "ClusterRespuesta": {
         "properties": {
           "id": {
@@ -23546,6 +24366,34 @@
           "prototipo_clave"
         ],
         "title": "CohorteItemRespuesta"
+      },
+      "ColadoDeEstructura": {
+        "properties": {
+          "concreto_m3_ml": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concreto M3 Ml"
+          },
+          "consumos": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumoDelColado"
+            },
+            "type": "array",
+            "title": "Consumos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concreto_m3_ml",
+          "consumos"
+        ],
+        "title": "ColadoDeEstructura"
       },
       "ComparacionDeMedida": {
         "properties": {
@@ -23609,6 +24457,81 @@
           "conceptos"
         ],
         "title": "ComparacionRespuesta"
+      },
+      "ConceptoCalculado": {
+        "properties": {
+          "ranura": {
+            "type": "string",
+            "enum": [
+              "acero",
+              "colado",
+              "completo"
+            ],
+            "title": "Ranura"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "hasta_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta M"
+          },
+          "escalones": {
+            "items": {
+              "$ref": "#/components/schemas/EscalonDeEstructura"
+            },
+            "type": "array",
+            "title": "Escalones"
+          },
+          "nuevo": {
+            "type": "boolean",
+            "title": "Nuevo"
+          },
+          "rebasa": {
+            "type": "boolean",
+            "title": "Rebasa",
+            "description": "El alto rebasa el último escalón: falta un concepto para esa altura."
+          },
+          "insumos": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Insumos",
+            "description": "Lo que calcula el elemento por unidad del concepto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranura",
+          "unidad",
+          "clave",
+          "hasta_m",
+          "escalones",
+          "nuevo",
+          "rebasa",
+          "insumos"
+        ],
+        "title": "ConceptoCalculado"
       },
       "ConceptoComparado": {
         "properties": {
@@ -23697,6 +24620,153 @@
           "coincide"
         ],
         "title": "ConceptoComparado"
+      },
+      "ConceptoConciliado": {
+        "properties": {
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "ranura": {
+            "type": "string",
+            "enum": [
+              "acero",
+              "colado",
+              "completo"
+            ],
+            "title": "Ranura"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "alto_m": {
+            "type": "number",
+            "title": "Alto M"
+          },
+          "hasta_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta M"
+          },
+          "nuevo": {
+            "type": "boolean",
+            "title": "Nuevo"
+          },
+          "sin_catalogo": {
+            "type": "boolean",
+            "title": "Sin Catalogo"
+          },
+          "en_catalogo": {
+            "type": "boolean",
+            "title": "En Catalogo"
+          },
+          "propuestas": {
+            "items": {
+              "$ref": "#/components/schemas/PropuestaDelConcepto"
+            },
+            "type": "array",
+            "title": "Propuestas"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeConciliacionDeEstructura"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "mano_de_obra": {
+            "items": {
+              "$ref": "#/components/schemas/ManoDeObraDelCatalogo"
+            },
+            "type": "array",
+            "title": "Mano De Obra",
+            "description": "Destajo y mano de obra: el elemento no los calcula."
+          },
+          "resumen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resumen"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_clave",
+          "ranura",
+          "unidad",
+          "alto_m",
+          "hasta_m",
+          "nuevo",
+          "sin_catalogo",
+          "en_catalogo",
+          "propuestas",
+          "filas",
+          "mano_de_obra",
+          "resumen",
+          "coincide"
+        ],
+        "title": "ConceptoConciliado"
+      },
+      "ConceptoDeLaDefinicion": {
+        "properties": {
+          "ranura": {
+            "type": "string",
+            "enum": [
+              "acero",
+              "colado",
+              "completo"
+            ],
+            "title": "Ranura"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "nuevo": {
+            "type": "boolean",
+            "title": "Nuevo",
+            "description": "Concepto que el catálogo no trae: queda propuesto, pendiente de autorizar."
+          },
+          "escalones": {
+            "items": {
+              "$ref": "#/components/schemas/EscalonDeEstructura"
+            },
+            "type": "array",
+            "title": "Escalones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranura",
+          "unidad",
+          "clave",
+          "nuevo",
+          "escalones"
+        ],
+        "title": "ConceptoDeLaDefinicion"
       },
       "ConceptoDelElemento": {
         "properties": {
@@ -24038,6 +25108,34 @@
         ],
         "title": "ConceptoNuevoPeticion"
       },
+      "ConceptoNuevoPorAltura": {
+        "properties": {
+          "clave_propuesta": {
+            "type": "string",
+            "title": "Clave Propuesta"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "alto_m": {
+            "type": "number",
+            "title": "Alto M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave_propuesta",
+          "descripcion",
+          "unidad",
+          "alto_m"
+        ],
+        "title": "ConceptoNuevoPorAltura"
+      },
       "ConceptoNuevoRespuesta": {
         "properties": {
           "concepto_id": {
@@ -24067,6 +25165,21 @@
           "parte"
         ],
         "title": "ConceptoNuevoRespuesta"
+      },
+      "ConceptoPorAlturaPeticion": {
+        "properties": {
+          "alto_m": {
+            "type": "number",
+            "maximum": 30.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Alto M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alto_m"
+        ],
+        "title": "ConceptoPorAlturaPeticion"
       },
       "ConceptoPorContextoCreado": {
         "properties": {
@@ -24586,6 +25699,37 @@
         ],
         "title": "ConceptosPorContextoRespuesta"
       },
+      "ConciliacionDeEstructura": {
+        "properties": {
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "umbral_igual_pct": {
+            "type": "number",
+            "title": "Umbral Igual Pct"
+          },
+          "umbral_aproximado_pct": {
+            "type": "number",
+            "title": "Umbral Aproximado Pct"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoConciliado"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_clave",
+          "umbral_igual_pct",
+          "umbral_aproximado_pct",
+          "conceptos"
+        ],
+        "title": "ConciliacionDeEstructura"
+      },
       "ConciliacionRespuesta": {
         "properties": {
           "fila_id": {
@@ -25019,6 +26163,24 @@
           "clave"
         ],
         "title": "ConsumoDeCimbraPeticion"
+      },
+      "ConsumoDelColado": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "cantidad"
+        ],
+        "title": "ConsumoDelColado"
       },
       "ConsumoRespuesta": {
         "properties": {
@@ -27346,6 +28508,112 @@
         ],
         "title": "DecisionRespuesta"
       },
+      "DefinicionDeEstructura": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal"
+            ],
+            "title": "Tipo"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeEstructura"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeEstructura"
+          },
+          "seccion": {
+            "$ref": "#/components/schemas/SeccionDeEstructura"
+          },
+          "posicion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion"
+          },
+          "alto_fijo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto Fijo M",
+            "description": "La forjada tiene alto fijo (4.20 m); otra altura es un concepto nuevo."
+          },
+          "alto_por_defecto_m": {
+            "type": "number",
+            "title": "Alto Por Defecto M"
+          },
+          "armado": {
+            "$ref": "#/components/schemas/ArmadoDeEstructura"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLaDefinicion"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "pendientes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "alias",
+          "nombre",
+          "tipo",
+          "categoria",
+          "subcategoria",
+          "seccion",
+          "posicion",
+          "alto_fijo_m",
+          "alto_por_defecto_m",
+          "armado",
+          "conceptos",
+          "pendientes",
+          "fuente"
+        ],
+        "title": "DefinicionDeEstructura"
+      },
       "DefinicionDelElemento": {
         "properties": {
           "clave": {
@@ -29576,6 +30844,24 @@
         ],
         "title": "EscalaRespuesta"
       },
+      "EscalonDeEstructura": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "hasta_m": {
+            "type": "number",
+            "title": "Hasta M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "hasta_m"
+        ],
+        "title": "EscalonDeEstructura"
+      },
       "EspecialidadRespuesta": {
         "properties": {
           "id": {
@@ -31110,6 +32396,114 @@
         ],
         "title": "FilaDeConciliacion"
       },
+      "FilaDeConciliacionDeEstructura": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "catalogo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogo"
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo",
+            "description": "Por qué «solo en el catálogo»: lo que el elemento no calcula."
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDeLaFila"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La versión propuesta del concepto para este insumo, si la hay."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "catalogo",
+          "elemento",
+          "diferencia",
+          "diferencia_pct",
+          "marca",
+          "motivo",
+          "propuesta"
+        ],
+        "title": "FilaDeConciliacionDeEstructura"
+      },
       "FilaDeCuadro1Usada": {
         "properties": {
           "H": {
@@ -31578,6 +32972,52 @@
         ],
         "title": "FormulaPeticion",
         "description": "Cantidad por piezas comerciales: `piezas ÷ largo × (1 + desperdicio %)` por unidad del concepto padre."
+      },
+      "ForroDeEstructura": {
+        "properties": {
+          "caras": {
+            "items": {
+              "$ref": "#/components/schemas/CaraDelForro"
+            },
+            "type": "array",
+            "title": "Caras"
+          },
+          "pza_netas": {
+            "type": "number",
+            "title": "Pza Netas"
+          },
+          "tabique_pza": {
+            "type": "number",
+            "title": "Tabique Pza"
+          },
+          "mezcla_neta_m3": {
+            "type": "number",
+            "title": "Mezcla Neta M3"
+          },
+          "mezcla_m3": {
+            "type": "number",
+            "title": "Mezcla M3"
+          },
+          "cimbra_m2": {
+            "type": "number",
+            "title": "Cimbra M2"
+          },
+          "lados_cimbra": {
+            "type": "integer",
+            "title": "Lados Cimbra"
+          }
+        },
+        "type": "object",
+        "required": [
+          "caras",
+          "pza_netas",
+          "tabique_pza",
+          "mezcla_neta_m3",
+          "mezcla_m3",
+          "cimbra_m2",
+          "lados_cimbra"
+        ],
+        "title": "ForroDeEstructura"
       },
       "FrenteDeObraRespuesta": {
         "properties": {
@@ -38731,6 +40171,20 @@
         ],
         "title": "ProponerTrazosRespuesta"
       },
+      "PropuestaCreada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "PropuestaCreada"
+      },
       "PropuestaDeCambio": {
         "properties": {
           "revision_id": {
@@ -38751,6 +40205,235 @@
         ],
         "title": "PropuestaDeCambio",
         "description": "El cambio de Costos sobre un elemento autorizado: no se aplica hasta que Control de obra lo autorice."
+      },
+      "PropuestaDeEstructura": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "version_de_concepto",
+              "concepto_nuevo"
+            ],
+            "title": "Clase"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "autorizada",
+              "rechazada"
+            ],
+            "title": "Estado"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "El número de la versión; `null` mientras está pendiente o si se rechazó."
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "cambios": {
+            "items": {
+              "$ref": "#/components/schemas/CambioDeLaPropuesta"
+            },
+            "type": "array",
+            "title": "Cambios"
+          },
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motivos"
+          },
+          "destajo_por_definir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destajo Por Definir",
+            "description": "El destajo del catálogo no corresponde a la medida: Costos lo define."
+          },
+          "propuso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Nombre"
+          },
+          "propuso_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Rol"
+          },
+          "propuesto_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Propuesto En"
+          },
+          "decidio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Nombre"
+          },
+          "decidio_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Rol"
+          },
+          "decidido_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidido En"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo",
+            "description": "Por qué se rechazó."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "elemento_clave",
+          "concepto_clave",
+          "clase",
+          "estado",
+          "version",
+          "resumen",
+          "cambios",
+          "motivos",
+          "destajo_por_definir",
+          "propuso_nombre",
+          "propuso_rol",
+          "propuesto_en",
+          "decidio_nombre",
+          "decidio_rol",
+          "decidido_en",
+          "motivo"
+        ],
+        "title": "PropuestaDeEstructura"
+      },
+      "PropuestaDeLaFila": {
+        "properties": {
+          "valor": {
+            "type": "number",
+            "title": "Valor"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "autorizada"
+            ],
+            "title": "Estado"
+          },
+          "propuesta_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Id"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valor",
+          "estado",
+          "propuesta_id",
+          "marca",
+          "diferencia_pct"
+        ],
+        "title": "PropuestaDeLaFila"
       },
       "PropuestaDeRedisenoRespuesta": {
         "properties": {
@@ -38804,6 +40487,55 @@
           "ya_estimada"
         ],
         "title": "PropuestaDeRedisenoRespuesta"
+      },
+      "PropuestaDelConcepto": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "autorizada"
+            ],
+            "title": "Estado"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "version_de_concepto",
+              "concepto_nuevo"
+            ],
+            "title": "Clase"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "estado",
+          "version",
+          "resumen",
+          "clase"
+        ],
+        "title": "PropuestaDelConcepto"
       },
       "PropuestaPeticion": {
         "properties": {
@@ -39442,6 +41174,24 @@
           "motivo"
         ],
         "title": "RechazarReprogramacionPeticion"
+      },
+      "RechazoDeLaPropuesta": {
+        "properties": {
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "title": "RechazoDeLaPropuesta"
       },
       "RechazoPeticion": {
         "properties": {
@@ -41113,6 +42863,32 @@
         ],
         "title": "RespuestaItem"
       },
+      "ResultadoDeProponer": {
+        "properties": {
+          "creadas": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Creadas"
+          },
+          "omitidas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Omitidas",
+            "description": "Conceptos que ya tenían una propuesta pendiente o autorizada."
+          }
+        },
+        "type": "object",
+        "required": [
+          "creadas",
+          "omitidas"
+        ],
+        "title": "ResultadoDeProponer"
+      },
       "ResultadoDelCambioRespuesta": {
         "properties": {
           "concepto_nuevo_id": {
@@ -41779,6 +43555,46 @@
         ],
         "title": "SalidaRespuesta"
       },
+      "SeccionDeEstructura": {
+        "properties": {
+          "ancho_cm": {
+            "type": "number",
+            "title": "Ancho Cm",
+            "description": "El espesor del muro (castillo) o el ancho de la cadena."
+          },
+          "largo_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo Cm",
+            "description": "El largo de la sección del castillo; `null` en una cadena."
+          },
+          "peralte_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peralte Cm",
+            "description": "El peralte de la cadena; `null` en un castillo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ancho_cm",
+          "largo_cm",
+          "peralte_cm"
+        ],
+        "title": "SeccionDeEstructura"
+      },
       "SeccionDelMuro": {
         "properties": {
           "alto_m": {
@@ -41934,6 +43750,24 @@
         ],
         "title": "SolicitarCierrePeticion",
         "description": "Solicitud de cierre de actividad (§6, §11.3 C.1)."
+      },
+      "SoloEnElCatalogo": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "motivo"
+        ],
+        "title": "SoloEnElCatalogo"
       },
       "SubcategoriaDeBiblioteca": {
         "properties": {
@@ -44775,6 +46609,29 @@
         ],
         "title": "VarillaDeLaReceta"
       },
+      "VarillaDelArmado": {
+        "properties": {
+          "cantidad": {
+            "type": "integer",
+            "title": "Cantidad"
+          },
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "insumo": {
+            "type": "string",
+            "title": "Insumo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "numero",
+          "insumo"
+        ],
+        "title": "VarillaDelArmado"
+      },
       "VarillaPeticion": {
         "properties": {
           "clave": {
@@ -45158,6 +47015,19 @@
           "motivo"
         ],
         "title": "VersionDeElemento"
+      },
+      "VersionDeLaPropuesta": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "VersionDeLaPropuesta"
       },
       "VersionDeVanoRespuesta": {
         "properties": {
