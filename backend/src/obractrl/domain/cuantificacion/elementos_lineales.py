@@ -57,6 +57,7 @@ from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 __all__ = [
     "LARGO_DE_PIEZA_POR_DEFECTO_M",
     "PENDIENTES",
+    "TIPOS",
     "TIPO_COLUMNA",
     "TIPO_LINEAL",
     "TIPO_ZAPATA",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from obractrl.domain.cuantificacion.correcciones_de_catalogo import (
+from obractrl.domain.cuantificacion.correcciones_de_unidad import (
     CORRECCIONES_CONOCIDAS,
     correccion_conocida,
     resumen_de_la_correccion,

@@ -13,8 +13,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
-  useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost,
-  useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet,
+  useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost,
+  useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet,
 } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
 import type {
   CalculoDelElementoEstructural,
@@ -61,8 +61,8 @@ function separacionDelCatalogo(d: DefinicionDelElementoEstructural): string {
 }
 
 export function TarjetaElementoEstructural({ clave, rol }: Props) {
-  const definicion = useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet(clave);
-  const calcular = useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost<ErrorApi>();
+  const definicion = useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet(clave);
+  const calcular = useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost<ErrorApi>();
   const d = definicion.data;
   const [modo, setModo] = useState<'ml' | 'pieza'>('ml');
   const [largo, setLargo] = useState('4.00');

@@ -19,8 +19,8 @@ const m = vi.hoisted(() => ({
 vi.mock('@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos', () => ({
   getCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGetQueryKey: () => ['correcciones'],
   useBibliotecaDeElementosApiV1BibliotecaDeElementosGet: () => ({ data: m.biblioteca.current }),
-  useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet: () => ({ data: m.definicion.current, isLoading: false }),
-  useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost: () => ({ mutateAsync: m.calcular }),
+  useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet: () => ({ data: m.definicion.current, isLoading: false }),
+  useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost: () => ({ mutateAsync: m.calcular }),
   useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGet: () => ({ data: m.correcciones.current }),
   useProponerCorreccionApiV1CorreccionesDeCatalogoPost: () => ({ mutateAsync: m.proponer }),
   useAutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost: () => ({ mutateAsync: m.autorizar }),

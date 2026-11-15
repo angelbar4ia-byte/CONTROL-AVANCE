@@ -16,7 +16,7 @@ from obractrl.application.casos_uso.elementos_parametricos import (
 )
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.domain.cuantificacion.autorizacion_de_elementos import puede_autorizar
-from obractrl.domain.cuantificacion.correcciones_de_catalogo import (
+from obractrl.domain.cuantificacion.correcciones_de_unidad import (
     CORRECCIONES_CONOCIDAS,
     correccion_conocida,
     siguiente_version,

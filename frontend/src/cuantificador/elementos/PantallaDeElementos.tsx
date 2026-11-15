@@ -1,28 +1,37 @@
 /**
  * El área de trabajo de la pestaña «Elementos»: solo la tarjeta del elemento elegido en la biblioteca (que vive en el
- * panel izquierdo). La biblioteca trae los muros de piedra MCT-01010 (contención) y CIM-01010 (cimentación) y los elementos
- * estructurales (trabes, contratrabes, nervaduras, zapata Z-1 y columna C-1).
+ * panel izquierdo): los muros de piedra MCT-01010 (contención) y CIM-01010 (cimentación) y los castillos, aparentes y columnas
+ * forjadas, y los elementos estructurales lineales (trabes,
+ * contratrabes, nervaduras, zapata Z-1 y columna C-1).
  */
 
 import { useBibliotecaDeElementosApiV1BibliotecaDeElementosGet } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
 
 import { TarjetaElementoEstructural } from './TarjetaElementoEstructural';
+import { TarjetaEstructura } from './TarjetaEstructura';
+
 import { TarjetaMuroCimentacion } from './TarjetaMuroCimentacion';
 import { TarjetaMuroContencion } from './TarjetaMuroContencion';
 
-const TIPOS_DE_ESTRUCTURA = new Set(['lineal_estructural', 'zapata_aislada', 'columna_de_concreto']);
+const TIPOS_LINEALES = new Set(['lineal_estructural', 'zapata_aislada', 'columna_de_concreto']);
 
 export function PantallaDeElementos({ clave, rol }: { readonly clave: string | null; readonly rol?: string | null }) {
   const biblioteca = useBibliotecaDeElementosApiV1BibliotecaDeElementosGet();
-  const tipo = biblioteca.data
-    ?.flatMap((c) => c.subcategorias.flatMap((s) => s.elementos))
-    .find((e) => e.clave === clave)?.tipo;
+  // Los castillos, aparentes y columnas forjadas (3A) comparten la tarjeta de estructura.
+  const esDeEstructura = (biblioteca.data ?? []).some((c) =>
+    c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && e.tipo === 'estructura_de_catalogo')),
+  );
+  const esLineal = (biblioteca.data ?? []).some((c) =>
+    c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && TIPOS_LINEALES.has(e.tipo))),
+  );
   return (
     <section className="pantalla-elementos" role="region" id="area-elementos" aria-label="Elementos">
       <div className="pantalla-elementos__tarjeta">
         {clave === 'MCT-01010' ? (
           <TarjetaMuroContencion clave={clave} />
-        ) : clave && tipo && TIPOS_DE_ESTRUCTURA.has(tipo) ? (
+        ) : clave && esDeEstructura ? (
+          <TarjetaEstructura clave={clave} />
+        ) : clave && esLineal ? (
           <TarjetaElementoEstructural key={clave} clave={clave} rol={rol} />
         ) : clave === 'CIM-01010' ? (
           <TarjetaMuroCimentacion clave={clave} />

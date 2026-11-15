@@ -2,7 +2,7 @@
 columna C-1. Solo cálculo: no guarda nada.
 
 El cálculo y la conciliación con el catálogo viven en el dominio (`elementos_lineales`); aquí se valida la entrada y se devuelve el
-resultado. Controlador delgado. Estas rutas cuelgan de `/biblioteca-de-elementos/estructura/…` y se registran **antes** que las del muro
+resultado. Controlador delgado. Estas rutas cuelgan de `/biblioteca-de-elementos/estructura-lineal/…` y se registran **antes** que las del muro
 de piedra: `/biblioteca-de-elementos/{clave}/calcular` también casaría con ellas.
 """
 
@@ -258,7 +258,7 @@ class CalculoDelElementoEstructural(BaseModel):
 
 
 @router.get(
-    "/biblioteca-de-elementos/estructura/{clave}",
+    "/biblioteca-de-elementos/estructura-lineal/{clave}",
     response_model=DefinicionDelElementoEstructural,
     summary="La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca",
     responses={404: {"description": "No hay un elemento con esa clave en la familia de estructura."}},
@@ -271,7 +271,7 @@ async def definicion_del_elemento_estructural(clave: str) -> dict[str, Any]:
 
 
 @router.post(
-    "/biblioteca-de-elementos/estructura/{clave}/calcular",
+    "/biblioteca-de-elementos/estructura-lineal/{clave}/calcular",
     response_model=CalculoDelElementoEstructural,
     summary="Calcula un elemento estructural por ml o por pieza y lo contrasta con el catálogo (solo cálculo)",
     responses={404: {"description": "No hay un elemento con esa clave."}, 422: {"description": "Un dato no vale."}},

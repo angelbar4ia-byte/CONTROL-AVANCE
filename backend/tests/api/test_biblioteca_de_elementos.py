@@ -19,8 +19,8 @@ def cliente() -> TestClient:
 def test_la_biblioteca_trae_la_categoria_y_la_subcategoria(cliente: TestClient) -> None:
     r = cliente.get("/biblioteca-de-elementos")
     assert r.status_code == 200
-    cat = next(c for c in r.json() if c["clave"] == "contencion")
-    cim = next(c for c in r.json() if c["clave"] == "muros_cimentacion")
+    cats = {c["clave"]: c for c in r.json()}
+    cat, cim = cats["contencion"], cats["muros_cimentacion"]
     assert cim["nombre"] == "Muros de cimentación"
     assert cim["subcategorias"][0]["nombre"] == "Mampostería de piedra"
     assert cim["subcategorias"][0]["elementos"][0]["clave"] == "CIM-01010"
@@ -80,7 +80,7 @@ def test_la_biblioteca_trae_tambien_la_familia_de_estructura(cliente: TestClient
     assert {"contencion", "trabes", "contratrabes", "nervaduras", "zapatas", "columnas"} <= set(cats)
     assert len(cats["trabes"]["subcategorias"][0]["elementos"]) == 24
     assert cats["trabes"]["subcategorias"][0]["nombre"] == "Trabes de losa (catálogo)"
-    # Su definición no es la del muro: vive en /biblioteca-de-elementos/estructura/{clave}.
+    # Su definición no es la del muro: vive en /biblioteca-de-elementos/estructura-lineal/{clave}.
     assert cliente.get("/biblioteca-de-elementos/T-1-15x25").status_code == 404
 
 

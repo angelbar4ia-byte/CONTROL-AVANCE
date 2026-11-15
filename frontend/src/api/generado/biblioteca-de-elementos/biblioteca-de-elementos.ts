@@ -26,6 +26,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CalculoDeEstructura,
+  CalculoDeEstructuraPeticion,
   CalculoDelCimiento,
   CalculoDelCimientoPeticion,
   CalculoDelElementoEstructural,
@@ -34,17 +36,25 @@ import type {
   CalculoDelMuroPeticion,
   CalculoDelTrazo,
   CategoriaDeBiblioteca,
+  ConceptoPorAlturaPeticion,
+  ConciliacionDeEstructura,
   CorreccionDelCatalogo,
   CorreccionPropuesta,
+  DefinicionDeEstructura,
   DefinicionDelElemento,
   DefinicionDelElementoEstructural,
   HTTPValidationError,
   ProponerCorreccionPeticion,
+  PropuestaCreada,
+  PropuestaDeEstructura,
   RecetaDeAceroCalculada,
   RecetaDeAceroPeticion,
   RechazoDeCorreccionPeticion,
+  RechazoDeLaPropuesta,
+  ResultadoDeProponer,
   TrazoDelMuroPeticion,
   VersionDeLaCorreccion,
+  VersionDeLaPropuesta,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -174,15 +184,15 @@ export const useCalcularRecetaApiV1BibliotecaDeElementosRecetaAceroCalcularPost 
     return useMutation(mutationOptions, queryClient);
   };
 /**
- * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ * @summary La ficha de un castillo, aparente o columna forjada de la biblioteca
  */
-export const definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet =
+export const definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet =
   (
     clave: string,
     options?: SecondParameter<typeof peticion>,
     signal?: AbortSignal,
   ) => {
-    return peticion<DefinicionDelElementoEstructural>(
+    return peticion<DefinicionDeEstructura>(
       {
         url: `/api/v1/biblioteca-de-elementos/estructura/${clave}`,
         method: "GET",
@@ -192,7 +202,7 @@ export const definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructur
     );
   };
 
-export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryKey =
+export const getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryKey =
   (clave?: string) => {
     return [
       "infinite",
@@ -200,17 +210,17 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
     ] as const;
   };
 
-export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetQueryKey =
+export const getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetQueryKey =
   (clave?: string) => {
     return [`/api/v1/biblioteca-de-elementos/estructura/${clave}`] as const;
   };
 
-export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryOptions =
+export const getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryOptions =
   <
     TData = InfiniteData<
       Awaited<
         ReturnType<
-          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+          typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
         >
       >
     >,
@@ -222,7 +232,7 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
         UseInfiniteQueryOptions<
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >,
           TError,
@@ -236,18 +246,18 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
 
     const queryKey =
       queryOptions?.queryKey ??
-      getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryKey(
+      getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryKey(
         clave,
       );
 
     const queryFn: QueryFunction<
       Awaited<
         ReturnType<
-          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+          typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
         >
       >
     > = ({ signal }) =>
-      definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet(
+      definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet(
         clave,
         requestOptions,
         signal,
@@ -261,7 +271,7 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
     } as UseInfiniteQueryOptions<
       Awaited<
         ReturnType<
-          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+          typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
         >
       >,
       TError,
@@ -269,22 +279,22 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
     > & { queryKey: DataTag<QueryKey, TData, TError> };
   };
 
-export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryResult =
+export type DefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryResult =
   NonNullable<
     Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >
   >;
-export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryError =
+export type DefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryError =
   void | HTTPValidationError;
 
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
   TData = InfiniteData<
     Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >
   >,
@@ -296,7 +306,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseInfiniteQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
           >
         >,
         TError,
@@ -307,13 +317,13 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
         DefinedInitialDataOptions<
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >,
           TError,
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >
         >,
@@ -325,11 +335,11 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
 ): DefinedUseInfiniteQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
   TData = InfiniteData<
     Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >
   >,
@@ -341,7 +351,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseInfiniteQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
           >
         >,
         TError,
@@ -352,13 +362,13 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
         UndefinedInitialDataOptions<
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >,
           TError,
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >
         >,
@@ -370,11 +380,11 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
 ): UseInfiniteQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
   TData = InfiniteData<
     Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >
   >,
@@ -386,7 +396,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseInfiniteQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
           >
         >,
         TError,
@@ -400,14 +410,14 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
   queryKey: DataTag<QueryKey, TData, TError>;
 };
 /**
- * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ * @summary La ficha de un castillo, aparente o columna forjada de la biblioteca
  */
 
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfinite<
   TData = InfiniteData<
     Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >
   >,
@@ -419,7 +429,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseInfiniteQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
           >
         >,
         TError,
@@ -433,7 +443,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions =
-    getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryOptions(
+    getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetInfiniteQueryOptions(
       clave,
       options,
     );
@@ -450,11 +460,11 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
   return query;
 }
 
-export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetQueryOptions =
+export const getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetQueryOptions =
   <
     TData = Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >,
     TError = void | HTTPValidationError,
@@ -465,7 +475,7 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
         UseQueryOptions<
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >,
           TError,
@@ -479,18 +489,18 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
 
     const queryKey =
       queryOptions?.queryKey ??
-      getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetQueryKey(
+      getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetQueryKey(
         clave,
       );
 
     const queryFn: QueryFunction<
       Awaited<
         ReturnType<
-          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+          typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
         >
       >
     > = ({ signal }) =>
-      definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet(
+      definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet(
         clave,
         requestOptions,
         signal,
@@ -504,7 +514,7 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
     } as UseQueryOptions<
       Awaited<
         ReturnType<
-          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+          typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
         >
       >,
       TError,
@@ -512,21 +522,21 @@ export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstruc
     > & { queryKey: DataTag<QueryKey, TData, TError> };
   };
 
-export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetQueryResult =
+export type DefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetQueryResult =
   NonNullable<
     Awaited<
       ReturnType<
-        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+        typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
       >
     >
   >;
-export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetQueryError =
+export type DefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetQueryError =
   void | HTTPValidationError;
 
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet<
   TData = Awaited<
     ReturnType<
-      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+      typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
     >
   >,
   TError = void | HTTPValidationError,
@@ -537,7 +547,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
           >
         >,
         TError,
@@ -548,13 +558,13 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
         DefinedInitialDataOptions<
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >,
           TError,
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >
         >,
@@ -566,10 +576,10 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet<
   TData = Awaited<
     ReturnType<
-      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+      typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
     >
   >,
   TError = void | HTTPValidationError,
@@ -580,7 +590,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
           >
         >,
         TError,
@@ -591,13 +601,13 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
         UndefinedInitialDataOptions<
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >,
           TError,
           Awaited<
             ReturnType<
-              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+              typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
             >
           >
         >,
@@ -609,10 +619,10 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet<
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet<
   TData = Awaited<
     ReturnType<
-      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+      typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
     >
   >,
   TError = void | HTTPValidationError,
@@ -623,7 +633,2631 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha de un castillo, aparente o columna forjada de la biblioteca
+ */
+
+export function useDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Calcula un castillo, aparente o columna forjada con su alto (solo cálculo)
+ */
+export const calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost =
+  (
+    clave: string,
+    calculoDeEstructuraPeticion: CalculoDeEstructuraPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<CalculoDeEstructura>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura/${clave}/calcular`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDeEstructuraPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCalcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDeEstructuraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDeEstructuraPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+        >
+      >,
+      { clave: string; data: CalculoDeEstructuraPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+      >
+    >
+  >;
+export type CalcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationBody =
+  CalculoDeEstructuraPeticion;
+export type CalcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Calcula un castillo, aparente o columna forjada con su alto (solo cálculo)
+ */
+export const useCalcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDeEstructuraPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDeEstructuraPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularEstructuraApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary El elemento contra el concepto del catálogo, insumo por insumo, con las versiones propuestas
+ */
+export const conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConciliacionDeEstructura>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura/${clave}/conciliacion`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/estructura/${clave}/conciliacion`,
+    ] as const;
+  };
+
+export const getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/estructura/${clave}/conciliacion`,
+    ] as const;
+  };
+
+export const getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+        >
+      >
+    > = ({ signal }) =>
+      conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >
+  >;
+export type ConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary El elemento contra el concepto del catálogo, insumo por insumo, con las versiones propuestas
+ */
+
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+        >
+      >
+    > = ({ signal }) =>
+      conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+      >
+    >
+  >;
+export type ConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary El elemento contra el concepto del catálogo, insumo por insumo, con las versiones propuestas
+ */
+
+export function useConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConciliacionDeEstructuraApiV1BibliotecaDeElementosEstructuraClaveConciliacionGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del elemento
+ */
+export const propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<PropuestaDeEstructura[]>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura/${clave}/propuestas`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/estructura/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/estructura/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del elemento
+ */
+
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del elemento
+ */
+
+export function usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Proponer las correcciones del catálogo de este elemento como nuevas versiones de concepto
+ */
+export const proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura/${clave}/propuestas/correcciones`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost
+        >
+      >,
+      TError,
+      { clave: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost
+      >
+    >,
+    TError,
+    { clave: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost
+        >
+      >,
+      { clave: string }
+    > = (props) => {
+      const { clave } = props ?? {};
+
+      return proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost(
+        clave,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost
+      >
+    >
+  >;
+
+export type ProponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Proponer las correcciones del catálogo de este elemento como nuevas versiones de concepto
+ */
+export const useProponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost
+          >
+        >,
+        TError,
+        { clave: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost
+      >
+    >,
+    TError,
+    { clave: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Proponer el concepto nuevo de una columna forjada con otra altura que 4.20 m
+ */
+export const proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost =
+  (
+    clave: string,
+    conceptoPorAlturaPeticion: ConceptoPorAlturaPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<PropuestaCreada>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura/${clave}/propuestas/concepto-por-altura`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: conceptoPorAlturaPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost
+        >
+      >,
+      TError,
+      { clave: string; data: ConceptoPorAlturaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost
+      >
+    >,
+    TError,
+    { clave: string; data: ConceptoPorAlturaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost
+        >
+      >,
+      { clave: string; data: ConceptoPorAlturaPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost
+      >
+    >
+  >;
+export type ProponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPostMutationBody =
+  ConceptoPorAlturaPeticion;
+export type ProponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Proponer el concepto nuevo de una columna forjada con otra altura que 4.20 m
+ */
+export const useProponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost
+          >
+        >,
+        TError,
+        { clave: string; data: ConceptoPorAlturaPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPost
+      >
+    >,
+    TError,
+    { clave: string; data: ConceptoPorAlturaPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerConceptoPorAlturaApiV1BibliotecaDeElementosEstructuraClavePropuestasConceptoPorAlturaPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Las propuestas de estructura que esperan la autorización de Control de obra
+ */
+export const propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<PropuestaDeEstructura[]>(
+    {
+      url: `/api/v1/propuestas-de-estructura/pendientes`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfiniteQueryKey =
+  () => {
+    return ["infinite", `/api/v1/propuestas-de-estructura/pendientes`] as const;
+  };
+
+export const getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetQueryKey =
+  () => {
+    return [`/api/v1/propuestas-de-estructura/pendientes`] as const;
+  };
+
+export const getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+        >
+      >
+    >,
+    TError = void,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >
+  >;
+export type PropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfiniteQueryError =
+  void;
+
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las propuestas de estructura que esperan la autorización de Control de obra
+ */
+
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >,
+    TError = void,
+  >(options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+      >
+    >
+  >;
+export type PropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetQueryError =
+  void;
+
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+    >
+  >,
+  TError = void,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las propuestas de estructura que esperan la autorización de Control de obra
+ */
+
+export function usePropuestasPendientesApiV1PropuestasDeEstructuraPendientesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+    >
+  >,
+  TError = void,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasPendientesApiV1PropuestasDeEstructuraPendientesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasPendientesApiV1PropuestasDeEstructuraPendientesGetQueryOptions(
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Autorizar la propuesta: nace la versión siguiente del concepto
+ */
+export const autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost =
+  (
+    propuestaId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionDeLaPropuesta>(
+      {
+        url: `/api/v1/propuestas-de-estructura/${propuestaId}/autorizar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost
+        >
+      >,
+      TError,
+      { propuestaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost
+      >
+    >,
+    TError,
+    { propuestaId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost
+        >
+      >,
+      { propuestaId: string }
+    > = (props) => {
+      const { propuestaId } = props ?? {};
+
+      return autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost(
+        propuestaId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost
+      >
+    >
+  >;
+
+export type AutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPostMutationError =
+  void;
+
+/**
+ * @summary Autorizar la propuesta: nace la versión siguiente del concepto
+ */
+export const useAutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost
+          >
+        >,
+        TError,
+        { propuestaId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof autorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost
+      >
+    >,
+    TError,
+    { propuestaId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Rechazar la propuesta (con el motivo)
+ */
+export const rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost =
+  (
+    propuestaId: string,
+    rechazoDeLaPropuesta: RechazoDeLaPropuesta,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/propuestas-de-estructura/${propuestaId}/rechazar`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: rechazoDeLaPropuesta,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost
+        >
+      >,
+      TError,
+      { propuestaId: string; data: RechazoDeLaPropuesta },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost
+      >
+    >,
+    TError,
+    { propuestaId: string; data: RechazoDeLaPropuesta },
+    TContext
+  > => {
+    const mutationKey = [
+      "rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost
+        >
+      >,
+      { propuestaId: string; data: RechazoDeLaPropuesta }
+    > = (props) => {
+      const { propuestaId, data } = props ?? {};
+
+      return rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost(
+        propuestaId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost
+      >
+    >
+  >;
+export type RechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPostMutationBody =
+  RechazoDeLaPropuesta;
+export type RechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPostMutationError =
+  void;
+
+/**
+ * @summary Rechazar la propuesta (con el motivo)
+ */
+export const useRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost
+          >
+        >,
+        TError,
+        { propuestaId: string; data: RechazoDeLaPropuesta },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof rechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost
+      >
+    >,
+    TError,
+    { propuestaId: string; data: RechazoDeLaPropuesta },
+    TContext
+  > => {
+    const mutationOptions =
+      getRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ */
+export const definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<DefinicionDelElementoEstructural>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >;
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
+ */
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+      >
+    >
+  >;
+export type DefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
           >
         >,
         TError,
@@ -640,10 +3274,10 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
  * @summary La definición de una trabe, contratrabe, nervadura, la zapata Z-1 o la columna C-1 de la biblioteca
  */
 
-export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet<
+export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet<
   TData = Awaited<
     ReturnType<
-      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+      typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
     >
   >,
   TError = void | HTTPValidationError,
@@ -654,7 +3288,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
       UseQueryOptions<
         Awaited<
           ReturnType<
-            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGet
+            typeof definicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet
           >
         >,
         TError,
@@ -668,7 +3302,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions =
-    getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveGetQueryOptions(
+    getDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGetQueryOptions(
       clave,
       options,
     );
@@ -686,7 +3320,7 @@ export function useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEst
 /**
  * @summary Calcula un elemento estructural por ml o por pieza y lo contrasta con el catálogo (solo cálculo)
  */
-export const calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost =
+export const calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost =
   (
     clave: string,
     calculoDelElementoEstructuralPeticion: CalculoDelElementoEstructuralPeticion,
@@ -695,7 +3329,7 @@ export const calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClav
   ) => {
     return peticion<CalculoDelElementoEstructural>(
       {
-        url: `/api/v1/biblioteca-de-elementos/estructura/${clave}/calcular`,
+        url: `/api/v1/biblioteca-de-elementos/estructura-lineal/${clave}/calcular`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         data: calculoDelElementoEstructuralPeticion,
@@ -705,12 +3339,12 @@ export const calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClav
     );
   };
 
-export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationOptions =
+export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationOptions =
   <TError = void, TContext = unknown>(options?: {
     mutation?: UseMutationOptions<
       Awaited<
         ReturnType<
-          typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+          typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
         >
       >,
       TError,
@@ -721,7 +3355,7 @@ export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraC
   }): UseMutationOptions<
     Awaited<
       ReturnType<
-        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
       >
     >,
     TError,
@@ -729,7 +3363,7 @@ export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraC
     TContext
   > => {
     const mutationKey = [
-      "calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost",
+      "calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost",
     ];
     const { mutation: mutationOptions, request: requestOptions } = options
       ? options.mutation &&
@@ -742,14 +3376,14 @@ export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraC
     const mutationFn: MutationFunction<
       Awaited<
         ReturnType<
-          typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+          typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
         >
       >,
       { clave: string; data: CalculoDelElementoEstructuralPeticion }
     > = (props) => {
       const { clave, data } = props ?? {};
 
-      return calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost(
+      return calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost(
         clave,
         data,
         requestOptions,
@@ -759,29 +3393,29 @@ export const getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraC
     return { mutationFn, ...mutationOptions };
   };
 
-export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationResult =
+export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationResult =
   NonNullable<
     Awaited<
       ReturnType<
-        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
       >
     >
   >;
-export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationBody =
+export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationBody =
   CalculoDelElementoEstructuralPeticion;
-export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationError =
+export type CalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationError =
   void;
 
 /**
  * @summary Calcula un elemento estructural por ml o por pieza y lo contrasta con el catálogo (solo cálculo)
  */
-export const useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost =
+export const useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost =
   <TError = void, TContext = unknown>(
     options?: {
       mutation?: UseMutationOptions<
         Awaited<
           ReturnType<
-            typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+            typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
           >
         >,
         TError,
@@ -794,7 +3428,7 @@ export const useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraC
   ): UseMutationResult<
     Awaited<
       ReturnType<
-        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPost
+        typeof calcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost
       >
     >,
     TError,
@@ -802,7 +3436,7 @@ export const useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraC
     TContext
   > => {
     const mutationOptions =
-      getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraClaveCalcularPostMutationOptions(
+      getCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPostMutationOptions(
         options,
       );
 

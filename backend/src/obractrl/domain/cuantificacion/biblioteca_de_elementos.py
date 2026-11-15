@@ -2,8 +2,7 @@
 
 Hoy trae **dos elementos**: el muro de contención de piedra MCT-01010 (categoría «Muros de contención», subcategoría
 «Mampostería») y el muro de cimentación de piedra CIM-01010 (categoría «Muros de cimentación», subcategoría «Mampostería
-de piedra»); los dos se pagan con el concepto MCT-01011. Además los elementos estructurales de la Ola 3B (trabes, contratrabes, nervaduras, Z-1 y C-1; ver `elementos_lineales`), unidos por clave de categoría
-y subcategoría. Los demás (castillos, cadenas, losas…) siguen definiéndose en el panel
+de piedra»); los dos se pagan con el concepto MCT-01011. Las trabes, contratrabes, nervaduras, Z-1 y C-1 (Ola 3B, `elementos_lineales`) se unen por clave de categoría y subcategoría. Los demás siguen definiéndose en el panel
 de la pestaña Elementos y pasarán aquí cuando se construyan. Función pura, sin base de datos.
 """
 
@@ -13,11 +12,12 @@ from typing import Any
 
 from obractrl.domain.cuantificacion import muro_cimentacion
 from obractrl.domain.cuantificacion.elementos_lineales import (
-    categorias_de_biblioteca as _categorias_de_estructura,
+    TIPOS as _TIPOS_LINEALES,
 )
 from obractrl.domain.cuantificacion.elementos_lineales import (
-    claves_de_elementos_estructurales as _claves_de_estructura,
+    categorias_de_biblioteca as _categorias_lineales,
 )
+from obractrl.domain.cuantificacion.estructura_de_catalogo import CATEGORIAS_DE_ESTRUCTURA
 from obractrl.domain.cuantificacion.muro_contencion import (
     CLAVE_CONCEPTO,
     CLAVE_ELEMENTO,
@@ -76,6 +76,7 @@ def _unir(*familias: tuple[dict[str, Any], ...]) -> tuple[dict[str, Any], ...]:
 
 
 _EXISTENTES: tuple[dict[str, Any], ...] = (
+    *CATEGORIAS_DE_ESTRUCTURA,
     {
         "clave": "contencion",
         "nombre": "Muros de contención",
@@ -104,17 +105,15 @@ _EXISTENTES: tuple[dict[str, Any], ...] = (
     },
 )
 
-BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(_EXISTENTES, _categorias_de_estructura())
+
+BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(_EXISTENTES, _categorias_lineales())
 
 
 def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
-    # Los elementos de estructura tienen su definición en `/biblioteca-de-elementos/estructura/{clave}`.
-    if clave in _claves_de_estructura():
-        return None
     for categoria in BIBLIOTECA:
         for sub in categoria["subcategorias"]:
             for elemento in sub["elementos"]:
-                if elemento["clave"] == clave:
+                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES:
                     cimiento = clave == muro_cimentacion.CLAVE_ELEMENTO
                     return {
                         **elemento,

@@ -87,6 +87,9 @@ from obractrl.adapters.repos.partes_sql import RepositorioPartesSQL
 from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
+from obractrl.adapters.repos.propuestas_de_estructura_sql import (
+    RepositorioPropuestasDeEstructuraSQL,
+)
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
@@ -348,6 +351,9 @@ from obractrl.application.casos_uso.propuestas import (
     ProponerTrazos,
     RechazarPropuestas,
 )
+from obractrl.application.casos_uso.propuestas_de_estructura import (
+    GestionarPropuestasDeEstructura,
+)
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
@@ -477,6 +483,7 @@ __all__ = [
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
+    "GestionarPropuestasDeEstructuraDep",
     "GestionarVanosDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
@@ -987,6 +994,15 @@ def obtener_gestionar_insumos_de_elemento(sesion: SesionRLS) -> GestionarInsumos
     )
 
 
+def obtener_gestionar_propuestas_de_estructura(sesion: SesionRLS) -> GestionarPropuestasDeEstructura:
+    return GestionarPropuestasDeEstructura(
+        propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_gestionar_conceptos_de_elemento(sesion: SesionRLS) -> GestionarConceptosDeElemento:
     elementos = RepositorioElementosParametricosSQL(sesion)
     return GestionarConceptosDeElemento(
@@ -1298,6 +1314,9 @@ GestionarElementosParametricosDep = Annotated[
 ]
 GestionarInsumosDeElementoDep = Annotated[
     GestionarInsumosDeElemento, Depends(obtener_gestionar_insumos_de_elemento)
+]
+GestionarPropuestasDeEstructuraDep = Annotated[
+    GestionarPropuestasDeEstructura, Depends(obtener_gestionar_propuestas_de_estructura)
 ]
 ActualizarApuDesdeElementoDep = Annotated[
     ActualizarApuDesdeElemento, Depends(obtener_actualizar_apu_desde_elemento)
