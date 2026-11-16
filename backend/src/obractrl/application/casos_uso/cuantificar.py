@@ -88,7 +88,6 @@ from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
 from obractrl.domain.cuantificacion.medicion import motivo_de_incompatibilidad
 from obractrl.domain.cuantificacion.muro import (
-    ALTURA_POR_DEFECTO_M,
     ParteDeAltura,
     altura_efectiva,
     factor_de_muro,
@@ -1371,13 +1370,22 @@ class GestionarVanos(AgregarHuecoATrazo):
         return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)
 
     async def _altura_del_muro(self, trazo_id: UUID) -> Decimal:
-        """Lo alto del muro: el tope de sus partes o su altura única (2.6 m si no hay). Lo que sube un castillo."""
+        """Lo alto del muro: el tope de sus partes o su altura única; sin ninguna, la altura estándar de la obra (el driver
+        `altura_estandar`, 3.00 m de partida). Lo que sube un castillo. Un muro que ya trae su altura la conserva (Q1)."""
         muro = await self._trazos.muro_de_trazo(trazo_id)
         partes = muro.get("partes")
         if partes:
             return max(Decimal(str(p["hasta_m"])) for p in partes)
         altura = muro.get("altura_m")
-        return Decimal(str(altura)) if altura is not None else ALTURA_POR_DEFECTO_M
+        if altura is not None:
+            return Decimal(str(altura))
+        return await self._altura_sin_propia(trazo_id)
+
+    async def _altura_sin_propia(self, trazo_id: UUID) -> Decimal:
+        """La altura de un muro que no trae la suya: la que ya usa su conversión guardada (Q1: lo guardado la conserva) o, si
+        nace sin ella, la altura estándar de la obra (el driver `altura_estandar`)."""
+        de_la_conversion = await self._trazos.altura_de_la_conversion(trazo_id)
+        return de_la_conversion if de_la_conversion is not None else await self._trazos.altura_estandar_de_trazo(trazo_id)
 
     async def quitar(
         self, vano_id: UUID, *, autor_id: UUID, rol: Rol, detectada_en: datetime
@@ -1435,7 +1443,10 @@ class GestionarVanos(AgregarHuecoATrazo):
     async def muro(self, trazo_id: UUID) -> dict[str, Any]:
         if await self._trazos.obtener(trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
-        return await self._trazos.muro_de_trazo(trazo_id)
+        return {
+            **await self._trazos.muro_de_trazo(trazo_id),
+            "altura_estandar_m": await self._altura_sin_propia(trazo_id),
+        }
 
     async def uniones(self, trazo_id: UUID) -> dict[str, Any]:
         if await self._trazos.obtener(trazo_id) is None:
@@ -1524,7 +1535,11 @@ class GestionarVanos(AgregarHuecoATrazo):
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         if not await self._trazos.es_linea(trazo_id):
             raise ErrorDeCuantificacion("Cómo cuenta el muro se fija sobre una línea.")
-        factor = factor_de_muro(altura_efectiva(altura_m, partes), caras)
+        # Un muro sin altura propia nace con la altura estándar de la obra y la GUARDA (Q1): cambiar el driver después no mueve
+        # un muro ya fijado.
+        estandar = await self._altura_sin_propia(trazo_id)
+        altura_propia = altura_m if altura_m is not None or partes else estandar
+        factor = factor_de_muro(altura_efectiva(altura_propia, partes, estandar), caras)
         guardar_partes = (
             [{"nombre": p.nombre, "desde_m": str(p.desde_m), "hasta_m": str(p.hasta_m), "suma": p.suma} for p in partes]
             if partes
@@ -1534,7 +1549,7 @@ class GestionarVanos(AgregarHuecoATrazo):
         async def guardar() -> UUID:
             await self._trazos.fijar_muro(
                 trazo_id=trazo_id,
-                altura_m=None if partes else altura_m,
+                altura_m=None if partes else altura_propia,
                 caras=caras,
                 cara=cara if caras == 1 else None,
                 partes=guardar_partes,
@@ -2266,7 +2281,9 @@ class ConversionDelEnlace:
         e = await self._enlace_vigente(enlace_id)
         unidad = await self._enlaces.unidad_del_concepto(e)
         tipo = await self._tipo(e)
-        actual = e.get("conversion") or conversion_por_defecto(tipo, unidad)
+        actual = e.get("conversion") or conversion_por_defecto(
+            tipo, unidad, float(await self._enlaces.altura_estandar_de_trazo(e["trazo_id"]))
+        )
         con_modos = tipo in MODOS_POR_TIPO
         return {
             "enlace_id": enlace_id,

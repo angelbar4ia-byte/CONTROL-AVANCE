@@ -73,12 +73,22 @@ def _numero(valor: Any, que: str) -> float:
     return n
 
 
-def conversion_por_defecto(tipo: str, unidad_del_concepto: str | None) -> dict[str, Any]:
-    """Cómo cuenta un trazo si nadie lo ha dicho: según la unidad del concepto (el `convDefecto` del mockup)."""
+ALTURA_ESTANDAR_DE_PARTIDA_M = 3.0
+"""El valor de partida del driver `altura_estandar`; el caso de uso pasa el vigente de la obra."""
+ALTURA_ANTERIOR_M = 2.6
+"""La altura que contaba una conversión guardada sin `alt` antes del driver (Q1: lo guardado la conserva)."""
+
+
+def conversion_por_defecto(
+    tipo: str, unidad_del_concepto: str | None, altura_estandar: float | None = None
+) -> dict[str, Any]:
+    """Cómo cuenta un trazo si nadie lo ha dicho: según la unidad del concepto (el `convDefecto` del mockup). La altura es la
+    estándar de la obra (el driver `altura_estandar`)."""
     u = (unidad_del_concepto or "").lower().replace("²", "2").replace("³", "3")
     base: dict[str, Any] = {
         "mide": "cara2", "cara": "int", "lado": "der", "gro": None, "esp": 0.12, "desc": 0.0, "pw": 0.6, "ph": 0.6,
-        "merma": 5.0, "alt": 2.6, "sep": 2.5, "partes": [],
+        "merma": 5.0, "alt": altura_estandar if altura_estandar is not None else ALTURA_ESTANDAR_DE_PARTIDA_M, "sep": 2.5,
+        "partes": [],
     }
     if tipo == "area":
         if u in ("ml", "m"):
@@ -128,7 +138,7 @@ def normalizar_conversion(tipo: str, conversion: dict[str, Any]) -> dict[str, An
         partes.append({"nombre": str(p.get("nombre", ""))[:40], "desde_m": d, "hasta_m": h, "suma": bool(p.get("suma", True))})
     limpia["partes"] = partes
     if modo == "area" and tipo in ("muro", "linea"):
-        altura = sum(p["hasta_m"] - p["desde_m"] for p in partes if p["suma"]) if partes else limpia.get("alt", 2.6)
+        altura = sum(p["hasta_m"] - p["desde_m"] for p in partes if p["suma"]) if partes else limpia.get("alt", ALTURA_ANTERIOR_M)
         if altura <= 0:
             raise ErrorDeCuantificacion("La altura que suma debe ser mayor que cero.")
     return limpia
@@ -184,7 +194,7 @@ def formula_en_texto(c: dict[str, Any], conv: dict[str, Any]) -> str:
     if tipo == "forma" and modo == "area":
         return f"{_m(float(c['area']))} m²"
     if tipo == "forma" and modo == "vol":
-        return f"{_m(float(c['area']))} m² × {_g(float(conv.get('alt', 2.6)))} m"
+        return f"{_m(float(c['area']))} m² × {_g(float(conv.get('alt', ALTURA_ANTERIOR_M)))} m"
     return "1 pieza"
 
 

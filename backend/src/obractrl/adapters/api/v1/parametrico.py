@@ -20,7 +20,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.domain.shared.diccionario import Rol
 
-router = APIRouter(tags=["paramétrico"])
+router = APIRouter(tags=["parametrico"])
 
 _ROLES = [Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))]
 _RESPUESTAS = {
@@ -156,12 +156,18 @@ class CapaDelArbol(BaseModel):
     descripcion: str
 
 
+class ConceptoDelArbol(BaseModel):
+    clave: str
+    descripcion: str
+
+
 class EnlacesDeRanuraRespuesta(BaseModel):
     enlaces: list[EnlaceDeRanuraRespuesta]
     ranuras_de_plantilla: list[RanuraDePlantilla]
     niveles: list[CapaDelArbol] = Field(description="Los niveles que usa el árbol de la obra.")
     etapas: list[CapaDelArbol] = Field(description="Las etapas que usa el árbol de la obra.")
     partidas_del_arbol: int = Field(description="Cuántos conceptos tiene el árbol de la obra.")
+    conceptos_del_arbol: list[ConceptoDelArbol] = Field(description="Los conceptos distintos que el árbol de la obra ya trae: los que se enlazan sin avisos.")
 
 
 class EnlaceDeRanuraPeticion(BaseModel):
@@ -207,6 +213,7 @@ async def enlaces_de_ranura(obra_id: UUID, caso_uso: GestionarEnlacesDeRanuraDep
         niveles=[CapaDelArbol(**n) for n in r["niveles"]],
         etapas=[CapaDelArbol(**n) for n in r["etapas"]],
         partidas_del_arbol=r["partidas_del_arbol"],
+        conceptos_del_arbol=[ConceptoDelArbol(**c) for c in r["conceptos_del_arbol"]],
     )
 
 

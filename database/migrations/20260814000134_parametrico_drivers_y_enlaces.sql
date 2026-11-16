@@ -13,8 +13,8 @@
 -- base lo garantiza con la política de escritura; la API lo repite con `exigir_rol`.
 --
 -- Q1: los trazos ya guardados CONSERVAN su altura. `app.driver_numerico` resuelve el valor vigente de un driver para una obra
--- (el mismo orden que el dominio: obra si el global es ajustable y la obra lo cambió; si no, el global; si no, el valor de
--- partida que pasa quien llama). Nada se recalcula al cambiar un driver: la altura que un trazo ya trae (`muro_altura_m` o el
+-- (el mismo orden que el dominio: obra si el modo es ajustable y la obra lo cambió; si no, el global; si no, el valor y el
+-- modo de partida que pasa quien llama). Nada se recalcula al cambiar un driver: la altura que un trazo ya trae (`muro_altura_m` o el
 -- `alt` de su conversión) no depende de él. Los trazos viejos SIN altura guardada contaban implícitamente 2.6 m; esa altura
 -- propuesta se les fija aquí para que el nuevo estándar de 3.00 m no los mueva.
 --
@@ -85,21 +85,21 @@ create trigger trg_driver_valor_bitacora
   for each row execute function app.bitacora_registrar();
 
 -- El valor vigente de un driver numérico para una obra. Mismo orden que `valor_vigente` del dominio.
-create or replace function app.driver_numerico(p_obra uuid, p_clave text, p_defecto numeric)
+create or replace function app.driver_numerico(p_obra uuid, p_clave text, p_defecto numeric, p_modo_defecto text default 'ajustable')
 returns numeric
 language sql
 stable
 as $$
   select case
-           when g.modo = 'ajustable' and o.valor is not null then o.valor
+           when coalesce(g.modo, p_modo_defecto) = 'ajustable' and o.valor is not null then o.valor
            else coalesce(g.valor, p_defecto)
          end
     from (select 1) uno
     left join driver_valor g on g.nivel = 'global' and g.clave = p_clave and g.org_id = app.current_org_id()
     left join driver_valor o on o.nivel = 'obra' and o.clave = p_clave and o.obra_id = p_obra and o.org_id = app.current_org_id()
 $$;
-comment on function app.driver_numerico(uuid, text, numeric) is
-  'Valor vigente de un driver para una obra: el de la obra si el global es ajustable y la obra lo cambió; si no, el global; si no, p_defecto (0134).';
+comment on function app.driver_numerico(uuid, text, numeric, text) is
+  'Valor vigente de un driver para una obra: el de la obra si el global es ajustable (o, sin global, si lo es de partida: p_modo_defecto) y la obra lo cambió; si no, el global; si no, p_defecto (0134).';
 
 -- Q1: lo ya guardado conserva su altura propuesta (2.6 m). Solo líneas sin altura ni partes; un trazo nuevo sin altura sigue
 -- al driver. No se recalcula nada: el factor de sus enlaces ya se calculó con esa altura.

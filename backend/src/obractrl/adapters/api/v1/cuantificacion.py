@@ -1469,7 +1469,7 @@ def _muro_respuesta(m: dict) -> MuroDelTrazoRespuesta:
         ParteDeAltura(nombre=p.get("nombre", ""), desde_m=Decimal(str(p["desde_m"])), hasta_m=Decimal(str(p["hasta_m"])), suma=bool(p.get("suma", True)))
         for p in (m["partes"] or [])
     ]
-    altura = altura_efectiva(m["altura_m"], partes or None)
+    altura = altura_efectiva(m["altura_m"], partes or None, m.get("altura_estandar_m"))
     return MuroDelTrazoRespuesta(
         altura_m=m["altura_m"],
         caras=m["caras"],

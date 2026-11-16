@@ -188,7 +188,9 @@ class GestionarEnlacesDeRanura:
         await self._obra(obra_id)
         filas = await self._p.enlaces(obra_id)
         enlaces = [_a_enlace(f) for f in filas]
-        partidas = [_a_partida(f) for f in await self._p.partidas(obra_id)]
+        filas_de_partidas = await self._p.partidas(obra_id)
+        partidas = [_a_partida(f) for f in filas_de_partidas]
+        en_el_arbol = {f["concepto_clave"]: f["concepto_descripcion"] for f in filas_de_partidas}
         capas = await self._p.capas(obra_id)
         salida = []
         for f, e in zip(filas, enlaces, strict=True):
@@ -200,6 +202,7 @@ class GestionarEnlacesDeRanura:
             "niveles": capas["niveles"],
             "etapas": capas["etapas"],
             "partidas_del_arbol": len(partidas),
+            "conceptos_del_arbol": [{"clave": k, "descripcion": en_el_arbol[k]} for k in sorted(en_el_arbol)],
         }
 
     @staticmethod

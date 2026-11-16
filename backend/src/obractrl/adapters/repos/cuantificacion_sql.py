@@ -28,6 +28,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obractrl.domain.cuantificacion.muro import ALTURA_POR_DEFECTO_M
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
@@ -349,6 +350,23 @@ class RepositorioPlanosSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+
+async def _altura_estandar_de_trazo(sesion: AsyncSession, trazo_id: UUID) -> Decimal:
+    """El driver `altura_estandar` vigente en la obra del trazo (Paramétrico, 0134): el de la obra si es ajustable y la obra lo
+    cambió; si no, el global; si no, el de partida (3.00 m). Solo lo que nace sin altura lo usa: lo guardado conserva la suya (Q1)."""
+    valor = (
+        await sesion.execute(
+            text(
+                """
+                select app.driver_numerico(pl.obra_id, 'altura_estandar', cast(:d as numeric))
+                  from trazo t join plano pl on pl.id = t.plano_id where t.id = :t
+                """
+            ),
+            {"t": str(trazo_id), "d": str(ALTURA_POR_DEFECTO_M)},
+        )
+    ).scalar_one_or_none()
+    return Decimal(str(valor)) if valor is not None else ALTURA_POR_DEFECTO_M
 
 
 class RepositorioTrazosSQL:
@@ -704,6 +722,30 @@ class RepositorioTrazosSQL:
 
     async def quitar_vano(self, vano_id: UUID) -> None:
         await self._sesion.execute(text("delete from vano where id = :id"), {"id": str(vano_id)})
+
+    async def altura_estandar_de_trazo(self, trazo_id: UUID) -> Decimal:
+        return await _altura_estandar_de_trazo(self._sesion, trazo_id)
+
+    async def altura_de_la_conversion(self, trazo_id: UUID) -> Decimal | None:
+        """La altura con que ya se mide el trazo: el `alt` de la conversión vigente de un enlace en m² o m³ (sin partes). Lo
+        guardado conserva esa altura (Q1): el driver no la mueve."""
+        valor = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select (e.conversion->>'alt')::numeric
+                      from enlace_cuantificacion e
+                     where e.trazo_id = :t and e.vigente and e.conversion is not null
+                       and nullif(e.conversion->>'alt', '') is not null
+                       and e.conversion->>'modo' in ('area', 'vol')
+                       and coalesce(jsonb_array_length(e.conversion->'partes'), 0) = 0
+                     order by e.created_at, e.id limit 1
+                    """
+                ),
+                {"t": str(trazo_id)},
+            )
+        ).scalar_one_or_none()
+        return Decimal(str(valor)) if valor is not None else None
 
     async def muro_de_trazo(self, trazo_id: UUID) -> dict[str, Any]:
         """Cómo cuenta el muro: altura, caras y partes. Con la migración 0110 pendiente, los valores de defecto."""
@@ -1330,6 +1372,9 @@ class RepositorioEnlacesCuantificacionSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def altura_estandar_de_trazo(self, trazo_id: UUID) -> Decimal:
+        return await _altura_estandar_de_trazo(self._sesion, trazo_id)
 
     async def calcular_conversion(self, trazo_id: UUID, conversion: dict[str, Any]) -> dict[str, Any]:
         """La cantidad de un trazo con una conversión, calculada por la base (`app.cantidad_conversion`, 0114): la

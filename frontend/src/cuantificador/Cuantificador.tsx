@@ -3227,7 +3227,13 @@ export function EspacioDeTrazo({
             )}
             {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} rol={sesion?.rol} />}
             {pestana === 'artefacto' && <PantallaDeArtefacto />}
-            {pestana === 'parametrico' && <PantallaParametrica />}
+            {pestana === 'parametrico' && (
+              <PantallaParametrica
+                obraId={obraId}
+                obraClave={obras.data?.find((o) => o.id === obraId)?.clave ?? null}
+                rol={sesion?.rol}
+              />
+            )}
           </div>
         )}
         <div className="estacion__lienzo" style={pantallaPropia ? { display: 'none' } : undefined}>

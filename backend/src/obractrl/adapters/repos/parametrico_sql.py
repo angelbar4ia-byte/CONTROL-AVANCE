@@ -113,8 +113,10 @@ class RepositorioParametricoSQL:
                       select s.hoja, p.parent_id, coalesce(s.nivel_id, p.nivel_id), coalesce(s.etapa_id, p.etapa_id)
                         from subida s join nodos p on p.id = s.parent_id
                     )
-                    select h.id, h.concepto_id, h.nombre, h.orden, s.nivel_id, s.etapa_id
+                    select h.id, h.concepto_id, h.nombre, h.orden, s.nivel_id, s.etapa_id,
+                           c.clave as concepto_clave, c.descripcion as concepto_descripcion
                       from nodos h join subida s on s.hoja = h.id and s.parent_id is null
+                      join concepto c on c.id = h.concepto_id
                      where h.tipo = 'concepto'
                      order by h.orden, h.nombre, h.id
                     """

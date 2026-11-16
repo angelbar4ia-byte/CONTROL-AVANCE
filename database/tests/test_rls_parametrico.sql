@@ -154,6 +154,9 @@ end $$;
 -- 4 · El valor vigente
 select pg_temp.esperar_valor('ajustable + ajuste de F1 → el de la obra', app.driver_numerico('a3000000-0000-0000-0000-000000000001', 'altura_estandar', 3), 2.8);
 select pg_temp.esperar_valor('fijo ignora el ajuste de la obra', app.driver_numerico('a3000000-0000-0000-0000-000000000001', 'escarpio_minimo', 9), 1.5);
+insert into driver_valor (org_id, clave, nivel, obra_id, valor) values ('11111111-1111-1111-1111-111111111111', 'desperdicio_acero', 'obra', 'a3000000-0000-0000-0000-000000000003', 4);
+select pg_temp.esperar_valor('sin global, un driver ajustable de partida toma el ajuste de la obra', app.driver_numerico('a3000000-0000-0000-0000-000000000003', 'desperdicio_acero', 7), 4);
+select pg_temp.esperar_valor('sin global, un driver fijo de partida ignora el ajuste', (select app.driver_numerico('a3000000-0000-0000-0000-000000000003', 'corona_cimiento_cm', 40, 'fijo')), 40);
 select pg_temp.esperar_valor('sin fila vale el valor de partida', app.driver_numerico('a3000000-0000-0000-0000-000000000001', 'desperdicio_concreto', 5), 5);
 delete from driver_valor where nivel = 'obra' and obra_id = 'a3000000-0000-0000-0000-000000000001' and clave = 'altura_estandar';
 select pg_temp.esperar_valor('quitado el ajuste, vale el global', app.driver_numerico('a3000000-0000-0000-0000-000000000001', 'altura_estandar', 3), 3.2);

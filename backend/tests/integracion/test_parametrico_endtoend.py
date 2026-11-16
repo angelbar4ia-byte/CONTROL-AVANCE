@@ -225,8 +225,9 @@ async def test_el_listado_trae_las_capas_del_arbol_y_las_ranuras_de_plantilla(co
     assert r.status_code == 200, r.text
     j = r.json()
     assert j["enlaces"] == [] and j["partidas_del_arbol"] == 3
+    assert [c["clave"] for c in j["conceptos_del_arbol"]] == ["EST-02010", "EST-02011", "EST-10010"]
     assert {n["clave"] for n in j["niveles"]} == {"NIV-1", "NIV-3"} and {e["clave"] for e in j["etapas"]} == {"ECO-1", "ECO-2"}
-    assert [x["ranura"] for x in j["ranuras_de_plantilla"]][0] == "mamposteria:tabique_rojo"
+    assert j["ranuras_de_plantilla"][0]["ranura"] == "mamposteria:tabique_rojo"
     assert {x["ranura"]: x["sugerido_clave"] for x in j["ranuras_de_plantilla"] if x["sugerido_clave"]} == {"mamposteria:tabique_rojo": "EST-02010"}
 
 
