@@ -10,7 +10,4 @@ export type ClasificacionDeMuroRespuestaTipo =
   | "confinado"
   | "con_cadena"
   | "tabique"
-  | "sillar"
-  | "pretil"
-  | "barda"
   | null;
