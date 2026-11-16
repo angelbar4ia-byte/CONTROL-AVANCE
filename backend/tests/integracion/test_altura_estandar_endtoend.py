@@ -180,3 +180,37 @@ async def test_un_muro_medido_con_su_conversion_conserva_esa_altura_para_el_cast
     assert Decimal((await control.get(f"/api/v1/trazos/{nuevo}/muro")).json()["altura_efectiva_m"]) == Decimal("3.2")
     assert await _castillo_alto(control, medido) == Decimal("2.6")
     assert await _castillo_alto(control, nuevo) == Decimal("3.2")
+
+
+async def test_una_conversion_nueva_sin_altura_nace_con_el_driver_y_despues_no_se_mueve(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+    """Ola 4C: un trazo que nace con su conversión pero sin `alt` toma la altura estándar de su obra (ya no los 2.6 m de antes) y la
+    GUARDA; con `alt` o con partes se respeta lo dicho; y cambiar el driver después no mueve lo ya guardado (Q1)."""
+    await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.5"})
+    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+
+    async def trazar(conversion: dict) -> str:
+        r = await control.post(
+            f"/api/v1/planos/{plano}/trazos",
+            json={
+                "version_plano": 1, "fuente": "pdf", "geometria_wkt": MURO,
+                "enlaces": [{"medida": "longitud", "factor": "1", "actividad_id": str(escenario.actividad_id), "conversion": conversion}],
+            },
+        )
+        assert r.status_code == 201, r.text
+        return r.json()["trazo_id"]
+
+    async def cantidad(trazo: str) -> float:
+        f = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == trazo)
+        return float(next(e["cantidad"] for e in f["properties"]["enlaces"] if e["vigente"]))
+
+    sin_alt = await trazar({"modo": "area", "mide": "eje"})  # 10 m × 2.5 m del driver de la obra
+    con_alt = await trazar({"modo": "area", "mide": "eje", "alt": 2.0})
+    con_partes = await trazar({"modo": "area", "mide": "eje", "partes": [{"nombre": "Muro", "desde_m": 0, "hasta_m": 1.5, "suma": True}]})
+    assert await cantidad(sin_alt) == pytest.approx(25)
+    assert await cantidad(con_alt) == pytest.approx(20)
+    assert await cantidad(con_partes) == pytest.approx(15)
+    # Cambia el driver: lo ya guardado conserva su altura; un trazo nuevo sin altura toma la nueva.
+    await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "3.4"})
+    assert await cantidad(sin_alt) == pytest.approx(25)
+    nuevo = await trazar({"modo": "area", "mide": "eje"})
+    assert await cantidad(nuevo) == pytest.approx(34)

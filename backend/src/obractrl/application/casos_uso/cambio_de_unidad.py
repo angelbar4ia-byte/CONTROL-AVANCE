@@ -29,6 +29,7 @@ from obractrl.domain.cuantificacion.cambio_de_unidad import (
     cruza_de_tipo,
     divisor_de_cantidades,
     medida_para,
+    ya_mide_lo_que_corresponde,
 )
 from obractrl.domain.cuantificacion.unidades import tipo_de_unidad
 from obractrl.domain.partes.estado import ErrorDeParte, EstadoDeParte
@@ -176,9 +177,11 @@ class CambioDeUnidad:
                 movidas += 1
                 nodos.append(p["id"])
                 for e in await self._cambios.enlaces_a_rehacer(p["id"]):
-                    medida = medida_para(cambio["tipo_nuevo"], e["geometria"], e["con_grosor"])
-                    if medida is not None and medida == (e["medida"], Decimal(str(e["factor"]))):
-                        continue  # ya mide lo que corresponde
+                    # La altura de un trazo que NACE sin la suya es la del driver `altura_estandar` de su obra.
+                    altura = await self._enlaces.altura_estandar_de_trazo(e["trazo_id"])
+                    medida = medida_para(cambio["tipo_nuevo"], e["geometria"], e["con_grosor"], altura)
+                    if ya_mide_lo_que_corresponde(medida, e["medida"], Decimal(str(e["factor"]))):
+                        continue  # ya mide lo que corresponde (o conserva la altura con que se trazó, Q1)
                     await self._cambios.retirar_enlace(e["id"])
                     nuevo_enlace = None
                     if medida is not None:

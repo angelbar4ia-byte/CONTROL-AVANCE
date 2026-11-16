@@ -3,6 +3,8 @@
  * descuento real lo calcula el servidor al medir: aquí solo se muestra.
  */
 
+import { ALTURA_ESTANDAR_DE_PARTIDA_M } from './alturaEstandar';
+
 /** Lo que se va a colocar: el tipo y sus medidas, sin la clave (esa la da el consecutivo al colocarlo). */
 export interface DatosDeVano {
   readonly tipo: TipoDeVano;
@@ -12,10 +14,12 @@ export interface DatosDeVano {
   readonly piezas: number;
 }
 
-/** Los datos de un tipo con sus medidas por defecto. */
-export function vanoPorDefecto(tipo: TipoDeVano): DatosDeVano {
+/** Los datos de un tipo con sus medidas por defecto. El castillo sube lo alto del muro: con `alturaM` (la estándar de la obra)
+ *  lo propone con ese alto; el servidor lo fija con la altura real del muro al colocarlo. */
+export function vanoPorDefecto(tipo: TipoDeVano, alturaM?: number): DatosDeVano {
   const d = TIPOS_DE_VANO[tipo];
-  return { tipo, ancho: d.ancho, alto: d.alto, antepecho: d.antepecho, piezas: 1 };
+  const alto = tipo === 'castillo' && alturaM !== undefined && alturaM > 0 ? alturaM : d.alto;
+  return { tipo, ancho: d.ancho, alto, antepecho: d.antepecho, piezas: 1 };
 }
 
 export type TipoDeVano = 'puerta' | 'ventana' | 'cancel' | 'arco' | 'paso' | 'castillo';
@@ -36,8 +40,9 @@ export const TIPOS_DE_VANO: Readonly<Record<TipoDeVano, DatosDeTipoDeVano>> = {
   cancel: { nombre: 'Cancel', prefijo: 'C', ancho: 1.5, alto: 2.1, antepecho: 0, llegaAlPiso: true },
   arco: { nombre: 'Arco', prefijo: 'A', ancho: 1, alto: 2.1, antepecho: 0, llegaAlPiso: true },
   paso: { nombre: 'Paso', prefijo: 'PS', ancho: 0.9, alto: 2.1, antepecho: 0, llegaAlPiso: true },
-  // Solo en un muro «con cadena»: sube lo alto del muro y resta de sus m² (D-645).
-  castillo: { nombre: 'Castillo', prefijo: 'K', ancho: 0.15, alto: 2.6, antepecho: 0, llegaAlPiso: true },
+  // En un muro «con cadena» o con una plantilla que lleve castillos ubicados: sube lo alto del muro y resta de sus m² (D-645).
+  // El alto de partida es la altura estándar del driver (3.00 m); el servidor lo fija con la altura real del muro.
+  castillo: { nombre: 'Castillo', prefijo: 'K', ancho: 0.15, alto: ALTURA_ESTANDAR_DE_PARTIDA_M, antepecho: 0, llegaAlPiso: true },
 };
 
 /** La clave que sigue para un tipo: P-01, P-02… la primera que no usan las `existentes`. */

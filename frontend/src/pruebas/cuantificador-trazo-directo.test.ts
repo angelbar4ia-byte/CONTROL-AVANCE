@@ -27,7 +27,7 @@ describe('Guardado directo: la medida se deduce del concepto', () => {
   it('un muro (línea con grosor) de un concepto de área mide su largo y lo vuelve área con la altura y las caras', () => {
     // Antes sumaba largo × grosor (su planta); el mockup y D-601: largo × altura × caras, como una línea sin grosor.
     expect(medidaDirecta('area', 'linea', true, false)).toBe('longitud');
-    expect(factorDeLaMedida('area', 'linea', true, 'longitud')).toBe('5.2');
+    expect(factorDeLaMedida('area', 'linea', true, 'longitud')).toBe('6'); // 3.00 m (driver de partida) × 2 caras
   });
 });
 
@@ -60,7 +60,10 @@ describe('Cuerpo del trazo', () => {
 
   it('una línea sobre un concepto en m² mide su largo y lo convierte con la altura y las caras por defecto', () => {
     expect(medidaDirecta('area', 'linea', false, false)).toBe('longitud');
-    expect(factorDeLaMedida('area', 'linea', false, 'longitud')).toBe('5.2'); // 2.6 m × 2 caras
+    expect(factorDeLaMedida('area', 'linea', false, 'longitud')).toBe('6'); // 3.00 m (driver de partida) × 2 caras
+    // La altura la da el driver de la obra: con 2.6 m el factor es el de siempre.
+    expect(factorDeLaMedida('area', 'linea', false, 'longitud', 2.6)).toBe('5.2');
+    expect(factorDeLaMedida('area', 'linea', false, 'longitud', 2.75)).toBe('5.5');
   });
 
   it('el factor es 1 en todo lo demás', () => {
@@ -73,13 +76,16 @@ describe('Cuerpo del trazo', () => {
 
 describe('Muro · medir por (D-638)', () => {
   it('la conversión de un muro sobre m² sale de lo elegido antes de trazar', async () => {
-    const { conversionDeMuro, OPCIONES_DE_MURO_INICIALES, textoDeMuro } = await import('@/cuantificador/trazoPeticion');
-    expect(conversionDeMuro(OPCIONES_DE_MURO_INICIALES)).toMatchObject({ modo: 'area', mide: 'cara2', alt: 2.6 });
+    const { conversionDeMuro, OPCIONES_DE_MURO_INICIALES, opcionesDeMuroIniciales, textoDeMuro } = await import('@/cuantificador/trazoPeticion');
+    expect(conversionDeMuro(OPCIONES_DE_MURO_INICIALES)).toMatchObject({ modo: 'area', mide: 'cara2', alt: 3 });
     const eje = { ...OPCIONES_DE_MURO_INICIALES, mide: 'eje' as const, alt: '3,2' };
     expect(conversionDeMuro(eje)).toMatchObject({ mide: 'eje', alt: 3.2 });
     expect(textoDeMuro(eje)).toBe('largo del eje × 3.2 m de altura');
     // Una altura que no vale cae en la de defecto.
-    expect(conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, alt: 'x' })).toMatchObject({ alt: 2.6 });
+    expect(conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, alt: 'x' })).toMatchObject({ alt: 3 });
+    // …que es la altura estándar de la obra cuando el plano la conoce.
+    expect(conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, alt: 'x' }, 2.8)).toMatchObject({ alt: 2.8 });
+    expect(opcionesDeMuroIniciales(2.8).alt).toBe('2.8');
   });
 
   it('el enlace lleva la conversión y el servidor ignora el factor', () => {
