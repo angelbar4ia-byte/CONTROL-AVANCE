@@ -3,11 +3,13 @@
 Es solo clasificación: ni el tipo ni el acabado cambian lo que mide el muro. Sirven para sumar después por tipo y capa
 (el resumen por driver, F-23) contra el catálogo paramétrico.
 
-Tipos (D-645):
-- ``confinado``: con cadenas y castillos aún sin ubicar; para algo rápido.
+Tipos (D-645, 0133):
+- ``confinado``: con cadenas y castillos aún sin ubicar (se estiman por separación); para algo rápido.
 - ``con_cadena``: los castillos ya se conocen y se colocan; restan de los m² del muro.
 - ``tabique``: sin cadenas ni castillos.
-- ``sillar``, ``pretil``, ``barda``: cada uno su propio driver del catálogo.
+
+Pretil y barda **ya no son tipos**: son ubicaciones del muro (``muro_ubicacion``, ver ``muro_ubicacion``), y el sillar es un
+material (``muro_material``). Un muro se describe con tipo, material, ubicación y los elementos de su plantilla (M-4).
 
 Acabado: capas con Sí/No por cara, ``interior`` y ``fachada``: obra gris (repellado), obra blanca (fino) y pintura. El
 revestimiento no es una capa: es un concepto del catálogo con su largo y su altura.
@@ -20,7 +22,11 @@ from typing import Any
 
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
-TIPOS_DE_MURO: tuple[str, ...] = ("confinado", "con_cadena", "tabique", "sillar", "pretil", "barda")
+TIPOS_DE_MURO: tuple[str, ...] = ("confinado", "con_cadena", "tabique")
+CASTILLO_MODO_POR_TIPO: dict[str, str | None] = {"confinado": "estimado", "con_cadena": "ubicado", "tabique": None}
+"""Cómo se cuentan los castillos de cada tipo: estimados por separación, ubicados en el plano o ninguno (M-4)."""
+TIPOS_ANTERIORES: tuple[str, ...] = ("sillar", "pretil", "barda")
+"""Los tipos que existían antes de la 0133; ya no se aceptan (se migraron a ubicación o material)."""
 CARAS_DE_ACABADO: tuple[str, ...] = ("interior", "fachada")
 CAPAS_DE_ACABADO: tuple[str, ...] = ("gris", "blanca", "pintura")
 
@@ -54,6 +60,11 @@ def acabado_normalizado(acabado: Mapping[str, Any] | None) -> dict[str, dict[str
 def tipo_valido(tipo: str | None) -> str | None:
     if tipo is None:
         return None
+    if tipo in TIPOS_ANTERIORES:
+        raise ErrorDeCuantificacion(
+            f"«{tipo}» ya no es un tipo de muro: pretil y barda son la ubicación del muro y el sillar es su material. "
+            f"Tipo de muro: {', '.join(TIPOS_DE_MURO)}."
+        )
     if tipo not in TIPOS_DE_MURO:
         raise ErrorDeCuantificacion(f"Tipo de muro: {', '.join(TIPOS_DE_MURO)} (no «{tipo}»).")
     return tipo

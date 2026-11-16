@@ -13,6 +13,9 @@ import type { TrazoPropiedadesGrosorM } from "./trazoPropiedadesGrosorM";
 import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
 import type { TrazoPropiedadesPendientePct } from "./trazoPropiedadesPendientePct";
 import type { TrazoPropiedadesMuroTipo } from "./trazoPropiedadesMuroTipo";
+import type { TrazoPropiedadesMuroMaterial } from "./trazoPropiedadesMuroMaterial";
+import type { TrazoPropiedadesMuroUbicacion } from "./trazoPropiedadesMuroUbicacion";
+import type { TrazoPropiedadesMuroPlantillaId } from "./trazoPropiedadesMuroPlantillaId";
 import type { TrazoPropiedadesMuroAcabado } from "./trazoPropiedadesMuroAcabado";
 import type { TrazoPropiedadesRevestimientoDe } from "./trazoPropiedadesRevestimientoDe";
 import type { TrazoPropiedadesRevestimientoCara } from "./trazoPropiedadesRevestimientoCara";
@@ -40,8 +43,14 @@ export interface TrazoPropiedades {
   alineacion?: TrazoPropiedadesAlineacion;
   /** Pendiente en % de una línea inclinada; `null` = horizontal. */
   pendiente_pct?: TrazoPropiedadesPendientePct;
-  /** Cómo se construye el muro: confinado, con_cadena, tabique, sillar, pretil o barda (0124); `null` = sin clasificar. */
+  /** Cómo se construye el muro: confinado, con_cadena o tabique (0124; desde la 0133 pretil y barda son ubicación y el sillar es material); `null` = sin clasificar. */
   muro_tipo?: TrazoPropiedadesMuroTipo;
+  /** Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo (0133). */
+  muro_material?: TrazoPropiedadesMuroMaterial;
+  /** Dónde está el muro: interior, fachada_a, fachada_b, pretil, barda o personalizada (0133). */
+  muro_ubicacion?: TrazoPropiedadesMuroUbicacion;
+  /** La plantilla de muro (la versión) que eligió el trazo (0133). */
+  muro_plantilla_id?: TrazoPropiedadesMuroPlantillaId;
   /** Capas de acabado con Sí/No por cara (interior, fachada): gris, blanca, pintura (0124). */
   muro_acabado?: TrazoPropiedadesMuroAcabado;
   /** Si este trazo es un revestimiento, el muro al que pertenece (0125); su concepto va en el enlace. */

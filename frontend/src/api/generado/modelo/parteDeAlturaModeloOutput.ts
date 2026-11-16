@@ -5,6 +5,10 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { ParteDeAlturaModeloOutputRol } from "./parteDeAlturaModeloOutputRol";
+import type { ParteDeAlturaModeloOutputCaraA } from "./parteDeAlturaModeloOutputCaraA";
+import type { ParteDeAlturaModeloOutputCaraB } from "./parteDeAlturaModeloOutputCaraB";
+import type { ParteDeAlturaModeloOutputElementoRef } from "./parteDeAlturaModeloOutputElementoRef";
 
 export interface ParteDeAlturaModeloOutput {
   /** @maxLength 40 */
@@ -15,4 +19,12 @@ export interface ParteDeAlturaModeloOutput {
   hasta_m: string;
   /** Si no suma, cuenta para la altura pero no para la cantidad. */
   suma?: boolean;
+  /** Qué papel juega la parte; el enrase de un muro interior es exterior por defecto (0133). */
+  rol?: ParteDeAlturaModeloOutputRol;
+  /** Cara A (izquierda del sentido de dibujo) de la parte; `null` = sin ubicar (0133). */
+  cara_a?: ParteDeAlturaModeloOutputCaraA;
+  /** Cara B (derecha del sentido de dibujo) de la parte; `null` = sin ubicar (0133). */
+  cara_b?: ParteDeAlturaModeloOutputCaraB;
+  /** La cadena que define la parte (0133). */
+  elemento_ref?: ParteDeAlturaModeloOutputElementoRef;
 }

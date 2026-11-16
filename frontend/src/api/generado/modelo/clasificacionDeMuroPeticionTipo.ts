@@ -7,13 +7,10 @@
  */
 
 /**
- * `null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos.
+ * `null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos. Pretil y barda son ubicación y el sillar es material (0133).
  */
 export type ClasificacionDeMuroPeticionTipo =
   | "confinado"
   | "con_cadena"
   | "tabique"
-  | "sillar"
-  | "pretil"
-  | "barda"
   | null;

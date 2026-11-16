@@ -93,7 +93,14 @@ from obractrl.domain.cuantificacion.muro import (
     altura_efectiva,
     factor_de_muro,
 )
+from obractrl.domain.cuantificacion.muro_plantilla import admite_castillos_ubicados
 from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado, tipo_valido
+from obractrl.domain.cuantificacion.muro_ubicacion import (
+    material_valido,
+    ubicacion_resultante,
+    ubicacion_valida,
+    validar_partes_con_caras,
+)
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -1345,12 +1352,21 @@ class GestionarVanos(AgregarHuecoATrazo):
 
         alto_m = cmd.alto_m
         if cmd.tipo == "castillo":
-            # Un castillo se coloca en un muro con cadena (D-645) y sube hasta lo alto del muro.
+            # Un castillo se coloca según los elementos de la plantilla del muro (0133, M-4) y sube hasta lo alto del muro.
             if not await self._trazos.es_linea(cmd.trazo_id):
                 raise ErrorDeCuantificacion("Un castillo se coloca sobre una línea (un muro).")
-            if (await self._trazos.clasificacion_de_muro(cmd.trazo_id))["tipo"] != "con_cadena":
+            plantilla = await self._trazos.plantilla_de_muro(cmd.trazo_id)
+            if plantilla is not None:
+                if not admite_castillos_ubicados(plantilla["elementos"] or []):
+                    raise ErrorDeCuantificacion(
+                        f"La plantilla «{plantilla['nombre']}» del muro no lleva castillos ubicados en el plano: agrega un "
+                        "castillo a la plantilla (en un muro con cadena) y vuelve a colocarlos."
+                    )
+            elif (await self._trazos.clasificacion_de_muro(cmd.trazo_id))["tipo"] != "con_cadena":
+                # Sin plantilla se conserva la regla de siempre: el muro debe ser «con cadena».
                 raise ErrorDeCuantificacion(
-                    "Los castillos se colocan en un muro «con cadena»: cambia el tipo del muro y vuelve a colocarlos."
+                    "Los castillos se colocan en un muro «con cadena» o con una plantilla que lleve castillos ubicados: "
+                    "cambia el tipo del muro o elige una plantilla y vuelve a colocarlos."
                 )
             alto_m = await self._altura_del_muro(cmd.trazo_id)
 
@@ -1526,7 +1542,15 @@ class GestionarVanos(AgregarHuecoATrazo):
             raise ErrorDeCuantificacion("Cómo cuenta el muro se fija sobre una línea.")
         factor = factor_de_muro(altura_efectiva(altura_m, partes), caras)
         guardar_partes = (
-            [{"nombre": p.nombre, "desde_m": str(p.desde_m), "hasta_m": str(p.hasta_m), "suma": p.suma} for p in partes]
+            validar_partes_con_caras(
+                [
+                    {
+                        "nombre": p.nombre, "desde_m": p.desde_m, "hasta_m": p.hasta_m, "suma": p.suma,
+                        "rol": p.rol, "cara_a": p.cara_a, "cara_b": p.cara_b, "elemento_ref": p.elemento_ref,
+                    }
+                    for p in partes
+                ]
+            )
             if partes
             else None
         )
@@ -1540,6 +1564,12 @@ class GestionarVanos(AgregarHuecoATrazo):
                 partes=guardar_partes,
                 factor=factor,
             )
+            # Regla 3 de la ubicación (M-6): si una parte trae una cara distinta de la que fija la ubicación, pasa a «personalizada».
+            clasificacion = await self._trazos.clasificacion_de_muro(trazo_id)
+            if guardar_partes and clasificacion["ubicacion"] is not None:
+                resultante = ubicacion_resultante(clasificacion["ubicacion"], guardar_partes)
+                if resultante != clasificacion["ubicacion"]:
+                    await self._trazos.fijar_ubicacion_de_muro(trazo_id, resultante)
             return trazo_id
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
@@ -1578,21 +1608,48 @@ class GestionarVanos(AgregarHuecoATrazo):
         if await self._trazos.obtener(trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         c = await self._trazos.clasificacion_de_muro(trazo_id)
-        return {"tipo": c["tipo"], "acabado": acabado_normalizado(c["acabado"]) if c["tipo"] else None}
+        return {**c, "acabado": acabado_normalizado(c["acabado"]) if c["tipo"] else None}
 
-    async def clasificar(self, trazo_id: UUID, *, tipo: str | None, acabado: dict[str, Any] | None) -> dict[str, Any]:
-        """El paramétrico de muro (F-22): cómo se construye el muro y qué capas de acabado lleva. Solo clasifica: no cambia lo
-        que mide ni recalcula nada."""
+    async def clasificar(
+        self,
+        trazo_id: UUID,
+        *,
+        tipo: str | None,
+        acabado: dict[str, Any] | None,
+        material: str | None = None,
+        ubicacion: str | None = None,
+    ) -> dict[str, Any]:
+        """El paramétrico de muro (F-22): cómo se construye el muro, de qué material, dónde está y qué capas de acabado lleva.
+        Solo clasifica: no cambia lo que mide ni recalcula nada. Si la clasificación ya no coincide con la plantilla que eligió el
+        trazo, la plantilla se desliga (el muro vuelve a la regla de siempre)."""
         if await self._trazos.obtener(trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         if not await self._trazos.es_linea(trazo_id):
             raise ErrorDeCuantificacion("El tipo de muro se fija sobre una línea.")
         tipo = tipo_valido(tipo)
+        if tipo is None:
+            material = ubicacion = None
+        else:
+            material = material_valido(material) if material else None
+            ubicacion = ubicacion_valida(ubicacion) if ubicacion else None
         completo = acabado_normalizado(acabado) if tipo else None
+        plantilla = await self._trazos.plantilla_de_muro(trazo_id)
+        sigue = (
+            plantilla is not None
+            and tipo == plantilla["tipo"]
+            and material == plantilla["material"]
+            and ubicacion == plantilla["ubicacion"]
+        )
+        plantilla_id = plantilla["id"] if sigue and plantilla is not None else None
         async with self._uow:
-            await self._trazos.clasificar_muro(trazo_id=trazo_id, tipo=tipo, acabado=completo)
+            await self._trazos.clasificar_muro(
+                trazo_id=trazo_id, tipo=tipo, acabado=completo, material=material, ubicacion=ubicacion, plantilla_id=plantilla_id
+            )
             await self._uow.commit()
-        return {"tipo": tipo, "acabado": completo}
+        return {
+            "tipo": tipo, "acabado": completo, "material": material, "ubicacion": ubicacion, "plantilla_id": plantilla_id,
+            "tipo_por_confirmar": False,
+        }
 
     async def fijar_hoja(self, vano_id: UUID, *, bisagra: int, lado_hoja: int, apertura_grados: int) -> None:
         """La hoja de una puerta (D-632): bisagra, lado y apertura. Es dibujo y especificación: no cambia lo que descuenta."""

@@ -6,14 +6,21 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ClasificacionDeMuroPeticionTipo } from "./clasificacionDeMuroPeticionTipo";
+import type { ClasificacionDeMuroPeticionMaterial } from "./clasificacionDeMuroPeticionMaterial";
+import type { ClasificacionDeMuroPeticionUbicacion } from "./clasificacionDeMuroPeticionUbicacion";
 import type { ClasificacionDeMuroPeticionAcabado } from "./clasificacionDeMuroPeticionAcabado";
 
 /**
- * El paramétrico de muro (F-22): cómo se construye y qué capas de acabado lleva. Solo clasifica: no cambia lo que mide.
+ * El paramétrico de muro (F-22): cómo se construye, de qué material, dónde está y qué capas de acabado lleva. Solo clasifica:
+no cambia lo que mide.
  */
 export interface ClasificacionDeMuroPeticion {
-  /** `null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos. */
+  /** `null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos. Pretil y barda son ubicación y el sillar es material (0133). */
   tipo: ClasificacionDeMuroPeticionTipo;
+  /** tabique_rojo, block_hueco o sillar_amarillo (0133). */
+  material?: ClasificacionDeMuroPeticionMaterial;
+  /** Define las caras A y B de las partes de altura (0133). */
+  ubicacion?: ClasificacionDeMuroPeticionUbicacion;
   /** Sí/No por capa (gris, blanca, pintura) y cara (interior, fachada). Lo que falta toma el defecto: todo en Sí. */
   acabado?: ClasificacionDeMuroPeticionAcabado;
 }

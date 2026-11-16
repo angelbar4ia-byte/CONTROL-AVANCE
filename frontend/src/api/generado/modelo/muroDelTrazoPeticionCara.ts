@@ -9,4 +9,4 @@
 /**
  * Con una sola cara, cuál.
  */
-export type MuroDelTrazoPeticionCara = "interior" | "exterior" | null;
+export type MuroDelTrazoPeticionCara = "exterior" | "interior" | null;
