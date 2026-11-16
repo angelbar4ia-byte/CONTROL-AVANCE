@@ -117,7 +117,7 @@ def test_el_tabique_no_lleva_castillos_ni_cadenas_y_el_modo_sale_del_tipo() -> N
         normalizar_plantilla(_base(tipo="tabique"), INFO)
     ok = normalizar_plantilla(_base(tipo="tabique", elementos=[{"ref": "EST-02010"}]), INFO)
     assert ok["elementos"][0]["clase"] == "muro"
-    with pytest.raises(ErrorDePlantillaDeMuro, match="son estimados|son ubicados|no ubicados|estimado"):
+    with pytest.raises(ErrorDePlantillaDeMuro, match="estimados|ubicados"):
         normalizar_plantilla(_base(tipo="confinado", elementos=[{"ref": "K-1", "modo": "ubicado"}]), INFO)
 
 

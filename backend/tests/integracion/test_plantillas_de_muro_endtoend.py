@@ -247,7 +247,7 @@ async def test_el_castillo_depende_de_la_plantilla_y_no_del_tipo_con_cadena(
 async def test_las_partes_con_caras_se_guardan_y_cambiarlas_vuelve_personalizada_la_ubicacion(
     control: httpx.AsyncClient, escenario: Escenario
 ) -> None:
-    plano, muro = await _muro(control, escenario)
+    _, muro = await _muro(control, escenario)
     await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "con_cadena", "ubicacion": "fachada_a"})
     partes = [
         {"nombre": "Cuerpo", "desde_m": "0", "hasta_m": "2.3", "rol": "cuerpo", "cara_a": "exterior", "cara_b": "interior"},
