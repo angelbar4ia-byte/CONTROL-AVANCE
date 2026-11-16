@@ -389,3 +389,15 @@ async def proponer_actualizacion_de_apu(
     except ErrorDeMuroDeTabique as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
     return ResultadoDeProponer(**r)
+
+
+@router.post(
+    "/biblioteca-de-elementos/tabique/{clave}/propuestas/correcciones",
+    response_model=ResultadoDeProponer,
+    status_code=status.HTTP_201_CREATED,
+    summary="Proponer las correcciones de fábrica del elemento (EST-02020: el cálculo; AUX-04010: el texto del mortero)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_PROPONEN))],
+    responses=_PROPONEN,
+)
+async def proponer_correcciones_de_tabique(clave: str, ctx: ContextoActual, caso_uso: GestionarPropuestasDeTabiqueDep) -> ResultadoDeProponer:
+    return ResultadoDeProponer(**await caso_uso.proponer_correcciones(clave, usuario_id=ctx.usuario_id, rol=ctx.rol))

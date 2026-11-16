@@ -10,6 +10,7 @@ const m = vi.hoisted(() => ({
   calcular: vi.fn(),
   proponerNuevo: vi.fn(),
   proponerApu: vi.fn(),
+  proponerCorrecciones: vi.fn(),
   autorizar: vi.fn(),
   rechazar: vi.fn(),
   rol: { current: 'costos' as string },
@@ -27,6 +28,7 @@ vi.mock('@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos', () => 
   useTablaDeRevisionDeTabiqueApiV1BibliotecaDeElementosTabiqueTablaDeRevisionGet: () => ({ data: m.tabla.current }),
   useProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost: () => ({ mutateAsync: m.proponerNuevo }),
   useProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost: () => ({ mutateAsync: m.proponerApu }),
+  useProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost: () => ({ mutateAsync: m.proponerCorrecciones }),
   useAutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost: () => ({ mutateAsync: m.autorizar }),
   useRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost: () => ({ mutateAsync: m.rechazar }),
 }));
@@ -150,11 +152,12 @@ const PROPUESTA = {
 };
 
 beforeEach(() => {
-  for (const f of [m.calcular, m.proponerNuevo, m.proponerApu, m.autorizar, m.rechazar]) f.mockReset();
+  for (const f of [m.calcular, m.proponerNuevo, m.proponerApu, m.proponerCorrecciones, m.autorizar, m.rechazar]) f.mockReset();
   m.calcular.mockResolvedValue(CALCULO);
   m.proponerNuevo.mockResolvedValue({ creadas: ['p1'], omitidas: [] });
   m.proponerApu.mockResolvedValue({ creadas: ['p1'], omitidas: [] });
   m.autorizar.mockResolvedValue({ version: 2 });
+  m.proponerCorrecciones.mockResolvedValue({ creadas: ['p9'], omitidas: [] });
   m.rol.current = 'costos';
   m.definicion.current = DEFINICION;
   m.propuestas.current = [];
@@ -272,6 +275,28 @@ describe('TarjetaMuroTabique', () => {
     m.calcular.mockRejectedValue(new Error('La junta va en centímetros, entre 0 y 10.'));
     render(<TarjetaMuroTabique clave="EST-02010" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('La junta va en centímetros');
+  });
+});
+
+describe('Correcciones de fábrica', () => {
+  it('EST-02020 y AUX-04010 proponen su corrección; EST-02010 no tiene botón', async () => {
+    m.definicion.current = { ...DEFINICION, clave: 'AUX-04010' };
+    render(<TarjetaMuroTabique clave="AUX-04010" />);
+    await screen.findByTestId('tabique-piezas');
+    fireEvent.click(screen.getByRole('button', { name: 'Proponer la corrección del catálogo' }));
+    await waitFor(() => expect(m.proponerCorrecciones).toHaveBeenCalledWith({ clave: 'AUX-04010' }));
+  });
+
+  it('el aviso del mortero sigue visible con la propuesta pendiente y se quita al autorizarse el texto', async () => {
+    m.propuestas.current = [{ ...PROPUESTA, concepto_clave: 'AUX-04010', cambios: [] }];
+    const { unmount } = render(<TarjetaMuroTabique clave="EST-02010" />);
+    expect(await screen.findByTestId('tabique-aviso-catalogo')).toHaveTextContent('1:5');
+    expect(screen.getByTestId('tabique-texto-pendiente')).toBeInTheDocument();
+    unmount();
+    m.propuestas.current = [{ ...PROPUESTA, concepto_clave: 'AUX-04010', cambios: [], estado: 'autorizada', version: 2 }];
+    render(<TarjetaMuroTabique clave="EST-02010" />);
+    await screen.findByTestId('tabique-piezas');
+    expect(screen.queryByTestId('tabique-aviso-catalogo')).not.toBeInTheDocument();
   });
 });
 

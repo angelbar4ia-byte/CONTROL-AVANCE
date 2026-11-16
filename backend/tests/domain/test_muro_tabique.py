@@ -241,3 +241,17 @@ def test_cada_elemento_trae_su_ficha() -> None:
         assert d["pieza"] == {"insumo": "PET-00001", "ancho_cm": 14.0, "alto_cm": 6.0, "largo_cm": 26.0}
         assert d["pendientes"] and d["conceptos"] and d["hiladas"]
     assert definicion_de("ACA-02090")["categoria"] == {"clave": "pisos", "nombre": "Pisos"}
+
+
+def test_las_correcciones_de_fabrica_son_versiones_propuestas() -> None:
+    from obractrl.domain.cuantificacion.muro_tabique import correcciones_de
+
+    (apu,) = correcciones_de("EST-02020")
+    assert apu["clase"] == "version_de_concepto" and apu["concepto_clave"] == "EST-02020"
+    assert {c["insumo"]: c["despues"] for c in apu["detalle"]["cambios"]}["PET-00001"] == pytest.approx(75.0)
+    (texto,) = correcciones_de("AUX-04010")
+    assert texto["detalle"]["cambios"] == []
+    assert "1:5" in texto["detalle"]["descripcion"]["antes"] and "1:4" in texto["detalle"]["descripcion"]["despues"]
+    assert "1:5" not in texto["detalle"]["descripcion"]["despues"]
+    assert correcciones_de("EST-02010") == [] and correcciones_de("EST-02005") == []
+    assert "aceptó" in {f["clave"]: f for f in tabla_de_revision()}["EST-02020"]["contraste"]
