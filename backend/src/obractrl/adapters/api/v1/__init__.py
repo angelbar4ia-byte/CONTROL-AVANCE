@@ -17,6 +17,7 @@ from obractrl.adapters.api.v1.autorizacion_de_elementos import (
     router as router_autorizacion_de_elementos,
 )
 from obractrl.adapters.api.v1.avance import router as router_avance
+from obractrl.adapters.api.v1.bastones import router as router_bastones
 from obractrl.adapters.api.v1.biblioteca_de_elementos import (
     router as router_biblioteca_de_elementos,
 )
@@ -128,6 +129,7 @@ api_v1.include_router(router_receta_acero)
 api_v1.include_router(router_elementos_de_estructura)
 api_v1.include_router(router_elementos_estructurales)
 api_v1.include_router(router_muros_de_tabique)
+api_v1.include_router(router_bastones)
 api_v1.include_router(router_correcciones_de_catalogo)
 api_v1.include_router(router_biblioteca_de_elementos)
 api_v1.include_router(router_vanos_catalogo)
