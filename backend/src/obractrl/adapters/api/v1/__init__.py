@@ -71,6 +71,7 @@ from obractrl.adapters.api.v1.mediciones import router as router_mediciones
 from obractrl.adapters.api.v1.muros_de_tabique import router as router_muros_de_tabique
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.organizacion import router as router_organizacion
+from obractrl.adapters.api.v1.parametrico import router as router_parametrico
 from obractrl.adapters.api.v1.partes import router as router_partes
 from obractrl.adapters.api.v1.planeacion import router as router_planeacion
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
@@ -129,6 +130,7 @@ api_v1.include_router(router_elementos_de_estructura)
 api_v1.include_router(router_elementos_estructurales)
 api_v1.include_router(router_muros_de_tabique)
 api_v1.include_router(router_correcciones_de_catalogo)
+api_v1.include_router(router_parametrico)
 api_v1.include_router(router_biblioteca_de_elementos)
 api_v1.include_router(router_vanos_catalogo)
 api_v1.include_router(router_cambios_de_unidad)
