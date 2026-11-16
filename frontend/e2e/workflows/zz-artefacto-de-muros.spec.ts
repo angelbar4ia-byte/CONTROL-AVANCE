@@ -91,7 +91,7 @@ test.describe('Cuantificador · Artefacto de muros', () => {
 
     // La vista previa dibuja los castillos (ubicados, por ser con cadena) y la cadena.
     await expect(area.getByRole('img', { name: 'Vista previa de la plantilla de muro' })).toBeVisible();
-    await expect(area.locator(`[data-castillo="${castillo}"]`)).toHaveCount(3);
+    await expect(area.locator(`[data-castillo="${castillo}"]`)).toHaveCount(2); // ubicado sin separación propia: en los extremos (como al colocar)
     await expect(area.locator(`[data-cadena="${cadena}"]`)).toHaveCount(1);
 
     // --- 2. Se crea: nace por validar -------------------------------------------------------------------------------------
