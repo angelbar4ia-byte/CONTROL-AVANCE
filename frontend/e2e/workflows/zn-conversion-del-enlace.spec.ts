@@ -51,12 +51,12 @@ test.describe('Cuantificador · cómo cuenta para el concepto', () => {
 
     const panel = page.getByRole('group', { name: /Cómo cuenta para/ });
     await expect(panel).toBeVisible();
-    // Por el eje, con la altura de defecto (2.6 m): 10 m × 2.6 m. La vista previa sale de la base.
+    // Por el eje, con la altura de defecto (el driver altura_estandar, 3.00 m): 10 m × 3 m. La vista previa sale de la base.
     await panel.getByRole('button', { name: 'Eje', exact: true }).click();
-    await expect(panel.locator('[data-resultado]')).toContainText('26');
+    await expect(panel.locator('[data-resultado]')).toContainText('30');
     await expect(panel.getByText('Cambios sin aplicar')).toBeVisible();
     await panel.getByRole('button', { name: 'Aplicar', exact: true }).click();
-    await expect.poll(cantidad).toBeCloseTo(26, 2);
+    await expect.poll(cantidad).toBeCloseTo(30, 2);
     await expect(panel.getByText('Aplicado')).toBeVisible();
   });
 });

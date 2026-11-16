@@ -167,7 +167,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
         <div className="mct__parametros" role="group" aria-label="Enlazar una ranura">
           <label className="mct__campo">
             Qué se enlaza
-            <select className="input" value={grupo} onChange={(e) => setGrupo(e.target.value as 'plantilla' | 'elemento')}>
+            <select className="input" aria-label="Qué se enlaza" value={grupo} onChange={(e) => setGrupo(e.target.value as 'plantilla' | 'elemento')}>
               <option value="plantilla">Mampostería o acabado de una plantilla</option>
               <option value="elemento">Un elemento de la biblioteca</option>
             </select>
@@ -175,7 +175,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
           {grupo === 'plantilla' ? (
             <label className="mct__campo">
               Ranura
-              <select className="input" value={plantilla} onChange={(e) => setPlantilla(e.target.value)}>
+              <select className="input" aria-label="Ranura" value={plantilla} onChange={(e) => setPlantilla(e.target.value)}>
                 <option value="">— elige —</option>
                 {ranurasDePlantilla.map((r) => (
                   <option key={r.ranura} value={r.ranura}>
@@ -188,7 +188,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
             <>
               <label className="mct__campo">
                 Elemento
-                <select className="input" value={elemento} onChange={(e) => setElemento(e.target.value)}>
+                <select className="input" aria-label="Elemento" value={elemento} onChange={(e) => setElemento(e.target.value)}>
                   <option value="">— elige —</option>
                   {elementos.map((x) => (
                     <option key={x.clave} value={x.clave}>
@@ -199,7 +199,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
               </label>
               <label className="mct__campo">
                 Parte
-                <select className="input" value={parte} onChange={(e) => setParte(e.target.value)}>
+                <select className="input" aria-label="Parte" value={parte} onChange={(e) => setParte(e.target.value)}>
                   {PARTES.map(([k, n]) => (
                     <option key={k} value={k}>
                       {n}
@@ -213,6 +213,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
             Concepto (clave del catálogo)
             <input
               className="input"
+              aria-label="Concepto (clave del catálogo)"
               list="conceptos-del-arbol"
               value={concepto}
               onChange={(e) => setConcepto(e.target.value.toUpperCase())}
@@ -233,7 +234,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
           )}
           <label className="mct__campo">
             Nivel
-            <select className="input" value={nivel} onChange={(e) => setNivel(e.target.value)}>
+            <select className="input" aria-label="Nivel" value={nivel} onChange={(e) => setNivel(e.target.value)}>
               <option value="">Cualquiera</option>
               {(datos?.niveles ?? []).map((n) => (
                 <option key={n.id} value={n.id}>
@@ -244,7 +245,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
           </label>
           <label className="mct__campo">
             Etapa
-            <select className="input" value={etapa} onChange={(e) => setEtapa(e.target.value)}>
+            <select className="input" aria-label="Etapa" value={etapa} onChange={(e) => setEtapa(e.target.value)}>
               <option value="">Cualquiera</option>
               {(datos?.etapas ?? []).map((n) => (
                 <option key={n.id} value={n.id}>
@@ -255,7 +256,7 @@ export function EnlacesDeRanuras({ obraId, puedeEditar }: Props) {
           </label>
           <label className="mct__campo">
             Ubicación
-            <select className="input" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)}>
+            <select className="input" aria-label="Ubicación" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)}>
               <option value="">Cualquiera</option>
               {UBICACIONES.map(([k, n]) => (
                 <option key={k} value={k}>
