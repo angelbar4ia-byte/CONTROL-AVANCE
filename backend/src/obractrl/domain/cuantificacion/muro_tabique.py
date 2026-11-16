@@ -68,6 +68,7 @@ __all__ = [
     "categorias_de_biblioteca",
     "claves_de_tabique",
     "concepto_nuevo_de",
+    "correcciones_de",
     "definicion_de",
     "propuestas_de_actualizacion_de_apu",
     "tabla_de_revision",
@@ -284,8 +285,8 @@ _LISTA: tuple[AparejoDeTabique, ...] = (
             (
                 "Q97",
                 "EST-02020 se calcula como tabique de 14 + junta de 1 cm + tabique de 6 (14 + 1 + 6 = 21 cm), la geometría que confirmó el usuario. "
-                "La diferencia contra el catálogo (86 pza y 0.0939 m³ por m²) se muestra en la conciliación y el catálogo no se edita: si Costos la "
-                "acepta, se propone como nueva versión del concepto.",
+                "La diferencia contra el catálogo (86 pza y 0.0939 m³ por m²) se muestra en la conciliación y el catálogo no se edita: el usuario "
+                "aceptó el cálculo del elemento y la corrección se propone por defecto como nueva versión del concepto (la autoriza Control de obra).",
             ),
             ("Q98", "EST-02020 no tiene variante de 3er nivel: el usuario la descartó («no de momento»)."),
         ),
@@ -784,8 +785,13 @@ def _contraste(e: AparejoDeTabique, piezas: float, mezcla: float) -> str:
     mz = next(c for k, c, *_ in filas if k == CLAVE_MEZCLA)
     mp, dp = marca_de(pz, piezas)
     mm, dm = marca_de(mz, mezcla)
+    nota = {
+        "EST-02020": " El usuario aceptó la nueva versión propuesta con el cálculo del elemento (por defecto, vía autorización).",
+        "AUX-04010": " Corrección propuesta de texto: «mortero-arena 1:5» → «1:4» (la composición manda).",
+    }.get(e.clave, "")
     return (
         f"{concepto} del catálogo: {pz:g} pza y {mz:g} m³ por m²; pieza {mp} ({(dp or 0) * 100:+.1f} %), mezcla {mm} ({(dm or 0) * 100:+.1f} %)."
+        + nota
     )
 
 
@@ -883,3 +889,34 @@ def propuestas_de_actualizacion_de_apu(calculo: Mapping[str, Any]) -> list[dict[
             }
         )
     return propuestas
+
+
+TEXTO_DE_AUX_04010 = "Muro de 14 cm. de espesor, de tabique rojo recocido, asentado con mezcla mortero-arena 1:5 acabado común."
+
+
+def correcciones_de(clave: str) -> list[dict[str, Any]]:
+    """Las correcciones que el elemento propone de fábrica, siempre como versión propuesta (nunca se edita el catálogo):
+
+    - EST-02020: los coeficientes del cálculo 14 + 1 + 6 (el usuario aceptó la versión propuesta: el cálculo manda);
+    - AUX-04010: el texto «mortero-arena 1:5» pasa a «1:4» (manda la composición, MEZ-07010 es 1:4).
+    """
+    e = elemento_de_tabique(clave)
+    if e.clave == "EST-02020":
+        return propuestas_de_actualizacion_de_apu(calcular_muro_de_tabique(e.clave))
+    if e.clave == "AUX-04010":
+        despues = TEXTO_DE_AUX_04010.replace("mortero-arena 1:5", "mortero-arena 1:4")
+        return [
+            {
+                "elemento_clave": e.clave,
+                "concepto_clave": "AUX-04010",
+                "clase": "version_de_concepto",
+                "resumen": "Nueva versión de AUX-04010: descripción «mortero-arena 1:5» → «mortero-arena 1:4» (la composición usa MEZ-07010, 1:4)",
+                "detalle": {
+                    "cambios": [],
+                    "descripcion": {"antes": TEXTO_DE_AUX_04010, "despues": despues},
+                    "motivos": ["La composición manda: MEZ-07010 es cemento-arena 1:4; se corrige el texto de la descripción."],
+                    "hasta_m": None,
+                },
+            }
+        ]
+    return []

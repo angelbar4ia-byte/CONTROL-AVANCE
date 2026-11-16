@@ -25,6 +25,7 @@ from obractrl.domain.cuantificacion.muro_tabique import (
     EntradaMuroDeTabique,
     calcular_muro_de_tabique,
     concepto_nuevo_de,
+    correcciones_de,
     elemento_de_tabique,
     propuestas_de_actualizacion_de_apu,
 )
@@ -88,3 +89,9 @@ class GestionarPropuestasDeTabique:
         e = _elemento(elemento_clave)
         calculo = calcular_muro_de_tabique(e.clave, entrada)
         return await self._registrar_las_que_faltan(propuestas_de_actualizacion_de_apu(calculo), usuario_id=usuario_id, rol=rol)
+
+    async def proponer_correcciones(self, elemento_clave: str, *, usuario_id: UUID, rol: str) -> dict[str, Any]:
+        """Las correcciones de fábrica del elemento (EST-02020: el cálculo; AUX-04010: el texto del mortero) como versión propuesta."""
+        validar_que_propone(rol)
+        e = _elemento(elemento_clave)
+        return await self._registrar_las_que_faltan(correcciones_de(e.clave), usuario_id=usuario_id, rol=rol)

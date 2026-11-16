@@ -18,6 +18,7 @@ import {
   useCalcularTabiqueApiV1BibliotecaDeElementosTabiqueClaveCalcularPost as useCalcularTabique,
   useDefinicionDelTabiqueApiV1BibliotecaDeElementosTabiqueClaveGet as useDefinicion,
   useProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClavePropuestasActualizarApuPost as useProponerApu,
+  useProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost as useProponerCorrecciones,
   useProponerConceptoNuevoApiV1BibliotecaDeElementosTabiqueClavePropuestasConceptoNuevoPost as useProponerConceptoNuevo,
   usePropuestasDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasGet as usePropuestas,
   useRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost as useRechazarPropuesta,
@@ -100,6 +101,7 @@ export function TarjetaMuroTabique({ clave }: Props) {
   const tabla = useTablaDeRevision();
   const proponerNuevo = useProponerConceptoNuevo<ErrorApi>();
   const proponerApu = useProponerApu<ErrorApi>();
+  const proponerCorrecciones = useProponerCorrecciones<ErrorApi>();
   const autorizar = useAutorizarPropuesta<ErrorApi>();
   const rechazar = useRechazarPropuesta<ErrorApi>();
   const d = definicion.data;
@@ -209,6 +211,11 @@ export function TarjetaMuroTabique({ clave }: Props) {
   const porUnidad = d.medida === 'ml' ? 'metro lineal de hilada' : 'm²';
   const claveDelConcepto = calculo?.concepto.clave ?? d.conceptos[0]?.clave ?? clave;
   const esNuevo = d.conceptos.every((c) => c.estado === 'propuesto');
+  // El aviso del mortero (1:5 contra 1:4) sigue visible mientras la corrección de texto no esté autorizada.
+  const textoCorregido = lista.some((p) => p.concepto_clave === 'AUX-04010' && p.estado === 'autorizada' && p.clase === 'version_de_concepto');
+  const textoPendiente = lista.some((p) => p.concepto_clave === 'AUX-04010' && p.estado === 'pendiente');
+  const sinAvisoDeMortero = (a: string) => !(textoCorregido && a.includes('1:5'));
+  const conCorrecciones = d.clave === 'EST-02020' || d.clave === 'AUX-04010';
   const hayDiferencias = (calculo?.conciliacion ?? []).some((c) => (c.resumen['≈'] ?? 0) + (c.resumen['≠'] ?? 0) > 0);
   // La versión propuesta de cada insumo, por concepto: la autorizada gana a la pendiente.
   const propuestaDe = (conceptoClave: string, insumo: string) => {
@@ -503,7 +510,7 @@ export function TarjetaMuroTabique({ clave }: Props) {
                     Destajo del catálogo (el elemento no lo calcula): {c.mano_de_obra.map((m) => `${m.clave} ${m.descripcion}`).join(', ')}.
                   </p>
                 )}
-                {c.avisos.map((a) => (
+                {c.avisos.filter(sinAvisoDeMortero).map((a) => (
                   <p key={a} className="text-xs mct__aviso" data-testid="tabique-aviso-catalogo">
                     {a}
                   </p>
@@ -512,9 +519,9 @@ export function TarjetaMuroTabique({ clave }: Props) {
             ))}
           </section>
 
-          {calculo.avisos.length > 0 && (
+          {calculo.avisos.filter(sinAvisoDeMortero).length > 0 && (
             <ul className="mct__advertencias" aria-label="Advertencias">
-              {calculo.avisos.map((a) => (
+              {calculo.avisos.filter(sinAvisoDeMortero).map((a) => (
                 <li key={a}>{a}</li>
               ))}
             </ul>
@@ -614,6 +621,26 @@ export function TarjetaMuroTabique({ clave }: Props) {
               >
                 Confirmar cálculo → proponer actualizar el APU
               </button>
+            )}
+            {conCorrecciones && (
+              <button
+                type="button"
+                className="btn btn--sm"
+                disabled={proponerCorrecciones.isPending}
+                onClick={() =>
+                  void correr(async () => {
+                    const r = await proponerCorrecciones.mutateAsync({ clave });
+                    return r.creadas.length === 0 ? 'No hay correcciones nuevas que proponer.' : 'Corrección propuesta: espera la autorización de Control de obra.';
+                  })
+                }
+              >
+                Proponer la corrección del catálogo
+              </button>
+            )}
+            {textoPendiente && !textoCorregido && (
+              <span className="text-mute text-xs" data-testid="tabique-texto-pendiente">
+                La corrección del texto del mortero está pendiente: la diferencia sigue visible.
+              </span>
             )}
             {pendientes.length > 0 && <span className="text-mute text-xs">{pendientes.length} esperan a Control de obra.</span>}
           </div>
