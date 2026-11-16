@@ -5,7 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { FilaDeConciliacion } from "./filaDeConciliacion";
+import type { ObractrlAdaptersApiV1AutorizacionDeElementosFilaDeConciliacion } from "./obractrlAdaptersApiV1AutorizacionDeElementosFilaDeConciliacion";
 import type { ConciliacionRespuestaResumen } from "./conciliacionRespuestaResumen";
 
 export interface ConciliacionRespuesta {
@@ -16,7 +16,7 @@ export interface ConciliacionRespuesta {
   cantidad: number;
   manda: "apu";
   tolerancia_pct: number;
-  filas: FilaDeConciliacion[];
+  filas: ObractrlAdaptersApiV1AutorizacionDeElementosFilaDeConciliacion[];
   importe_apu: number;
   importe_salida: number;
   /** Algún insumo no tiene precio: su importe queda vacío (no se inventa). */
