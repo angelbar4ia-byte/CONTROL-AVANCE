@@ -26,6 +26,7 @@ interface Props {
   readonly puedeEditar: boolean;
 }
 
+const TIPO_DE_CONSUMIDOR: Record<string, string> = { elemento: 'elemento', artefacto: 'artefacto', plano: 'plano' };
 const ORIGEN: Record<string, string> = { obra: 'obra', global: 'global', inicial: 'de partida' };
 
 /** Un número que se teclea: guarda el texto y solo manda el valor al salir del campo (o con Enter) si cambió. */
@@ -122,6 +123,7 @@ export function TablaDeDrivers({ obraId, obraClave, puedeEditar }: Props) {
                 <th>{obraClave ? `Obra ${obraClave}` : 'Esta obra'}</th>
                 <th className="n">Vigente</th>
                 <th>Origen</th>
+                <th>Lo usan</th>
               </tr>
             </thead>
             <tbody>
@@ -184,6 +186,20 @@ export function TablaDeDrivers({ obraId, obraClave, puedeEditar }: Props) {
                     </td>
                     <td>
                       <span className={d.origen === 'obra' ? 'badge badge--info' : 'badge badge--ok'}>{ORIGEN[d.origen] ?? d.origen}</span>
+                    </td>
+                    <td data-lo-usan={d.clave}>
+                      {(d.lo_usan ?? []).length === 0 ? (
+                        <span className="text-mute text-xs">{d.sin_consumidor ?? 'Ningún cálculo lo lee todavía.'}</span>
+                      ) : (
+                        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label={`Lo usan: ${d.nombre}`}>
+                          {(d.lo_usan ?? []).map((c) => (
+                            <li key={c.id} className="text-xs" data-consumidor={c.id}>
+                              <span className="badge badge--outline">{TIPO_DE_CONSUMIDOR[c.tipo] ?? c.tipo}</span> {c.nombre}
+                              {c.lectura === 'constante' && <span className="text-mute"> (fijo: lo lee como constante)</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </td>
                   </tr>
                 );

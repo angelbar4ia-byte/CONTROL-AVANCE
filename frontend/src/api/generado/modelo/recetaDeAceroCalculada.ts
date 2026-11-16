@@ -13,6 +13,7 @@ import type { CimbraDeLaReceta } from "./cimbraDeLaReceta";
 import type { DesperdicioDeLaReceta } from "./desperdicioDeLaReceta";
 import type { TotalDeLaReceta } from "./totalDeLaReceta";
 import type { DriversDeRecetaPeticion } from "./driversDeRecetaPeticion";
+import type { DriverUsadoRespuesta } from "./driverUsadoRespuesta";
 
 export interface RecetaDeAceroCalculada {
   forma: string;
@@ -29,5 +30,7 @@ export interface RecetaDeAceroCalculada {
   desperdicio: DesperdicioDeLaReceta;
   totales: TotalDeLaReceta[];
   drivers: DriversDeRecetaPeticion;
+  /** Los drivers que leyó el cálculo y de dónde salió cada valor. */
+  drivers_usados?: DriverUsadoRespuesta[];
   advertencias: string[];
 }

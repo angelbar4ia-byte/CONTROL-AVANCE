@@ -25,6 +25,7 @@ import type {
 
 import { numeroTecleado } from '../volumen';
 import { CorreccionesDelCatalogo } from './CorreccionesDelCatalogo';
+import { DriversUsadosDelCalculo } from './DriversUsadosDelCalculo';
 
 function num(n: number | null | undefined, dec = 2): string {
   return n === null || n === undefined || !Number.isFinite(n)
@@ -52,6 +53,8 @@ interface Props {
   readonly clave: string;
   /** El rol de quien mira: Costos y Control de obra ven las correcciones propuestas al catálogo. */
   readonly rol?: string | null;
+  /** La obra actual: el cálculo lee sus drivers (traslapes, puntas, desperdicios…). */
+  readonly obraId?: string;
 }
 
 function separacionDelCatalogo(d: DefinicionDelElementoEstructural): string {
@@ -60,7 +63,7 @@ function separacionDelCatalogo(d: DefinicionDelElementoEstructural): string {
   return m?.[1] ?? '20';
 }
 
-export function TarjetaElementoEstructural({ clave, rol }: Props) {
+export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
   const definicion = useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet(clave);
   const calcular = useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost<ErrorApi>();
   const d = definicion.data;
@@ -95,7 +98,7 @@ export function TarjetaElementoEstructural({ clave, rol }: Props) {
     if (!d) return null;
     const q = numeroTecleado(cantidad);
     if (!(q > 0)) return null;
-    const base: CalculoDelElementoEstructuralPeticion = { modo: esLineal ? modo : 'pieza', cantidad: q };
+    const base: CalculoDelElementoEstructuralPeticion = { modo: esLineal ? modo : 'pieza', cantidad: q, ...(obraId === '' ? {} : { obra_id: obraId }) };
     if (esLineal && modo === 'pieza') {
       const l = numeroTecleado(largo);
       if (!(l > 0)) return null;
@@ -115,7 +118,7 @@ export function TarjetaElementoEstructural({ clave, rol }: Props) {
       base.alto_m = a;
     }
     return base;
-  }, [d, esLineal, esColumna, modo, largo, alto, cantidad, zonas, zonaLargo, zonaSep, centroSep]);
+  }, [d, esLineal, esColumna, modo, largo, alto, cantidad, zonas, zonaLargo, zonaSep, centroSep, obraId]);
 
   const { mutateAsync } = calcular;
   useEffect(() => {
@@ -229,6 +232,8 @@ export function TarjetaElementoEstructural({ clave, rol }: Props) {
           {error}
         </p>
       )}
+
+      <DriversUsadosDelCalculo usados={calculo?.drivers_usados} hayObra={obraId !== ''} />
 
       {calculo && (
         <>

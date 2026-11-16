@@ -25,6 +25,7 @@ import {
 import { useBibliotecaDeElementosApiV1BibliotecaDeElementosGet } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
 import { useListarElementosParametricosApiV1ElementosParametricosGet } from '@/api/generado/elementos-parametricos/elementos-parametricos';
 import { queryClient } from '@/app/queryClient';
+import { useDriversDeObraApiV1ObrasObraIdDriversGet } from '@/api/generado/parametrico/parametrico';
 import { useSesion } from '@/app/sesion';
 
 import { PLANTILLA_NUEVA } from './PanelDePlantillas';
@@ -33,6 +34,7 @@ import {
   borradorDe,
   borradorVacio,
   cambio,
+  driversDeVistaDe,
   type ElementoBorrador,
   geometriaDeVista,
   type MedidaDeElemento,
@@ -54,6 +56,8 @@ interface Props {
   /** La plantilla que se edita, `PLANTILLA_NUEVA` para una nueva o `null` si no se ha elegido. */
   readonly plantillaId: string | null;
   readonly onElegir: (id: string | null) => void;
+  /** La obra actual: de sus drivers salen la altura estándar y la separación de castillos de la vista previa. */
+  readonly obraId?: string;
 }
 
 interface OpcionDeElemento {
@@ -66,7 +70,7 @@ function mensajeDe(err: unknown, defecto: string): string {
   return err instanceof Error ? err.message : defecto;
 }
 
-export function PantallaDeArtefacto({ plantillaId, onElegir }: Props) {
+export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Props) {
   const { sesion } = useSesion();
   const rol = sesion?.rol;
   const puedeEditar = rol === 'control_obra' || rol === 'costos';
@@ -126,7 +130,9 @@ export function PantallaDeArtefacto({ plantillaId, onElegir }: Props) {
     return m;
   }, [elementosDelCatalogo.data]);
 
-  const geometria = useMemo(() => geometriaDeVista(borrador, medidas), [borrador, medidas]);
+  const driversDeLaObra = useDriversDeObraApiV1ObrasObraIdDriversGet(obraId, { query: { enabled: obraId !== '' } });
+  const driversDeVista = useMemo(() => driversDeVistaDe(driversDeLaObra.data), [driversDeLaObra.data]);
+  const geometria = useMemo(() => geometriaDeVista(borrador, medidas, driversDeVista), [borrador, medidas, driversDeVista]);
   const sinCambios = !cambio(borrador, guardada);
   const tipoFicha = (catalogo.data?.tipos ?? []).find((t) => t.clave === borrador.tipo);
 
@@ -478,7 +484,7 @@ export function PantallaDeArtefacto({ plantillaId, onElegir }: Props) {
                         className="input"
                         inputMode="decimal"
                         aria-label={`Separación de ${e.uid} (m)`}
-                        placeholder={String(3)}
+                        placeholder={borrador.tipo === 'confinado' ? String(driversDeVista.separacion_m) : 'extremos'}
                         value={e.sep}
                         disabled={!editable}
                         onChange={(ev) => /^[0-9]*[.,]?[0-9]*$/.test(ev.target.value) && cambiarElemento(i, { sep: ev.target.value })}
@@ -532,8 +538,9 @@ export function PantallaDeArtefacto({ plantillaId, onElegir }: Props) {
           <h3>Vista previa</h3>
           <VistaPreviaDePlantilla g={geometria} aparente />
           <p className="text-mute text-xs">
-            Tramo de muestra de 6 m. Los castillos van cada separación y en los extremos; la separación y la altura estándar saldrán de los
-            drivers cuando se construyan.
+            Tramo de muestra de 6 m. Sin altura propia se dibuja con la altura estándar de la obra ({driversDeVista.altura_m} m); un castillo
+            estimado sin separación propia se reparte con la separación de castillos de la obra ({driversDeVista.separacion_m} m), y uno
+            ubicado va en los extremos. Los dos valores son drivers del Paramétrico{obraId === '' ? ' (sin obra elegida: valores de partida)' : ''}.
           </p>
         </div>
 

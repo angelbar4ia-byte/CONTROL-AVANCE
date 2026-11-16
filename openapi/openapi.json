@@ -24960,6 +24960,14 @@
             "type": "array",
             "title": "Pendientes"
           },
+          "drivers_usados": {
+            "items": {
+              "$ref": "#/components/schemas/DriverUsadoRespuesta"
+            },
+            "type": "array",
+            "title": "Drivers Usados",
+            "description": "Los drivers que leyó el cálculo y de dónde salió cada valor."
+          },
           "advertencias": {
             "items": {
               "type": "string"
@@ -25017,6 +25025,19 @@
           },
           "drivers": {
             "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre."
           }
         },
         "type": "object",
@@ -25087,6 +25108,14 @@
             },
             "type": "array",
             "title": "Conciliacion"
+          },
+          "drivers_usados": {
+            "items": {
+              "$ref": "#/components/schemas/DriverUsadoRespuesta"
+            },
+            "type": "array",
+            "title": "Drivers Usados",
+            "description": "Los drivers que leyó el cálculo y de dónde salió cada valor."
           },
           "avisos": {
             "items": {
@@ -25163,8 +25192,37 @@
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Traslape Diametros",
-            "description": "Traslape entre las piezas de un bastón largo (Q22).",
+            "description": "Traslape entre las piezas de un bastón largo (Q22). Si no se manda, vale el driver `traslape_varilla_diametros` de la obra.",
             "default": 40.0
+          },
+          "tolerancia_corte_cm": {
+            "type": "number",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Tolerancia Corte Cm",
+            "description": "Falta que se acepta sin pasar al corte siguiente. Si no se manda, vale el driver `tolerancia_corte_cm` de la obra.",
+            "default": 0.0
+          },
+          "max_piezas_corte": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Max Piezas Corte",
+            "description": "Máximo de piezas por bastón largo. Si no se manda, vale el driver `max_piezas_corte` de la obra.",
+            "default": 3
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre."
           }
         },
         "type": "object",
@@ -25387,6 +25445,14 @@
               }
             ]
           },
+          "drivers_usados": {
+            "items": {
+              "$ref": "#/components/schemas/DriverUsadoRespuesta"
+            },
+            "type": "array",
+            "title": "Drivers Usados",
+            "description": "Los drivers que leyó el cálculo y de dónde salió cada valor."
+          },
           "advertencias": {
             "items": {
               "type": "string"
@@ -25483,6 +25549,19 @@
           },
           "drivers": {
             "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre."
           }
         },
         "type": "object",
@@ -30205,6 +30284,44 @@
         "title": "ConflictoJerarquiaRespuesta",
         "description": "Un nodo cuya ventana capturada no cuadra con la de sus conceptos (§7.5).\n\n**No es un error: es la pregunta.** Las dos cifras viajan las dos porque lo\nque el usuario tiene que decidir es cuál conservar, y darle sólo una lo\nobligaría a ir a buscar la otra a otra pantalla."
       },
+      "ConsumidorDelDriver": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "elemento",
+              "artefacto",
+              "plano"
+            ],
+            "title": "Tipo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "lectura": {
+            "type": "string",
+            "enum": [
+              "driver",
+              "constante"
+            ],
+            "title": "Lectura",
+            "description": "`driver`: el cálculo lee el valor vigente de la obra. `constante`: el driver es fijo y el cálculo lo lee como constante."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "nombre",
+          "lectura"
+        ],
+        "title": "ConsumidorDelDriver"
+      },
       "ConsumoCalculado": {
         "properties": {
           "clave": {
@@ -34414,6 +34531,26 @@
             "type": "boolean",
             "title": "Editado",
             "description": "El global ya fue cambiado por alguien (si no, vale el de partida)."
+          },
+          "lo_usan": {
+            "items": {
+              "$ref": "#/components/schemas/ConsumidorDelDriver"
+            },
+            "type": "array",
+            "title": "Lo Usan",
+            "description": "Los elementos y artefactos cuyo cálculo lee este driver (registro del dominio, probado)."
+          },
+          "sin_consumidor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sin Consumidor",
+            "description": "Si ningún cálculo lo lee todavía: el motivo."
           }
         },
         "type": "object",
@@ -34434,6 +34571,48 @@
           "editado"
         ],
         "title": "DriverRespuesta"
+      },
+      "DriverUsadoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "La clave del driver del Paramétrico."
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "valor": {
+            "type": "number",
+            "title": "Valor",
+            "description": "El valor con que se calculó."
+          },
+          "fuente": {
+            "type": "string",
+            "enum": [
+              "peticion",
+              "obra",
+              "global",
+              "defecto"
+            ],
+            "title": "Fuente",
+            "description": "`peticion`: lo mandó la petición; `obra`: el driver propio de la obra; `global`: el driver global de la organización; `defecto`: el valor por defecto del cálculo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "unidad",
+          "valor",
+          "fuente"
+        ],
+        "title": "DriverUsadoRespuesta"
       },
       "DriversDeRecetaPeticion": {
         "properties": {
@@ -48667,6 +48846,14 @@
           "drivers": {
             "$ref": "#/components/schemas/DriversDeRecetaPeticion"
           },
+          "drivers_usados": {
+            "items": {
+              "$ref": "#/components/schemas/DriverUsadoRespuesta"
+            },
+            "type": "array",
+            "title": "Drivers Usados",
+            "description": "Los drivers que leyó el cálculo y de dónde salió cada valor."
+          },
           "advertencias": {
             "items": {
               "type": "string"
@@ -48831,6 +49018,19 @@
           },
           "drivers": {
             "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda `drivers` > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre."
           }
         },
         "type": "object",

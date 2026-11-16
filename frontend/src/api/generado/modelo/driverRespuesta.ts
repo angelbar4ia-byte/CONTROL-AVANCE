@@ -9,6 +9,8 @@ import type { DriverRespuestaModoInicial } from "./driverRespuestaModoInicial";
 import type { DriverRespuestaModo } from "./driverRespuestaModo";
 import type { DriverRespuestaValorObra } from "./driverRespuestaValorObra";
 import type { DriverRespuestaOrigen } from "./driverRespuestaOrigen";
+import type { ConsumidorDelDriver } from "./consumidorDelDriver";
+import type { DriverRespuestaSinConsumidor } from "./driverRespuestaSinConsumidor";
 
 export interface DriverRespuesta {
   clave: string;
@@ -42,4 +44,8 @@ export interface DriverRespuesta {
   ajuste_ignorado: boolean;
   /** El global ya fue cambiado por alguien (si no, vale el de partida). */
   editado: boolean;
+  /** Los elementos y artefactos cuyo cálculo lee este driver (registro del dominio, probado). */
+  lo_usan?: ConsumidorDelDriver[];
+  /** Si ningún cálculo lo lee todavía: el motivo. */
+  sin_consumidor?: DriverRespuestaSinConsumidor;
 }

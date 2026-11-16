@@ -7,9 +7,12 @@
  */
 import type { CalculoDeEstructuraPeticionAltoM } from "./calculoDeEstructuraPeticionAltoM";
 import type { DriversDeRecetaPeticion } from "./driversDeRecetaPeticion";
+import type { CalculoDeEstructuraPeticionObraId } from "./calculoDeEstructuraPeticionObraId";
 
 export interface CalculoDeEstructuraPeticion {
   /** Alto en METROS; vacío usa la altura estándar de 3.00 m (4.20 m en la forjada). */
   alto_m?: CalculoDeEstructuraPeticionAltoM;
   drivers?: DriversDeRecetaPeticion;
+  /** La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre. */
+  obra_id?: CalculoDeEstructuraPeticionObraId;
 }

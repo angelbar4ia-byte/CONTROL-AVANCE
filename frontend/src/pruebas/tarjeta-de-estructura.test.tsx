@@ -145,12 +145,21 @@ beforeEach(() => {
 });
 
 describe('TarjetaEstructura', () => {
+  it('con una obra manda su obra_id y, con el alto sin tocar, el alto sale del driver de la obra', async () => {
+    m.calculo.current = { ...CALCULO_K7, alto_m: 3.5, drivers_usados: [{ clave: 'altura_estandar', nombre: 'Altura estándar del muro', unidad: 'm', valor: 3.5, fuente: 'obra' }] };
+    render(<TarjetaEstructura clave="EST-02170" obraId="obra-1" />);
+    await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'EST-02170', data: { obra_id: 'obra-1' } }));
+    const fila = await screen.findByText('Altura estándar del muro');
+    expect(fila.closest('[data-driver-usado]')).toHaveAttribute('data-fuente', 'obra');
+    await waitFor(() => expect(screen.getByLabelText(/Alto/)).toHaveValue('3.50'));
+  });
+
   it('pinta la ficha, el cálculo del servidor con su escalón y lo que solo trae el catálogo', async () => {
     render(<TarjetaEstructura clave="EST-02170" />);
     expect(screen.getByRole('article', { name: /EST-02170/ })).toHaveTextContent('K-7');
     expect(screen.getByTestId('estructura-seccion')).toHaveTextContent('15 × 20 (ancho del muro × largo)');
     expect(screen.getByTestId('estructura-armado')).toHaveTextContent('Armex ACE-00020');
-    await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'EST-02170', data: { alto_m: 3 } }));
+    await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'EST-02170', data: {} }));  // el alto sin tocar no se manda: lo da la altura estándar de la obra o el alto fijo
     const concepto = await screen.findByText('EST-10070');
     expect(concepto.closest('[data-concepto]')).toHaveTextContent('hasta 4.00 m');
     expect(screen.getByTestId('estructura-cimbra')).toHaveTextContent('2 lados');

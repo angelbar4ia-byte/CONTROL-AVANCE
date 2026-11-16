@@ -10,6 +10,7 @@ import type { CalculoDelElementoEstructuralPeticionLargoM } from "./calculoDelEl
 import type { CalculoDelElementoEstructuralPeticionAltoM } from "./calculoDelElementoEstructuralPeticionAltoM";
 import type { ZonaDeAnilloDelElemento } from "./zonaDeAnilloDelElemento";
 import type { DriversDeRecetaPeticion } from "./driversDeRecetaPeticion";
+import type { CalculoDelElementoEstructuralPeticionObraId } from "./calculoDelElementoEstructuralPeticionObraId";
 
 export interface CalculoDelElementoEstructuralPeticion {
   /** ml = por metro de trazo; pieza = de largo conocido. La zapata y la columna son pieza. */
@@ -31,4 +32,6 @@ export interface CalculoDelElementoEstructuralPeticion {
    */
   desperdicio_concreto_pct?: number;
   drivers?: DriversDeRecetaPeticion;
+  /** La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre. */
+  obra_id?: CalculoDelElementoEstructuralPeticionObraId;
 }

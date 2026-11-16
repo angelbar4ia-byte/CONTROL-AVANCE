@@ -24,6 +24,8 @@ import type { CalculoDelBaston, CalculoDelBastonPeticion } from '@/api/generado/
 import { queryClient } from '@/app/queryClient';
 import { useSesion } from '@/app/sesion';
 
+import { DriversUsadosDelCalculo } from './DriversUsadosDelCalculo';
+
 import { numeroTecleado } from '../volumen';
 
 function num(n: number | null | undefined, dec = 2): string {
@@ -49,6 +51,8 @@ const ESCALON: Record<string, string> = {
 
 interface Props {
   readonly clave: string;
+  /** La obra actual: el cálculo lee sus drivers (traslape, tolerancia de corte, máximo de piezas). */
+  readonly obraId?: string;
 }
 
 /** La varilla de 12 m con los bastones que salen de ella, a escala. Solo dibuja lo que el servidor calculó. */
@@ -77,7 +81,7 @@ function VarillaCortada({ c }: { readonly c: CalculoDelBaston }) {
   );
 }
 
-export function TarjetaBaston({ clave }: Props) {
+export function TarjetaBaston({ clave, obraId = '' }: Props) {
   const { sesion } = useSesion();
   const puedeProponer = sesion?.rol === 'control_obra' || sesion?.rol === 'costos';
   const puedeAutorizar = sesion?.rol === 'control_obra';
@@ -95,7 +99,8 @@ export function TarjetaBaston({ clave }: Props) {
   const [sep, setSep] = useState('25');
   const [largo, setLargo] = useState('120');
   const [puntas, setPuntas] = useState('0');
-  const [traslape, setTraslape] = useState('40');
+  // `null` = sin tocar: el traslape lo da el driver de la obra (o el valor por defecto) y no se manda.
+  const [traslape, setTraslape] = useState<string | null>(null);
   const [calculo, setCalculo] = useState<CalculoDelBaston | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -110,7 +115,7 @@ export function TarjetaBaston({ clave }: Props) {
     setSep(String(p.sep_cm));
     setLargo(String(p.largo_cm));
     setPuntas(String(p.puntas_cm));
-    setTraslape(String(p.traslape_diametros));
+    setTraslape(null);
     setCalculo(null);
     setError(null);
     setAviso(null);
@@ -118,16 +123,24 @@ export function TarjetaBaston({ clave }: Props) {
 
   const peticion = useMemo<CalculoDelBastonPeticion | null>(() => {
     if (!d) return null;
-    if ([trazo, sep, largo, puntas, traslape].some((t) => t.trim() === '')) return null;
+    if ([trazo, sep, largo, puntas, traslape ?? '0'].some((t) => t.trim() === '')) return null;
     const t = numeroTecleado(trazo);
     const s = numeroTecleado(sep);
     const l = numeroTecleado(largo);
     const p = numeroTecleado(puntas);
-    const tr = numeroTecleado(traslape);
+    const tr = traslape === null ? null : numeroTecleado(traslape);
     const v = Math.trunc(numeroTecleado(varilla));
-    if (!(t > 0 && s >= 5 && s <= 200 && l >= 10 && l <= 3000 && p >= 0 && p <= 100 && tr >= 0 && tr <= 100 && v >= 3 && v <= 6)) return null;
-    return { trazo_m: t, varilla_numero: v, sep_cm: s, largo_cm: l, puntas_cm: p, traslape_diametros: tr };
-  }, [d, trazo, varilla, sep, largo, puntas, traslape]);
+    if (!(t > 0 && s >= 5 && s <= 200 && l >= 10 && l <= 3000 && p >= 0 && p <= 100 && (tr === null || (tr >= 0 && tr <= 100)) && v >= 3 && v <= 6)) return null;
+    return {
+      trazo_m: t,
+      varilla_numero: v,
+      sep_cm: s,
+      largo_cm: l,
+      puntas_cm: p,
+      ...(tr === null ? {} : { traslape_diametros: tr }),
+      ...(obraId === '' ? {} : { obra_id: obraId }),
+    };
+  }, [d, trazo, varilla, sep, largo, puntas, traslape, obraId]);
 
   const { mutateAsync } = calcular;
   useEffect(() => {
@@ -227,9 +240,11 @@ export function TarjetaBaston({ clave }: Props) {
         </label>
         <label className="mct__campo">
           <span>Traslape (diámetros)</span>
-          <input className="input" inputMode="decimal" aria-label="Traslape en diámetros" value={traslape} onChange={(e) => setTraslape(e.target.value)} />
+          <input className="input" inputMode="decimal" aria-label="Traslape en diámetros" value={traslape ?? String(calculo?.parametros.traslape_diametros ?? d?.parametros_por_defecto.traslape_diametros ?? 40)} onChange={(e) => setTraslape(e.target.value)} />
         </label>
       </section>
+
+      <DriversUsadosDelCalculo usados={calculo?.drivers_usados} hayObra={obraId !== ''} />
 
       {peticion === null && (
         <p className="text-sm mct__aviso">Captura la separación (5 a 200 cm), el largo (10 a 3000 cm), las puntas (0 a 100 cm) y un trazo mayor que cero.</p>

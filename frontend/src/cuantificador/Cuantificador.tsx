@@ -3266,8 +3266,8 @@ export function EspacioDeTrazo({
                 {aviso}
               </div>
             )}
-            {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} rol={sesion?.rol} />}
-            {pestana === 'artefacto' && <PantallaDeArtefacto plantillaId={plantillaDeMuro} onElegir={setPlantillaDeMuro} />}
+            {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} rol={sesion?.rol} obraId={obraId} />}
+            {pestana === 'artefacto' && <PantallaDeArtefacto plantillaId={plantillaDeMuro} onElegir={setPlantillaDeMuro} obraId={obraId} />}
             {pestana === 'parametrico' && (
               <PantallaParametrica
                 obraId={obraId}

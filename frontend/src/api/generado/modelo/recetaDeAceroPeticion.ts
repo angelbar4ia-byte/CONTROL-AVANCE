@@ -13,6 +13,7 @@ import type { ZonaDeAnilloPeticion } from "./zonaDeAnilloPeticion";
 import type { RecetaDeAceroPeticionAlambreKgMl } from "./recetaDeAceroPeticionAlambreKgMl";
 import type { ConsumoDeCimbraPeticion } from "./consumoDeCimbraPeticion";
 import type { DriversDeRecetaPeticion } from "./driversDeRecetaPeticion";
+import type { RecetaDeAceroPeticionObraId } from "./recetaDeAceroPeticionObraId";
 
 export interface RecetaDeAceroPeticion {
   /** castillo = por pieza de altura conocida; pieza = trabe o contratrabe por pieza; ml = por metro de trazo. */
@@ -68,4 +69,6 @@ export interface RecetaDeAceroPeticion {
    */
   cantidad?: number;
   drivers?: DriversDeRecetaPeticion;
+  /** La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda `drivers` > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre. */
+  obra_id?: RecetaDeAceroPeticionObraId;
 }

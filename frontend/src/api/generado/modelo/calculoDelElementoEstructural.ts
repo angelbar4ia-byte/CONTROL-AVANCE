@@ -17,6 +17,7 @@ import type { InsumoCalculado } from "./insumoCalculado";
 import type { ManoDeObraDelElemento } from "./manoDeObraDelElemento";
 import type { ConciliacionConUnConcepto } from "./conciliacionConUnConcepto";
 import type { CalculoDelElementoEstructuralCaminoDeColadoYCimbra } from "./calculoDelElementoEstructuralCaminoDeColadoYCimbra";
+import type { DriverUsadoRespuesta } from "./driverUsadoRespuesta";
 
 export interface CalculoDelElementoEstructural {
   clave: string;
@@ -37,5 +38,7 @@ export interface CalculoDelElementoEstructural {
   mano_de_obra: ManoDeObraDelElemento;
   conciliacion: ConciliacionConUnConcepto[];
   camino_de_colado_y_cimbra: CalculoDelElementoEstructuralCaminoDeColadoYCimbra;
+  /** Los drivers que leyó el cálculo y de dónde salió cada valor. */
+  drivers_usados?: DriverUsadoRespuesta[];
   advertencias: string[];
 }
