@@ -6,9 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ClasificacionDeMuroRespuestaTipo } from "./clasificacionDeMuroRespuestaTipo";
+import type { ClasificacionDeMuroRespuestaMaterial } from "./clasificacionDeMuroRespuestaMaterial";
+import type { ClasificacionDeMuroRespuestaUbicacion } from "./clasificacionDeMuroRespuestaUbicacion";
+import type { ClasificacionDeMuroRespuestaPlantillaId } from "./clasificacionDeMuroRespuestaPlantillaId";
 import type { ClasificacionDeMuroRespuestaAcabado } from "./clasificacionDeMuroRespuestaAcabado";
 
 export interface ClasificacionDeMuroRespuesta {
   tipo: ClasificacionDeMuroRespuestaTipo;
+  material?: ClasificacionDeMuroRespuestaMaterial;
+  ubicacion?: ClasificacionDeMuroRespuestaUbicacion;
+  /** La plantilla (versión) que eligió el trazo; `null` = ninguna. */
+  plantilla_id?: ClasificacionDeMuroRespuestaPlantillaId;
+  /** Era un muro «sillar» antes de la 0133: se le puso confinado por prudencia y falta decidir si es confinado o tabique. */
+  tipo_por_confirmar?: boolean;
   acabado: ClasificacionDeMuroRespuestaAcabado;
 }

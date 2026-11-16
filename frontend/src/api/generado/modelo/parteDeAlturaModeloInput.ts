@@ -7,6 +7,10 @@
  */
 import type { ParteDeAlturaModeloInputDesdeM } from "./parteDeAlturaModeloInputDesdeM";
 import type { ParteDeAlturaModeloInputHastaM } from "./parteDeAlturaModeloInputHastaM";
+import type { ParteDeAlturaModeloInputRol } from "./parteDeAlturaModeloInputRol";
+import type { ParteDeAlturaModeloInputCaraA } from "./parteDeAlturaModeloInputCaraA";
+import type { ParteDeAlturaModeloInputCaraB } from "./parteDeAlturaModeloInputCaraB";
+import type { ParteDeAlturaModeloInputElementoRef } from "./parteDeAlturaModeloInputElementoRef";
 
 export interface ParteDeAlturaModeloInput {
   /** @maxLength 40 */
@@ -15,4 +19,12 @@ export interface ParteDeAlturaModeloInput {
   hasta_m: ParteDeAlturaModeloInputHastaM;
   /** Si no suma, cuenta para la altura pero no para la cantidad. */
   suma?: boolean;
+  /** Qué papel juega la parte; el enrase de un muro interior es exterior por defecto (0133). */
+  rol?: ParteDeAlturaModeloInputRol;
+  /** Cara A (izquierda del sentido de dibujo) de la parte; `null` = sin ubicar (0133). */
+  cara_a?: ParteDeAlturaModeloInputCaraA;
+  /** Cara B (derecha del sentido de dibujo) de la parte; `null` = sin ubicar (0133). */
+  cara_b?: ParteDeAlturaModeloInputCaraB;
+  /** La cadena que define la parte (0133). */
+  elemento_ref?: ParteDeAlturaModeloInputElementoRef;
 }
