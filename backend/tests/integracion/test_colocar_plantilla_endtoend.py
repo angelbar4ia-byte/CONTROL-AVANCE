@@ -258,3 +258,25 @@ async def test_los_castillos_estimados_se_cuentan_pero_no_se_colocan_y_el_castil
     assert any("estimados" in a for a in v["avisos"])
     r = await control.post(f"/api/v1/trazos/{muro}/muro/plantilla/colocar")
     assert r.status_code == 422 and "estimados" in r.text
+
+
+async def test_la_separacion_de_castillos_del_driver_reparte_los_estimados_sin_separacion_propia(
+    control: httpx.AsyncClient, escenario: Escenario, arbol: dict[str, Any]
+) -> None:
+    await _elemento_con_conceptos(control, arbol)
+    sin_sep = await _plantilla(control, nombre="Confinado sin sep", tipo="confinado", elementos=[{"ref": "K-1"}])
+    con_sep = await _plantilla(control, nombre="Confinado con sep", tipo="confinado", elementos=[{"ref": "K-1", "sep_m": "2.5"}])
+    ubicada = await _plantilla(control, nombre="Con cadena", tipo="con_cadena", elementos=[{"ref": "K-1"}])
+    _, a = await _muro(control, escenario, sin_sep["id"])
+    _, b = await _muro(control, escenario, con_sep["id"])
+    _, c = await _muro(control, escenario, ubicada["id"])
+
+    async def piezas(trazo: str) -> int:
+        (k,) = (await control.get(f"/api/v1/trazos/{trazo}/muro/plantilla/colocacion")).json()["elementos"]
+        return int(k["piezas"])
+
+    assert (await piezas(a), await piezas(b), await piezas(c)) == (5, 5, 2)  # 3.00 m de partida: ⌈10 ÷ 3⌉ + 1; el ubicado, en los extremos
+    r = await control.put(f"/api/v1/obras/{escenario.obra_id}/drivers/separacion_castillos", json={"valor": "2"})
+    assert r.status_code == 200, r.text
+    assert (await piezas(a), await piezas(b), await piezas(c)) == (6, 5, 2)  # el driver mueve al que no trae separación; la propia manda
+    # Sin plano de por medio, el cambio del driver no toca lo ya colocado (Q1): solo cambia lo que se calcula de ahí en adelante.

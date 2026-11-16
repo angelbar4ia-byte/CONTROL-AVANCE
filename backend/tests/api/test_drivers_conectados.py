@@ -25,7 +25,9 @@ from obractrl.adapters.api.v1.elementos_de_estructura import router as router_es
 from obractrl.adapters.api.v1.elementos_estructurales import router as router_lineal
 from obractrl.adapters.api.v1.muros_de_tabique import router as router_tabique
 from obractrl.adapters.api.v1.receta_acero import router as router_receta
-from obractrl.domain.cuantificacion.cambio_de_unidad import medida_para  # noqa: F401  (el plano lee la altura por aquí)
+from obractrl.domain.cuantificacion.cambio_de_unidad import (
+    medida_para,  # noqa: F401  (el plano lee la altura por aquí)
+)
 from obractrl.domain.cuantificacion.colocacion_de_plantilla import colocar_plantilla
 from obractrl.domain.cuantificacion.consumidores_de_drivers import (
     CONSUMIDORES,
@@ -33,9 +35,16 @@ from obractrl.domain.cuantificacion.consumidores_de_drivers import (
     consumidores_de,
 )
 from obractrl.domain.cuantificacion.conversion import conversion_por_defecto
-from obractrl.domain.cuantificacion.elementos_lineales import claves_de_elementos_estructurales
+from obractrl.domain.cuantificacion.drivers import (
+    CATALOGO_DE_DRIVERS,
+    ValorVigente,
+    definicion_de,
+    resolver,
+)
+from obractrl.domain.cuantificacion.elementos_lineales import (
+    claves_de_elementos_estructurales,
+)
 from obractrl.domain.cuantificacion.estructura_de_catalogo import ELEMENTOS_DE_ESTRUCTURA
-from obractrl.domain.cuantificacion.drivers import CATALOGO_DE_DRIVERS, ValorVigente, definicion_de, resolver
 from obractrl.domain.cuantificacion.muro_cimentacion import CORONA_M, ESCARPIO_MINIMO
 
 OBRA = uuid4()
@@ -269,7 +278,7 @@ def test_cada_consumidor_lee_exactamente_los_drivers_que_el_registro_dice(consum
 
 def test_la_colocacion_de_la_plantilla_lee_la_altura_y_la_separacion() -> None:
     registrado = next(c for c in CONSUMIDORES if c.id == "plantilla_colocar")
-    elementos = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "sep_m": None, "z_m": "0"}]
+    elementos = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "estimado", "z_m": "0"}]
 
     def correr(vigentes: dict[str, str]) -> Any:
         d = {x.clave: Decimal(vigentes.get(x.clave, x.inicial)) for x in CATALOGO_DE_DRIVERS}

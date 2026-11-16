@@ -187,18 +187,23 @@ def test_un_enlace_de_ranura_manda_sobre_el_concepto_del_contexto() -> None:
     assert any("OTRO-1" in a for a in avisos)
 
 
-def test_la_separacion_propia_manda_sobre_el_driver_y_sin_ella_manda_el_driver() -> None:
-    propia = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "sep_m": "2", "z_m": "0"}]
-    sin = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "z_m": "0"}]
+def test_la_separacion_propia_manda_sobre_el_driver_y_sin_ella_el_castillo_estimado_usa_el_driver() -> None:
     anchos = {"K-1": D("0.15")}
-    # propia 2 m en un muro de 10 m: ⌈10 ÷ 2⌉ + 1 = 6, aunque el driver diga 3 m.
-    assert colocar_plantilla(propia, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D(3)).instancias[0].piezas == 6
-    # sin separación propia, la del driver: ⌈10 ÷ 3⌉ + 1 = 5.
-    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D(3)).instancias[0].piezas == 5
-    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D("2.5")).instancias[0].piezas == 5
-    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D(2)).instancias[0].piezas == 6
+    propia = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "estimado", "sep_m": "2", "z_m": "0"}]
+    sin = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "estimado", "z_m": "0"}]
+
+    def piezas(el: list[dict[str, str]], sep: str | None) -> int:
+        d = D(sep) if sep else None
+        return colocar_plantilla(el, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=d).instancias[0].piezas
+
+    assert piezas(propia, "3") == 6  # propia 2 m: ⌈10 ÷ 2⌉ + 1, aunque el driver diga 3 m
+    assert piezas(sin, "3") == 5  # la del driver: ⌈10 ÷ 3⌉ + 1
+    assert piezas(sin, "2.5") == 5
+    assert piezas(sin, "2") == 6
+    assert piezas(sin, None) == 2  # sin driver, «extremos» como antes
 
 
-def test_sin_driver_un_castillo_sin_separacion_sigue_siendo_extremos() -> None:
+def test_un_castillo_ubicado_sin_separacion_sigue_en_los_extremos_aunque_haya_driver() -> None:
     sin = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "z_m": "0"}]
-    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m={"K-1": D("0.15")}).instancias[0].piezas == 2
+    c = colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m={"K-1": D("0.15")}, separacion_m=D(3))
+    assert c.instancias[0].piezas == 2

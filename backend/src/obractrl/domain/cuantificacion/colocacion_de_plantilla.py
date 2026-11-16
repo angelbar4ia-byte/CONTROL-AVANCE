@@ -149,9 +149,9 @@ def colocar_plantilla(
     `elementos` son las instancias guardadas en la plantilla (`uid`, `ref`, `clase`, `modo`, `sep_m`, `z_m`); `anchos_m` da, por clave del
     elemento, cuánto ocupa un castillo a lo largo del muro. Los elementos de otra clase (el muro de tabique) no se colocan aquí.
 
-    `separacion_m` es el driver `separacion_castillos` de la obra: la separación de un castillo que la plantilla no fija (su `sep_m`
-    vacío). La separación propia del castillo en la plantilla manda sobre el driver. Sin driver (`None`), un castillo sin separación
-    sigue siendo «extremos» (2 piezas), como antes.
+    `separacion_m` es el driver `separacion_castillos` de la obra: la separación de un castillo **estimado** que la plantilla no fija
+    (su `sep_m` vacío). La separación propia del castillo en la plantilla manda sobre el driver. Un castillo **ubicado** sin
+    separación sigue siendo «extremos» (2 piezas), como antes, y sin driver (`None`) también el estimado.
     """
     if largo_m <= 0:
         raise ErrorDeColocacion("El largo del muro debe ser mayor que cero.")
@@ -163,13 +163,15 @@ def colocar_plantilla(
         uid, ref = str(e.get("uid") or e.get("ref") or ""), str(e.get("ref") or "")
         z = _d(e.get("z_m") or 0)
         if clase == "castillo":
-            sep = _d(e["sep_m"]) if e.get("sep_m") not in (None, "") else separacion_m
+            ubicado = e.get("modo") == "ubicado"
+            # Sin separación propia: un castillo estimado (muro confinado) se reparte por la del driver; uno ubicado (muro con
+            # cadena) se coloca en los extremos, como antes.
+            sep = _d(e["sep_m"]) if e.get("sep_m") not in (None, "") else (None if ubicado else separacion_m)
             ancho = anchos_m.get(ref)
             if ancho is None or ancho <= 0:
                 raise ErrorDeColocacion(f"El castillo {ref} no trae el ancho con que se coloca en el muro.")
             n = piezas_de_castillo(largo_m, sep)
             alto = alto_de_castillo(altura_m, z)
-            ubicado = e.get("modo") == "ubicado"
             posiciones = tuple(posiciones_de_castillos(largo_m, n, ancho)) if ubicado else ()
             salida.instancias.append(
                 Instancia(

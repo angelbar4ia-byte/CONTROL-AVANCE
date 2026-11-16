@@ -76,7 +76,7 @@ CONSUMIDORES: tuple[Consumidor, ...] = (
         constantes=("escarpio_minimo", "corona_cimiento_cm"),
     ),
     Consumidor(
-        "plantilla_colocar", "artefacto", "Colocar la plantilla de muro en el plano", ("altura_estandar", "separacion_castillos"),
+        "plantilla_colocar", "artefacto", "Colocar la plantilla de muro en el plano (alto de los castillos y reparto de los estimados)", ("altura_estandar", "separacion_castillos"),
     ),
     Consumidor(
         "plantilla_vista_previa", "artefacto", "Vista previa de la plantilla de muro", ("altura_estandar", "separacion_castillos"),

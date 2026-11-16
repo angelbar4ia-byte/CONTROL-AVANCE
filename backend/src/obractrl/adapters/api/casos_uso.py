@@ -11,6 +11,7 @@ router solo conoce el caso de uso (aplicación), no `adapters.repos`.
 
 from __future__ import annotations
 
+import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
 from decimal import Decimal
 from typing import Annotated, Any
@@ -1147,7 +1148,9 @@ class DriversDeObraPerezosos:
 
                 ctx = await contexto_actual(await _bearer(self._request), obtener_config())
             else:
-                ctx = await contexto()
+                ctx = contexto()
+                if inspect.isawaitable(ctx):
+                    ctx = await ctx
             abrir = self._dependencia(sesion_rls)
             if abrir is sesion_rls:
                 sesion = await pila.enter_async_context(sesion_con_rls(ctx))
