@@ -80,9 +80,15 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.9 });
     await expect.poll(async () => (await trazos()).length).toBe(2);
 
-    const hijo = (await llamarApi<{ features: { id: string; geometry: { coordinates: number[][] }; properties: Record<string, unknown> }[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features.find(
-      (f) => f.properties.revestimiento_de === muroId,
-    )!;
+    // El plano crea la línea y DESPUÉS la liga a su muro (dos llamadas): que ya haya dos trazos no quiere decir que el hijo ya
+    // diga de quién es. Se espera el estado real del servidor: el trazo cuyo `revestimiento_de` es el muro.
+    type Trazo = { id: string; geometry: { coordinates: number[][] }; properties: Record<string, unknown> };
+    const hijoDelServidor = async () =>
+      (await llamarApi<{ features: Trazo[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features.find(
+        (f) => f.properties.revestimiento_de === muroId,
+      );
+    await expect.poll(async () => (await hijoDelServidor())?.id ?? null).not.toBeNull();
+    const hijo = (await hijoDelServidor())!;
     expect(hijo.properties.revestimiento_cara).toBe('fachada');
     const largo = Math.hypot(hijo.geometry.coordinates[1]![0]! - hijo.geometry.coordinates[0]![0]!, hijo.geometry.coordinates[1]![1]! - hijo.geometry.coordinates[0]![1]!);
     const enlace = (hijo.properties.enlaces as { cantidad: string }[])[0]!;
