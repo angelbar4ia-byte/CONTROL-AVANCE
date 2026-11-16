@@ -424,8 +424,10 @@ def claves_de_concepto(e: ElementoDeEstructura) -> list[str]:
 # --- Cálculo ------------------------------------------------------------------------------------------------------------
 
 
-def _alto_de(e: ElementoDeEstructura, alto_m: float | None) -> float:
-    alto = e.alto_fijo_m if (alto_m is None and e.alto_fijo_m) else (alto_m if alto_m is not None else ALTO_ESTANDAR_M)
+def _alto_de(e: ElementoDeEstructura, alto_m: float | None, estandar_m: float | None = None) -> float:
+    """El alto del cálculo: el pedido; sin él, el fijo de la forjada; sin ninguno, la altura estándar (la de la obra si se da)."""
+    por_defecto = estandar_m if estandar_m is not None else ALTO_ESTANDAR_M
+    alto = e.alto_fijo_m if (alto_m is None and e.alto_fijo_m) else (alto_m if alto_m is not None else por_defecto)
     if not (0 < alto <= 30):
         raise ErrorDeEstructura("El alto va en metros, entre 0 y 30.")
     return float(alto)
@@ -500,10 +502,10 @@ def calcular_forro(f: Forro, alto_m: float) -> dict[str, Any]:
     }
 
 
-def _colado_por_ml(e: ElementoDeEstructura) -> dict[str, float]:
-    """Concreto y cimbra de un metro del elemento, con los consumos del catálogo."""
+def _colado_por_ml(e: ElementoDeEstructura, desperdicio: float = DESPERDICIO_CONCRETO) -> dict[str, float]:
+    """Concreto y cimbra de un metro del elemento, con los consumos del catálogo. `desperdicio` es una fracción (0.05 = 5 %)."""
     seccion = (e.ancho_cm / 100) * ((e.largo_cm if e.tipo == "castillo" else e.peralte_cm) or 0) / 100
-    insumos = {CONCRETO: seccion * (1 + DESPERDICIO_CONCRETO)}
+    insumos = {CONCRETO: seccion * (1 + desperdicio)}
     for ins, q in e.cimbra:
         insumos[ins] = insumos.get(ins, 0.0) + q
     return insumos
@@ -541,7 +543,12 @@ def _receta(e: ElementoDeEstructura, alto: float, drivers: DriversDeReceta | Non
 
 
 def insumos_del_concepto(
-    e: ElementoDeEstructura, c: ConceptoDeEstructura, alto: float, *, drivers: DriversDeReceta | None = None
+    e: ElementoDeEstructura,
+    c: ConceptoDeEstructura,
+    alto: float,
+    *,
+    drivers: DriversDeReceta | None = None,
+    desperdicio_concreto: float = DESPERDICIO_CONCRETO,
 ) -> dict[str, float]:
     """Lo que calcula el elemento por **unidad del concepto** (`{clave del insumo: cantidad}`), con el alto dado.
 
@@ -551,19 +558,19 @@ def insumos_del_concepto(
     - `completo` por metro: el acero por metro más el colado.
     """
     if c.nuevo:
-        return _insumos_de_concepto_nuevo(e)
+        return _insumos_de_concepto_nuevo(e, drivers)
     if c.ranura == "acero":
         return _insumos_de_acero(_receta(e, alto, drivers))
     if e.forro is not None:
         forro = calcular_forro(e.forro, alto)
-        nucleo = (e.ancho_cm / 100) * ((e.largo_cm or 0) / 100) * alto * (1 + DESPERDICIO_CONCRETO)
+        nucleo = (e.ancho_cm / 100) * ((e.largo_cm or 0) / 100) * alto * (1 + desperdicio_concreto)
         return {
             e.forro.tabique: forro["tabique_pza"],
             e.forro.mezcla: forro["mezcla_m3"],
             CONCRETO: nucleo,
             e.forro.cimbra_insumo: forro["cimbra_m2"],
         }
-    colado = _colado_por_ml(e)
+    colado = _colado_por_ml(e, desperdicio_concreto)
     if c.ranura == "colado":
         return colado
     # completo (aparentes): por metro. El castillo aparente se calcula por pieza y se divide entre su alto.
@@ -576,9 +583,9 @@ def insumos_del_concepto(
     return acero
 
 
-def _insumos_de_concepto_nuevo(e: ElementoDeEstructura) -> dict[str, float]:
-    """El concepto nuevo de K-8: el armex 10×15 del colado, de 6 m con traslape de 15 cm, por metro de castillo."""
-    drivers = DriversDeReceta()
+def _insumos_de_concepto_nuevo(e: ElementoDeEstructura, drivers: DriversDeReceta | None = None) -> dict[str, float]:
+    """El concepto nuevo de K-8: el armex 10×15 del colado, de 6 m con el traslape del driver (15 cm), por metro de castillo."""
+    drivers = drivers or DriversDeReceta()
     return {"ACE-00020": 1.0 / (LARGO_ARMEX_M - drivers.traslape_armex_cm / 100)}
 
 
@@ -596,14 +603,19 @@ def concepto_nuevo_por_altura(e: ElementoDeEstructura, alto_m: float) -> dict[st
 
 
 def calcular_elemento(
-    clave: str, alto_m: float | None = None, *, drivers: DriversDeReceta | None = None
+    clave: str,
+    alto_m: float | None = None,
+    *,
+    drivers: DriversDeReceta | None = None,
+    desperdicio_concreto: float = DESPERDICIO_CONCRETO,
+    alto_estandar_m: float | None = None,
 ) -> dict[str, Any]:
     """El elemento calculado con el `alto_m` dado (la altura estándar de 3.00 m si no se dice; 4.20 m en la forjada).
 
     Devuelve la receta del acero, el colado, el forro de la forjada, y por cada concepto lo que calcula el elemento por unidad
     del concepto, con el escalón que corresponde al alto y los avisos."""
     e = elemento_de_estructura(clave)
-    alto = _alto_de(e, alto_m)
+    alto = _alto_de(e, alto_m, alto_estandar_m)
     avisos: list[str] = []
     nuevo = concepto_nuevo_por_altura(e, alto)
     if nuevo:
@@ -623,7 +635,7 @@ def calcular_elemento(
             )
         alto_del_concepto = alto
         concepto_clave = esc.clave if esc else c.clave
-        insumos = insumos_del_concepto(e, c, alto_del_concepto, drivers=drivers)
+        insumos = insumos_del_concepto(e, c, alto_del_concepto, drivers=drivers, desperdicio_concreto=desperdicio_concreto)
         conceptos.append(
             {
                 "ranura": c.ranura,
@@ -636,7 +648,7 @@ def calcular_elemento(
                 "insumos": insumos,
             }
         )
-    colado = _colado_por_ml(e) if not e.forro else {}
+    colado = _colado_por_ml(e, desperdicio_concreto) if not e.forro else {}
     return {
         "clave": e.clave,
         "alias": e.alias,

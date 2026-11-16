@@ -185,3 +185,20 @@ def test_un_enlace_de_ranura_manda_sobre_el_concepto_del_contexto() -> None:
     )
     assert next(c for c in cs2 if c.ranura == "colado").estado == "falta_partida"
     assert any("OTRO-1" in a for a in avisos)
+
+
+def test_la_separacion_propia_manda_sobre_el_driver_y_sin_ella_manda_el_driver() -> None:
+    propia = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "sep_m": "2", "z_m": "0"}]
+    sin = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "z_m": "0"}]
+    anchos = {"K-1": D("0.15")}
+    # propia 2 m en un muro de 10 m: ⌈10 ÷ 2⌉ + 1 = 6, aunque el driver diga 3 m.
+    assert colocar_plantilla(propia, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D(3)).instancias[0].piezas == 6
+    # sin separación propia, la del driver: ⌈10 ÷ 3⌉ + 1 = 5.
+    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D(3)).instancias[0].piezas == 5
+    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D("2.5")).instancias[0].piezas == 5
+    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m=anchos, separacion_m=D(2)).instancias[0].piezas == 6
+
+
+def test_sin_driver_un_castillo_sin_separacion_sigue_siendo_extremos() -> None:
+    sin = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "z_m": "0"}]
+    assert colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m={"K-1": D("0.15")}).instancias[0].piezas == 2

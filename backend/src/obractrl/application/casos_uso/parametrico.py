@@ -18,6 +18,10 @@ from uuid import UUID
 from obractrl.application.casos_uso.cuantificar import MedicionNoEncontrada
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
+from obractrl.domain.cuantificacion.consumidores_de_drivers import (
+    SIN_CONSUMIDOR_POR_AHORA,
+    consumidores_de,
+)
 from obractrl.domain.cuantificacion.drivers import (
     CATALOGO_DE_DRIVERS,
     DefinicionDeDriver,
@@ -44,7 +48,14 @@ from obractrl.domain.cuantificacion.enlaces_de_ranura import (
     validar_ubicacion,
 )
 
-__all__ = ["DriverNoEncontrado", "EnlaceNoEncontrado", "GestionarDrivers", "GestionarEnlacesDeRanura"]
+__all__ = [
+    "DriverNoEncontrado",
+    "EnlaceNoEncontrado",
+    "GestionarDrivers",
+    "GestionarEnlacesDeRanura",
+    "resueltos_de",
+    "vigentes_de_obra",
+]
 
 
 class DriverNoEncontrado(MedicionNoEncontrada):
@@ -73,7 +84,36 @@ def _fila(d: DefinicionDeDriver, v: ValorVigente, *, editado: bool) -> dict[str,
         "valor_inicial": _limpio(d.inicial), "modo_inicial": d.modo_inicial,
         "valor_global": _limpio(v.valor_global), "modo": v.modo, "valor_obra": _limpio(v.valor_obra),
         "valor_vigente": _limpio(v.valor), "origen": v.origen, "ajuste_ignorado": v.ajuste_ignorado, "editado": editado,
+        "lo_usan": [
+            {"id": c.id, "tipo": c.tipo, "nombre": c.nombre, "lectura": "constante" if d.clave in c.constantes else "driver"}
+            for c in consumidores_de(d.clave)
+        ],
+        "sin_consumidor": SIN_CONSUMIDOR_POR_AHORA.get(d.clave),
     }
+
+
+async def resueltos_de(parametrico: Any, obra_id: UUID | None) -> list[tuple[DefinicionDeDriver, ValorVigente, bool]]:
+    """Cada driver del catálogo con su valor vigente (el de la obra, si se da, o el de la organización) y si el global ya fue editado.
+
+    No revisa que la obra sea visible: quien la llama ya trabaja dentro de su alcance (el trazo, el cálculo con su `obra_id`)."""
+    globales = await parametrico.globales()
+    de_obra = await parametrico.de_obra(obra_id) if obra_id is not None else {}
+    salida = []
+    for d in CATALOGO_DE_DRIVERS:
+        g, o = globales.get(d.clave), de_obra.get(d.clave)
+        v = resolver(
+            d,
+            valor_global=g["valor"] if g else None,
+            modo_global=g["modo"] if g else None,
+            valor_obra=o["valor"] if o else None,
+        )
+        salida.append((d, v, g is not None))
+    return salida
+
+
+async def vigentes_de_obra(parametrico: Any, obra_id: UUID) -> dict[str, ValorVigente]:
+    """`clave → valor vigente` de una obra, sin revisar visibilidad (para los casos de uso que ya tienen el trazo en su alcance)."""
+    return {v.clave: v for _, v, _ in await resueltos_de(parametrico, obra_id)}
 
 
 class GestionarDrivers:
@@ -85,23 +125,22 @@ class GestionarDrivers:
         if not await self._p.obra_visible(obra_id):
             raise ObraNoEncontrada(f"La obra {obra_id} no existe o está fuera de tu alcance.")
 
-    async def listar(self, obra_id: UUID | None = None) -> list[dict[str, Any]]:
-        """Los drivers con su valor vigente: el de la organización o, con obra, el de esa obra."""
+    async def _resueltos(self, obra_id: UUID | None) -> list[tuple[DefinicionDeDriver, ValorVigente, bool]]:
         if obra_id is not None:
             await self._obra(obra_id)
-        globales = await self._p.globales()
-        de_obra = await self._p.de_obra(obra_id) if obra_id is not None else {}
-        filas = []
-        for d in CATALOGO_DE_DRIVERS:
-            g, o = globales.get(d.clave), de_obra.get(d.clave)
-            v = resolver(
-                d,
-                valor_global=g["valor"] if g else None,
-                modo_global=g["modo"] if g else None,
-                valor_obra=o["valor"] if o else None,
-            )
-            filas.append(_fila(d, v, editado=g is not None))
-        return filas
+        return await resueltos_de(self._p, obra_id)
+
+    async def listar(self, obra_id: UUID | None = None) -> list[dict[str, Any]]:
+        """Los drivers con su valor vigente: el de la organización o, con obra, el de esa obra."""
+        return [_fila(d, v, editado=editado) for d, v, editado in await self._resueltos(obra_id)]
+
+    async def valores(self, obra_id: UUID | None) -> dict[str, ValorVigente] | None:
+        """Los valores vigentes con su origen, para los cálculos de elementos. Sin obra: `None` (el cálculo vale lo de siempre).
+
+        Con una obra que no existe o está fuera del alcance levanta `ObraNoEncontrada` (404)."""
+        if obra_id is None:
+            return None
+        return {v.clave: v for _, v, _ in await self._resueltos(obra_id)}
 
     async def vigentes(self, obra_id: UUID | None = None) -> dict[str, Decimal]:
         """`clave → valor vigente`: lo que los cálculos de elementos y plantillas leen."""

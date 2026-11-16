@@ -171,7 +171,11 @@ class EntradaDeBaston:
     puntas_cm: float = 0.0
     """Anclaje adicional (patilla o gancho): 0 = sin gancho (Q28)."""
     traslape_diametros: float = 40.0
-    """Entre las piezas de un bastón largo; 40 diámetros confirmado (Q22)."""
+    """Entre las piezas de un bastón largo; 40 diámetros confirmado (Q22). Es el driver `traslape_varilla_diametros`."""
+    tolerancia_corte_cm: float = 0.0
+    """Falta que se acepta sin pasar al corte siguiente. Es el driver `tolerancia_corte_cm`."""
+    max_piezas_corte: int = 3
+    """Máximo de piezas por bastón largo. Es el driver `max_piezas_corte`."""
 
 
 def _validar(i: EntradaDeBaston) -> None:
@@ -187,6 +191,10 @@ def _validar(i: EntradaDeBaston) -> None:
         raise ErrorDeBaston("Las puntas van de 0 a 100 cm.")
     if not (0 <= i.traslape_diametros <= 100):
         raise ErrorDeBaston("El traslape va de 0 a 100 diámetros.")
+    if not (0 <= i.tolerancia_corte_cm <= 200):
+        raise ErrorDeBaston("La tolerancia de corte va de 0 a 200 cm.")
+    if not (1 <= i.max_piezas_corte <= 12):
+        raise ErrorDeBaston("El máximo de piezas por corte va de 1 a 12.")
 
 
 def _techo(x: float) -> int:
@@ -198,7 +206,9 @@ def _por_varilla(modulo_m: float) -> int:
 
 
 def _plan_ajustado(i: EntradaDeBaston, n_bastones: int, peso: float) -> dict[str, Any]:
-    d = DriversDeReceta(traslape_varilla_diametros=i.traslape_diametros)
+    d = DriversDeReceta(
+        traslape_varilla_diametros=i.traslape_diametros, tolerancia_corte_cm=i.tolerancia_corte_cm, max_piezas_corte=i.max_piezas_corte
+    )
     traslape_m = i.traslape_diametros * diametro_de_varilla_m(i.varilla_numero)
     try:
         c = corte_de(i.largo_cm / 100, LARGO_DE_VARILLA_M, traslape_m, i.puntas_cm / 100, d)
@@ -398,6 +408,8 @@ def calcular_baston(i: EntradaDeBaston) -> dict[str, Any]:
             "largo_cm": i.largo_cm,
             "puntas_cm": i.puntas_cm,
             "traslape_diametros": i.traslape_diametros,
+            "tolerancia_corte_cm": i.tolerancia_corte_cm,
+            "max_piezas_corte": float(i.max_piezas_corte),
         },
         "bastones_por_metro": 100 / i.sep_cm,
         "ajustado": ajustado,

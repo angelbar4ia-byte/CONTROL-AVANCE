@@ -142,11 +142,16 @@ def colocar_plantilla(
     largo_m: Decimal,
     altura_m: Decimal,
     anchos_m: Mapping[str, Decimal],
+    separacion_m: Decimal | None = None,
 ) -> Colocacion:
     """Lo que la plantilla coloca en un muro de este largo y esta altura.
 
     `elementos` son las instancias guardadas en la plantilla (`uid`, `ref`, `clase`, `modo`, `sep_m`, `z_m`); `anchos_m` da, por clave del
     elemento, cuánto ocupa un castillo a lo largo del muro. Los elementos de otra clase (el muro de tabique) no se colocan aquí.
+
+    `separacion_m` es el driver `separacion_castillos` de la obra: la separación de un castillo que la plantilla no fija (su `sep_m`
+    vacío). La separación propia del castillo en la plantilla manda sobre el driver. Sin driver (`None`), un castillo sin separación
+    sigue siendo «extremos» (2 piezas), como antes.
     """
     if largo_m <= 0:
         raise ErrorDeColocacion("El largo del muro debe ser mayor que cero.")
@@ -158,7 +163,7 @@ def colocar_plantilla(
         uid, ref = str(e.get("uid") or e.get("ref") or ""), str(e.get("ref") or "")
         z = _d(e.get("z_m") or 0)
         if clase == "castillo":
-            sep = _d(e["sep_m"]) if e.get("sep_m") not in (None, "") else None
+            sep = _d(e["sep_m"]) if e.get("sep_m") not in (None, "") else separacion_m
             ancho = anchos_m.get(ref)
             if ancho is None or ancho <= 0:
                 raise ErrorDeColocacion(f"El castillo {ref} no trae el ancho con que se coloca en el muro.")

@@ -14,11 +14,24 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.casos_uso import GestionarPropuestasDeEstructuraDep
+from obractrl.adapters.api.casos_uso import (
+    DriversDeObraDep,
+    GestionarPropuestasDeEstructuraDep,
+)
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
+from obractrl.adapters.api.v1.drivers_usados import (
+    DriverUsadoRespuesta,
+    a_respuesta,
+    explicitos_de_receta,
+)
 from obractrl.adapters.api.v1.receta_acero import (
     DriversDeRecetaPeticion,
     RecetaDeAceroCalculada,
+)
+from obractrl.domain.cuantificacion.drivers_de_elementos import (
+    altura_de_obra,
+    desperdicio_concreto_de_obra,
+    receta_de_obra,
 )
 from obractrl.domain.cuantificacion.estructura_de_catalogo import (
     ElementoDeEstructuraNoEncontrado,
@@ -26,7 +39,6 @@ from obractrl.domain.cuantificacion.estructura_de_catalogo import (
     calcular_elemento,
     definicion_de,
 )
-from obractrl.domain.cuantificacion.receta_acero import DriversDeReceta
 from obractrl.domain.shared.diccionario import Rol
 
 router = APIRouter(tags=["biblioteca de elementos"])
@@ -101,6 +113,10 @@ class CalculoDeEstructuraPeticion(BaseModel):
         default=None, gt=0, le=30, description="Alto en METROS; vacío usa la altura estándar de 3.00 m (4.20 m en la forjada)."
     )
     drivers: DriversDeRecetaPeticion = Field(default_factory=DriversDeRecetaPeticion)
+    obra_id: UUID | None = Field(
+        default=None,
+        description="La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre.",
+    )
 
 
 class ConceptoCalculado(BaseModel):
@@ -179,6 +195,9 @@ class CalculoDeEstructura(BaseModel):
     concepto_nuevo_por_altura: ConceptoNuevoPorAltura | None
     solo_en_catalogo: list[SoloEnElCatalogo]
     pendientes: list[str]
+    drivers_usados: list[DriverUsadoRespuesta] = Field(
+        default_factory=list, description="Los drivers que leyó el cálculo y de dónde salió cada valor."
+    )
     advertencias: list[str]
     fuente: str
 
@@ -331,9 +350,23 @@ async def definicion_de_estructura(clave: str) -> dict[str, Any]:
     summary="Calcula un castillo, aparente o columna forjada con su alto (solo cálculo)",
     responses=_RESPUESTAS_DE_ELEMENTO,
 )
-async def calcular_estructura(clave: str, peticion: CalculoDeEstructuraPeticion) -> dict[str, Any]:
+async def calcular_estructura(
+    clave: str, peticion: CalculoDeEstructuraPeticion, drivers_de_obra: DriversDeObraDep
+) -> dict[str, Any]:
+    vigentes = await drivers_de_obra.valores(peticion.obra_id)
+    drivers, usados = receta_de_obra(vigentes, explicitos_de_receta(peticion.drivers))
+    desperdicio_pct, u_concreto = desperdicio_concreto_de_obra(vigentes)
+    usados.append(u_concreto)
+    alto_estandar = None
     try:
-        return calcular_elemento(clave, peticion.alto_m, drivers=DriversDeReceta(**peticion.drivers.model_dump()))
+        # La altura estándar solo manda cuando el elemento no trae alto fijo (la forjada) y la petición no dice el suyo.
+        if peticion.alto_m is None and not definicion_de(clave)["alto_fijo_m"]:
+            alto_estandar, u_alto = altura_de_obra(vigentes)
+            usados.append(u_alto)
+        r = calcular_elemento(
+            clave, peticion.alto_m, drivers=drivers, desperdicio_concreto=desperdicio_pct / 100, alto_estandar_m=alto_estandar
+        )
+        return {**r, "drivers_usados": a_respuesta(usados)}
     except ElementoDeEstructuraNoEncontrado as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
     except ErrorDeEstructura as e:
