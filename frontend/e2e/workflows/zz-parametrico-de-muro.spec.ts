@@ -116,7 +116,7 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await expect.poll(async () => (await vanos()).length).toBe(1);
     const colocado = (await vanos())[0]!;
     expect(colocado.tipo).toBe('castillo');
-    expect(Number(colocado.alto_m)).toBeCloseTo(2.6, 3); // sube lo alto del muro
+    expect(Number(colocado.alto_m)).toBeCloseTo(3, 3); // sube lo alto del muro: la altura estándar del driver con que nació (3.00 m)
     await expect.poll(medida).toBeLessThan(antes); // y resta de los m² del muro
   });
 });

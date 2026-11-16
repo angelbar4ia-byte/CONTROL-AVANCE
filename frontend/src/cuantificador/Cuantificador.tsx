@@ -125,7 +125,7 @@ import {
   factorDeLaMedida,
   medidaDirecta,
   CARAS_POR_DEFECTO,
-  OPCIONES_DE_MURO_INICIALES,
+  opcionesDeMuroIniciales,
   textoDeMuro,
   trazoPeticion,
   type OpcionesDeMuro,
@@ -185,6 +185,7 @@ import { ConversionDelEnlace } from './ConversionDelEnlace';
 import { OPCIONES_DE_VANO_INICIALES, OpcionesDeVano, versionDelVano, type OpcionesDelVano } from './OpcionesDeVano';
 import { useListarVersionesApiV1VanosVersionGet } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import { UnionesDelMuro } from './UnionesDelMuro';
+import { useAlturaEstandar } from './useAlturaEstandar';
 import { RevestimientosDelMuro, type RevestimientoPorColocar } from './RevestimientosDelMuro';
 import { acabadoPorDefecto, ClasificacionDelMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
@@ -435,7 +436,14 @@ export function EspacioDeTrazo({
   /** Pendiente en % de la línea que se traza (un tramo inclinado); `null` = horizontal. */
   const [pendientePct, setPendientePct] = useState<number | null>(null);
   const [alineacion, setAlineacion] = useState<Alineacion>('centro');
-  const [opcionesMuro, setOpcionesMuro] = useState<OpcionesDeMuro>(OPCIONES_DE_MURO_INICIALES);
+  // La altura que propone el plano al trazar un muro es el driver `altura_estandar` de la obra (Ola 4C), no un 2.6 fijo: sigue al driver
+  // mientras quien traza no la teclee. Un trazo ya guardado conserva la suya (Q1).
+  const alturaEstandar = useAlturaEstandar(obraId);
+  const [cambiosDeMuro, setCambiosDeMuro] = useState<Partial<OpcionesDeMuro>>({});
+  const opcionesMuro = useMemo<OpcionesDeMuro>(
+    () => ({ ...opcionesDeMuroIniciales(alturaEstandar), ...cambiosDeMuro }),
+    [alturaEstandar, cambiosDeMuro],
+  );
   /** El tipo de muro y el acabado con que nace el siguiente muro (F-22): el trazo se guarda ya clasificado. */
   const [muroNuevo, setMuroNuevo] = useState<{ tipo: TipoDeMuro | null; acabado: Acabado }>({ tipo: null, acabado: acabadoPorDefecto() });
   const clasificarMuro = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
@@ -1725,7 +1733,7 @@ export function EspacioDeTrazo({
             actividadId: r.actividadId,
             medida: 'longitud',
             factor: '1',
-            conversion: conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, mide: 'eje', alt: String(r.alturaM), partes: [] }),
+            conversion: conversionDeMuro({ ...opcionesDeMuroIniciales(alturaEstandar), mide: 'eje', alt: String(r.alturaM), partes: [] }, alturaEstandar),
           },
         ],
       });
@@ -1780,10 +1788,10 @@ export function EspacioDeTrazo({
     } else if (conceptoEnFoco) {
       const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
       if (medida) {
-        factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida);
+        factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida, alturaEstandar);
         // Una línea sobre un concepto en m² nace con la conversión elegida en el panel (Eje / 1 cara / 2 caras × altura).
         if (tipoDelConcepto === 'area' && tipo === 'linea' && medida === 'longitud') {
-          conversionDeLaLinea = conversionDeMuro(opcionesMuro);
+          conversionDeLaLinea = conversionDeMuro(opcionesMuro, alturaEstandar);
           factor = '1';
         }
         data = trazoPeticion({
@@ -1809,7 +1817,7 @@ export function EspacioDeTrazo({
         if (conversionDeLaLinea) {
           // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
           setAviso(
-            `Línea medida como área: ${textoDeMuro(opcionesMuro)}. ` +
+            `Línea medida como área: ${textoDeMuro(opcionesMuro, alturaEstandar)}. ` +
               `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. Se cambia en el detalle del trazo.`,
           );
         }
@@ -2551,6 +2559,7 @@ export function EspacioDeTrazo({
                 trazos={features}
                 actividades={actividades}
                 colocando={revestimientoPorColocar}
+                alturaPorDefectoM={alturaEstandar}
                 onColocar={(r) => {
                   setRevestimientoPorColocar(r);
                   if (r) {
@@ -3282,7 +3291,7 @@ export function EspacioDeTrazo({
                     clasificacion={muroNuevo}
                     onClasificacion={setMuroNuevo}
                     muro={herramienta === 'punto' || tipoDelConcepto !== 'area' || medicionActiva ? null : opcionesMuro}
-                    onMuro={(cambio) => setOpcionesMuro((o) => ({ ...o, ...cambio }))}
+                    onMuro={(cambio) => setCambiosDeMuro((o) => ({ ...o, ...cambio }))}
                   />
                 )}
                 {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}

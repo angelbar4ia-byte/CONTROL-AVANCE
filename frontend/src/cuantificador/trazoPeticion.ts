@@ -8,6 +8,7 @@
 
 import type { ConversionPeticion, TrazoPeticion } from '@/api/generado/modelo';
 import type { ParteDeAltura } from './AlturaPorPartes';
+import { ALTURA_ESTANDAR_DE_PARTIDA_M } from './alturaEstandar';
 import type { Alineacion, Forma } from './formas';
 import { aWkt, MEDIDAS_POR_HERRAMIENTA, type GeometriaBase, type MedidaDeTrazo, type Punto } from './geometria';
 import type { TipoDeMedicion } from './tipos';
@@ -107,24 +108,29 @@ export function medidaDirecta(
   }
 }
 
-/** Altura por defecto de un muro (m) para convertir su largo en área: el aplanado, la pintura. Se afina en el detalle. */
-export const ALTURA_POR_DEFECTO_M = 2.6;
+/**
+ * Altura de partida de un muro (m) para convertir su largo en área: el aplanado, la pintura. Es el valor de partida del driver
+ * `altura_estandar` (3.00 m, Ola 4C): el plano lee el vigente de la obra (`useAlturaEstandar`) y solo cae aquí mientras no responde.
+ * Los trazos ya guardados conservan su altura (Q1). Se afina en el detalle.
+ */
+export const ALTURA_POR_DEFECTO_M = ALTURA_ESTANDAR_DE_PARTIDA_M;
 /** Caras por defecto de un muro: las dos. */
 export const CARAS_POR_DEFECTO = 2;
 
 /**
  * El factor del enlace directo. Casi siempre 1; una **línea sobre un concepto en m²** (con o sin grosor) mide su largo y lo
- * convierte en área con la altura y las caras por defecto: largo × 2.6 × 2 = largo × 5.2.
+ * convierte en área con la altura estándar de la obra y las caras por defecto: largo × 3.00 × 2 = largo × 6 (con el driver de partida).
  */
 export function factorDeLaMedida(
   tipo: TipoDeMedicion | null,
   herramienta: GeometriaBase,
   conGrosor: boolean,
   medida: MedidaDeTrazo,
+  alturaM: number = ALTURA_POR_DEFECTO_M,
 ): string {
   void conGrosor; // el grosor no cambia el factor: con o sin él, largo × altura × caras
   if (tipo === 'area' && herramienta === 'linea' && medida === 'longitud') {
-    return String(Number((ALTURA_POR_DEFECTO_M * CARAS_POR_DEFECTO).toFixed(6)));
+    return String(Number((alturaM * CARAS_POR_DEFECTO).toFixed(6)));
   }
   return '1';
 }
@@ -141,30 +147,30 @@ export interface OpcionesDeMuro {
   readonly partes: readonly ParteDeAltura[];
 }
 
-export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = {
-  mide: 'cara2',
-  cara: 'int',
-  lado: 'der',
-  alt: String(ALTURA_POR_DEFECTO_M),
-  partes: [],
-};
+/** Las opciones con que nace un muro, con la altura estándar de la obra (el driver) o, sin ella, la de partida. */
+export function opcionesDeMuroIniciales(alturaM: number = ALTURA_POR_DEFECTO_M): OpcionesDeMuro {
+  return { mide: 'cara2', cara: 'int', lado: 'der', alt: String(alturaM), partes: [] };
+}
 
-/** La conversión con que nace un muro (o una línea) sobre un concepto en m²: su superficie por caras × altura. */
-export function conversionDeMuro(o: OpcionesDeMuro): ConversionPeticion {
+export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = opcionesDeMuroIniciales();
+
+/** La conversión con que nace un muro (o una línea) sobre un concepto en m²: su superficie por caras × altura. Una altura que no
+ *  vale cae a `alturaPorDefectoM` (la estándar de la obra). */
+export function conversionDeMuro(o: OpcionesDeMuro, alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M): ConversionPeticion {
   const alt = Number(String(o.alt).replace(',', '.'));
   return {
     modo: 'area',
     mide: o.mide,
     cara: o.cara,
     lado: o.lado,
-    alt: Number.isFinite(alt) && alt > 0 ? alt : ALTURA_POR_DEFECTO_M,
+    alt: Number.isFinite(alt) && alt > 0 ? alt : alturaPorDefectoM,
     ...(o.partes.length > 0 ? { partes: o.partes.map((p) => ({ ...p })) } : {}),
   } as ConversionPeticion;
 }
 
-/** Cómo se dijo que se midió, para la barra: «largo del eje × 2.6 m», «2 caras × 2.6 m». */
-export function textoDeMuro(o: OpcionesDeMuro): string {
-  const alt = conversionDeMuro(o).alt;
+/** Cómo se dijo que se midió, para la barra: «largo del eje × 3 m de altura», «2 caras × 3 m de altura». */
+export function textoDeMuro(o: OpcionesDeMuro, alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M): string {
+  const alt = conversionDeMuro(o, alturaPorDefectoM).alt;
   const alturas = o.partes.length > 0 ? `${o.partes.filter((p) => p.suma).length} de ${o.partes.length} partes de altura` : `${alt} m de altura`;
   const base = o.mide === 'eje' ? 'largo del eje' : o.mide === 'cara1' ? `1 cara (${o.cara === 'ext' ? 'exterior' : 'interior'})` : '2 caras';
   return `${base} × ${alturas}`;

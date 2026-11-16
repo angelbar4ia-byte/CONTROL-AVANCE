@@ -64,7 +64,7 @@ test.describe('Cuantificador · trazo directo', () => {
     expect(new Set(coloresDeTrazos).size).toBe(1);
     expect(coloresDelArbol).toContain(coloresDeTrazos[0]);
 
-    // Una línea sobre un concepto en m² mide su largo × altura (2.6 m) × caras (2): suma al concepto y se dice cómo.
+    // Una línea sobre un concepto en m² mide su largo × altura (la estándar de la obra, el driver: 3.00 m) × caras (2): suma al concepto y se dice cómo.
     const antesDeLinea = await cantidad();
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
     // El panel de opciones de la línea tapa la izquierda del lienzo: los clics van a la derecha.
@@ -77,13 +77,13 @@ test.describe('Cuantificador · trazo directo', () => {
       request, 'control', 'GET', `/planos/${plano.id}/trazos`,
     );
     const linea = trazos.features.find((f) => f.geometry.type === 'LineString')!;
-    // Nace con su conversión (D-638): el panel «Muro · medir por» trae 2 caras × 2.6 m; el factor es 1 y la base calcula.
+    // Nace con su conversión (D-638): el panel «Muro · medir por» trae 2 caras × la altura estándar del driver (3 m, ya no 2.6); el factor es 1 y la base calcula.
     expect(linea.properties.enlaces[0]).toMatchObject({ medida: 'longitud' });
     expect(Number(linea.properties.enlaces[0]!.factor)).toBeCloseTo(1, 6);
     const conv = await llamarApi<{ es_la_de_hoy: boolean; conversion: { mide: string; alt: number } }>(
       request, 'control', 'GET', `/enlaces/${(linea.properties.enlaces[0] as unknown as { enlace_id: string }).enlace_id}/conversion`,
     );
     expect(conv.es_la_de_hoy).toBe(true);
-    expect(conv.conversion).toMatchObject({ mide: 'cara2', alt: 2.6 });
+    expect(conv.conversion).toMatchObject({ mide: 'cara2', alt: 3 });
   });
 });

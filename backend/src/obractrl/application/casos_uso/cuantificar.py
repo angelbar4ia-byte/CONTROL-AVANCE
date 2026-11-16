@@ -646,6 +646,16 @@ class RegistrarTrazoConEnlaces:
         self._matrices = matrices
         self._mediciones = mediciones
 
+    async def _con_altura_estandar(self, trazo_id: UUID, tipo: str, conversion: dict[str, Any]) -> dict[str, Any]:
+        """Una conversión NUEVA de una línea que mide por altura y no trae la suya (ni partes) nace con la altura estándar de la obra
+        (el driver `altura_estandar`), no con los 2.6 m de antes. Solo vale para lo que nace aquí: lo ya guardado conserva la
+        suya (Q1) y `app.cantidad_conversion` sigue respaldando con 2.6 m las conversiones viejas sin `alt`."""
+        if tipo not in ("muro", "linea") or conversion.get("modo") not in ("area", "vol"):
+            return conversion
+        if conversion.get("partes") or conversion.get("alt") not in (None, ""):
+            return conversion
+        return {**conversion, "alt": float(await self._enlaces.altura_estandar_de_trazo(trazo_id))}
+
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
     ) -> TrazoRegistrado:
@@ -737,7 +747,9 @@ class RegistrarTrazoConEnlaces:
                     if intencion.actividad_id is None:
                         raise ErrorDeCuantificacion("La conversión se fija sobre el enlace a un concepto.")
                     tipo = str((await self._enlaces.calcular_conversion(trazo_id, {"modo": "largo"}))["tipo"])
-                    conversion = normalizar_conversion(tipo, intencion.conversion)
+                    conversion = normalizar_conversion(
+                        tipo, await self._con_altura_estandar(trazo_id, tipo, intencion.conversion)
+                    )
                     medida_guardada, factor_guardado = medida_natural(tipo), Decimal(1)
                 enlace_id = await self._enlaces.crear(
                     trazo_id=trazo_id,
