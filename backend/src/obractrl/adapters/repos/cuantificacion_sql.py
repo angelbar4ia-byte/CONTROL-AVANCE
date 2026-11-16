@@ -562,17 +562,21 @@ class RepositorioTrazosSQL:
         posicion_m: Decimal | None,
         autor_id: UUID,
         lado_muro: int = 0,
+        elemento_uid: str | None = None,
     ) -> UUID:
         con_lado = lado_muro != 0 and await _hay_columna(self._sesion, "vano", "lado_muro")
+        con_uid = elemento_uid is not None and await _hay_columna(self._sesion, "vano", "elemento_uid")
         fila = (
             await self._sesion.execute(
                 text(
                     """
                     insert into vano (org_id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, autor_id"""
                     + (", lado_muro" if con_lado else "")
+                    + (", elemento_uid" if con_uid else "")
                     + """)
                     select t.org_id, t.id, :clave, :tipo, :ancho, :alto, :antepecho, :piezas, :posicion, :autor"""
                     + (", :lado" if con_lado else "")
+                    + (", :uid" if con_uid else "")
                     + """
                       from trazo t where t.id = :trazo
                     returning id
@@ -580,6 +584,7 @@ class RepositorioTrazosSQL:
                 ),
                 {
                     **({"lado": lado_muro} if con_lado else {}),
+                    **({"uid": elemento_uid} if con_uid else {}),
                     "trazo": str(trazo_id),
                     "clave": clave,
                     "tipo": tipo,
@@ -1042,18 +1047,43 @@ class RepositorioTrazosSQL:
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
         hoja = "bisagra, lado_hoja, apertura_grados" if await _hay_hoja(self._sesion) else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
         hoja += ", lado_muro" if await _hay_columna(self._sesion, "vano", "lado_muro") else ", 0 as lado_muro"
+        hoja += ", elemento_uid" if await _hay_columna(self._sesion, "vano", "elemento_uid") else ", null as elemento_uid"
         filas = (
             await self._sesion.execute(
                 text(
                     f"""
                     select id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, llega_al_piso, {hoja}
-                      from vano where trazo_id = :t order by created_at, id
+                      from vano where trazo_id = :t order by created_at, posicion_m nulls last, id
                     """
                 ),
                 {"t": str(trazo_id)},
             )
         ).mappings().all()
         return [dict(f) for f in filas]
+
+    async def largo_del_eje(self, trazo_id: UUID) -> Decimal:
+        """El largo del eje de una línea en metros (con la escala calibrada del plano; sin calibrar, en unidades de plano). Es lo
+        que miden las posiciones de los vanos a lo largo del muro (`posicion_m`)."""
+        valor = (
+            await self._sesion.execute(
+                text(
+                    "select ST_Length(app.geometria_efectiva(t.id, t.geometria)) * coalesce(p.escala_m_por_unidad, 1) "
+                    "from trazo t join plano p on p.id = t.plano_id where t.id = :t"
+                ),
+                {"t": str(trazo_id)},
+            )
+        ).scalar_one_or_none()
+        return Decimal(str(valor)) if valor is not None else Decimal(0)
+
+    async def quitar_instancias_de_plantilla(self, trazo_id: UUID) -> int:
+        """Quita los vanos del trazo que son instancias de un elemento de la plantilla (`elemento_uid`); los puestos a mano y los
+        demás vanos no se tocan. Devuelve cuántos quitó."""
+        if not await _hay_columna(self._sesion, "vano", "elemento_uid"):
+            return 0
+        r = await self._sesion.execute(
+            text("delete from vano where trazo_id = :t and elemento_uid is not null"), {"t": str(trazo_id)}
+        )
+        return int(getattr(r, "rowcount", 0) or 0)
 
     async def fijar_hoja(self, vano_id: UUID, *, bisagra: int, lado_hoja: int, apertura_grados: int) -> None:
         if not await _hay_hoja(self._sesion):

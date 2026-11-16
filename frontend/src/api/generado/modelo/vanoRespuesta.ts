@@ -7,6 +7,7 @@
  */
 import type { VanoRespuestaPosicionM } from "./vanoRespuestaPosicionM";
 import type { VanoRespuestaLadoMuro } from "./vanoRespuestaLadoMuro";
+import type { VanoRespuestaElementoUid } from "./vanoRespuestaElementoUid";
 import type { VanoRespuestaBisagra } from "./vanoRespuestaBisagra";
 import type { VanoRespuestaLadoHoja } from "./vanoRespuestaLadoHoja";
 
@@ -24,6 +25,8 @@ export interface VanoRespuesta {
   posicion_m: VanoRespuestaPosicionM;
   llega_al_piso: boolean;
   lado_muro?: VanoRespuestaLadoMuro;
+  /** Si es un castillo colocado desde la plantilla del muro: el uid de ese uso del elemento en la plantilla (Ola 4C). */
+  elemento_uid?: VanoRespuestaElementoUid;
   /** Extremo donde van las bisagras: 1 el inicial, -1 el otro. */
   bisagra?: VanoRespuestaBisagra;
   /** Hacia qué lado del muro abre la hoja. */

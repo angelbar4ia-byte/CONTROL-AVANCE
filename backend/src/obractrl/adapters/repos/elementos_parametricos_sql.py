@@ -383,6 +383,69 @@ class RepositorioElementosParametricosSQL:
         ).mappings().all()
         return [dict(f) for f in filas]
 
+    async def contexto_de_trazo(self, trazo_id: UUID) -> dict[str, Any] | None:
+        """Dónde se mide un muro: su obra, el nivel y la etapa de la partida que ya mide (la primera actividad o nodo del prototipo a la que
+        está enlazado) y su ubicación. `nivel_orden` es el número de nivel con que se eligen los conceptos del elemento (el orden del nivel
+        del árbol: PB = 1). Sin partida, el nivel y la etapa quedan en `None` y un dato que falta no descarta nada."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select p.obra_id, t.muro_ubicacion as ubicacion, t.muro_plantilla_id,
+                           n.id as nivel_id, n.orden as nivel_orden, x.etapa_id
+                      from trazo t join plano p on p.id = t.plano_id
+                      left join lateral (
+                        select coalesce(a.nivel_id, pn.nivel_id) as nivel_id, coalesce(a.etapa_id, pn.etapa_id) as etapa_id
+                          from enlace_cuantificacion e
+                          left join actividad a on a.id = e.actividad_id
+                          left join prototipo_nodo pn on pn.id = e.prototipo_nodo_id
+                         where e.trazo_id = t.id and e.vigente and coalesce(a.nivel_id, pn.nivel_id, a.etapa_id, pn.etapa_id) is not null
+                         order by e.created_at, e.id limit 1
+                      ) x on true
+                      left join nivel n on n.id = x.nivel_id
+                     where t.id = :t
+                    """
+                ),
+                {"t": str(trazo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None
+
+    async def instancias_de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Los castillos colocados desde la plantilla de un muro de la obra (0135), cada uno con el elemento de la plantilla de que es
+        instancia, lo alto que sube y el nivel y la ubicación donde se mide. Es lo que alimenta los conceptos del contexto."""
+        if not await _hay_columna(self._sesion, "vano", "elemento_uid"):
+            return []
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select v.id as vano_id, v.trazo_id, v.alto_m, v.piezas, v.elemento_uid, t.muro_ubicacion as ubicacion,
+                           ep.id as elemento_id, ep.clave as ref, n.orden as nivel_orden, x.nivel_id, x.etapa_id
+                      from vano v
+                      join trazo t on t.id = v.trazo_id and t.hueco_de is null and not t.propuesta
+                      join plano p on p.id = t.plano_id
+                      join muro_plantilla mp on mp.id = t.muro_plantilla_id
+                      join lateral jsonb_array_elements(mp.elementos) el on el->>'uid' = v.elemento_uid
+                      join elemento_parametrico ep on ep.clave = el->>'ref' and ep.vigente
+                      left join lateral (
+                        select coalesce(a.nivel_id, pn.nivel_id) as nivel_id, coalesce(a.etapa_id, pn.etapa_id) as etapa_id
+                          from enlace_cuantificacion e
+                          left join actividad a on a.id = e.actividad_id
+                          left join prototipo_nodo pn on pn.id = e.prototipo_nodo_id
+                         where e.trazo_id = t.id and e.vigente and coalesce(a.nivel_id, pn.nivel_id, a.etapa_id, pn.etapa_id) is not null
+                         order by e.created_at, e.id limit 1
+                      ) x on true
+                      left join nivel n on n.id = x.nivel_id
+                     where p.obra_id = :o and v.elemento_uid is not null and v.tipo = 'castillo'
+                     order by v.created_at, v.id
+                    """
+                ),
+                {"o": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
     async def obra_del_trazo(self, trazo_id: UUID) -> UUID | None:
         fila = (
             await self._sesion.execute(

@@ -26,6 +26,8 @@ import {
 } from '@/api/generado/cuantificacion/cuantificacion';
 import { queryClient } from '@/app/queryClient';
 
+import { ColocacionDeLaPlantilla } from './ColocacionDeLaPlantilla';
+
 export type TipoDeMuro = 'confinado' | 'con_cadena' | 'tabique';
 export type Acabado = Record<'interior' | 'fachada', Record<'gris' | 'blanca' | 'pintura', boolean>>;
 
@@ -59,9 +61,13 @@ interface Props {
   readonly onTipo: (tipo: TipoDeMuro | null) => void;
   readonly onAcabado: (acabado: Acabado) => void;
   readonly ocupado?: boolean;
+  /** Al TRAZAR un muro: la plantilla con que nace (se elige, y sus castillos ubicados se colocan al guardarlo). Sin esto no se ofrece. */
+  readonly plantillas?: readonly { readonly id: string; readonly nombre: string; readonly version: number; readonly validacion: string }[];
+  readonly plantillaId?: string | null;
+  readonly onPlantilla?: (id: string | null) => void;
 }
 
-export function ClasificacionDeMuro({ tipo, acabado, onTipo, onAcabado, ocupado = false }: Props) {
+export function ClasificacionDeMuro({ tipo, acabado, onTipo, onAcabado, ocupado = false, plantillas, plantillaId = null, onPlantilla }: Props) {
   const ayuda = TIPOS_DE_MURO.find((t) => t.clave === tipo)?.ayuda;
   return (
     <div className="clasificacion-muro">
@@ -82,6 +88,26 @@ export function ClasificacionDeMuro({ tipo, acabado, onTipo, onAcabado, ocupado 
         ))}
       </div>
       {ayuda && <p className="text-mute text-xs">{ayuda}</p>}
+      {tipo && plantillas && onPlantilla && (
+        <label className="mct__campo">
+          Plantilla de muro
+          <select
+            className="input"
+            aria-label="Plantilla del muro nuevo"
+            value={plantillaId ?? ''}
+            disabled={ocupado}
+            onChange={(e) => onPlantilla(e.target.value || null)}
+          >
+            <option value="">Sin plantilla</option>
+            {plantillas.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre} · v{p.version}
+                {p.validacion === 'validada' ? '' : ' (por validar)'}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {tipo && (
         <>
           <div className="opciones__titulo">Acabado</div>
@@ -250,6 +276,7 @@ export function ClasificacionDelMuro({
           {plantilla && plantilla.validacion !== 'validada' && (
             <p className="text-xs mct__aviso">La plantilla aún está por validar: es provisional.</p>
           )}
+          {plantillaId && <ColocacionDeLaPlantilla key={plantillaId} trazoId={trazoId} onCambio={onCambio} onError={onError} />}
         </div>
       )}
     </>

@@ -22,6 +22,7 @@ import {
 import type { Punto } from './geometria';
 import { PanelDeOpciones } from './PanelDeOpciones';
 import { numeroTecleado } from './volumen';
+import { useListarPlantillasApiV1MuroPlantillasGet } from '@/api/generado/artefacto-de-muros/artefacto-de-muros';
 import { ClasificacionDeMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
 import { AlturaPorPartes } from './AlturaPorPartes';
 import type { OpcionesDeMuro } from './trazoPeticion';
@@ -101,8 +102,8 @@ interface Props {
   /** Con un concepto en m² la línea cuenta por caras × altura: se elige antes de trazar (D-638). Sin él, no se ofrece. */
   readonly muro?: OpcionesDeMuro | null;
   /** El tipo de muro y el acabado con que nace el siguiente muro (F-22). */
-  readonly clasificacion?: { readonly tipo: TipoDeMuro | null; readonly acabado: Acabado };
-  readonly onClasificacion?: (c: { tipo: TipoDeMuro | null; acabado: Acabado }) => void;
+  readonly clasificacion?: { readonly tipo: TipoDeMuro | null; readonly acabado: Acabado; readonly plantillaId?: string | null };
+  readonly onClasificacion?: (c: { tipo: TipoDeMuro | null; acabado: Acabado; plantillaId?: string | null }) => void;
   readonly onMuro?: (cambio: Partial<OpcionesDeMuro>) => void;
 }
 
@@ -124,6 +125,8 @@ export function OpcionesDeHerramienta({
 }: Props) {
   const [grosorTecleado, setGrosorTecleado] = useState('');
   const [pendienteTecleada, setPendienteTecleada] = useState('');
+  // Las plantillas con que puede nacer un muro nuevo (solo se leen cuando se dibuja una línea con grosor).
+  const plantillas = useListarPlantillasApiV1MuroPlantillasGet({ query: { enabled: herramienta === 'linea' && clasificacion !== undefined } });
 
   if (herramienta === 'linea') {
     return (
@@ -241,6 +244,9 @@ export function OpcionesDeHerramienta({
             acabado={clasificacion.acabado}
             onTipo={(tipo) => onClasificacion({ ...clasificacion, tipo })}
             onAcabado={(acabado) => onClasificacion({ ...clasificacion, acabado })}
+            plantillas={plantillas.data ?? []}
+            plantillaId={clasificacion.plantillaId ?? null}
+            onPlantilla={(plantillaId) => onClasificacion({ ...clasificacion, plantillaId })}
           />
         )}
         <div className="opciones__titulo">Alineación del cuerpo</div>

@@ -75,6 +75,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioPrototipoNodo,
     UnidadDeTrabajo,
 )
+from obractrl.domain.cuantificacion.colocacion_de_plantilla import alto_de_castillo
 from obractrl.domain.cuantificacion.conversion import (
     CAMPOS_POR_MODO,
     MODOS_POR_TIPO,
@@ -1317,7 +1318,20 @@ class GestionarVanos(AgregarHuecoATrazo):
 
     Cambia lo que la línea mide (el servidor lo descuenta al medir, 0103), así que cada nodo que la línea
     alimenta se **recalcula**, igual que con un hueco; y si alimenta un `prototipo_nodo` tiene el mismo gobierno.
+
+    Un castillo colocado en un muro con plantilla es una **instancia** del castillo de la plantilla (`elemento_uid`, 0135, Ola 4C):
+    sube lo alto del muro menos su arranque y, al cambiar, rehace lo que los conceptos toman de los elementos (`tomas`).
     """
+
+    def __init__(self, *, tomas: Any | None = None, **deps: Any) -> None:
+        super().__init__(**deps)
+        # Lo que un concepto toma de lo colocado en el plano (SincronizarTomas): con él, cambiar un castillo de una plantilla rehace la toma.
+        self._tomas = tomas
+
+    async def _rehacer_tomas(self, trazo_id: UUID) -> None:
+        """Si el muro lleva plantilla, los castillos colocados alimentan conceptos: se rehace la toma de la obra (dentro de la misma transacción)."""
+        if self._tomas is not None and await self._trazos.plantilla_de_muro(trazo_id) is not None:
+            await self._tomas.de_la_obra_del_trazo(trazo_id)
 
     async def _cambiar(
         self, trazo_id: UUID, rol: Rol, autor_id: UUID, detectada_en: datetime, accion: Any
@@ -1351,6 +1365,7 @@ class GestionarVanos(AgregarHuecoATrazo):
                     for n in nodos
                 ]
             )
+            await self._rehacer_tomas(trazo_id)
             await self._uow.commit()
         await _avisar_reaperturas(self._eventos, recalculos, autor_id)
         return VanoCambiado(vano_id=vano_id, recalculos=recalculos)
@@ -1362,6 +1377,7 @@ class GestionarVanos(AgregarHuecoATrazo):
             raise ErrorDeCuantificacion("Un vano se coloca sobre una línea (un muro) o sobre un área.")
 
         alto_m = cmd.alto_m
+        elemento_uid: str | None = None
         if cmd.tipo == "castillo":
             # Un castillo se coloca según los elementos de la plantilla del muro (0133, M-4) y sube hasta lo alto del muro.
             if not await self._trazos.es_linea(cmd.trazo_id):
@@ -1380,6 +1396,14 @@ class GestionarVanos(AgregarHuecoATrazo):
                     "cambia el tipo del muro o elige una plantilla y vuelve a colocarlos."
                 )
             alto_m = await self._altura_del_muro(cmd.trazo_id)
+            if plantilla is not None:
+                # El castillo del plano es una instancia del castillo ubicado de la plantilla: toma su uid y sube lo alto del muro
+                # menos su arranque (z). Sin plantilla (la regla vieja del «muro con cadena») queda como siempre: sin elemento.
+                ubicado = next(
+                    e for e in (plantilla["elementos"] or []) if e.get("clase") == "castillo" and e.get("modo") == "ubicado"
+                )
+                elemento_uid = str(ubicado["uid"])
+                alto_m = alto_de_castillo(alto_m, Decimal(str(ubicado.get("z_m") or 0)))
 
         async def crear() -> UUID:
             return await self._trazos.crear_vano(
@@ -1393,6 +1417,7 @@ class GestionarVanos(AgregarHuecoATrazo):
                 posicion_m=cmd.posicion_m,
                 autor_id=cmd.autor_id,
                 lado_muro=cmd.lado_muro,
+                **({"elemento_uid": elemento_uid} if elemento_uid is not None else {}),
             )
 
         return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)

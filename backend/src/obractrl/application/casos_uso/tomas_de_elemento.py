@@ -14,6 +14,9 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from obractrl.application.casos_uso.conceptos_de_lo_colocado import (
+    conceptos_de_lo_colocado,
+)
 from obractrl.application.casos_uso.cuantificar import _recalcular_nodo
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     MATERIALES_DE_UN_ELEMENTO,
@@ -104,7 +107,10 @@ class SincronizarTomas:
         actividades: Any,
         prototipo_nodos: Any,
         desviaciones: Any,
+        parametrico: Any | None = None,
     ) -> None:
+        # Con el repositorio del Paramétrico, los castillos colocados desde la plantilla de un muro también alimentan conceptos (Ola 4C).
+        self._parametrico = parametrico
         self._elementos = elementos
         self._matrices = matrices
         self._enlaces = enlaces
@@ -122,7 +128,37 @@ class SincronizarTomas:
             antes = suma.get(cid)
             cantidad = Decimal(str(f["cantidad"])) + (antes[0] if antes and antes[1] == f["unidad"] else Decimal(0))
             suma[cid] = (cantidad, f["unidad"])
+        for cid, cantidad, unidad in await self._tomas_de_castillos_colocados(obra_id):
+            antes = suma.get(cid)
+            suma[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
         return suma
+
+    async def _tomas_de_castillos_colocados(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str]]:
+        """Lo que toman los conceptos de los castillos colocados desde la plantilla de un muro (0135): por cada muro y alto, el concepto lo
+        eligen el nivel, la ubicación y el alto (2A) y la ranura enlazada en el Paramétrico (4B). Si la partida no está en el árbol de la
+        obra, avisa (en el reporte de lo colocado) y no cuenta. Sin castillos colocados no hay nada."""
+        if self._parametrico is None:
+            return []
+        filas = await self._elementos.instancias_de_la_obra(obra_id)
+        if not filas:
+            return []
+        grupos: dict[tuple[Any, ...], dict[str, Any]] = {}
+        for f in filas:
+            clave = (f["trazo_id"], f["elemento_id"], Decimal(str(f["alto_m"])))
+            g = grupos.setdefault(clave, {**f, "piezas": 0})
+            g["piezas"] += int(f["piezas"])
+        salida: list[tuple[UUID, Decimal, str]] = []
+        for _, conceptos, _avisos in await conceptos_de_lo_colocado(
+            elementos=self._elementos, parametrico=self._parametrico, obra_id=obra_id, instancias=grupos.values()
+        ):
+            salida.extend((c.concepto_id, c.cantidad, c.unidad) for c in conceptos if c.cuenta and c.concepto_id is not None)
+        return salida
+
+    async def de_la_obra_del_trazo(self, trazo_id: UUID) -> None:
+        """Rehace las tomas de la obra del trazo (dentro de la transacción de quien llama). Para cuando cambian los castillos de un muro."""
+        trazo = await self._elementos.contexto_de_trazo(trazo_id)
+        if trazo is not None:
+            await self.de_la_obra(UUID(str(trazo["obra_id"])))
 
     async def de_la_obra(self, obra_id: UUID) -> None:
         """Rehace las cantidades medidas de las matrices que toman de elementos. Se llama dentro de la transacción."""
