@@ -16376,6 +16376,529 @@
         }
       }
     },
+    "/api/v1/drivers": {
+      "get": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Los drivers del Paramétrico con su valor global y su modo",
+        "operationId": "drivers_globales_api_v1_drivers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DriverRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Drivers Globales Api V1 Drivers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/drivers/{clave}": {
+      "put": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Cambiar el valor y/o el modo (fijo, ajustable) del driver global",
+        "operationId": "fijar_driver_global_api_v1_drivers__clave__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverGlobalPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo editan Costos y Control de obra."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/drivers": {
+      "get": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Los drivers con su valor vigente en una obra (global + ajustes de la obra)",
+        "operationId": "drivers_de_obra_api_v1_obras__obra_id__drivers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DriverRespuesta"
+                  },
+                  "title": "Response Drivers De Obra Api V1 Obras  Obra Id  Drivers Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/drivers/{clave}": {
+      "put": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "El valor propio de una obra para un driver ajustable",
+        "operationId": "fijar_driver_de_obra_api_v1_obras__obra_id__drivers__clave__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverDeObraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo editan Costos y Control de obra."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Quitar el ajuste de la obra: vuelve al valor global",
+        "operationId": "quitar_driver_de_obra_api_v1_obras__obra_id__drivers__clave__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo editan Costos y Control de obra."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/enlaces-de-ranura": {
+      "get": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Los enlaces de ranura de la obra, con lo que cuenta cada uno según el árbol",
+        "operationId": "enlaces_de_ranura_api_v1_obras__obra_id__enlaces_de_ranura_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlacesDeRanuraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Enlazar una ranura con un concepto del catálogo en una capa (si la capa ya tenía enlace, lo cambia)",
+        "operationId": "enlazar_ranura_api_v1_obras__obra_id__enlaces_de_ranura_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlaceDeRanuraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlaceDeRanuraRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo editan Costos y Control de obra."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/enlaces-de-ranura/resolver": {
+      "get": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Lo que cuenta una ranura donde se mide: el concepto, su partida o el aviso de lo que falta",
+        "operationId": "resolver_ranura_api_v1_obras__obra_id__enlaces_de_ranura_resolver_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "ranura",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "title": "Ranura"
+            }
+          },
+          {
+            "name": "nivel_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nivel Id"
+            }
+          },
+          {
+            "name": "etapa_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Etapa Id"
+            }
+          },
+          {
+            "name": "ubicacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ubicacion"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolucionDeRanura"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/enlaces-de-ranura/{enlace_id}": {
+      "delete": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Quitar un enlace de ranura",
+        "operationId": "quitar_enlace_api_v1_obras__obra_id__enlaces_de_ranura__enlace_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo editan Costos y Control de obra."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos": {
       "get": {
         "tags": [
@@ -25782,6 +26305,71 @@
         ],
         "title": "CantidadDelInsumoPeticion"
       },
+      "CapaDelArbol": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "descripcion"
+        ],
+        "title": "CapaDelArbol"
+      },
+      "CapaDelEnlace": {
+        "properties": {
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          }
+        },
+        "type": "object",
+        "title": "CapaDelEnlace"
+      },
       "CapturaAvancePeticion": {
         "properties": {
           "cant_ejecutada": {
@@ -27451,6 +28039,24 @@
           "escalones"
         ],
         "title": "ConceptoDeLaDefinicion"
+      },
+      "ConceptoDelArbol": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion"
+        ],
+        "title": "ConceptoDelArbol"
       },
       "ConceptoDelBaston": {
         "properties": {
@@ -33325,6 +33931,175 @@
         ],
         "title": "DrenDelMuro"
       },
+      "DriverDeObraPeticion": {
+        "properties": {
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valor"
+        ],
+        "title": "DriverDeObraPeticion"
+      },
+      "DriverGlobalPeticion": {
+        "properties": {
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor",
+            "description": "El valor global. Si no se envía, se conserva."
+          },
+          "modo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fijo",
+                  "ajustable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modo",
+            "description": "El modo. Si no se envía, se conserva."
+          }
+        },
+        "type": "object",
+        "title": "DriverGlobalPeticion"
+      },
+      "DriverRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "por_confirmar": {
+            "type": "boolean",
+            "title": "Por Confirmar",
+            "description": "La especificación marca su valor como supuesto o por confirmar."
+          },
+          "valor_inicial": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Inicial",
+            "description": "El valor de partida: el que vale mientras nadie cambie el global."
+          },
+          "modo_inicial": {
+            "type": "string",
+            "enum": [
+              "fijo",
+              "ajustable"
+            ],
+            "title": "Modo Inicial"
+          },
+          "valor_global": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Global",
+            "description": "El de la organización (el de partida si nadie lo ha cambiado)."
+          },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "fijo",
+              "ajustable"
+            ],
+            "title": "Modo",
+            "description": "`fijo`: solo vale el global. `ajustable`: una obra puede tener el suyo."
+          },
+          "valor_obra": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Obra",
+            "description": "Lo que la obra tiene guardado (puede no valer si el driver pasó a fijo)."
+          },
+          "valor_vigente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor Vigente",
+            "description": "El que usan los cálculos: el de la obra si es ajustable y la obra lo cambió; si no, el global."
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "obra",
+              "global",
+              "inicial"
+            ],
+            "title": "Origen"
+          },
+          "ajuste_ignorado": {
+            "type": "boolean",
+            "title": "Ajuste Ignorado",
+            "description": "La obra tiene un ajuste, pero el driver es fijo: manda el global."
+          },
+          "editado": {
+            "type": "boolean",
+            "title": "Editado",
+            "description": "El global ya fue cambiado por alguien (si no, vale el de partida)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "unidad",
+          "nota",
+          "por_confirmar",
+          "valor_inicial",
+          "modo_inicial",
+          "valor_global",
+          "modo",
+          "valor_obra",
+          "valor_vigente",
+          "origen",
+          "ajuste_ignorado",
+          "editado"
+        ],
+        "title": "DriverRespuesta"
+      },
       "DriversDeRecetaPeticion": {
         "properties": {
           "traslape_armex_cm": {
@@ -34614,6 +35389,170 @@
         ],
         "title": "EnlaceDeHojaRespuesta"
       },
+      "EnlaceDeRanuraPeticion": {
+        "properties": {
+          "ranura": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Ranura"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Concepto Clave",
+            "description": "Un concepto que ya existe en el catálogo."
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranura",
+          "concepto_clave"
+        ],
+        "title": "EnlaceDeRanuraPeticion"
+      },
+      "EnlaceDeRanuraRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "ranura": {
+            "type": "string",
+            "title": "Ranura"
+          },
+          "capa": {
+            "$ref": "#/components/schemas/CapaDelEnlace"
+          },
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "type": "string",
+            "title": "Concepto Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "enlazado",
+              "falta_partida",
+              "sin_enlace"
+            ],
+            "title": "Estado",
+            "description": "`enlazado`: concepto y partida. `falta_partida`: el árbol no lo trae en esa capa."
+          },
+          "cuenta": {
+            "type": "boolean",
+            "title": "Cuenta",
+            "description": "Solo cuenta con el concepto enlazado y su partida en el árbol."
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "partida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Id"
+          },
+          "partida_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "ranura",
+          "capa",
+          "concepto_id",
+          "concepto_clave",
+          "concepto_descripcion",
+          "unidad",
+          "estado",
+          "cuenta",
+          "aviso",
+          "partida_id",
+          "partida_nombre"
+        ],
+        "title": "EnlaceDeRanuraRespuesta"
+      },
       "EnlaceDeTrazoRespuesta": {
         "properties": {
           "enlace_id": {
@@ -34682,6 +35621,63 @@
           "cantidad"
         ],
         "title": "EnlaceDeTrazoRespuesta"
+      },
+      "EnlacesDeRanuraRespuesta": {
+        "properties": {
+          "enlaces": {
+            "items": {
+              "$ref": "#/components/schemas/EnlaceDeRanuraRespuesta"
+            },
+            "type": "array",
+            "title": "Enlaces"
+          },
+          "ranuras_de_plantilla": {
+            "items": {
+              "$ref": "#/components/schemas/RanuraDePlantilla"
+            },
+            "type": "array",
+            "title": "Ranuras De Plantilla"
+          },
+          "niveles": {
+            "items": {
+              "$ref": "#/components/schemas/CapaDelArbol"
+            },
+            "type": "array",
+            "title": "Niveles",
+            "description": "Los niveles que usa el árbol de la obra."
+          },
+          "etapas": {
+            "items": {
+              "$ref": "#/components/schemas/CapaDelArbol"
+            },
+            "type": "array",
+            "title": "Etapas",
+            "description": "Las etapas que usa el árbol de la obra."
+          },
+          "partidas_del_arbol": {
+            "type": "integer",
+            "title": "Partidas Del Arbol",
+            "description": "Cuántos conceptos tiene el árbol de la obra."
+          },
+          "conceptos_del_arbol": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelArbol"
+            },
+            "type": "array",
+            "title": "Conceptos Del Arbol",
+            "description": "Los conceptos distintos que el árbol de la obra ya trae: los que se enlazan sin avisos."
+          }
+        },
+        "type": "object",
+        "required": [
+          "enlaces",
+          "ranuras_de_plantilla",
+          "niveles",
+          "etapas",
+          "partidas_del_arbol",
+          "conceptos_del_arbol"
+        ],
+        "title": "EnlacesDeRanuraRespuesta"
       },
       "EnsambleCreadoRespuesta": {
         "properties": {
@@ -47071,6 +48067,46 @@
         ],
         "title": "PuntoDelPerfil"
       },
+      "RanuraDePlantilla": {
+        "properties": {
+          "ranura": {
+            "type": "string",
+            "title": "Ranura"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "grupo": {
+            "type": "string",
+            "enum": [
+              "mamposteria",
+              "acabado"
+            ],
+            "title": "Grupo"
+          },
+          "sugerido_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sugerido Clave",
+            "description": "Un concepto del catálogo que la especificación propone; nunca se aplica solo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranura",
+          "nombre",
+          "grupo",
+          "sugerido_clave"
+        ],
+        "title": "RanuraDePlantilla"
+      },
       "RecetaDeAceroCalculada": {
         "properties": {
           "forma": {
@@ -49043,6 +50079,115 @@
           "contrasena_temporal"
         ],
         "title": "ResetearContrasenaPeticion"
+      },
+      "ResolucionDeRanura": {
+        "properties": {
+          "ranura": {
+            "type": "string",
+            "title": "Ranura"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "enlazado",
+              "falta_partida",
+              "sin_enlace"
+            ],
+            "title": "Estado"
+          },
+          "cuenta": {
+            "type": "boolean",
+            "title": "Cuenta"
+          },
+          "por_defecto": {
+            "type": "boolean",
+            "title": "Por Defecto",
+            "description": "Una ranura de elemento sin enlace conserva los conceptos por defecto del elemento."
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "enlace_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enlace Id"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "partida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Id"
+          },
+          "partida_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranura",
+          "estado",
+          "cuenta",
+          "por_defecto",
+          "aviso",
+          "enlace_id",
+          "concepto_id",
+          "concepto_clave",
+          "partida_id",
+          "partida_nombre"
+        ],
+        "title": "ResolucionDeRanura"
       },
       "ResolverCambioPeticion": {
         "properties": {

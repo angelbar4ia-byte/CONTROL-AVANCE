@@ -23,7 +23,7 @@ VERSIONES_DE_PARTIDA: tuple[tuple[str, str, str, str, str], ...] = (
     ("cancel", "C-01", "1.5", "2.1", "0"),
     ("arco", "A-01", "1", "2.1", "0"),
     ("paso", "PS-01", "0.9", "2.1", "0"),
-    ("castillo", "K-01", "0.15", "2.6", "0"),
+    ("castillo", "K-01", "0.15", "3", "0"),  # alto = altura_estandar (3.00 m); un castillo sube lo alto del muro al colocarse
 )
 
 _COLUMNAS = "id, tipo, clave, ancho_m, alto_m, antepecho_m"

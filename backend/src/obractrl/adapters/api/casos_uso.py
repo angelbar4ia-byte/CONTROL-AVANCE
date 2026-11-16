@@ -83,6 +83,7 @@ from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
+from obractrl.adapters.repos.parametrico_sql import RepositorioParametricoSQL
 from obractrl.adapters.repos.partes_sql import RepositorioPartesSQL
 from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
 from obractrl.adapters.repos.plantillas_de_muro_sql import (
@@ -348,6 +349,10 @@ from obractrl.application.casos_uso.notificar_partes import NotificarPartes
 from obractrl.application.casos_uso.notificar_reprogramacion import (
     NotificarReprogramacion,
 )
+from obractrl.application.casos_uso.parametrico import (
+    GestionarDrivers,
+    GestionarEnlacesDeRanura,
+)
 from obractrl.application.casos_uso.plantillas_de_muro import GestionarPlantillasDeMuro
 from obractrl.application.casos_uso.preparar_obra_nueva import PrepararObraNueva
 from obractrl.application.casos_uso.propuestas import (
@@ -487,9 +492,11 @@ __all__ = [
     "GenerarObraDesdePrototipoDep",
     "GestionarConceptosDeElementoDep",
     "GestionarCorreccionesDeCatalogoDep",
+    "GestionarDriversDep",
     "GestionarElementosDep",
     "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
+    "GestionarEnlacesDeRanuraDep",
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
@@ -1099,6 +1106,14 @@ def obtener_gestionar_correcciones_de_catalogo(sesion: SesionRLS) -> GestionarCo
     )
 
 
+def obtener_gestionar_drivers(sesion: SesionRLS) -> GestionarDrivers:
+    return GestionarDrivers(parametrico=RepositorioParametricoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
+def obtener_gestionar_enlaces_de_ranura(sesion: SesionRLS) -> GestionarEnlacesDeRanura:
+    return GestionarEnlacesDeRanura(parametrico=RepositorioParametricoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
 def obtener_gestionar_elementos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarElementos:
     return GestionarElementos(
         elementos=RepositorioElementosSQL(sesion),
@@ -1368,6 +1383,8 @@ AutorizarElementosDep = Annotated[AutorizarElementos, Depends(obtener_autorizar_
 GestionarCorreccionesDeCatalogoDep = Annotated[
     GestionarCorreccionesDeCatalogo, Depends(obtener_gestionar_correcciones_de_catalogo)
 ]
+GestionarDriversDep = Annotated[GestionarDrivers, Depends(obtener_gestionar_drivers)]
+GestionarEnlacesDeRanuraDep = Annotated[GestionarEnlacesDeRanura, Depends(obtener_gestionar_enlaces_de_ranura)]
 GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)
 ]

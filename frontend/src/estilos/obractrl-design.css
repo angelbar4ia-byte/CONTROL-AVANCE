@@ -3093,6 +3093,8 @@ a { color: inherit; text-decoration: none; }
 .biblioteca__elemento.is-activo { background: var(--c-accent-soft); color: var(--c-accent-strong); font-weight: 600; }
 .biblioteca__rama:focus-visible, .biblioteca__elemento:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .mct { display: grid; gap: 12px; max-width: 980px; }
+.mct--ancha { max-width: 1180px; }
+.mct__driver-campo { width: 92px; }
 .mct__cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .mct__titulo { margin: 0; font-size: var(--fs-lg); }
 .mct__bloque { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-surface); }
