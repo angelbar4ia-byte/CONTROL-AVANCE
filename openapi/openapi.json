@@ -15404,6 +15404,59 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/tabique/{clave}/propuestas/correcciones": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Proponer las correcciones de fábrica del elemento (EST-02020: el cálculo; AUX-04010: el texto del mortero)",
+        "operationId": "proponer_correcciones_de_tabique_api_v1_biblioteca_de_elementos_tabique__clave__propuestas_correcciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de tabique con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/baston/{clave}": {
       "get": {
         "tags": [

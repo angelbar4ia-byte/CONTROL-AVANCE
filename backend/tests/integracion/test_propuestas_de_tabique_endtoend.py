@@ -104,3 +104,14 @@ async def test_lo_que_propone_control_de_obra_nace_autorizado_y_el_residente_no_
     assert p["estado"] == "autorizada" and p["version"] == 1
     # La lista general de pendientes (3A) también trae lo de tabique.
     assert all(x["elemento_clave"] != "EST-02005" for x in (await control.get(f"{PROPUESTAS}/pendientes")).json())
+
+
+async def test_las_correcciones_de_fabrica_se_proponen_una_vez_y_solo_control_de_obra_autoriza(costos: httpx.AsyncClient, control: httpx.AsyncClient) -> None:
+    for clave, concepto in (("EST-02020", "EST-02020"), ("AUX-04010", "AUX-04010")):
+        r = await costos.post(f"{RUTA}/{clave}/propuestas/correcciones")
+        assert r.status_code == 201 and len(r.json()["creadas"]) == 1, r.text
+        assert (await costos.post(f"{RUTA}/{clave}/propuestas/correcciones")).json()["omitidas"] == [concepto]
+    (texto,) = (await costos.get(f"{RUTA}/AUX-04010/propuestas")).json()
+    assert texto["estado"] == "pendiente" and "1:4" in texto["resumen"] and texto["cambios"] == []
+    assert (await control.post(f"{PROPUESTAS}/{texto['id']}/autorizar")).json() == {"version": 2}
+    assert (await costos.post(f"{RUTA}/EST-02010/propuestas/correcciones")).json() == {"creadas": [], "omitidas": []}

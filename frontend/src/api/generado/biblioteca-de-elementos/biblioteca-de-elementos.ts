@@ -5317,6 +5317,126 @@ export const useProponerActualizacionDeApuApiV1BibliotecaDeElementosTabiqueClave
     return useMutation(mutationOptions, queryClient);
   };
 /**
+ * @summary Proponer las correcciones de fábrica del elemento (EST-02020: el cálculo; AUX-04010: el texto del mortero)
+ */
+export const proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/tabique/${clave}/propuestas/correcciones`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost
+        >
+      >,
+      TError,
+      { clave: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost
+      >
+    >,
+    TError,
+    { clave: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost
+        >
+      >,
+      { clave: string }
+    > = (props) => {
+      const { clave } = props ?? {};
+
+      return proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost(
+        clave,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost
+      >
+    >
+  >;
+
+export type ProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Proponer las correcciones de fábrica del elemento (EST-02020: el cálculo; AUX-04010: el texto del mortero)
+ */
+export const useProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost
+          >
+        >,
+        TError,
+        { clave: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPost
+      >
+    >,
+    TError,
+    { clave: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * @summary La ficha del bastón de la biblioteca: varillas, módulos de corte, escalones del catálogo y preguntas pendientes
  */
 export const definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet = (

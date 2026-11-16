@@ -120,6 +120,11 @@ test.describe('Cuantificador · muros de tabique, aparejos y piso de petatillo',
     await veintiunoCostos.getByRole('button', { name: /Confirmar cálculo/ }).click();
     await expect(veintiunoCostos.locator('[data-propuesta="EST-02020"]')).toContainText('PET-00001');
     await expect(veintiunoCostos.locator('tr[data-insumo="PET-00001"]')).toContainText('75.0000');
+    await bibCostos.getByRole('button', { name: /^AUX-04010\b/ }).click();
+    const auxCostos = areaCostos.getByRole('article', { name: /AUX-04010/ });
+    await auxCostos.getByRole('button', { name: 'Proponer la corrección del catálogo' }).click();
+    await expect(auxCostos.locator('[data-propuesta="AUX-04010"]')).toContainText('Pendiente');
+    await expect(auxCostos.getByTestId('tabique-aviso-catalogo')).toContainText('1:5'); // sigue visible mientras está pendiente
     await costos.close();
 
     await page.reload();
@@ -133,6 +138,12 @@ test.describe('Cuantificador · muros de tabique, aparejos y piso de petatillo',
     const version = area.getByRole('article', { name: /EST-02020/ }).locator('[data-propuesta="EST-02020"]');
     await version.getByRole('button', { name: 'Autorizar' }).click();
     await expect(version).toContainText('versión 2');
+
+    await biblioteca.getByRole('button', { name: /^AUX-04010\b/ }).click();
+    const texto = area.getByRole('article', { name: /AUX-04010/ }).locator('[data-propuesta="AUX-04010"]');
+    await texto.getByRole('button', { name: 'Autorizar' }).click();
+    await expect(texto).toContainText('versión 2');
+    await expect(area.getByRole('article', { name: /AUX-04010/ }).getByTestId('tabique-aviso-catalogo')).toHaveCount(0);
 
     // --- 7. La tabla de revisión ---------------------------------------------------------------------------------------------
     const revision = area.getByTestId('tabique-revision');
