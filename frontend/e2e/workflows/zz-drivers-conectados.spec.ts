@@ -70,7 +70,8 @@ test.describe('Cuantificador · drivers conectados', () => {
     await expect(k3.getByLabel('Alto en metros')).toHaveValue('3.50');
     const usados = k3.getByRole('region', { name: 'Drivers que usa este cálculo' });
     await expect(usados.locator('tr[data-driver-usado="altura_estandar"]')).toHaveAttribute('data-fuente', 'obra');
-    await expect(usados.locator('tr[data-driver-usado="traslape_varilla_diametros"]')).toHaveAttribute('data-fuente', 'defecto');
+    await expect(usados.locator('tr[data-driver-usado="traslape_varilla_diametros"]')).toHaveAttribute('data-fuente', 'obra');
+    await expect(usados.locator('tr[data-driver-usado="tolerancia_corte_cm"]')).toHaveAttribute('data-fuente', 'defecto');
     // Lo que se teclea manda sobre el driver: el alto de 2.8 m ya no es de la obra.
     await k3.getByLabel('Alto en metros').fill('2.8');
     await expect(usados.locator('tr[data-driver-usado="altura_estandar"]')).toHaveCount(0);
