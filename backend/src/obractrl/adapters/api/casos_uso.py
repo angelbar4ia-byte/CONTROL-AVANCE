@@ -85,6 +85,9 @@ from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
 from obractrl.adapters.repos.partes_sql import RepositorioPartesSQL
 from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
+from obractrl.adapters.repos.plantillas_de_muro_sql import (
+    RepositorioPlantillasDeMuroSQL,
+)
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.propuestas_de_estructura_sql import (
@@ -345,6 +348,7 @@ from obractrl.application.casos_uso.notificar_partes import NotificarPartes
 from obractrl.application.casos_uso.notificar_reprogramacion import (
     NotificarReprogramacion,
 )
+from obractrl.application.casos_uso.plantillas_de_muro import GestionarPlantillasDeMuro
 from obractrl.application.casos_uso.preparar_obra_nueva import PrepararObraNueva
 from obractrl.application.casos_uso.propuestas import (
     AceptarPropuestas,
@@ -486,6 +490,7 @@ __all__ = [
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
+    "GestionarPlantillasDeMuroDep",
     "GestionarPropuestasDeEstructuraDep",
     "GestionarPropuestasDeTabiqueDep",
     "GestionarVanosDep",
@@ -989,6 +994,16 @@ def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElem
     )
 
 
+def obtener_gestionar_plantillas_de_muro(sesion: SesionRLS) -> GestionarPlantillasDeMuro:
+    return GestionarPlantillasDeMuro(
+        plantillas=RepositorioPlantillasDeMuroSQL(sesion),
+        elementos=RepositorioElementosParametricosSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        trazos=RepositorioTrazosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_gestionar_insumos_de_elemento(sesion: SesionRLS) -> GestionarInsumosDeElemento:
     return GestionarInsumosDeElemento(
         elementos=RepositorioElementosParametricosSQL(sesion),
@@ -1343,6 +1358,7 @@ GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
+GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obtener_gestionar_plantillas_de_muro)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
 PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]
 ArbolDeObraDep = Annotated[ArbolDeObra, Depends(obtener_arbol_de_obra)]
