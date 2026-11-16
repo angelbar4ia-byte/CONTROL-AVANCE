@@ -15404,6 +15404,265 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/baston/{clave}": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La ficha del bastón de la biblioteca: varillas, módulos de corte, escalones del catálogo y preguntas pendientes",
+        "operationId": "definicion_del_baston_api_v1_biblioteca_de_elementos_baston__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDelBaston"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un bastón con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/baston/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula los bastones, varillas y kg de un trazo, el escalón del catálogo que los paga y su conciliación (solo cálculo)",
+        "operationId": "calcular_el_baston_api_v1_biblioteca_de_elementos_baston__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelBastonPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDelBaston"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un bastón con esa clave."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/baston/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Las versiones de concepto propuestas, autorizadas y rechazadas del bastón",
+        "operationId": "propuestas_del_baston_api_v1_biblioteca_de_elementos_baston__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas Del Baston Api V1 Biblioteca De Elementos Baston  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un bastón con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/baston/{clave}/propuestas/concepto-nuevo": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Proponer el concepto nuevo del escalón que el catálogo no trae (clave provisional, sin destajo ni precio)",
+        "operationId": "proponer_concepto_nuevo_api_v1_biblioteca_de_elementos_baston__clave__propuestas_concepto_nuevo_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelBastonPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un bastón con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "El catálogo ya trae el escalón o un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/baston/{clave}/propuestas/actualizar-apu": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Confirmar el cálculo: proponer como nueva versión del escalón los coeficientes que difieren del catálogo",
+        "operationId": "proponer_actualizacion_de_apu_api_v1_biblioteca_de_elementos_baston__clave__propuestas_actualizar_apu_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelBastonPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un bastón con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
     "/api/v1/correcciones-de-catalogo": {
       "get": {
         "tags": [
@@ -23409,6 +23668,154 @@
         "type": "object",
         "title": "CalculoDeEstructuraPeticion"
       },
+      "CalculoDelBaston": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "trazo_m": {
+            "type": "number",
+            "title": "Trazo M"
+          },
+          "varilla": {
+            "$ref": "#/components/schemas/VarillaCalculada"
+          },
+          "parametros": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Parametros"
+          },
+          "bastones_por_metro": {
+            "type": "number",
+            "title": "Bastones Por Metro"
+          },
+          "ajustado": {
+            "$ref": "#/components/schemas/PlanAjustado",
+            "description": "El corte ajustado a módulos: lo que se paga (Q28, lo más conservador)."
+          },
+          "exacto": {
+            "$ref": "#/components/schemas/PlanExacto",
+            "description": "El corte exacto del mockup, solo como referencia."
+          },
+          "varillas_por_metro": {
+            "type": "number",
+            "title": "Varillas Por Metro"
+          },
+          "pago": {
+            "$ref": "#/components/schemas/PagoDelBaston"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDelBaston"
+          },
+          "escalon": {
+            "type": "string",
+            "enum": [
+              "exacto",
+              "mayor",
+              "sin_escalon"
+            ],
+            "title": "Escalon"
+          },
+          "conciliacion": {
+            "items": {
+              "$ref": "#/components/schemas/ConciliacionDelBaston"
+            },
+            "type": "array",
+            "title": "Conciliacion"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "unidad",
+          "trazo_m",
+          "varilla",
+          "parametros",
+          "bastones_por_metro",
+          "ajustado",
+          "exacto",
+          "varillas_por_metro",
+          "pago",
+          "concepto",
+          "escalon",
+          "conciliacion",
+          "avisos"
+        ],
+        "title": "CalculoDelBaston"
+      },
+      "CalculoDelBastonPeticion": {
+        "properties": {
+          "trazo_m": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Trazo M",
+            "description": "Longitud de trazo a cubrir, en metros.",
+            "default": 1.0
+          },
+          "varilla_numero": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 3.0,
+            "title": "Varilla Numero",
+            "description": "3 = 3/8, 4 = 1/2, 5 = 5/8, 6 = 3/4.",
+            "default": 3
+          },
+          "sep_cm": {
+            "type": "number",
+            "maximum": 200.0,
+            "minimum": 5.0,
+            "title": "Sep Cm",
+            "description": "Cada cuánto va un bastón.",
+            "default": 25.0
+          },
+          "largo_cm": {
+            "type": "number",
+            "maximum": 3000.0,
+            "minimum": 10.0,
+            "title": "Largo Cm",
+            "description": "Largo del bastón.",
+            "default": 120.0
+          },
+          "puntas_cm": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Puntas Cm",
+            "description": "Anclaje adicional; 0 = sin gancho (Q28).",
+            "default": 0.0
+          },
+          "traslape_diametros": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Traslape Diametros",
+            "description": "Traslape entre las piezas de un bastón largo (Q22).",
+            "default": 40.0
+          }
+        },
+        "type": "object",
+        "title": "CalculoDelBastonPeticion"
+      },
       "CalculoDelCimiento": {
         "properties": {
           "clave": {
@@ -26226,6 +26633,63 @@
         ],
         "title": "ConceptoDeLaDefinicion"
       },
+      "ConceptoDelBaston": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "catalogo",
+              "propuesto"
+            ],
+            "title": "Estado"
+          },
+          "clave_provisional": {
+            "type": "boolean",
+            "title": "Clave Provisional"
+          },
+          "escalon": {
+            "type": "string",
+            "enum": [
+              "exacto",
+              "mayor",
+              "sin_escalon"
+            ],
+            "title": "Escalon"
+          },
+          "largo_m": {
+            "type": "number",
+            "title": "Largo M"
+          },
+          "sep_cm": {
+            "type": "number",
+            "title": "Sep Cm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "estado",
+          "clave_provisional",
+          "escalon",
+          "largo_m",
+          "sep_cm"
+        ],
+        "title": "ConceptoDelBaston"
+      },
       "ConceptoDelCatalogoDelElemento": {
         "properties": {
           "clave": {
@@ -27450,6 +27914,68 @@
         ],
         "title": "ConciliacionDeEstructura"
       },
+      "ConciliacionDelBaston": {
+        "properties": {
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeConciliacion"
+          },
+          "sobre": {
+            "type": "string",
+            "title": "Sobre"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__bastones__FilaDeConciliacion"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "mano_de_obra": {
+            "items": {
+              "$ref": "#/components/schemas/ManoDeObraDelCatalogo"
+            },
+            "type": "array",
+            "title": "Mano De Obra"
+          },
+          "resumen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resumen"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide"
+          },
+          "fuente_de_las_filas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fuente De Las Filas"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "sobre",
+          "filas",
+          "mano_de_obra",
+          "resumen",
+          "coincide",
+          "fuente_de_las_filas",
+          "avisos"
+        ],
+        "title": "ConciliacionDelBaston"
+      },
       "ConciliacionDelTabique": {
         "properties": {
           "concepto": {
@@ -27547,7 +28073,7 @@
           },
           "filas": {
             "items": {
-              "$ref": "#/components/schemas/FilaDeConciliacion"
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__autorizacion_de_elementos__FilaDeConciliacion"
             },
             "type": "array",
             "title": "Filas"
@@ -28834,6 +29360,59 @@
           "cubre_completo"
         ],
         "title": "CorteDeLaVarilla"
+      },
+      "CorteDelBaston": {
+        "properties": {
+          "piezas_por_baston": {
+            "type": "integer",
+            "title": "Piezas Por Baston"
+          },
+          "modulo_m": {
+            "type": "number",
+            "title": "Modulo M"
+          },
+          "material_por_baston_m": {
+            "type": "number",
+            "title": "Material Por Baston M"
+          },
+          "traslape_m": {
+            "type": "number",
+            "title": "Traslape M"
+          },
+          "puntas_m": {
+            "type": "number",
+            "title": "Puntas M"
+          },
+          "necesario_m": {
+            "type": "number",
+            "title": "Necesario M"
+          },
+          "sobrante_por_baston_m": {
+            "type": "number",
+            "title": "Sobrante Por Baston M"
+          },
+          "piezas_por_varilla": {
+            "type": "integer",
+            "title": "Piezas Por Varilla"
+          },
+          "excede_maximo": {
+            "type": "boolean",
+            "title": "Excede Maximo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piezas_por_baston",
+          "modulo_m",
+          "material_por_baston_m",
+          "traslape_m",
+          "puntas_m",
+          "necesario_m",
+          "sobrante_por_baston_m",
+          "piezas_por_varilla",
+          "excede_maximo"
+        ],
+        "title": "CorteDelBaston"
       },
       "CostoDeJornadaPeticion": {
         "properties": {
@@ -30672,6 +31251,83 @@
           "fuente"
         ],
         "title": "DefinicionDeEstructura"
+      },
+      "DefinicionDelBaston": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombre"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombre"
+          },
+          "parametros_por_defecto": {
+            "$ref": "#/components/schemas/ParametrosDelBaston"
+          },
+          "varillas": {
+            "items": {
+              "$ref": "#/components/schemas/VarillaDeBaston"
+            },
+            "type": "array",
+            "title": "Varillas"
+          },
+          "modulos_de_corte_m": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Modulos De Corte M"
+          },
+          "escalones": {
+            "items": {
+              "$ref": "#/components/schemas/EscalonDelCatalogo"
+            },
+            "type": "array",
+            "title": "Escalones"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDelBaston"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "se_mide_por",
+          "categoria",
+          "subcategoria",
+          "parametros_por_defecto",
+          "varillas",
+          "modulos_de_corte_m",
+          "escalones",
+          "fuente",
+          "pendientes"
+        ],
+        "title": "DefinicionDelBaston"
       },
       "DefinicionDelElemento": {
         "properties": {
@@ -33247,6 +33903,39 @@
         ],
         "title": "EscalonDeEstructura"
       },
+      "EscalonDelCatalogo": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "largo_m": {
+            "type": "number",
+            "title": "Largo M"
+          },
+          "sep_cm": {
+            "type": "number",
+            "title": "Sep Cm"
+          },
+          "varilla_pza_por_ml": {
+            "type": "number",
+            "title": "Varilla Pza Por Ml"
+          },
+          "alambre_kg_por_ml": {
+            "type": "number",
+            "title": "Alambre Kg Por Ml"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "largo_m",
+          "sep_cm",
+          "varilla_pza_por_ml",
+          "alambre_kg_por_ml"
+        ],
+        "title": "EscalonDelCatalogo"
+      },
       "EscarpioDelCimiento": {
         "properties": {
           "minimo": {
@@ -34682,156 +35371,6 @@
           "marca"
         ],
         "title": "FilaDeComparacion"
-      },
-      "FilaDeConciliacion": {
-        "properties": {
-          "clave": {
-            "type": "string",
-            "title": "Clave"
-          },
-          "descripcion": {
-            "type": "string",
-            "title": "Descripcion"
-          },
-          "unidad": {
-            "type": "string",
-            "title": "Unidad"
-          },
-          "estimado": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Estimado",
-            "description": "Cantidad × lo que lleva el APU."
-          },
-          "salida": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Salida",
-            "description": "Cantidad × lo que calcula el elemento."
-          },
-          "diferencia_cantidad": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Diferencia Cantidad"
-          },
-          "diferencia_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Diferencia Pct"
-          },
-          "costo": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Costo"
-          },
-          "importe_apu": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Importe Apu"
-          },
-          "importe_salida": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Importe Salida"
-          },
-          "diferencia_importe": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Diferencia Importe"
-          },
-          "marca": {
-            "type": "string",
-            "enum": [
-              "=",
-              "≈",
-              "≠",
-              "solo_catalogo",
-              "solo_elemento"
-            ],
-            "title": "Marca"
-          },
-          "sentido": {
-            "type": "string",
-            "enum": [
-              "se_justifican",
-              "difieren",
-              "estimado_sin_salida",
-              "salida_sin_estimado"
-            ],
-            "title": "Sentido"
-          },
-          "avisa": {
-            "type": "boolean",
-            "title": "Avisa",
-            "description": "Fuera de ±3 %: solo un aviso visual."
-          }
-        },
-        "type": "object",
-        "required": [
-          "clave",
-          "descripcion",
-          "unidad",
-          "estimado",
-          "salida",
-          "diferencia_cantidad",
-          "diferencia_pct",
-          "costo",
-          "importe_apu",
-          "importe_salida",
-          "diferencia_importe",
-          "marca",
-          "sentido",
-          "avisa"
-        ],
-        "title": "FilaDeConciliacion"
       },
       "FilaDeConciliacionDeEstructura": {
         "properties": {
@@ -41342,6 +41881,73 @@
         "title": "PaginaBitacora",
         "description": "Página con el total, para que la UI pueda decir \"1-50 de 3 240\"."
       },
+      "PagoDelBaston": {
+        "properties": {
+          "modo": {
+            "type": "string",
+            "const": "pieza",
+            "title": "Modo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "integer",
+            "title": "Cantidad"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "modo",
+          "unidad",
+          "cantidad",
+          "texto"
+        ],
+        "title": "PagoDelBaston"
+      },
+      "ParametrosDelBaston": {
+        "properties": {
+          "varilla_numero": {
+            "type": "integer",
+            "title": "Varilla Numero"
+          },
+          "sep_cm": {
+            "type": "number",
+            "title": "Sep Cm"
+          },
+          "largo_cm": {
+            "type": "number",
+            "title": "Largo Cm"
+          },
+          "puntas_cm": {
+            "type": "number",
+            "title": "Puntas Cm"
+          },
+          "traslape_diametros": {
+            "type": "number",
+            "title": "Traslape Diametros"
+          },
+          "trazo_m": {
+            "type": "number",
+            "title": "Trazo M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "varilla_numero",
+          "sep_cm",
+          "largo_cm",
+          "puntas_cm",
+          "traslape_diametros",
+          "trazo_m"
+        ],
+        "title": "ParametrosDelBaston"
+      },
       "ParametrosDelTabique": {
         "properties": {
           "junta_cm": {
@@ -42296,6 +42902,24 @@
         ],
         "title": "PendienteDeAutorizar"
       },
+      "PendienteDelBaston": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "PendienteDelBaston"
+      },
       "PendienteDelElemento": {
         "properties": {
           "clave": {
@@ -42485,6 +43109,44 @@
         ],
         "title": "PiezasCalculadas"
       },
+      "PlanAjustado": {
+        "properties": {
+          "corte": {
+            "$ref": "#/components/schemas/CorteDelBaston"
+          },
+          "bastones": {
+            "type": "integer",
+            "title": "Bastones"
+          },
+          "varillas": {
+            "type": "integer",
+            "title": "Varillas",
+            "description": "Varillas de 12 m a comprar."
+          },
+          "material_m": {
+            "type": "number",
+            "title": "Material M"
+          },
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          },
+          "sobra_m": {
+            "type": "number",
+            "title": "Sobra M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "corte",
+          "bastones",
+          "varillas",
+          "material_m",
+          "kg",
+          "sobra_m"
+        ],
+        "title": "PlanAjustado"
+      },
       "PlanDeApuRespuesta": {
         "properties": {
           "fila_id": {
@@ -42586,6 +43248,39 @@
           "propuesta_pendiente"
         ],
         "title": "PlanDeApuRespuesta"
+      },
+      "PlanExacto": {
+        "properties": {
+          "bastones": {
+            "type": "integer",
+            "title": "Bastones"
+          },
+          "varillas": {
+            "type": "integer",
+            "title": "Varillas"
+          },
+          "material_m": {
+            "type": "number",
+            "title": "Material M"
+          },
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          },
+          "sobra_m": {
+            "type": "number",
+            "title": "Sobra M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bastones",
+          "varillas",
+          "material_m",
+          "kg",
+          "sobra_m"
+        ],
+        "title": "PlanExacto"
       },
       "PlaneacionRespuesta": {
         "properties": {
@@ -50474,6 +51169,67 @@
         ],
         "title": "VanoRespuesta"
       },
+      "VarillaCalculada": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "peso_kg_m": {
+            "type": "number",
+            "title": "Peso Kg M"
+          },
+          "largo_m": {
+            "type": "number",
+            "title": "Largo M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "numero",
+          "nombre",
+          "peso_kg_m",
+          "largo_m"
+        ],
+        "title": "VarillaCalculada"
+      },
+      "VarillaDeBaston": {
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "peso_kg_m": {
+            "type": "number",
+            "title": "Peso Kg M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero",
+          "clave",
+          "nombre",
+          "peso_kg_m"
+        ],
+        "title": "VarillaDeBaston"
+      },
       "VarillaDeLaReceta": {
         "properties": {
           "clave": {
@@ -51551,6 +52307,239 @@
           "parte"
         ],
         "title": "PartidaRespuesta"
+      },
+      "obractrl__adapters__api__v1__autorizacion_de_elementos__FilaDeConciliacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "estimado": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimado",
+            "description": "Cantidad × lo que lleva el APU."
+          },
+          "salida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salida",
+            "description": "Cantidad × lo que calcula el elemento."
+          },
+          "diferencia_cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Cantidad"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo"
+          },
+          "importe_apu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe Apu"
+          },
+          "importe_salida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe Salida"
+          },
+          "diferencia_importe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Importe"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          },
+          "sentido": {
+            "type": "string",
+            "enum": [
+              "se_justifican",
+              "difieren",
+              "estimado_sin_salida",
+              "salida_sin_estimado"
+            ],
+            "title": "Sentido"
+          },
+          "avisa": {
+            "type": "boolean",
+            "title": "Avisa",
+            "description": "Fuera de ±3 %: solo un aviso visual."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "estimado",
+          "salida",
+          "diferencia_cantidad",
+          "diferencia_pct",
+          "costo",
+          "importe_apu",
+          "importe_salida",
+          "diferencia_importe",
+          "marca",
+          "sentido",
+          "avisa"
+        ],
+        "title": "FilaDeConciliacion"
+      },
+      "obractrl__adapters__api__v1__bastones__FilaDeConciliacion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "catalogo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogo"
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "catalogo",
+          "elemento",
+          "diferencia",
+          "diferencia_pct",
+          "marca"
+        ],
+        "title": "FilaDeConciliacion"
       },
       "obractrl__adapters__api__v1__insumos__PeriodoRespuesta": {
         "properties": {
