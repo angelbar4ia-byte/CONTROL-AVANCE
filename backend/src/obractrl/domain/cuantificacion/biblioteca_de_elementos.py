@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from obractrl.domain.cuantificacion import muro_cimentacion, muro_tabique
+from obractrl.domain.cuantificacion import baston, muro_cimentacion, muro_tabique
 from obractrl.domain.cuantificacion.elementos_lineales import (
     TIPOS as _TIPOS_LINEALES,
 )
@@ -106,14 +106,16 @@ _EXISTENTES: tuple[dict[str, Any], ...] = (
 )
 
 
-BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(_EXISTENTES, _categorias_lineales(), muro_tabique.categorias_de_biblioteca())
+BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(
+    _EXISTENTES, _categorias_lineales(), muro_tabique.categorias_de_biblioteca(), baston.categorias_de_biblioteca()
+)
 
 
 def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
     for categoria in BIBLIOTECA:
         for sub in categoria["subcategorias"]:
             for elemento in sub["elementos"]:
-                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES and elemento.get("tipo") != "tabique":
+                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES and elemento.get("tipo") not in ("tabique", "baston"):
                     cimiento = clave == muro_cimentacion.CLAVE_ELEMENTO
                     return {
                         **elemento,

@@ -28,6 +28,8 @@ import type {
 import type {
   CalculoDeEstructura,
   CalculoDeEstructuraPeticion,
+  CalculoDelBaston,
+  CalculoDelBastonPeticion,
   CalculoDelCimiento,
   CalculoDelCimientoPeticion,
   CalculoDelElementoEstructural,
@@ -43,6 +45,7 @@ import type {
   CorreccionDelCatalogo,
   CorreccionPropuesta,
   DefinicionDeEstructura,
+  DefinicionDelBaston,
   DefinicionDelElemento,
   DefinicionDelElementoEstructural,
   DefinicionDelTabique,
@@ -5428,6 +5431,1402 @@ export const useProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueCl
   > => {
     const mutationOptions =
       getProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary La ficha del bastón de la biblioteca: varillas, módulos de corte, escalones del catálogo y preguntas pendientes
+ */
+export const definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet = (
+  clave: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<DefinicionDelBaston>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/baston/${clave}`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/baston/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetQueryKey =
+  (clave?: string) => {
+    return [`/api/v1/biblioteca-de-elementos/baston/${clave}`] as const;
+  };
+
+export const getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >
+  >;
+export type DefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha del bastón de la biblioteca: varillas, módulos de corte, escalones del catálogo y preguntas pendientes
+ */
+
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+      >
+    >
+  >;
+export type DefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha del bastón de la biblioteca: varillas, módulos de corte, escalones del catálogo y preguntas pendientes
+ */
+
+export function useDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelBastonApiV1BibliotecaDeElementosBastonClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelBastonApiV1BibliotecaDeElementosBastonClaveGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Calcula los bastones, varillas y kg de un trazo, el escalón del catálogo que los paga y su conciliación (solo cálculo)
+ */
+export const calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost =
+  (
+    clave: string,
+    calculoDelBastonPeticion: CalculoDelBastonPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<CalculoDelBaston>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/baston/${clave}/calcular`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelBastonPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCalcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelBastonPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelBastonPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost
+        >
+      >,
+      { clave: string; data: CalculoDelBastonPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost
+      >
+    >
+  >;
+export type CalcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPostMutationBody =
+  CalculoDelBastonPeticion;
+export type CalcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPostMutationError =
+  void;
+
+/**
+ * @summary Calcula los bastones, varillas y kg de un trazo, el escalón del catálogo que los paga y su conciliación (solo cálculo)
+ */
+export const useCalcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelBastonPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelBastonPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularElBastonApiV1BibliotecaDeElementosBastonClaveCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del bastón
+ */
+export const propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<PropuestaDeEstructura[]>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/baston/${clave}/propuestas`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/baston/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/baston/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del bastón
+ */
+
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del bastón
+ */
+
+export function usePropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDelBastonApiV1BibliotecaDeElementosBastonClavePropuestasGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Proponer el concepto nuevo del escalón que el catálogo no trae (clave provisional, sin destajo ni precio)
+ */
+export const proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost =
+  (
+    clave: string,
+    calculoDelBastonPeticion: CalculoDelBastonPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/baston/${clave}/propuestas/concepto-nuevo`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelBastonPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelBastonPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelBastonPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost
+        >
+      >,
+      { clave: string; data: CalculoDelBastonPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost
+      >
+    >
+  >;
+export type ProponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPostMutationBody =
+  CalculoDelBastonPeticion;
+export type ProponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPostMutationError =
+  void;
+
+/**
+ * @summary Proponer el concepto nuevo del escalón que el catálogo no trae (clave provisional, sin destajo ni precio)
+ */
+export const useProponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelBastonPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelBastonPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerConceptoNuevoApiV1BibliotecaDeElementosBastonClavePropuestasConceptoNuevoPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Confirmar el cálculo: proponer como nueva versión del escalón los coeficientes que difieren del catálogo
+ */
+export const proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost =
+  (
+    clave: string,
+    calculoDelBastonPeticion: CalculoDelBastonPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/baston/${clave}/propuestas/actualizar-apu`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelBastonPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelBastonPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelBastonPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost
+        >
+      >,
+      { clave: string; data: CalculoDelBastonPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost
+      >
+    >
+  >;
+export type ProponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPostMutationBody =
+  CalculoDelBastonPeticion;
+export type ProponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPostMutationError =
+  void;
+
+/**
+ * @summary Confirmar el cálculo: proponer como nueva versión del escalón los coeficientes que difieren del catálogo
+ */
+export const useProponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelBastonPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelBastonPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerActualizacionDeApuApiV1BibliotecaDeElementosBastonClavePropuestasActualizarApuPostMutationOptions(
         options,
       );
 
