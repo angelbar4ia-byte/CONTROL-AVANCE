@@ -9,7 +9,7 @@ Controladores delgados: las reglas viven en el dominio.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
@@ -17,7 +17,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.casos_uso import GestionarPlantillasDeMuroDep
+from obractrl.adapters.api.casos_uso import (
+    ColocarElementosDeMuroDep,
+    GestionarPlantillasDeMuroDep,
+)
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.plantillas_de_muro import PlantillaEnUso
 from obractrl.domain.cuantificacion.muro_tipo import CASTILLO_MODO_POR_TIPO, TIPOS_DE_MURO
@@ -376,3 +379,104 @@ async def elegir_plantilla_del_trazo(
 ) -> ElegirPlantillaRespuesta:
     r = await caso_uso.elegir_en_trazo(trazo_id, peticion.plantilla_id)
     return ElegirPlantillaRespuesta(**{k: r[k] for k in ElegirPlantillaRespuesta.model_fields})
+
+
+# --- Colocar lo que trae la plantilla en el plano (Ola 4C) -----------------------------------------------------------------
+
+
+class ConceptoColocadoRespuesta(BaseModel):
+    ranura: Literal["acero", "colado", "completo"] | None
+    concepto_id: UUID | None
+    clave: str
+    unidad: str
+    cantidad: Decimal
+    cuenta: bool = Field(description="Solo con el concepto autorizado, su unidad admitida y su partida en el árbol de la obra.")
+    estado: Literal["cuenta", "falta_partida", "propuesto", "unidad_no_admitida"]
+    origen: Literal["contexto", "ranura"] = Field(description="`contexto`: lo eligieron el nivel y el alto (2A). `ranura`: lo enlazó el Paramétrico (4B).")
+    aviso: str | None
+    partida_id: UUID | None
+
+
+class ElementoColocadoRespuesta(BaseModel):
+    uid: str
+    ref: str
+    nombre: str
+    clase: Literal["castillo", "cadena"]
+    modo: Literal["estimado", "ubicado"] | None
+    piezas: int
+    alto_m: Decimal | None = Field(description="Lo alto de cada castillo: la altura del muro menos su arranque.")
+    z_m: Decimal
+    metros: Decimal = Field(description="Castillos: piezas × alto. Cadena: el largo del muro.")
+    posiciones_m: list[Decimal] = Field(description="El centro de cada castillo ubicado, en metros desde el inicio del muro.")
+    se_coloca: bool = Field(description="Un castillo ubicado se coloca en el plano y resta de la mampostería; uno estimado solo se cuenta.")
+    colocados: int = Field(description="Cuántas piezas de este elemento ya están colocadas en el plano.")
+    descuento_m2_por_cara: Decimal
+    conceptos: list[ConceptoColocadoRespuesta]
+
+
+class ColocacionDelMuroRespuesta(BaseModel):
+    trazo_id: UUID
+    plantilla_id: UUID
+    plantilla: str
+    version: int
+    largo_m: Decimal
+    altura_m: Decimal = Field(description="La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra.")
+    nivel: int | None = Field(description="El número de nivel con que se eligen los conceptos (el orden del nivel de la partida que ya mide el muro).")
+    ubicacion: str | None
+    elementos: list[ElementoColocadoRespuesta]
+    avisos: list[str]
+
+
+class MuroColocadoRespuesta(BaseModel):
+    colocados: int
+    reemplazados: int
+    descuento_m2_por_cara: Decimal
+
+
+class MuroRetiradoRespuesta(BaseModel):
+    retirados: int
+
+
+_COLOCAR = {
+    403: {"description": "El muro alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."},
+    404: {"description": "El trazo no existe o está fuera de tu alcance."},
+    422: {"description": "El muro no es una línea, no tiene plantilla o su plantilla no lleva castillos ubicados."},
+}
+
+
+@router.get(
+    "/trazos/{trazo_id}/muro/plantilla/colocacion",
+    response_model=ColocacionDelMuroRespuesta,
+    summary="Lo que la plantilla coloca en este muro y a qué conceptos alimenta (no cambia nada)",
+    responses={404: _COLOCAR[404], 422: _COLOCAR[422]},
+)
+async def colocacion_del_muro(trazo_id: UUID, caso_uso: ColocarElementosDeMuroDep) -> ColocacionDelMuroRespuesta:
+    """Castillos (piezas, alto, posiciones) y cadenas (metros) de la plantilla según el largo, la altura y el nivel del muro, y el concepto
+    que paga cada parte; si falta su partida en el árbol de la obra avisa y no cuenta."""
+    return ColocacionDelMuroRespuesta.model_validate(await caso_uso.ver_colocacion(trazo_id))
+
+
+@router.post(
+    "/trazos/{trazo_id}/muro/plantilla/colocar",
+    response_model=MuroColocadoRespuesta,
+    summary="Colocar en el plano los castillos ubicados de la plantilla (reemplaza solo los de la plantilla)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses=_COLOCAR,
+)
+async def colocar_plantilla_en_el_muro(trazo_id: UUID, ctx: ContextoActual, caso_uso: ColocarElementosDeMuroDep) -> MuroColocadoRespuesta:
+    """Cada castillo es una instancia del elemento de la plantilla: sube la altura del muro menos su arranque y resta de sus m².
+    Idempotente: colocar de nuevo reemplaza las instancias anteriores; los vanos y castillos puestos a mano no se tocan."""
+    r = await caso_uso.colocar(trazo_id, rol=Rol(ctx.rol), autor_id=ctx.usuario_id, detectada_en=datetime.now(UTC))
+    return MuroColocadoRespuesta(colocados=r["colocados"], reemplazados=r["reemplazados"], descuento_m2_por_cara=r["descuento_m2_por_cara"])
+
+
+@router.delete(
+    "/trazos/{trazo_id}/muro/plantilla/colocar",
+    response_model=MuroRetiradoRespuesta,
+    summary="Retirar del plano lo que colocó la plantilla (los vanos puestos a mano no se tocan)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={403: _COLOCAR[403], 404: _COLOCAR[404]},
+)
+async def retirar_plantilla_del_muro(trazo_id: UUID, ctx: ContextoActual, caso_uso: ColocarElementosDeMuroDep) -> MuroRetiradoRespuesta:
+    r = await caso_uso.retirar(trazo_id, rol=Rol(ctx.rol), autor_id=ctx.usuario_id, detectada_en=datetime.now(UTC))
+    return MuroRetiradoRespuesta(retirados=r["retirados"])

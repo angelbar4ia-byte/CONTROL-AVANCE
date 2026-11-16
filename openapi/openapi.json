@@ -16203,6 +16203,151 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/muro/plantilla/colocacion": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Lo que la plantilla coloca en este muro y a qué conceptos alimenta (no cambia nada)",
+        "description": "Castillos (piezas, alto, posiciones) y cadenas (metros) de la plantilla según el largo, la altura y el nivel del muro, y el concepto\nque paga cada parte; si falta su partida en el árbol de la obra avisa y no cuenta.",
+        "operationId": "colocacion_del_muro_api_v1_trazos__trazo_id__muro_plantilla_colocacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColocacionDelMuroRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El muro no es una línea, no tiene plantilla o su plantilla no lleva castillos ubicados."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/muro/plantilla/colocar": {
+      "post": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Colocar en el plano los castillos ubicados de la plantilla (reemplaza solo los de la plantilla)",
+        "description": "Cada castillo es una instancia del elemento de la plantilla: sube la altura del muro menos su arranque y resta de sus m².\nIdempotente: colocar de nuevo reemplaza las instancias anteriores; los vanos y castillos puestos a mano no se tocan.",
+        "operationId": "colocar_plantilla_en_el_muro_api_v1_trazos__trazo_id__muro_plantilla_colocar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MuroColocadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El muro alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El muro no es una línea, no tiene plantilla o su plantilla no lleva castillos ubicados."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Retirar del plano lo que colocó la plantilla (los vanos puestos a mano no se tocan)",
+        "operationId": "retirar_plantilla_del_muro_api_v1_trazos__trazo_id__muro_plantilla_colocar_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MuroRetiradoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El muro alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/correcciones-de-catalogo": {
       "get": {
         "tags": [
@@ -27644,6 +27789,90 @@
         ],
         "title": "ColadoDeEstructura"
       },
+      "ColocacionDelMuroRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "plantilla_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plantilla Id"
+          },
+          "plantilla": {
+            "type": "string",
+            "title": "Plantilla"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "largo_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Largo M"
+          },
+          "altura_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Altura M",
+            "description": "La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra."
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel",
+            "description": "El número de nivel con que se eligen los conceptos (el orden del nivel de la partida que ya mide el muro)."
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoColocadoRespuesta"
+            },
+            "type": "array",
+            "title": "Elementos"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "plantilla_id",
+          "plantilla",
+          "version",
+          "largo_m",
+          "altura_m",
+          "nivel",
+          "ubicacion",
+          "elementos",
+          "avisos"
+        ],
+        "title": "ColocacionDelMuroRespuesta"
+      },
       "ComparacionDeMedida": {
         "properties": {
           "medida": {
@@ -27781,6 +28010,112 @@
           "insumos"
         ],
         "title": "ConceptoCalculado"
+      },
+      "ConceptoColocadoRespuesta": {
+        "properties": {
+          "ranura": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "acero",
+                  "colado",
+                  "completo"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ranura"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "cuenta": {
+            "type": "boolean",
+            "title": "Cuenta",
+            "description": "Solo con el concepto autorizado, su unidad admitida y su partida en el árbol de la obra."
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "cuenta",
+              "falta_partida",
+              "propuesto",
+              "unidad_no_admitida"
+            ],
+            "title": "Estado"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "contexto",
+              "ranura"
+            ],
+            "title": "Origen",
+            "description": "`contexto`: lo eligieron el nivel y el alto (2A). `ranura`: lo enlazó el Paramétrico (4B)."
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "partida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ranura",
+          "concepto_id",
+          "clave",
+          "unidad",
+          "cantidad",
+          "cuenta",
+          "estado",
+          "origen",
+          "aviso",
+          "partida_id"
+        ],
+        "title": "ConceptoColocadoRespuesta"
       },
       "ConceptoComparado": {
         "properties": {
@@ -34544,6 +34879,122 @@
         },
         "type": "object",
         "title": "ElementoCambio"
+      },
+      "ElementoColocadoRespuesta": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "cadena"
+            ],
+            "title": "Clase"
+          },
+          "modo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "estimado",
+                  "ubicado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modo"
+          },
+          "piezas": {
+            "type": "integer",
+            "title": "Piezas"
+          },
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto M",
+            "description": "Lo alto de cada castillo: la altura del muro menos su arranque."
+          },
+          "z_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Z M"
+          },
+          "metros": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Metros",
+            "description": "Castillos: piezas × alto. Cadena: el largo del muro."
+          },
+          "posiciones_m": {
+            "items": {
+              "type": "string",
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+            },
+            "type": "array",
+            "title": "Posiciones M",
+            "description": "El centro de cada castillo ubicado, en metros desde el inicio del muro."
+          },
+          "se_coloca": {
+            "type": "boolean",
+            "title": "Se Coloca",
+            "description": "Un castillo ubicado se coloca en el plano y resta de la mampostería; uno estimado solo se cuenta."
+          },
+          "colocados": {
+            "type": "integer",
+            "title": "Colocados",
+            "description": "Cuántas piezas de este elemento ya están colocadas en el plano."
+          },
+          "descuento_m2_por_cara": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Descuento M2 Por Cara"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoColocadoRespuesta"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uid",
+          "ref",
+          "nombre",
+          "clase",
+          "modo",
+          "piezas",
+          "alto_m",
+          "z_m",
+          "metros",
+          "posiciones_m",
+          "se_coloca",
+          "colocados",
+          "descuento_m2_por_cara",
+          "conceptos"
+        ],
+        "title": "ElementoColocadoRespuesta"
       },
       "ElementoDeBiblioteca": {
         "properties": {
@@ -42349,6 +42800,30 @@
         ],
         "title": "ModoRespuesta"
       },
+      "MuroColocadoRespuesta": {
+        "properties": {
+          "colocados": {
+            "type": "integer",
+            "title": "Colocados"
+          },
+          "reemplazados": {
+            "type": "integer",
+            "title": "Reemplazados"
+          },
+          "descuento_m2_por_cara": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Descuento M2 Por Cara"
+          }
+        },
+        "type": "object",
+        "required": [
+          "colocados",
+          "reemplazados",
+          "descuento_m2_por_cara"
+        ],
+        "title": "MuroColocadoRespuesta"
+      },
       "MuroDelTrazoPeticion": {
         "properties": {
           "altura_m": {
@@ -42471,6 +42946,19 @@
           "altura_efectiva_m"
         ],
         "title": "MuroDelTrazoRespuesta"
+      },
+      "MuroRetiradoRespuesta": {
+        "properties": {
+          "retirados": {
+            "type": "integer",
+            "title": "Retirados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "retirados"
+        ],
+        "title": "MuroRetiradoRespuesta"
       },
       "NivelDeLaEtapaPeticion": {
         "properties": {
@@ -54497,6 +54985,18 @@
             ],
             "title": "Lado Muro",
             "default": 0
+          },
+          "elemento_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Uid",
+            "description": "Si es un castillo colocado desde la plantilla del muro: el uid de ese uso del elemento en la plantilla (Ola 4C)."
           },
           "bisagra": {
             "type": "integer",

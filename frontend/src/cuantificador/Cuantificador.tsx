@@ -185,6 +185,10 @@ import { ConversionDelEnlace } from './ConversionDelEnlace';
 import { OPCIONES_DE_VANO_INICIALES, OpcionesDeVano, versionDelVano, type OpcionesDelVano } from './OpcionesDeVano';
 import { useListarVersionesApiV1VanosVersionGet } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import { UnionesDelMuro } from './UnionesDelMuro';
+import {
+  useColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost,
+  useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut,
+} from '@/api/generado/artefacto-de-muros/artefacto-de-muros';
 import { useAlturaEstandar } from './useAlturaEstandar';
 import { RevestimientosDelMuro, type RevestimientoPorColocar } from './RevestimientosDelMuro';
 import { acabadoPorDefecto, ClasificacionDelMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
@@ -445,7 +449,9 @@ export function EspacioDeTrazo({
     [alturaEstandar, cambiosDeMuro],
   );
   /** El tipo de muro y el acabado con que nace el siguiente muro (F-22): el trazo se guarda ya clasificado. */
-  const [muroNuevo, setMuroNuevo] = useState<{ tipo: TipoDeMuro | null; acabado: Acabado }>({ tipo: null, acabado: acabadoPorDefecto() });
+  const [muroNuevo, setMuroNuevo] = useState<{ tipo: TipoDeMuro | null; acabado: Acabado; plantillaId?: string | null }>({ tipo: null, acabado: acabadoPorDefecto() });
+  const elegirPlantillaDelMuro = useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut<ErrorApi>();
+  const colocarPlantillaDelMuro = useColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost<ErrorApi>();
   const clasificarMuro = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
   /** Un revestimiento (un concepto del catálogo) que espera su largo sobre un muro: la siguiente línea que se dibuje (D-645). */
   const [revestimientoPorColocar, setRevestimientoPorColocar] = useState<RevestimientoPorColocar | null>(null);
@@ -2005,8 +2011,25 @@ export function EspacioDeTrazo({
     limpiarDibujo();
     if (muroNuevo.tipo && solicitud.data.grosor_m != null) {
       // Un muro nace ya clasificado con el tipo y el acabado que se eligieron en el panel de la línea.
+      const plantillaId = muroNuevo.plantillaId ?? null;
       void clasificarMuro
         .mutateAsync({ trazoId: resultado.trazo_id, data: { tipo: muroNuevo.tipo, acabado: muroNuevo.acabado } })
+        .then(async () => {
+          if (!plantillaId) return;
+          // Un muro que nace con plantilla coloca sus castillos ubicados: toman la altura y el nivel del muro (Ola 4C).
+          try {
+            await elegirPlantillaDelMuro.mutateAsync({ trazoId: resultado.trazo_id, data: { plantilla_id: plantillaId } });
+            const puesto = await colocarPlantillaDelMuro.mutateAsync({ trazoId: resultado.trazo_id });
+            setAviso(`Muro con plantilla: ${puesto.colocados} castillo${puesto.colocados === 1 ? '' : 's'} colocado${puesto.colocados === 1 ? '' : 's'}.`);
+          } catch (err) {
+            // Una plantilla sin castillos ubicados (un muro confinado) no coloca nada: el muro queda con ella y sus elementos se cuentan.
+            setAviso(`Muro con plantilla. ${err instanceof Error ? err.message : ''}`.trim());
+          } finally {
+            void queryClient.invalidateQueries({
+              predicate: (q) => /vanos|trazos|cuantificacion|elementos-parametricos|muro/.test(JSON.stringify(q.queryKey)),
+            });
+          }
+        })
         .catch((err: unknown) => setAviso(`Trazo guardado, pero no se pudo clasificar el muro: ${err instanceof Error ? err.message : 'error'}`));
     }
     const total = resultado.recalculos[0]?.cantidad_total;

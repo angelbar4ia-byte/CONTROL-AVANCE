@@ -142,6 +142,7 @@ from obractrl.application.casos_uso.calcular_cpu import (
 )
 from obractrl.application.casos_uso.cambio_de_unidad import CambioDeUnidad
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.colocacion_de_muro import ColocarElementosDeMuro
 from obractrl.application.casos_uso.comprobar_excedente import (
     ConsultarComprobaciones,
     DeclararPerdidaDeExcedente,
@@ -424,6 +425,7 @@ __all__ = [
     "CapturarCausaDeDesviacionDep",
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
+    "ColocarElementosDeMuroDep",
     "ConfirmarAvanceDep",
     "ConsultarAlertasDePartesDep",
     "ConsultarArbolProgramaDep",
@@ -906,6 +908,19 @@ def obtener_agregar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> AgregarHuec
     )
 
 
+def _sincronizador_de_tomas(sesion: SesionRLS, elementos: RepositorioElementosParametricosSQL | None = None) -> SincronizarTomas:
+    """Lo que un concepto toma de lo colocado en el plano: los elementos trazados y los castillos de las plantillas de muro (Ola 4C)."""
+    return SincronizarTomas(
+        elementos=elementos if elementos is not None else RepositorioElementosParametricosSQL(sesion),
+        matrices=RepositorioMatricesSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        parametrico=RepositorioParametricoSQL(sesion),
+    )
+
+
 def obtener_gestionar_vanos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarVanos:
     return GestionarVanos(
         trazos=RepositorioTrazosSQL(sesion),
@@ -916,6 +931,23 @@ def obtener_gestionar_vanos(sesion: SesionRLS, ctx: ContextoActual) -> Gestionar
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
         matrices=RepositorioMatricesSQL(sesion),
+        tomas=_sincronizador_de_tomas(sesion),
+    )
+
+
+def obtener_colocar_elementos_de_muro(sesion: SesionRLS, ctx: ContextoActual) -> ColocarElementosDeMuro:
+    return ColocarElementosDeMuro(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+        tomas=_sincronizador_de_tomas(sesion),
+        elementos=RepositorioElementosParametricosSQL(sesion),
+        parametrico=RepositorioParametricoSQL(sesion),
     )
 
 
@@ -942,14 +974,7 @@ def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTr
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
         matrices=RepositorioMatricesSQL(sesion),
-        tomas=SincronizarTomas(
-            elementos=RepositorioElementosParametricosSQL(sesion),
-            matrices=RepositorioMatricesSQL(sesion),
-            enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
-            actividades=RepositorioActividadesSQL(sesion),
-            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
-            desviaciones=RepositorioDesviacionesSQL(sesion),
-        ),
+        tomas=_sincronizador_de_tomas(sesion),
     )
 
 
@@ -994,14 +1019,7 @@ def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElem
         insumos=RepositorioInsumosDeElementoSQL(sesion),
         versiones=RepositorioVersionesDeElementoSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        sincronizador=SincronizarTomas(
-            elementos=elementos,
-            matrices=RepositorioMatricesSQL(sesion),
-            enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
-            actividades=RepositorioActividadesSQL(sesion),
-            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
-            desviaciones=RepositorioDesviacionesSQL(sesion),
-        ),
+        sincronizador=_sincronizador_de_tomas(sesion, elementos),
     )
 
 
@@ -1053,14 +1071,7 @@ def obtener_gestionar_conceptos_de_elemento(sesion: SesionRLS) -> GestionarConce
         elementos=elementos,
         versiones=RepositorioVersionesDeElementoSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        sincronizador=SincronizarTomas(
-            elementos=elementos,
-            matrices=RepositorioMatricesSQL(sesion),
-            enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
-            actividades=RepositorioActividadesSQL(sesion),
-            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
-            desviaciones=RepositorioDesviacionesSQL(sesion),
-        ),
+        sincronizador=_sincronizador_de_tomas(sesion, elementos),
     )
 
 
@@ -1076,14 +1087,7 @@ def obtener_actualizar_apu_desde_elemento(sesion: SesionRLS) -> ActualizarApuDes
 
 def obtener_autorizar_elementos(sesion: SesionRLS) -> AutorizarElementos:
     elementos = RepositorioElementosParametricosSQL(sesion)
-    sincronizador = SincronizarTomas(
-        elementos=elementos,
-        matrices=RepositorioMatricesSQL(sesion),
-        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
-        actividades=RepositorioActividadesSQL(sesion),
-        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
-        desviaciones=RepositorioDesviacionesSQL(sesion),
-    )
+    sincronizador = _sincronizador_de_tomas(sesion, elementos)
     versiones = RepositorioVersionesDeElementoSQL(sesion)
     insumos = RepositorioInsumosDeElementoSQL(sesion)
     return AutorizarElementos(
@@ -1389,6 +1393,7 @@ GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
+ColocarElementosDeMuroDep = Annotated[ColocarElementosDeMuro, Depends(obtener_colocar_elementos_de_muro)]
 GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obtener_gestionar_plantillas_de_muro)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
 PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]

@@ -1359,6 +1359,9 @@ class VanoRespuesta(BaseModel):
     posicion_m: Decimal | None
     llega_al_piso: bool
     lado_muro: Literal[-1, 0, 1] = 0
+    elemento_uid: str | None = Field(
+        default=None, description="Si es un castillo colocado desde la plantilla del muro: el uid de ese uso del elemento en la plantilla (Ola 4C)."
+    )
     bisagra: Literal[-1, 1] = Field(default=1, description="Extremo donde van las bisagras: 1 el inicial, -1 el otro.")
     lado_hoja: Literal[-1, 1] = Field(default=1, description="Hacia qué lado del muro abre la hoja.")
     apertura_grados: int = Field(default=90, ge=0, le=180, description="Cuánto está abierta la hoja al dibujarla.")

@@ -29,9 +29,12 @@ import type {
   AplicarUbicacionPeticion,
   AplicarUbicacionRespuesta,
   CatalogoDelArtefacto,
+  ColocacionDelMuroRespuesta,
   ElegirPlantillaPeticion,
   ElegirPlantillaRespuesta,
   HTTPValidationError,
+  MuroColocadoRespuesta,
+  MuroRetiradoRespuesta,
   PlantillaDeMuro,
   PlantillaDeMuroGuardada,
   PlantillaDeMuroPeticion,
@@ -2840,3 +2843,751 @@ export const useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Castillos (piezas, alto, posiciones) y cadenas (metros) de la plantilla según el largo, la altura y el nivel del muro, y el concepto
+que paga cada parte; si falta su partida en el árbol de la obra avisa y no cuenta.
+ * @summary Lo que la plantilla coloca en este muro y a qué conceptos alimenta (no cambia nada)
+ */
+export const colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ColocacionDelMuroRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/muro/plantilla/colocacion`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfiniteQueryKey =
+  (trazoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/trazos/${trazoId}/muro/plantilla/colocacion`,
+    ] as const;
+  };
+
+export const getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryKey =
+  (trazoId?: string) => {
+    return [`/api/v1/trazos/${trazoId}/muro/plantilla/colocacion`] as const;
+  };
+
+export const getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+        >
+      >
+    >,
+    TError = void,
+  >(
+    trazoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfiniteQueryKey(
+        trazoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+        >
+      >
+    > = ({ signal }) =>
+      colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet(
+        trazoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >
+  >;
+export type ColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfiniteQueryError =
+  void;
+
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que la plantilla coloca en este muro y a qué conceptos alimenta (no cambia nada)
+ */
+
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetInfiniteQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >,
+    TError = void,
+  >(
+    trazoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryKey(
+        trazoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+        >
+      >
+    > = ({ signal }) =>
+      colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet(
+        trazoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+      >
+    >
+  >;
+export type ColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryError =
+  void;
+
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que la plantilla coloca en este muro y a qué conceptos alimenta (no cambia nada)
+ */
+
+export function useColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet<
+  TData = Awaited<
+    ReturnType<
+      typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof colocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Cada castillo es una instancia del elemento de la plantilla: sube la altura del muro menos su arranque y resta de sus m².
+Idempotente: colocar de nuevo reemplaza las instancias anteriores; los vanos y castillos puestos a mano no se tocan.
+ * @summary Colocar en el plano los castillos ubicados de la plantilla (reemplaza solo los de la plantilla)
+ */
+export const colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost =
+  (
+    trazoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<MuroColocadoRespuesta>(
+      {
+        url: `/api/v1/trazos/${trazoId}/muro/plantilla/colocar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost
+        >
+      >,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost
+      >
+    >,
+    TError,
+    { trazoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost
+        >
+      >,
+      { trazoId: string }
+    > = (props) => {
+      const { trazoId } = props ?? {};
+
+      return colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost(
+        trazoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost
+      >
+    >
+  >;
+
+export type ColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPostMutationError =
+  void;
+
+/**
+ * @summary Colocar en el plano los castillos ubicados de la plantilla (reemplaza solo los de la plantilla)
+ */
+export const useColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost
+          >
+        >,
+        TError,
+        { trazoId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof colocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost
+      >
+    >,
+    TError,
+    { trazoId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Retirar del plano lo que colocó la plantilla (los vanos puestos a mano no se tocan)
+ */
+export const retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete =
+  (trazoId: string, options?: SecondParameter<typeof peticion>) => {
+    return peticion<MuroRetiradoRespuesta>(
+      {
+        url: `/api/v1/trazos/${trazoId}/muro/plantilla/colocar`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
+
+export const getRetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete
+        >
+      >,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete
+      >
+    >,
+    TError,
+    { trazoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete
+        >
+      >,
+      { trazoId: string }
+    > = (props) => {
+      const { trazoId } = props ?? {};
+
+      return retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete(
+        trazoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete
+      >
+    >
+  >;
+
+export type RetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Retirar del plano lo que colocó la plantilla (los vanos puestos a mano no se tocan)
+ */
+export const useRetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete
+          >
+        >,
+        TError,
+        { trazoId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof retirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDelete
+      >
+    >,
+    TError,
+    { trazoId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getRetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDeleteMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
