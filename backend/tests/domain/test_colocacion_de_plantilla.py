@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 
@@ -10,9 +11,15 @@ from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
     ErrorDeColocacion,
     alto_de_castillo,
     colocar_plantilla,
+    conceptos_de_instancia,
     piezas_de_castillo,
     posiciones_de_castillos,
 )
+from obractrl.domain.cuantificacion.conceptos_de_elemento import (
+    ConceptoDeElemento,
+    Contexto,
+)
+from obractrl.domain.cuantificacion.enlaces_de_ranura import Capa, EnlaceDeRanura, Partida
 
 D = Decimal
 
@@ -96,20 +103,7 @@ def test_sin_ancho_conocido_no_se_coloca() -> None:
 
 # --- A qué conceptos alimenta lo colocado -----------------------------------------------------------------------------------
 
-from uuid import uuid4  # noqa: E402
 
-from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
-    conceptos_de_instancia,  # noqa: E402
-)
-from obractrl.domain.cuantificacion.conceptos_de_elemento import (  # noqa: E402
-    ConceptoDeElemento,
-    Contexto,
-)
-from obractrl.domain.cuantificacion.enlaces_de_ranura import (  # noqa: E402
-    Capa,
-    EnlaceDeRanura,
-    Partida,
-)
 
 N1, N3, ETAPA = uuid4(), uuid4(), uuid4()
 C_ACERO_A, C_ACERO_B, C_COLADO, C_COLADO_N3 = (uuid4() for _ in range(4))
