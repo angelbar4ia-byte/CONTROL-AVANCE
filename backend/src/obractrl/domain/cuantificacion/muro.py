@@ -37,6 +37,12 @@ class ParteDeAltura:
     desde_m: Decimal
     hasta_m: Decimal
     suma: bool = True
+    # Ubicación por parte (0133, M-6): qué cara es exterior o interior (A = izquierda del sentido de dibujo, B = derecha),
+    # el rol de la parte (cuerpo, enrase, pretil, cadena) y la cadena que la define. Opcionales: sin ellas la parte no dice caras.
+    cara_a: str | None = None
+    cara_b: str | None = None
+    rol: str | None = None
+    elemento_ref: str | None = None
 
 
 def altura_efectiva(

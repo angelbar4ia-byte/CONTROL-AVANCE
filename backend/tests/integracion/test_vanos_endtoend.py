@@ -375,15 +375,17 @@ async def test_cambiar_el_ancho_de_un_vano_recalcula_lo_que_descuenta(escenario:
 async def test_el_tipo_de_muro_y_su_acabado_se_fijan_se_leen_y_no_cambian_lo_que_mide(
     escenario: Escenario, control: httpx.AsyncClient
 ) -> None:
-    """F-22 (0124): confinado, con cadena, tabique, sillar, pretil o barda, con las capas gris, blanca y pintura en Sí/No por cara.
-    Solo clasifica: lo que mide el muro no cambia."""
+    """F-22 (0124, 0133): confinado, con cadena o tabique (pretil y barda son ubicación y el sillar es material), con las capas
+    gris, blanca y pintura en Sí/No por cara. Solo clasifica: lo que mide el muro no cambia."""
     plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
     muro = await _muro_con(control, escenario, plano, "LINESTRING(0 0, 10 0)", "0.2")
     antes = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][0]["properties"]["enlaces"][0]["cantidad"]
 
     # Sin clasificar: sin tipo ni acabado.
     vacio = (await control.get(f"/api/v1/trazos/{muro}/muro/clasificacion")).json()
-    assert vacio == {"tipo": None, "acabado": None}
+    assert vacio == {
+        "tipo": None, "acabado": None, "material": None, "ubicacion": None, "plantilla_id": None, "tipo_por_confirmar": False,
+    }
 
     # Se clasifica con el acabado de defecto (todo en Sí) y luego se quita la pintura de la fachada.
     r = await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "confinado"})
@@ -415,7 +417,21 @@ async def test_el_tipo_de_muro_y_su_acabado_se_fijan_se_leen_y_no_cambian_lo_que
     for tipo in ("confinado", "con_cadena", "tabique"):
         assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": tipo})).json()["tipo"] == tipo
     quitado = (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": None})).json()
-    assert quitado == {"tipo": None, "acabado": None}
+    assert (quitado["tipo"], quitado["acabado"], quitado["material"], quitado["ubicacion"]) == (None, None, None, None)
+
+    # Pretil, barda y sillar ya no son tipos de muro: son ubicación (pretil, barda) y material (sillar), y se fijan aparte.
+    for viejo in ("pretil", "barda", "sillar"):
+        assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": viejo})).status_code == 422
+    r = await control.put(
+        f"/api/v1/trazos/{muro}/muro/clasificacion",
+        json={"tipo": "confinado", "material": "sillar_amarillo", "ubicacion": "barda"},
+    )
+    assert r.status_code == 200, r.text
+    assert (r.json()["tipo"], r.json()["material"], r.json()["ubicacion"]) == ("confinado", "sillar_amarillo", "barda")
+    prop = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][0]["properties"]
+    assert (prop["muro_material"], prop["muro_ubicacion"]) == ("sillar_amarillo", "barda")
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "confinado", "material": "adobe"})).status_code == 422
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "confinado", "ubicacion": "azotea"})).status_code == 422
 
 
 async def test_un_revestimiento_se_liga_a_un_muro_y_una_cara_sin_cambiar_lo_que_mide(

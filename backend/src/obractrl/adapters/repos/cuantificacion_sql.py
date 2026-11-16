@@ -796,26 +796,83 @@ class RepositorioTrazosSQL:
         )
 
     async def clasificacion_de_muro(self, trazo_id: UUID) -> dict[str, Any]:
-        """Tipo de muro y acabado (0124, F-22). Sin la migración o sin clasificar: ``tipo`` ``None`` y ``acabado`` ``None``."""
-        vacio: dict[str, Any] = {"tipo": None, "acabado": None}
+        """Tipo de muro y acabado (0124, F-22), y desde la 0133 su material, ubicación y plantilla. Sin la migración o sin
+        clasificar: ``tipo`` ``None`` y ``acabado`` ``None``."""
+        vacio: dict[str, Any] = {
+            "tipo": None, "acabado": None, "material": None, "ubicacion": None, "plantilla_id": None, "tipo_por_confirmar": False,
+        }
         if not await _hay_columna(self._sesion, "trazo", "muro_tipo"):
             return vacio
+        con_plantilla = await _hay_columna(self._sesion, "trazo", "muro_plantilla_id")
+        extra = (
+            "muro_material, muro_ubicacion, muro_plantilla_id, muro_tipo_por_confirmar"
+            if con_plantilla
+            else "null as muro_material, null as muro_ubicacion, null as muro_plantilla_id, false as muro_tipo_por_confirmar"
+        )
         fila = (
             await self._sesion.execute(
-                text("select muro_tipo, muro_acabado from trazo where id = :id"), {"id": str(trazo_id)}
+                text(f"select muro_tipo, muro_acabado, {extra} from trazo where id = :id"), {"id": str(trazo_id)}
             )
         ).mappings().one_or_none()
         if fila is None:
             return vacio
-        return {"tipo": fila["muro_tipo"], "acabado": fila["muro_acabado"]}
+        return {
+            "tipo": fila["muro_tipo"],
+            "acabado": fila["muro_acabado"],
+            "material": fila["muro_material"],
+            "ubicacion": fila["muro_ubicacion"],
+            "plantilla_id": fila["muro_plantilla_id"],
+            "tipo_por_confirmar": bool(fila["muro_tipo_por_confirmar"]),
+        }
 
-    async def clasificar_muro(self, *, trazo_id: UUID, tipo: str | None, acabado: dict[str, Any] | None) -> None:
+    async def clasificar_muro(
+        self,
+        *,
+        trazo_id: UUID,
+        tipo: str | None,
+        acabado: dict[str, Any] | None,
+        material: str | None = None,
+        ubicacion: str | None = None,
+        plantilla_id: UUID | None = None,
+    ) -> None:
+        """Guarda la clasificación del muro. Al fijar un tipo (o quitarlo) el muro deja de estar «por confirmar» (0133)."""
         if not await _hay_columna(self._sesion, "trazo", "muro_tipo"):
             raise ErrorDeCuantificacion("Falta aplicar la migración 0124 (tipo de muro y acabado) en esta base.")
+        if not await _hay_columna(self._sesion, "trazo", "muro_plantilla_id"):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0133 (plantillas de muro) en esta base.")
         await self._sesion.execute(
-            text("update trazo set muro_tipo = :t, muro_acabado = cast(:a as jsonb) where id = :id"),
-            {"t": tipo, "a": json.dumps(acabado) if acabado is not None else None, "id": str(trazo_id)},
+            text(
+                "update trazo set muro_tipo = :t, muro_acabado = cast(:a as jsonb), muro_material = :m, muro_ubicacion = :u, "
+                "muro_plantilla_id = cast(:p as uuid), muro_tipo_por_confirmar = false where id = :id"
+            ),
+            {
+                "t": tipo, "a": json.dumps(acabado) if acabado is not None else None, "m": material, "u": ubicacion,
+                "p": str(plantilla_id) if plantilla_id else None, "id": str(trazo_id),
+            },
         )
+
+    async def fijar_ubicacion_de_muro(self, trazo_id: UUID, ubicacion: str) -> None:
+        """Solo cambia la ubicación (la regla de «personalizada»); el tipo, el material y el acabado quedan como estaban."""
+        if await _hay_columna(self._sesion, "trazo", "muro_ubicacion"):
+            await self._sesion.execute(
+                text("update trazo set muro_ubicacion = :u where id = :id"), {"u": ubicacion, "id": str(trazo_id)}
+            )
+
+    async def plantilla_de_muro(self, trazo_id: UUID) -> dict[str, Any] | None:
+        """La plantilla (la versión) que eligió el trazo, con lo que decide si admite castillos ubicados (0133); `None` si no
+        eligió ninguna o la base aún no tiene la migración."""
+        if not await _hay_columna(self._sesion, "trazo", "muro_plantilla_id"):
+            return None
+        fila = (
+            await self._sesion.execute(
+                text(
+                    "select p.id, p.raiz_id, p.version, p.nombre, p.tipo, p.material, p.ubicacion, p.elementos, p.validacion "
+                    "from trazo t join muro_plantilla p on p.id = t.muro_plantilla_id where t.id = :id"
+                ),
+                {"id": str(trazo_id)},
+            )
+        ).mappings().one_or_none()
+        return dict(fila) if fila else None
 
     async def fijar_muro(
         self,
@@ -1210,6 +1267,9 @@ class RepositorioTrazosSQL:
                            t.propuesta_medida, t.propuesta_confianza,
                            -- Tipo de muro y acabado (0124), con la misma tolerancia a la base sin migrar.
                            to_jsonb(t)->>'muro_tipo' as muro_tipo, to_jsonb(t)->'muro_acabado' as muro_acabado,
+                           -- Material, ubicación y plantilla del muro (0133).
+                           to_jsonb(t)->>'muro_material' as muro_material, to_jsonb(t)->>'muro_ubicacion' as muro_ubicacion,
+                           to_jsonb(t)->>'muro_plantilla_id' as muro_plantilla_id,
                            -- El muro al que pertenece un revestimiento y su cara (0125).
                            to_jsonb(t)->>'revestimiento_de' as revestimiento_de, to_jsonb(t)->>'revestimiento_cara' as revestimiento_cara,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,

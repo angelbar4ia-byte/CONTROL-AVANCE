@@ -196,6 +196,7 @@ import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { PantallaDeArtefacto } from './elementos/PantallaDeArtefacto';
+import { PanelDePlantillas } from './elementos/PanelDePlantillas';
 import { PanelDeBiblioteca } from './elementos/PanelDeBiblioteca';
 import { PantallaDeElementos } from './elementos/PantallaDeElementos';
 import { PantallaParametrica } from './elementos/PantallaParametrica';
@@ -956,6 +957,8 @@ export function EspacioDeTrazo({
   /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
   // El elemento de la biblioteca que se ve en el área de trabajo de la pestaña Elementos.
   const [elementoDeBiblioteca, setElementoDeBiblioteca] = useState<string | null>('MCT-01010');
+  // La plantilla de muro que se edita en la pestaña Artefacto (o «nueva»).
+  const [plantillaDeMuro, setPlantillaDeMuro] = useState<string | null>(null);
   const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
   // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
   // Mientras se coloca un elemento (D-604) se ve el plano: Esc termina y vuelve la pantalla.
@@ -2891,11 +2894,17 @@ export function EspacioDeTrazo({
           aria-labelledby={`pestana-${pestana}`}
           className="estacion__panel-pestana"
         >
-          <p className="text-mute text-sm" style={{ padding: 10, margin: 0 }}>
-            {pestana === 'artefacto'
-              ? 'Artefacto: los tipos de muro y sus plantillas. Su pantalla está en el área de trabajo.'
-              : 'Paramétrico: los modelos paramétricos de la obra. Su pantalla está en el área de trabajo.'}
-          </p>
+          {pestana === 'artefacto' ? (
+            <PanelDePlantillas
+              elegida={plantillaDeMuro}
+              onElegir={setPlantillaDeMuro}
+              puedeCrear={sesion?.rol === 'control_obra' || sesion?.rol === 'costos'}
+            />
+          ) : (
+            <p className="text-mute text-sm" style={{ padding: 10, margin: 0 }}>
+              Paramétrico: los modelos paramétricos de la obra. Su pantalla está en el área de trabajo.
+            </p>
+          )}
         </div>
       ) : pestana === 'elementos' ? (
         <div role="tabpanel" id="panel-elementos" aria-labelledby="pestana-elementos" className="estacion__panel-pestana">
@@ -3226,7 +3235,7 @@ export function EspacioDeTrazo({
               </div>
             )}
             {pestana === 'elementos' && <PantallaDeElementos clave={elementoDeBiblioteca} rol={sesion?.rol} />}
-            {pestana === 'artefacto' && <PantallaDeArtefacto />}
+            {pestana === 'artefacto' && <PantallaDeArtefacto plantillaId={plantillaDeMuro} onElegir={setPlantillaDeMuro} />}
             {pestana === 'parametrico' && (
               <PantallaParametrica
                 obraId={obraId}

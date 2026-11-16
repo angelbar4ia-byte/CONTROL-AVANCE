@@ -4923,7 +4923,7 @@ export const useFijarMuroApiV1TrazosTrazoIdMuroPut = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * @summary Tipo de muro y acabado por capas
+ * @summary Tipo de muro, material, ubicación y acabado por capas
  */
 export const verClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet = (
   trazoId: string,
@@ -5148,7 +5148,7 @@ export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetI
   queryKey: DataTag<QueryKey, TData, TError>;
 };
 /**
- * @summary Tipo de muro y acabado por capas
+ * @summary Tipo de muro, material, ubicación y acabado por capas
  */
 
 export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetInfinite<
@@ -5385,7 +5385,7 @@ export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
   queryKey: DataTag<QueryKey, TData, TError>;
 };
 /**
- * @summary Tipo de muro y acabado por capas
+ * @summary Tipo de muro, material, ubicación y acabado por capas
  */
 
 export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
@@ -5432,7 +5432,7 @@ export function useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet<
 }
 
 /**
- * @summary Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)
+ * @summary Fijar el tipo de muro, su material, su ubicación y su acabado por capas (solo clasifica; no cambia lo que mide)
  */
 export const fijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut = (
   trazoId: string,
@@ -5518,7 +5518,7 @@ export type FijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPutMutati
   void;
 
 /**
- * @summary Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)
+ * @summary Fijar el tipo de muro, su material, su ubicación y su acabado por capas (solo clasifica; no cambia lo que mide)
  */
 export const useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut =
   <TError = void, TContext = unknown>(

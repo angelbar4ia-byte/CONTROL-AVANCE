@@ -178,7 +178,20 @@ class RepositorioTrazos(Protocol):
 
     async def clasificacion_de_muro(self, trazo_id: UUID) -> dict[str, Any]: ...
 
-    async def clasificar_muro(self, *, trazo_id: UUID, tipo: str | None, acabado: dict[str, Any] | None) -> None: ...
+    async def clasificar_muro(
+        self,
+        *,
+        trazo_id: UUID,
+        tipo: str | None,
+        acabado: dict[str, Any] | None,
+        material: str | None = None,
+        ubicacion: str | None = None,
+        plantilla_id: UUID | None = None,
+    ) -> None: ...
+
+    async def plantilla_de_muro(self, trazo_id: UUID) -> dict[str, Any] | None: ...
+
+    async def fijar_ubicacion_de_muro(self, trazo_id: UUID, ubicacion: str) -> None: ...
 
     async def fijar_hoja(self, vano_id: UUID, *, bisagra: int, lado_hoja: int, apertura_grados: int) -> None: ...
 

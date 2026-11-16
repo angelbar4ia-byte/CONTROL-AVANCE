@@ -7,6 +7,6 @@
  */
 
 /**
- * Cómo se construye el muro: confinado, con_cadena, tabique, sillar, pretil o barda (0124); `null` = sin clasificar.
+ * Cómo se construye el muro: confinado, con_cadena o tabique (0124; desde la 0133 pretil y barda son ubicación y el sillar es material); `null` = sin clasificar.
  */
 export type TrazoPropiedadesMuroTipo = string | null;

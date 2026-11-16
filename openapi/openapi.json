@@ -11270,7 +11270,7 @@
         "tags": [
           "cuantificacion"
         ],
-        "summary": "Tipo de muro y acabado por capas",
+        "summary": "Tipo de muro, material, ubicación y acabado por capas",
         "operationId": "ver_clasificacion_de_muro_api_v1_trazos__trazo_id__muro_clasificacion_get",
         "security": [
           {
@@ -11319,7 +11319,7 @@
         "tags": [
           "cuantificacion"
         ],
-        "summary": "Fijar el tipo de muro y su acabado por capas (solo clasifica; no cambia lo que mide)",
+        "summary": "Fijar el tipo de muro, su material, su ubicación y su acabado por capas (solo clasifica; no cambia lo que mide)",
         "operationId": "fijar_clasificacion_de_muro_api_v1_trazos__trazo_id__muro_clasificacion_put",
         "security": [
           {
@@ -11363,7 +11363,7 @@
             "description": "El trazo no existe o está fuera de tu alcance."
           },
           "422": {
-            "description": "El trazo no es una línea o el acabado no vale."
+            "description": "El trazo no es una línea o el tipo, el material, la ubicación o el acabado no valen."
           }
         }
       }
@@ -15453,6 +15453,493 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/muro-artefacto/catalogo": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Tipos de muro, materiales y ubicaciones (con sus caras A y B) del Artefacto",
+        "operationId": "catalogo_del_artefacto_api_v1_muro_artefacto_catalogo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogoDelArtefacto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/muro-artefacto/ubicacion": {
+      "post": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Las caras A y B de cada parte de altura según la ubicación (no guarda nada)",
+        "operationId": "aplicar_ubicacion_a_partes_api_v1_muro_artefacto_ubicacion_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AplicarUbicacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AplicarUbicacionRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "La ubicación o las partes no valen."
+          }
+        }
+      }
+    },
+    "/api/v1/muro-plantillas": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Las plantillas de muro vigentes",
+        "operationId": "listar_plantillas_api_v1_muro_plantillas_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlantillaDeMuro"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Plantillas Api V1 Muro Plantillas Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Crear una plantilla de muro (nace «por validar»)",
+        "operationId": "crear_plantilla_api_v1_muro_plantillas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlantillaDeMuroPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaDeMuroGuardada"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "La plantilla no vale: tipo, material, ubicación, partes o elementos."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/muro-plantillas/{plantilla_id}": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Una plantilla de muro",
+        "operationId": "ver_plantilla_api_v1_muro_plantillas__plantilla_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plantilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plantilla Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaDeMuro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La plantilla no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Cambiar una plantilla: por validar se edita en el lugar; validada crea la versión siguiente (Q9)",
+        "operationId": "cambiar_plantilla_api_v1_muro_plantillas__plantilla_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plantilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plantilla Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlantillaDeMuroPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaDeMuroGuardada"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La plantilla no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La plantilla no vale o la versión ya no es la vigente."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Borrar una plantilla que ningún trazo usa",
+        "operationId": "borrar_plantilla_api_v1_muro_plantillas__plantilla_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plantilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plantilla Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La plantilla no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Algún trazo usa una versión de la plantilla."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/muro-plantillas/{plantilla_id}/versiones": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Todas las versiones de la plantilla, de la más nueva a la más vieja",
+        "operationId": "versiones_de_la_plantilla_api_v1_muro_plantillas__plantilla_id__versiones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plantilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plantilla Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlantillaDeMuro"
+                  },
+                  "title": "Response Versiones De La Plantilla Api V1 Muro Plantillas  Plantilla Id  Versiones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La plantilla no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/muro-plantillas/{plantilla_id}/revision": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Lo que no cuadra entre los elementos de la plantilla y la matriz de sus conceptos (no cambia nada)",
+        "operationId": "revisar_plantilla_api_v1_muro_plantillas__plantilla_id__revision_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plantilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plantilla Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionDePlantilla"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La plantilla no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/muro-plantillas/{plantilla_id}/validar": {
+      "post": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Control de obra valida la plantilla contra la matriz de los conceptos de sus elementos",
+        "operationId": "validar_plantilla_api_v1_muro_plantillas__plantilla_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plantilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plantilla Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidarPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionDePlantilla"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La plantilla no existe o está fuera de tu alcance."
+          },
+          "403": {
+            "description": "Solo Control de obra valida."
+          },
+          "422": {
+            "description": "Hay alertas que bloquean, o alertas por revisar que no se aceptaron."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/muro/plantilla": {
+      "put": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Elegir la plantilla de muro de un trazo (guarda la versión; las cantidades no cambian)",
+        "operationId": "elegir_plantilla_del_trazo_api_v1_trazos__trazo_id__muro_plantilla_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElegirPlantillaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElegirPlantillaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo o la plantilla no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es una línea."
           }
         }
       }
@@ -22635,6 +23122,67 @@
         ],
         "title": "AlertaDeParteRespuesta"
       },
+      "AlertaDeValidacion": {
+        "properties": {
+          "nivel": {
+            "type": "string",
+            "enum": [
+              "bloquea",
+              "alerta"
+            ],
+            "title": "Nivel"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "parte": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parte"
+          },
+          "concepto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto"
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nivel",
+          "codigo",
+          "uid",
+          "ref",
+          "parte",
+          "concepto",
+          "mensaje"
+        ],
+        "title": "AlertaDeValidacion"
+      },
       "AlertasDePartesRespuesta": {
         "properties": {
           "obra_id": {
@@ -22747,6 +23295,91 @@
           "conversion"
         ],
         "title": "AplicarConversionPeticion"
+      },
+      "AplicarUbicacionPeticion": {
+        "properties": {
+          "ubicacion": {
+            "type": "string",
+            "enum": [
+              "interior",
+              "fachada_a",
+              "fachada_b",
+              "pretil",
+              "barda",
+              "personalizada"
+            ],
+            "title": "Ubicacion"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaDePlantilla-Input"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Partes"
+          },
+          "altura_de_losa_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura De Losa M",
+            "description": "Con la losa más baja que el muro, sugiere exterior las partes que arrancan en la losa o arriba."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ubicacion",
+          "partes"
+        ],
+        "title": "AplicarUbicacionPeticion"
+      },
+      "AplicarUbicacionRespuesta": {
+        "properties": {
+          "ubicacion": {
+            "type": "string",
+            "enum": [
+              "interior",
+              "fachada_a",
+              "fachada_b",
+              "pretil",
+              "barda",
+              "personalizada"
+            ],
+            "title": "Ubicacion"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaDePlantilla-Output"
+            },
+            "type": "array",
+            "title": "Partes"
+          },
+          "sugerencias": {
+            "items": {
+              "$ref": "#/components/schemas/SugerenciaPorLosa"
+            },
+            "type": "array",
+            "title": "Sugerencias",
+            "description": "Solo sugeridas: se aplican al confirmar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ubicacion",
+          "partes",
+          "sugerencias"
+        ],
+        "title": "AplicarUbicacionRespuesta"
       },
       "AprobarLotePeticion": {
         "properties": {
@@ -25674,6 +26307,64 @@
         ],
         "title": "CatalogoBaseRespuesta"
       },
+      "CatalogoDelArtefacto": {
+        "properties": {
+          "tipos": {
+            "items": {
+              "$ref": "#/components/schemas/TipoDeMuroFicha"
+            },
+            "type": "array",
+            "title": "Tipos"
+          },
+          "materiales": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialDeMuro"
+            },
+            "type": "array",
+            "title": "Materiales"
+          },
+          "ubicaciones": {
+            "items": {
+              "$ref": "#/components/schemas/UbicacionDeMuroFicha"
+            },
+            "type": "array",
+            "title": "Ubicaciones"
+          },
+          "caras": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "exterior",
+                "interior"
+              ]
+            },
+            "type": "array",
+            "title": "Caras"
+          },
+          "roles_de_parte": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "cuerpo",
+                "enrase",
+                "pretil",
+                "cadena"
+              ]
+            },
+            "type": "array",
+            "title": "Roles De Parte"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipos",
+          "materiales",
+          "ubicaciones",
+          "caras",
+          "roles_de_parte"
+        ],
+        "title": "CatalogoDelArtefacto"
+      },
       "CategoriaDeBiblioteca": {
         "properties": {
           "clave": {
@@ -26237,10 +26928,7 @@
                 "enum": [
                   "confinado",
                   "con_cadena",
-                  "tabique",
-                  "sillar",
-                  "pretil",
-                  "barda"
+                  "tabique"
                 ]
               },
               {
@@ -26248,7 +26936,39 @@
               }
             ],
             "title": "Tipo",
-            "description": "`null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos."
+            "description": "`null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos. Pretil y barda son ubicación y el sillar es material (0133)."
+          },
+          "material": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material",
+            "description": "tabique_rojo, block_hueco o sillar_amarillo (0133)."
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada_a",
+                  "fachada_b",
+                  "pretil",
+                  "barda",
+                  "personalizada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion",
+            "description": "Define las caras A y B de las partes de altura (0133)."
           },
           "acabado": {
             "anyOf": [
@@ -26274,7 +26994,7 @@
           "tipo"
         ],
         "title": "ClasificacionDeMuroPeticion",
-        "description": "El paramétrico de muro (F-22): cómo se construye y qué capas de acabado lleva. Solo clasifica: no cambia lo que mide."
+        "description": "El paramétrico de muro (F-22): cómo se construye, de qué material, dónde está y qué capas de acabado lleva. Solo clasifica:\nno cambia lo que mide."
       },
       "ClasificacionDeMuroRespuesta": {
         "properties": {
@@ -26285,10 +27005,7 @@
                 "enum": [
                   "confinado",
                   "con_cadena",
-                  "tabique",
-                  "sillar",
-                  "pretil",
-                  "barda"
+                  "tabique"
                 ]
               },
               {
@@ -26296,6 +27013,55 @@
               }
             ],
             "title": "Tipo"
+          },
+          "material": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material"
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada_a",
+                  "fachada_b",
+                  "pretil",
+                  "barda",
+                  "personalizada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "plantilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantilla Id",
+            "description": "La plantilla (versión) que eligió el trazo; `null` = ninguna."
+          },
+          "tipo_por_confirmar": {
+            "type": "boolean",
+            "title": "Tipo Por Confirmar",
+            "description": "Era un muro «sillar» antes de la 0133: se le puso confinado por prudencia y falta decidir si es confinado o tabique.",
+            "default": false
           },
           "acabado": {
             "anyOf": [
@@ -32978,6 +33744,116 @@
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
       },
+      "ElegirPlantillaPeticion": {
+        "properties": {
+          "plantilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantilla Id",
+            "description": "La plantilla (versión) para el muro; `null` la desliga."
+          }
+        },
+        "type": "object",
+        "required": [
+          "plantilla_id"
+        ],
+        "title": "ElegirPlantillaPeticion"
+      },
+      "ElegirPlantillaRespuesta": {
+        "properties": {
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "confinado",
+                  "con_cadena",
+                  "tabique"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo"
+          },
+          "material": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material"
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada_a",
+                  "fachada_b",
+                  "pretil",
+                  "barda",
+                  "personalizada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "plantilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantilla Id"
+          },
+          "acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acabado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "material",
+          "ubicacion",
+          "plantilla_id",
+          "acabado"
+        ],
+        "title": "ElegirPlantillaRespuesta"
+      },
       "ElementoCambio": {
         "properties": {
           "nombre": {
@@ -33069,6 +33945,224 @@
           "peso_kg"
         ],
         "title": "ElementoDeMedicion"
+      },
+      "ElementoDePlantilla-Input": {
+        "properties": {
+          "uid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid",
+            "description": "Identifica esta instancia; se genera si falta (K-1, K-1#2…)."
+          },
+          "ref": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Ref",
+            "description": "La clave del elemento: del catálogo (K-1, CE-1) o de la biblioteca (EST-02010)."
+          },
+          "clase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "castillo",
+                  "cadena",
+                  "muro"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clase",
+            "description": "La resuelve el servidor; se ignora al guardar."
+          },
+          "modo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "estimado",
+                  "ubicado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modo",
+            "description": "Solo castillos: sale del tipo (confinado: estimado; con_cadena: ubicado)."
+          },
+          "sep_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sep M",
+            "description": "Castillos estimados: separación (m); `null` = la del driver."
+          },
+          "posicion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "desplante",
+                  "cerramiento",
+                  "remate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion",
+            "description": "Solo cadenas."
+          },
+          "z_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Z M",
+            "description": "Altura de arranque sobre el cuerpo del muro (m)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "ElementoDePlantilla"
+      },
+      "ElementoDePlantilla-Output": {
+        "properties": {
+          "uid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uid",
+            "description": "Identifica esta instancia; se genera si falta (K-1, K-1#2…)."
+          },
+          "ref": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Ref",
+            "description": "La clave del elemento: del catálogo (K-1, CE-1) o de la biblioteca (EST-02010)."
+          },
+          "clase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "castillo",
+                  "cadena",
+                  "muro"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clase",
+            "description": "La resuelve el servidor; se ignora al guardar."
+          },
+          "modo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "estimado",
+                  "ubicado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modo",
+            "description": "Solo castillos: sale del tipo (confinado: estimado; con_cadena: ubicado)."
+          },
+          "sep_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sep M",
+            "description": "Castillos estimados: separación (m); `null` = la del driver."
+          },
+          "posicion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "desplante",
+                  "cerramiento",
+                  "remate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion",
+            "description": "Solo cadenas."
+          },
+          "z_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Z M",
+            "description": "Altura de arranque sobre el cuerpo del muro (m)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "ElementoDePlantilla"
       },
       "ElementoEnTrazoPeticion": {
         "properties": {
@@ -39888,6 +40982,50 @@
         ],
         "title": "MarcaDeCambioRespuesta"
       },
+      "MaterialDeMuro": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "espesor_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Cm",
+            "description": "`null` = por confirmar con el usuario (Q4)."
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento",
+            "description": "El elemento de la biblioteca que lo paga (tabique rojo → EST-02010)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "espesor_cm",
+          "elemento"
+        ],
+        "title": "MaterialDeMuro"
+      },
       "MaterialElegido": {
         "properties": {
           "material": {
@@ -40705,8 +41843,8 @@
               {
                 "type": "string",
                 "enum": [
-                  "interior",
-                  "exterior"
+                  "exterior",
+                  "interior"
                 ]
               },
               {
@@ -42659,6 +43797,208 @@
         ],
         "title": "ParrillaCalculada"
       },
+      "ParteDeAlturaDePlantilla-Input": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Nombre",
+            "default": ""
+          },
+          "desde_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Hasta M"
+          },
+          "suma": {
+            "type": "boolean",
+            "title": "Suma",
+            "default": true
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cuerpo",
+                  "enrase",
+                  "pretil",
+                  "cadena"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol"
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A",
+            "description": "Cara A: izquierda del sentido de dibujo. `null` = la de la ubicación."
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B",
+            "description": "Cara B: derecha del sentido de dibujo. `null` = la de la ubicación."
+          },
+          "elemento_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Ref",
+            "description": "La cadena que define la parte."
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "ParteDeAlturaDePlantilla"
+      },
+      "ParteDeAlturaDePlantilla-Output": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Nombre",
+            "default": ""
+          },
+          "desde_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hasta M"
+          },
+          "suma": {
+            "type": "boolean",
+            "title": "Suma",
+            "default": true
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cuerpo",
+                  "enrase",
+                  "pretil",
+                  "cadena"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol"
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A",
+            "description": "Cara A: izquierda del sentido de dibujo. `null` = la de la ubicación."
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B",
+            "description": "Cara B: derecha del sentido de dibujo. `null` = la de la ubicación."
+          },
+          "elemento_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Ref",
+            "description": "La cadena que define la parte."
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "ParteDeAlturaDePlantilla"
+      },
       "ParteDeAlturaEnConversion": {
         "properties": {
           "nombre": {
@@ -42729,6 +44069,69 @@
             "title": "Suma",
             "description": "Si no suma, cuenta para la altura pero no para la cantidad.",
             "default": true
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cuerpo",
+                  "enrase",
+                  "pretil",
+                  "cadena"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol",
+            "description": "Qué papel juega la parte; el enrase de un muro interior es exterior por defecto (0133)."
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A",
+            "description": "Cara A (izquierda del sentido de dibujo) de la parte; `null` = sin ubicar (0133)."
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B",
+            "description": "Cara B (derecha del sentido de dibujo) de la parte; `null` = sin ubicar (0133)."
+          },
+          "elemento_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Ref",
+            "description": "La cadena que define la parte (0133)."
           }
         },
         "type": "object",
@@ -42761,6 +44164,69 @@
             "title": "Suma",
             "description": "Si no suma, cuenta para la altura pero no para la cantidad.",
             "default": true
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cuerpo",
+                  "enrase",
+                  "pretil",
+                  "cadena"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol",
+            "description": "Qué papel juega la parte; el enrase de un muro interior es exterior por defecto (0133)."
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A",
+            "description": "Cara A (izquierda del sentido de dibujo) de la parte; `null` = sin ubicar (0133)."
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B",
+            "description": "Cara B (derecha del sentido de dibujo) de la parte; `null` = sin ubicar (0133)."
+          },
+          "elemento_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Ref",
+            "description": "La cadena que define la parte (0133)."
           }
         },
         "type": "object",
@@ -43905,6 +45371,483 @@
         },
         "type": "object",
         "title": "PlantasPeticion"
+      },
+      "PlantillaDeMuro": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "La versión de la plantilla; los trazos apuntan a esta fila."
+          },
+          "raiz_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Raiz Id",
+            "description": "La misma para todas las versiones de la plantilla."
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "confinado",
+              "con_cadena",
+              "tabique"
+            ],
+            "title": "Tipo"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "ubicacion": {
+            "type": "string",
+            "enum": [
+              "interior",
+              "fachada_a",
+              "fachada_b",
+              "pretil",
+              "barda",
+              "personalizada"
+            ],
+            "title": "Ubicacion"
+          },
+          "altura_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura M"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaDePlantilla-Output"
+            },
+            "type": "array",
+            "title": "Partes"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoDePlantilla-Output"
+            },
+            "type": "array",
+            "title": "Elementos"
+          },
+          "acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acabado"
+          },
+          "validacion": {
+            "type": "string",
+            "enum": [
+              "por_validar",
+              "validada"
+            ],
+            "title": "Validacion"
+          },
+          "propuso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Nombre"
+          },
+          "propuso_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Rol"
+          },
+          "validada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por Nombre"
+          },
+          "validada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada En"
+          },
+          "trazos": {
+            "type": "integer",
+            "title": "Trazos",
+            "description": "Cuántos trazos usan esta versión."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "raiz_id",
+          "version",
+          "vigente",
+          "nombre",
+          "tipo",
+          "material",
+          "ubicacion",
+          "altura_m",
+          "partes",
+          "elementos",
+          "acabado",
+          "validacion",
+          "propuso_nombre",
+          "propuso_rol",
+          "validada_por_nombre",
+          "validada_en",
+          "trazos",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PlantillaDeMuro"
+      },
+      "PlantillaDeMuroGuardada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "La versión de la plantilla; los trazos apuntan a esta fila."
+          },
+          "raiz_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Raiz Id",
+            "description": "La misma para todas las versiones de la plantilla."
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "confinado",
+              "con_cadena",
+              "tabique"
+            ],
+            "title": "Tipo"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "ubicacion": {
+            "type": "string",
+            "enum": [
+              "interior",
+              "fachada_a",
+              "fachada_b",
+              "pretil",
+              "barda",
+              "personalizada"
+            ],
+            "title": "Ubicacion"
+          },
+          "altura_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura M"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaDePlantilla-Output"
+            },
+            "type": "array",
+            "title": "Partes"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoDePlantilla-Output"
+            },
+            "type": "array",
+            "title": "Elementos"
+          },
+          "acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acabado"
+          },
+          "validacion": {
+            "type": "string",
+            "enum": [
+              "por_validar",
+              "validada"
+            ],
+            "title": "Validacion"
+          },
+          "propuso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Nombre"
+          },
+          "propuso_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Rol"
+          },
+          "validada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por Nombre"
+          },
+          "validada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada En"
+          },
+          "trazos": {
+            "type": "integer",
+            "title": "Trazos",
+            "description": "Cuántos trazos usan esta versión."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "version_nueva": {
+            "type": "boolean",
+            "title": "Version Nueva",
+            "description": "`true` si el cambio creó una versión nueva (la anterior estaba validada).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "raiz_id",
+          "version",
+          "vigente",
+          "nombre",
+          "tipo",
+          "material",
+          "ubicacion",
+          "altura_m",
+          "partes",
+          "elementos",
+          "acabado",
+          "validacion",
+          "propuso_nombre",
+          "propuso_rol",
+          "validada_por_nombre",
+          "validada_en",
+          "trazos",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PlantillaDeMuroGuardada"
+      },
+      "PlantillaDeMuroPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "confinado",
+              "con_cadena",
+              "tabique"
+            ],
+            "title": "Tipo"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material",
+            "description": "tabique_rojo, block_hueco o sillar_amarillo."
+          },
+          "ubicacion": {
+            "type": "string",
+            "enum": [
+              "interior",
+              "fachada_a",
+              "fachada_b",
+              "pretil",
+              "barda",
+              "personalizada"
+            ],
+            "title": "Ubicacion"
+          },
+          "altura_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura M",
+            "description": "`null` = la altura estándar (driver)."
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaDePlantilla-Input"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Partes"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoDePlantilla-Input"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Elementos"
+          },
+          "acabado": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acabado",
+            "description": "Sí/No por capa y cara; lo que falta toma el defecto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "tipo",
+          "material",
+          "ubicacion"
+        ],
+        "title": "PlantillaDeMuroPeticion"
       },
       "PonerMatrizPeticion": {
         "properties": {
@@ -48265,6 +50208,37 @@
         ],
         "title": "RevisionDeLaCorreccion"
       },
+      "RevisionDePlantilla": {
+        "properties": {
+          "plantilla": {
+            "$ref": "#/components/schemas/PlantillaDeMuro"
+          },
+          "alertas": {
+            "items": {
+              "$ref": "#/components/schemas/AlertaDeValidacion"
+            },
+            "type": "array",
+            "title": "Alertas"
+          },
+          "bloquea": {
+            "type": "boolean",
+            "title": "Bloquea",
+            "description": "Hay alertas que impiden validar."
+          },
+          "validable": {
+            "type": "boolean",
+            "title": "Validable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plantilla",
+          "alertas",
+          "bloquea",
+          "validable"
+        ],
+        "title": "RevisionDePlantilla"
+      },
       "RevisionRespuesta": {
         "properties": {
           "id": {
@@ -48943,6 +50917,42 @@
         ],
         "title": "SugerenciaDeHerramienta"
       },
+      "SugerenciaPorLosa": {
+        "properties": {
+          "indice": {
+            "type": "integer",
+            "title": "Indice"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "cara_a": {
+            "type": "string",
+            "enum": [
+              "exterior",
+              "interior"
+            ],
+            "title": "Cara A"
+          },
+          "cara_b": {
+            "type": "string",
+            "enum": [
+              "exterior",
+              "interior"
+            ],
+            "title": "Cara B"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indice",
+          "nombre",
+          "cara_a",
+          "cara_b"
+        ],
+        "title": "SugerenciaPorLosa"
+      },
       "SujetoEvaluacion": {
         "type": "string",
         "enum": [
@@ -49030,6 +51040,50 @@
           "parametros_por_defecto"
         ],
         "title": "TipoDeElementoRespuesta"
+      },
+      "TipoDeMuroFicha": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "enum": [
+              "confinado",
+              "con_cadena",
+              "tabique"
+            ],
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "castillo_modo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "estimado",
+                  "ubicado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Castillo Modo"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "castillo_modo",
+          "descripcion"
+        ],
+        "title": "TipoDeMuroFicha"
       },
       "TipoDeReporteRespuesta": {
         "properties": {
@@ -50199,7 +52253,44 @@
               }
             ],
             "title": "Muro Tipo",
-            "description": "Cómo se construye el muro: confinado, con_cadena, tabique, sillar, pretil o barda (0124); `null` = sin clasificar."
+            "description": "Cómo se construye el muro: confinado, con_cadena o tabique (0124; desde la 0133 pretil y barda son ubicación y el sillar es material); `null` = sin clasificar."
+          },
+          "muro_material": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Material",
+            "description": "Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo (0133)."
+          },
+          "muro_ubicacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Ubicacion",
+            "description": "Dónde está el muro: interior, fachada_a, fachada_b, pretil, barda o personalizada (0133)."
+          },
+          "muro_plantilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Plantilla Id",
+            "description": "La plantilla de muro (la versión) que eligió el trazo (0133)."
           },
           "muro_acabado": {
             "anyOf": [
@@ -50597,6 +52688,77 @@
         ],
         "title": "TuboDelDren"
       },
+      "UbicacionDeMuroFicha": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "enum": [
+              "interior",
+              "fachada_a",
+              "fachada_b",
+              "pretil",
+              "barda",
+              "personalizada"
+            ],
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A"
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B"
+          },
+          "enrase_exterior": {
+            "type": "boolean",
+            "title": "Enrase Exterior"
+          },
+          "elementos_sugeridos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Elementos Sugeridos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "cara_a",
+          "cara_b",
+          "enrase_exterior",
+          "elementos_sugeridos"
+        ],
+        "title": "UbicacionDeMuroFicha"
+      },
       "UbicacionPeticion": {
         "properties": {
           "etapa_id": {
@@ -50973,6 +53135,18 @@
         },
         "type": "object",
         "title": "ValidarCierrePeticion"
+      },
+      "ValidarPeticion": {
+        "properties": {
+          "aceptar_alertas": {
+            "type": "boolean",
+            "title": "Aceptar Alertas",
+            "description": "Control de obra acepta expresamente las alertas por revisar.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ValidarPeticion"
       },
       "ValidationError": {
         "properties": {
