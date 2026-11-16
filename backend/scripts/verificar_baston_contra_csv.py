@@ -51,7 +51,7 @@ def main(carpeta: Path) -> int:
     for i, f in enumerate(mat, 1):
         if f[1].startswith("AUX-02") and re.search(r'Bastones var 3/8"', f[2]) and f[1] not in claves:
             errores.append(f"{f[1]} (línea {i}): el CSV trae un bastón 3/8 que el módulo no tiene")
-    for numero, (clave, nombre) in VARILLAS.items():
+    for clave, nombre in VARILLAS.values():
         f = next((r for r in mat if r[1] == clave), None)
         if f is None or f[2].strip() != f"VARILLA {nombre}":
             errores.append(f"{clave}: el módulo dice VARILLA {nombre}, el CSV trae {f[2] if f else 'nada'}")

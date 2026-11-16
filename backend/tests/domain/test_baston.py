@@ -21,7 +21,10 @@ from obractrl.domain.cuantificacion.baston import (
     escalon_para,
     propuestas_de_actualizacion_de_apu,
 )
-from obractrl.domain.cuantificacion.biblioteca_de_elementos import BIBLIOTECA, elemento_de_la_biblioteca
+from obractrl.domain.cuantificacion.biblioteca_de_elementos import (
+    BIBLIOTECA,
+    elemento_de_la_biblioteca,
+)
 
 
 def _calc(**kw: object) -> dict:
@@ -121,7 +124,7 @@ def test_los_escalones_se_leen_del_csv_con_su_composicion() -> None:
     assert por_clave["AUX-02100"][1:5] == (4.0, 40, 0.9, 0.185315)
     assert escalon_para(3, 80, 50)["escalon"][0] == "AUX-02072"
     # El catálogo trae 8 % de desperdicio: 1.20 m a 25 cm = 4 bastones/m × 1.2 ÷ 12 × 1.08.
-    assert 4 * 1.2 / 12 * 1.08 == pytest.approx(0.432)
+    assert pytest.approx(0.432) == 4 * 1.2 / 12 * 1.08
 
 
 def test_confirmar_el_calculo_propone_una_version_con_el_antes_y_el_despues() -> None:
