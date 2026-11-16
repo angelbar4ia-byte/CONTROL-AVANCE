@@ -9,12 +9,17 @@ los autoriza, con las mismas rutas de autorización de las propuestas de estruct
 from __future__ import annotations
 
 from typing import Any, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.casos_uso import GestionarPropuestasDeBastonDep
+from obractrl.adapters.api.casos_uso import (
+    DriversDeObraDep,
+    GestionarPropuestasDeBastonDep,
+)
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
+from obractrl.adapters.api.v1.drivers_usados import DriverUsadoRespuesta, a_respuesta
 from obractrl.adapters.api.v1.elementos_de_estructura import (
     PropuestaDeEstructura,
     ResultadoDeProponer,
@@ -28,6 +33,10 @@ from obractrl.domain.cuantificacion.baston import (
     ErrorDeBaston,
     calcular_baston,
     definicion_de,
+)
+from obractrl.domain.cuantificacion.drivers_de_elementos import (
+    DriverUsado,
+    valor_de_driver,
 )
 from obractrl.domain.shared.diccionario import Rol
 
@@ -93,7 +102,13 @@ class CalculoDelBastonPeticion(BaseModel):
     sep_cm: float = Field(default=25.0, ge=5, le=200, description="Cada cuánto va un bastón.")
     largo_cm: float = Field(default=120.0, ge=10, le=3000, description="Largo del bastón.")
     puntas_cm: float = Field(default=0.0, ge=0, le=100, description="Anclaje adicional; 0 = sin gancho (Q28).")
-    traslape_diametros: float = Field(default=40.0, ge=0, le=100, description="Traslape entre las piezas de un bastón largo (Q22).")
+    traslape_diametros: float = Field(default=40.0, ge=0, le=100, description="Traslape entre las piezas de un bastón largo (Q22). Si no se manda, vale el driver `traslape_varilla_diametros` de la obra.")
+    tolerancia_corte_cm: float = Field(default=0.0, ge=0, le=200, description="Falta que se acepta sin pasar al corte siguiente. Si no se manda, vale el driver `tolerancia_corte_cm` de la obra.")
+    max_piezas_corte: int = Field(default=3, ge=1, le=12, description="Máximo de piezas por bastón largo. Si no se manda, vale el driver `max_piezas_corte` de la obra.")
+    obra_id: UUID | None = Field(
+        default=None,
+        description="La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre.",
+    )
 
 
 class VarillaCalculada(BaseModel):
@@ -202,6 +217,9 @@ class CalculoDelBaston(BaseModel):
     concepto: ConceptoDelBaston
     escalon: Escalon
     conciliacion: list[ConciliacionDelBaston]
+    drivers_usados: list[DriverUsadoRespuesta] = Field(
+        default_factory=list, description="Los drivers que leyó el cálculo y de dónde salió cada valor."
+    )
     avisos: list[str]
 
 
@@ -209,15 +227,33 @@ _RESPUESTAS_DE_ELEMENTO = {404: {"description": "No hay un bastón con esa clave
 _PROPONEN = {**_RESPUESTAS_DE_ELEMENTO, 403: {"description": "Proponen Costos y Control de obra."}}
 
 
-def _entrada(p: CalculoDelBastonPeticion) -> EntradaDeBaston:
-    return EntradaDeBaston(
+async def _entrada(p: CalculoDelBastonPeticion, drivers_de_obra: DriversDeObraDep) -> tuple[EntradaDeBaston, list[DriverUsado]]:
+    """La entrada del cálculo con los drivers de la obra: lo que la petición manda > el driver de la obra > el valor por defecto."""
+    vigentes = await drivers_de_obra.valores(p.obra_id)
+    mandado = p.model_fields_set
+    traslape = valor_de_driver(
+        "traslape_varilla_diametros", explicito=p.traslape_diametros if "traslape_diametros" in mandado else None,
+        defecto=p.traslape_diametros, vigentes=vigentes,
+    )
+    tolerancia = valor_de_driver(
+        "tolerancia_corte_cm", explicito=p.tolerancia_corte_cm if "tolerancia_corte_cm" in mandado else None,
+        defecto=p.tolerancia_corte_cm, vigentes=vigentes,
+    )
+    max_piezas = valor_de_driver(
+        "max_piezas_corte", explicito=float(p.max_piezas_corte) if "max_piezas_corte" in mandado else None,
+        defecto=float(p.max_piezas_corte), vigentes=vigentes,
+    )
+    entrada = EntradaDeBaston(
         trazo_m=p.trazo_m,
         varilla_numero=p.varilla_numero,
         sep_cm=p.sep_cm,
         largo_cm=p.largo_cm,
         puntas_cm=p.puntas_cm,
-        traslape_diametros=p.traslape_diametros,
+        traslape_diametros=traslape.valor,
+        tolerancia_corte_cm=tolerancia.valor,
+        max_piezas_corte=int(max_piezas.valor),
     )
+    return entrada, [traslape, tolerancia, max_piezas]
 
 
 @router.get(
@@ -239,10 +275,13 @@ async def definicion_del_baston(clave: str) -> dict[str, Any]:
     summary="Calcula los bastones, varillas y kg de un trazo, el escalón del catálogo que los paga y su conciliación (solo cálculo)",
     responses={**_RESPUESTAS_DE_ELEMENTO, 422: {"description": "Un dato no vale."}},
 )
-async def calcular_el_baston(clave: str, peticion: CalculoDelBastonPeticion) -> dict[str, Any]:
+async def calcular_el_baston(
+    clave: str, peticion: CalculoDelBastonPeticion, drivers_de_obra: DriversDeObraDep
+) -> dict[str, Any]:
     try:
         definicion_de(clave)
-        return calcular_baston(_entrada(peticion))
+        entrada, usados = await _entrada(peticion, drivers_de_obra)
+        return {**calcular_baston(entrada), "drivers_usados": a_respuesta(usados)}
     except ElementoDeBastonNoEncontrado as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
     except ErrorDeBaston as e:
@@ -268,10 +307,15 @@ async def propuestas_del_baston(clave: str, caso_uso: GestionarPropuestasDeBasto
     responses={**_PROPONEN, 422: {"description": "El catálogo ya trae el escalón o un dato no vale."}},
 )
 async def proponer_concepto_nuevo(
-    clave: str, peticion: CalculoDelBastonPeticion, ctx: ContextoActual, caso_uso: GestionarPropuestasDeBastonDep
+    clave: str,
+    peticion: CalculoDelBastonPeticion,
+    ctx: ContextoActual,
+    caso_uso: GestionarPropuestasDeBastonDep,
+    drivers_de_obra: DriversDeObraDep,
 ) -> ResultadoDeProponer:
     try:
-        r = await caso_uso.proponer_concepto_nuevo(clave, _entrada(peticion), usuario_id=ctx.usuario_id, rol=ctx.rol)
+        entrada, _ = await _entrada(peticion, drivers_de_obra)
+        r = await caso_uso.proponer_concepto_nuevo(clave, entrada, usuario_id=ctx.usuario_id, rol=ctx.rol)
     except ErrorDeBaston as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
     return ResultadoDeProponer(**r)
@@ -286,10 +330,15 @@ async def proponer_concepto_nuevo(
     responses={**_PROPONEN, 422: {"description": "Un dato no vale."}},
 )
 async def proponer_actualizacion_de_apu(
-    clave: str, peticion: CalculoDelBastonPeticion, ctx: ContextoActual, caso_uso: GestionarPropuestasDeBastonDep
+    clave: str,
+    peticion: CalculoDelBastonPeticion,
+    ctx: ContextoActual,
+    caso_uso: GestionarPropuestasDeBastonDep,
+    drivers_de_obra: DriversDeObraDep,
 ) -> ResultadoDeProponer:
     try:
-        r = await caso_uso.proponer_actualizacion_de_apu(clave, _entrada(peticion), usuario_id=ctx.usuario_id, rol=ctx.rol)
+        entrada, _ = await _entrada(peticion, drivers_de_obra)
+        r = await caso_uso.proponer_actualizacion_de_apu(clave, entrada, usuario_id=ctx.usuario_id, rol=ctx.rol)
     except ErrorDeBaston as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
     return ResultadoDeProponer(**r)

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { PlantillaDeMuro } from '@/api/generado/modelo';
 
-import { borradorDe, borradorVacio, cambio, geometriaDeVista, peticionDe, type Borrador } from './plantillaDeMuro';
+import { borradorDe, borradorVacio, cambio, driversDeVistaDe, geometriaDeVista, peticionDe, type Borrador } from './plantillaDeMuro';
 
 const PLANTILLA = {
   id: 'p1',
@@ -76,14 +76,13 @@ describe('el borrador de una plantilla de muro', () => {
 describe('la vista previa del muro', () => {
   const medidas = { 'K-1': { ancho_m: 0.15, alto_m: 0 }, 'CE-1': { ancho_m: 0.15, alto_m: 0.2 }, 'CD-1': { ancho_m: 0.15, alto_m: 0.2 } };
 
-  it('pone los castillos en los extremos y cada separación, y la cadena de cerramiento donde arranca el enrase', () => {
+  it('pone los castillos ubicados en los extremos, y la cadena de cerramiento donde arranca el enrase', () => {
     const g = geometriaDeVista(borradorDe(PLANTILLA), medidas);
-    expect(g.altura_m).toBeCloseTo(2.6);
+    expect(g.altura_m).toBeCloseTo(2.6); // la plantilla trae sus partes: manda su tope
     const centros = g.castillos.map((c) => c.x_m + c.ancho_m / 2);
-    expect(centros).toHaveLength(3); // los dos extremos y el de la mitad (cada 3 m)
+    expect(centros).toHaveLength(2); // sin separación propia, un castillo ubicado va en los extremos (como al colocar)
     expect(centros[0]).toBeCloseTo(0.075);
-    expect(centros[1]).toBeCloseTo(3);
-    expect(centros[2]).toBeCloseTo(5.925);
+    expect(centros[1]).toBeCloseTo(5.925);
     expect(g.castillos.every((c) => !c.estimado)).toBe(true);
     expect(g.cadenas).toHaveLength(1);
     expect(g.cadenas[0]!.desde_m).toBeCloseTo(2.3); // donde acaba el cuerpo
@@ -108,5 +107,43 @@ describe('la vista previa del muro', () => {
     const g = geometriaDeVista(b, medidas);
     expect(g.altura_m).toBe(3);
     expect(g.cadenas.map((c) => [c.ref, c.desde_m])).toEqual([['CD-1', 0], ['CE-1', 2.8]]);
+  });
+});
+
+describe('los drivers de la obra en la vista previa', () => {
+  const medidas = { 'K-1': { ancho_m: 0.15, alto_m: 0 } };
+  const confinado: Borrador = {
+    ...borradorVacio(),
+    tipo: 'confinado',
+    elementos: [{ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '', posicion: '', z: '' }],
+  };
+
+  it('sin drivers de la obra vale lo de partida: 3.00 m de alto y castillos cada 3.00 m', () => {
+    const g = geometriaDeVista(confinado, medidas);
+    expect(g.altura_m).toBe(3);
+    expect(g.castillos).toHaveLength(3); // 0, 3 y 6 m
+  });
+
+  it('la altura estándar y la separación de castillos salen de los drivers de la obra', () => {
+    const d = driversDeVistaDe([
+      { clave: 'altura_estandar', valor_vigente: '3.5' },
+      { clave: 'separacion_castillos', valor_vigente: '2' },
+    ]);
+    expect(d).toEqual({ altura_m: 3.5, separacion_m: 2 });
+    const g = geometriaDeVista(confinado, medidas, d);
+    expect(g.altura_m).toBe(3.5);
+    expect(g.castillos).toHaveLength(4); // 0, 2, 4 y 6 m
+  });
+
+  it('la altura y la separación que la plantilla trae mandan sobre los drivers', () => {
+    const b: Borrador = { ...confinado, altura: '2.8', elementos: [{ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '1.5', posicion: '', z: '' }] };
+    const g = geometriaDeVista(b, medidas, { altura_m: 3.5, separacion_m: 2 });
+    expect(g.altura_m).toBe(2.8);
+    expect(g.castillos).toHaveLength(5); // 0, 1.5, 3, 4.5 y 6 m
+  });
+
+  it('un driver que falta o no vale queda en su valor de partida', () => {
+    expect(driversDeVistaDe(undefined)).toEqual({ altura_m: 3, separacion_m: 3 });
+    expect(driversDeVistaDe([{ clave: 'separacion_castillos', valor_vigente: 'x' }])).toEqual({ altura_m: 3, separacion_m: 3 });
   });
 });

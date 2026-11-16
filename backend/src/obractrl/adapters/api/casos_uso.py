@@ -11,14 +11,23 @@ router solo conoce el caso de uso (aplicación), no `adapters.repos`.
 
 from __future__ import annotations
 
+import inspect
+from contextlib import AsyncExitStack, asynccontextmanager
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
+from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obractrl.adapters.api.avisos import suscribir_avisos
-from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS
+from obractrl.adapters.api.dependencias import (
+    ContextoActual,
+    SesionRLS,
+    _bearer,
+    contexto_actual,
+    sesion_rls,
+)
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.arbol_de_obra_sql import RepositorioArbolDeObraSQL
@@ -390,6 +399,7 @@ from obractrl.application.eventos import (
 )
 from obractrl.domain.shared.diccionario import TipoCarga, TipoConcepto, TipoInsumo
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
+from obractrl.infrastructure.db.sesion import sesion_con_rls
 from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
 from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
 from obractrl.infrastructure.notificaciones.resend import ClienteResend
@@ -473,6 +483,7 @@ __all__ = [
     "CrearUsuarioDep",
     "DarDeAltaExtraDep",
     "DeclararPerdidaDeExcedenteDep",
+    "DriversDeObraDep",
     "EditarNivelesYRecamarasDep",
     "EditarProgramacionActividadDep",
     "EliminarCargaDep",
@@ -1114,6 +1125,44 @@ def obtener_gestionar_drivers(sesion: SesionRLS) -> GestionarDrivers:
     return GestionarDrivers(parametrico=RepositorioParametricoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
 
+class DriversDeObraPerezosos:
+    """Los drivers vigentes de una obra, pedidos **solo si el cálculo trae `obra_id`**.
+
+    Los cálculos de elementos (`/biblioteca-de-elementos/…/calcular`) son cuentas puras que no piden sesión: sin obra siguen siendo
+    exactamente lo que eran (ni token ni base de datos). Con obra, se abre la sesión con RLS del usuario y se leen los drivers
+    (una obra fuera de su alcance es 404). Respeta `dependency_overrides` de la aplicación, como cualquier otra dependencia."""
+
+    def __init__(self, request: Request) -> None:
+        self._request = request
+
+    def _dependencia(self, funcion: Any) -> Any:
+        return self._request.app.dependency_overrides.get(funcion, funcion)
+
+    async def valores(self, obra_id: UUID | None) -> dict[str, Any] | None:
+        if obra_id is None:
+            return None
+        async with AsyncExitStack() as pila:
+            contexto = self._dependencia(contexto_actual)
+            if contexto is contexto_actual:
+                from obractrl.infrastructure.config import obtener_config
+
+                ctx = await contexto_actual(await _bearer(self._request), obtener_config())
+            else:
+                ctx = contexto()
+                if inspect.isawaitable(ctx):
+                    ctx = await ctx
+            abrir = self._dependencia(sesion_rls)
+            if abrir is sesion_rls:
+                sesion = await pila.enter_async_context(sesion_con_rls(ctx))
+            else:
+                sesion = await pila.enter_async_context(asynccontextmanager(abrir)(ctx))
+            return await obtener_gestionar_drivers(sesion).valores(obra_id)
+
+
+async def obtener_drivers_de_obra(request: Request) -> DriversDeObraPerezosos:
+    return DriversDeObraPerezosos(request)
+
+
 def obtener_gestionar_enlaces_de_ranura(sesion: SesionRLS) -> GestionarEnlacesDeRanura:
     return GestionarEnlacesDeRanura(parametrico=RepositorioParametricoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
@@ -1388,6 +1437,7 @@ GestionarCorreccionesDeCatalogoDep = Annotated[
     GestionarCorreccionesDeCatalogo, Depends(obtener_gestionar_correcciones_de_catalogo)
 ]
 GestionarDriversDep = Annotated[GestionarDrivers, Depends(obtener_gestionar_drivers)]
+DriversDeObraDep = Annotated[DriversDeObraPerezosos, Depends(obtener_drivers_de_obra)]
 GestionarEnlacesDeRanuraDep = Annotated[GestionarEnlacesDeRanura, Depends(obtener_gestionar_enlaces_de_ranura)]
 GestionarConceptosDeElementoDep = Annotated[
     GestionarConceptosDeElemento, Depends(obtener_gestionar_conceptos_de_elemento)

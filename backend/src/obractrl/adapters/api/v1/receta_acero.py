@@ -10,10 +10,18 @@ aquel también casaría con `receta-acero` como si fuera una clave de elemento.
 from __future__ import annotations
 
 from typing import Any, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from obractrl.adapters.api.casos_uso import DriversDeObraDep
+from obractrl.adapters.api.v1.drivers_usados import (
+    DriverUsadoRespuesta,
+    a_respuesta,
+    explicitos_de_receta,
+)
+from obractrl.domain.cuantificacion.drivers_de_elementos import receta_de_obra
 from obractrl.domain.cuantificacion.receta_acero import (
     Armex,
     ConsumoDeCimbra,
@@ -27,6 +35,7 @@ from obractrl.domain.cuantificacion.receta_acero import (
 )
 
 router = APIRouter(tags=["biblioteca de elementos"])
+
 
 
 class DriversDeRecetaPeticion(BaseModel):
@@ -97,6 +106,10 @@ class RecetaDeAceroPeticion(BaseModel):
     cimbra: list[ConsumoDeCimbraPeticion] = Field(default_factory=list, max_length=20)
     cantidad: float = Field(default=1.0, gt=0, le=1_000_000)
     drivers: DriversDeRecetaPeticion = Field(default_factory=DriversDeRecetaPeticion)
+    obra_id: UUID | None = Field(
+        default=None,
+        description="La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda `drivers` > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre.",
+    )
 
 
 class CorteDeLaVarilla(BaseModel):
@@ -199,10 +212,13 @@ class RecetaDeAceroCalculada(BaseModel):
     desperdicio: DesperdicioDeLaReceta
     totales: list[TotalDeLaReceta]
     drivers: DriversDeRecetaPeticion
+    drivers_usados: list[DriverUsadoRespuesta] = Field(
+        default_factory=list, description="Los drivers que leyó el cálculo y de dónde salió cada valor."
+    )
     advertencias: list[str]
 
 
-def _entrada(p: RecetaDeAceroPeticion) -> EntradaRecetaAcero:
+def _entrada(p: RecetaDeAceroPeticion, drivers: DriversDeReceta) -> EntradaRecetaAcero:
     return EntradaRecetaAcero(
         forma=p.forma,
         ancho_cm=p.ancho_cm,
@@ -223,7 +239,7 @@ def _entrada(p: RecetaDeAceroPeticion) -> EntradaRecetaAcero:
         alambre_kg_ml=p.alambre_kg_ml,
         cimbra=[ConsumoDeCimbra(c.clave, c.por_ml, c.por_m2) for c in p.cimbra],
         cantidad=p.cantidad,
-        drivers=DriversDeReceta(**p.drivers.model_dump()),
+        drivers=drivers,
     )
 
 
@@ -232,8 +248,10 @@ def _entrada(p: RecetaDeAceroPeticion) -> EntradaRecetaAcero:
     response_model=RecetaDeAceroCalculada,
     summary="Calcula la receta del acero de un elemento lineal o de pieza (solo cálculo)",
 )
-async def calcular_receta(peticion: RecetaDeAceroPeticion) -> dict[str, Any]:
+async def calcular_receta(peticion: RecetaDeAceroPeticion, drivers_de_obra: DriversDeObraDep) -> dict[str, Any]:
+    vigentes = await drivers_de_obra.valores(peticion.obra_id)
+    drivers, usados = receta_de_obra(vigentes, explicitos_de_receta(peticion.drivers))
     try:
-        return calcular_receta_acero(_entrada(peticion))
+        return {**calcular_receta_acero(_entrada(peticion, drivers)), "drivers_usados": a_respuesta(usados)}
     except ErrorDeRecetaAcero as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e

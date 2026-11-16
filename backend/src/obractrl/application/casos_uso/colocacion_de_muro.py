@@ -24,6 +24,7 @@ from obractrl.application.casos_uso.cuantificar import (
     TrazoNoEncontrado,
     VanoCambiado,
 )
+from obractrl.application.casos_uso.parametrico import vigentes_de_obra
 from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
     Colocacion,
     ConceptoColocado,
@@ -51,6 +52,14 @@ class ColocarElementosDeMuro(GestionarVanos):
         self._elementos = elementos
         self._parametrico = parametrico
 
+    async def _separacion_de_castillos(self, contexto: dict[str, Any]) -> Decimal | None:
+        """El driver `separacion_castillos` vigente en la obra del muro (la separación de un castillo que la plantilla no fija)."""
+        if not contexto.get("obra_id"):
+            return None
+        vigentes = await vigentes_de_obra(self._parametrico, UUID(str(contexto["obra_id"])))
+        v = vigentes.get("separacion_castillos")
+        return v.valor if v is not None else None
+
     async def _plan(self, trazo_id: UUID) -> tuple[dict[str, Any], dict[str, Any], Colocacion, dict[str, dict[str, Any]]]:
         """(plantilla, contexto del trazo, lo que coloca la plantilla en este muro, los elementos por clave). Levanta 404 o 422."""
         if await self._trazos.obtener(trazo_id) is None:
@@ -73,6 +82,7 @@ class ColocarElementosDeMuro(GestionarVanos):
             largo_m=await self._trazos.largo_del_eje(trazo_id),
             altura_m=await self._altura_del_muro(trazo_id),
             anchos_m=anchos,
+            separacion_m=await self._separacion_de_castillos(contexto),
         )
         return plantilla, contexto, colocacion, catalogo
 

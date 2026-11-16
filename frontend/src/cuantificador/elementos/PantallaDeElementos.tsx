@@ -19,7 +19,16 @@ const TIPO_DE_TABIQUE = 'tabique';
 const TIPO_DE_BASTON = 'baston';
 const TIPOS_LINEALES = new Set(['lineal_estructural', 'zapata_aislada', 'columna_de_concreto']);
 
-export function PantallaDeElementos({ clave, rol }: { readonly clave: string | null; readonly rol?: string | null }) {
+export function PantallaDeElementos({
+  clave,
+  rol,
+  obraId = '',
+}: {
+  readonly clave: string | null;
+  readonly rol?: string | null;
+  /** La obra actual: los cálculos de los elementos leen sus drivers. */
+  readonly obraId?: string;
+}) {
   const biblioteca = useBibliotecaDeElementosApiV1BibliotecaDeElementosGet();
   // Los castillos, aparentes y columnas forjadas (3A) comparten la tarjeta de estructura.
   const esDeEstructura = (biblioteca.data ?? []).some((c) =>
@@ -40,13 +49,13 @@ export function PantallaDeElementos({ clave, rol }: { readonly clave: string | n
         {clave === 'MCT-01010' ? (
           <TarjetaMuroContencion clave={clave} />
         ) : clave && esDeEstructura ? (
-          <TarjetaEstructura clave={clave} />
+          <TarjetaEstructura clave={clave} obraId={obraId} />
         ) : clave && esDeTabique ? (
           <TarjetaMuroTabique key={clave} clave={clave} />
         ) : clave && esBaston ? (
-          <TarjetaBaston key={clave} clave={clave} />
+          <TarjetaBaston key={clave} clave={clave} obraId={obraId} />
         ) : clave && esLineal ? (
-          <TarjetaElementoEstructural key={clave} clave={clave} rol={rol} />
+          <TarjetaElementoEstructural key={clave} clave={clave} rol={rol} obraId={obraId} />
         ) : clave === 'CIM-01010' ? (
           <TarjetaMuroCimentacion clave={clave} />
         ) : (

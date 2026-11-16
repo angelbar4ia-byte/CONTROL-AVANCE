@@ -41,12 +41,35 @@ export interface Borrador {
   readonly elementos: readonly ElementoBorrador[];
 }
 
-/** La altura que se dibuja si la plantilla no dice otra: la de siempre del Cuantificador (la estándar será un driver). */
-export const ALTURA_DE_VISTA_M = 2.6;
+/** La altura estándar de partida (driver `altura_estandar`): solo vale mientras la obra no responde sus drivers. */
+export const ALTURA_DE_VISTA_M = 3;
 /** El tramo de muro que dibuja la vista previa. */
 export const LARGO_DE_VISTA_M = 6;
-/** Separación de los castillos si la plantilla no dice otra; el driver `separacion_castillos` aún no se construye. */
+/** Separación de partida (driver `separacion_castillos`): solo vale mientras la obra no responde sus drivers. */
 export const SEPARACION_DE_VISTA_M = 3;
+
+/** Los drivers de la obra que lee la vista previa: la altura estándar y la separación de castillos. */
+export interface DriversDeVista {
+  readonly altura_m: number;
+  readonly separacion_m: number;
+}
+export const DRIVERS_DE_VISTA_DE_PARTIDA: DriversDeVista = { altura_m: ALTURA_DE_VISTA_M, separacion_m: SEPARACION_DE_VISTA_M };
+export const DRIVER_SEPARACION_CASTILLOS = 'separacion_castillos';
+
+interface DriverVigente {
+  readonly clave: string;
+  readonly valor_vigente: string | number;
+}
+
+/** Los drivers de la vista previa sacados de la lista de la obra; lo que falta o no vale queda en su valor de partida. */
+export function driversDeVistaDe(drivers: readonly DriverVigente[] | null | undefined): DriversDeVista {
+  const de = (clave: string, partida: number) => {
+    const d = drivers?.find((x) => x.clave === clave);
+    const n = d ? Number(String(d.valor_vigente).replace(',', '.')) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : partida;
+  };
+  return { altura_m: de('altura_estandar', ALTURA_DE_VISTA_M), separacion_m: de(DRIVER_SEPARACION_CASTILLOS, SEPARACION_DE_VISTA_M) };
+}
 
 export function borradorVacio(): Borrador {
   return { nombre: '', tipo: 'con_cadena', material: 'tabique_rojo', ubicacion: 'fachada_a', altura: '', partes: [], elementos: [] };
@@ -155,12 +178,16 @@ export interface Geometria {
 
 /** Dónde queda cada pieza en el tramo de vista previa: las partes de altura, los castillos (cada «sep» y en los extremos) y las
  *  cadenas según su posición (desplante al pie, remate al tope, cerramiento donde arranca el enrase). */
-export function geometriaDeVista(b: Borrador, medidas: Readonly<Record<string, MedidaDeElemento>>): Geometria {
+export function geometriaDeVista(
+  b: Borrador,
+  medidas: Readonly<Record<string, MedidaDeElemento>>,
+  drivers: DriversDeVista = DRIVERS_DE_VISTA_DE_PARTIDA,
+): Geometria {
   const partes = b.partes
     .map((p) => ({ nombre: p.nombre, desde_m: numeroTecleado(p.desde), hasta_m: numeroTecleado(p.hasta), caraA: p.caraA, caraB: p.caraB }))
     .filter((p) => p.hasta_m > p.desde_m);
   const tope = partes.reduce((m, p) => Math.max(m, p.hasta_m), 0);
-  const altura = tope > 0 ? tope : numeroTecleado(b.altura) > 0 ? numeroTecleado(b.altura) : ALTURA_DE_VISTA_M;
+  const altura = tope > 0 ? tope : numeroTecleado(b.altura) > 0 ? numeroTecleado(b.altura) : drivers.altura_m;
   const largo = LARGO_DE_VISTA_M;
   const castillos: CastilloDibujado[] = [];
   const cadenas: CadenaDibujada[] = [];
@@ -168,9 +195,12 @@ export function geometriaDeVista(b: Borrador, medidas: Readonly<Record<string, M
     const m = medidas[e.ref];
     if (e.clase === 'castillo') {
       const ancho = m?.ancho_m ?? 0.15;
-      const sep = numeroTecleado(e.sep) > 0 ? numeroTecleado(e.sep) : SEPARACION_DE_VISTA_M;
+      // Igual que al colocar: sin separación propia, un castillo estimado (muro confinado) se reparte por el driver de la obra y uno
+      // ubicado (muro con cadena) va en los extremos.
+      const propia = numeroTecleado(e.sep) > 0 ? numeroTecleado(e.sep) : null;
+      const sep = propia ?? (b.tipo === 'confinado' ? drivers.separacion_m : null);
       const xs = new Set<number>([0, largo]);
-      for (let x = sep; x < largo - 1e-9; x += sep) xs.add(Number(x.toFixed(4)));
+      if (sep !== null) for (let x = sep; x < largo - 1e-9; x += sep) xs.add(Number(x.toFixed(4)));
       for (const x of [...xs].sort((a, c) => a - c)) {
         castillos.push({ uid: e.uid, x_m: Math.min(Math.max(x - ancho / 2, 0), largo - ancho), ancho_m: ancho, estimado: b.tipo === 'confinado' });
       }

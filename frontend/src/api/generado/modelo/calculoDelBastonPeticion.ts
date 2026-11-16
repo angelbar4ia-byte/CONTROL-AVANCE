@@ -5,6 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { CalculoDelBastonPeticionObraId } from "./calculoDelBastonPeticionObraId";
 
 export interface CalculoDelBastonPeticion {
   /**
@@ -37,9 +38,23 @@ export interface CalculoDelBastonPeticion {
    */
   puntas_cm?: number;
   /**
-   * Traslape entre las piezas de un bastón largo (Q22).
+   * Traslape entre las piezas de un bastón largo (Q22). Si no se manda, vale el driver `traslape_varilla_diametros` de la obra.
    * @minimum 0
    * @maximum 100
    */
   traslape_diametros?: number;
+  /**
+   * Falta que se acepta sin pasar al corte siguiente. Si no se manda, vale el driver `tolerancia_corte_cm` de la obra.
+   * @minimum 0
+   * @maximum 200
+   */
+  tolerancia_corte_cm?: number;
+  /**
+   * Máximo de piezas por bastón largo. Si no se manda, vale el driver `max_piezas_corte` de la obra.
+   * @minimum 1
+   * @maximum 12
+   */
+  max_piezas_corte?: number;
+  /** La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre. */
+  obra_id?: CalculoDelBastonPeticionObraId;
 }

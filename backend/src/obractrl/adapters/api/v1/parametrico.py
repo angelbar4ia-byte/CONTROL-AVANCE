@@ -47,6 +47,19 @@ class DriverRespuesta(BaseModel):
     origen: Literal["obra", "global", "inicial"]
     ajuste_ignorado: bool = Field(description="La obra tiene un ajuste, pero el driver es fijo: manda el global.")
     editado: bool = Field(description="El global ya fue cambiado por alguien (si no, vale el de partida).")
+    lo_usan: list[ConsumidorDelDriver] = Field(
+        default_factory=list, description="Los elementos y artefactos cuyo cálculo lee este driver (registro del dominio, probado)."
+    )
+    sin_consumidor: str | None = Field(default=None, description="Si ningún cálculo lo lee todavía: el motivo.")
+
+
+class ConsumidorDelDriver(BaseModel):
+    id: str
+    tipo: Literal["elemento", "artefacto", "plano"]
+    nombre: str
+    lectura: Literal["driver", "constante"] = Field(
+        description="`driver`: el cálculo lee el valor vigente de la obra. `constante`: el driver es fijo y el cálculo lo lee como constante."
+    )
 
 
 class DriverGlobalPeticion(BaseModel):

@@ -13,6 +13,7 @@ import type { PagoDelBaston } from "./pagoDelBaston";
 import type { ConceptoDelBaston } from "./conceptoDelBaston";
 import type { CalculoDelBastonEscalon } from "./calculoDelBastonEscalon";
 import type { ConciliacionDelBaston } from "./conciliacionDelBaston";
+import type { DriverUsadoRespuesta } from "./driverUsadoRespuesta";
 
 export interface CalculoDelBaston {
   clave: string;
@@ -31,5 +32,7 @@ export interface CalculoDelBaston {
   concepto: ConceptoDelBaston;
   escalon: CalculoDelBastonEscalon;
   conciliacion: ConciliacionDelBaston[];
+  /** Los drivers que leyó el cálculo y de dónde salió cada valor. */
+  drivers_usados?: DriverUsadoRespuesta[];
   avisos: string[];
 }

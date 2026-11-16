@@ -16,6 +16,7 @@ import type { CalculoDeEstructuraForro } from "./calculoDeEstructuraForro";
 import type { ConceptoCalculado } from "./conceptoCalculado";
 import type { CalculoDeEstructuraConceptoNuevoPorAltura } from "./calculoDeEstructuraConceptoNuevoPorAltura";
 import type { SoloEnElCatalogo } from "./soloEnElCatalogo";
+import type { DriverUsadoRespuesta } from "./driverUsadoRespuesta";
 
 export interface CalculoDeEstructura {
   clave: string;
@@ -38,6 +39,8 @@ export interface CalculoDeEstructura {
   concepto_nuevo_por_altura: CalculoDeEstructuraConceptoNuevoPorAltura;
   solo_en_catalogo: SoloEnElCatalogo[];
   pendientes: string[];
+  /** Los drivers que leyó el cálculo y de dónde salió cada valor. */
+  drivers_usados?: DriverUsadoRespuesta[];
   advertencias: string[];
   fuente: string;
 }

@@ -121,7 +121,8 @@ const PROPUESTA = {
   motivo: null,
 };
 
-const PETICION = { trazo_m: 1, varilla_numero: 3, sep_cm: 25, largo_cm: 120, puntas_cm: 0, traslape_diametros: 40 };
+// El traslape sin tocar no se manda: lo da el driver de la obra (o el valor por defecto del servidor).
+const PETICION = { trazo_m: 1, varilla_numero: 3, sep_cm: 25, largo_cm: 120, puntas_cm: 0 };
 
 beforeEach(() => {
   for (const f of [m.calcular, m.proponerNuevo, m.proponerApu, m.autorizar, m.rechazar]) f.mockReset();
@@ -135,6 +136,24 @@ beforeEach(() => {
 });
 
 describe('TarjetaBaston', () => {
+  it('con una obra manda su obra_id, no manda el traslape sin tocar y muestra de dónde sale cada driver', async () => {
+    m.calcular.mockResolvedValue({
+      ...CALCULO,
+      drivers_usados: [
+        { clave: 'traslape_varilla_diametros', nombre: 'Traslape de varilla', unidad: 'diámetros', valor: 50, fuente: 'obra' },
+        { clave: 'tolerancia_corte_cm', nombre: 'Tolerancia de corte', unidad: 'cm', valor: 0, fuente: 'defecto' },
+      ],
+    });
+    render(<TarjetaBaston clave="BA-1" obraId="obra-1" />);
+    await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'BA-1', data: { ...PETICION, obra_id: 'obra-1' } }));
+    const fila = await screen.findByText('Traslape de varilla');
+    expect(fila.closest('[data-driver-usado]')).toHaveAttribute('data-fuente', 'obra');
+    expect(fila.closest('[data-driver-usado]')).toHaveTextContent('driver de la obra');
+    expect(screen.getByLabelText('Traslape en diámetros')).toHaveValue('40');
+    fireEvent.change(screen.getByLabelText('Traslape en diámetros'), { target: { value: '30' } });
+    await waitFor(() => expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'BA-1', data: { ...PETICION, traslape_diametros: 30, obra_id: 'obra-1' } }));
+  });
+
   it('manda los parámetros al servidor y pinta bastones, corte, varillas, kg y el concepto del escalón', async () => {
     render(<TarjetaBaston clave="BA-1" />);
     await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'BA-1', data: PETICION }));

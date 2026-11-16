@@ -9,13 +9,24 @@ de piedra: `/biblioteca-de-elementos/{clave}/calcular` también casaría con ell
 from __future__ import annotations
 
 from typing import Any, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from obractrl.adapters.api.casos_uso import DriversDeObraDep
+from obractrl.adapters.api.v1.drivers_usados import (
+    DriverUsadoRespuesta,
+    a_respuesta,
+    explicitos_de_receta,
+)
 from obractrl.adapters.api.v1.receta_acero import (
     DriversDeRecetaPeticion,
     RecetaDeAceroCalculada,
+)
+from obractrl.domain.cuantificacion.drivers_de_elementos import (
+    desperdicio_concreto_de_obra,
+    receta_de_obra,
 )
 from obractrl.domain.cuantificacion.elementos_lineales import (
     EntradaElementoEstructural,
@@ -23,7 +34,6 @@ from obractrl.domain.cuantificacion.elementos_lineales import (
     calcular_elemento,
     definicion_del_elemento,
 )
-from obractrl.domain.cuantificacion.receta_acero import DriversDeReceta
 
 router = APIRouter(tags=["biblioteca de elementos"])
 
@@ -154,6 +164,10 @@ class CalculoDelElementoEstructuralPeticion(BaseModel):
     zonas_de_anillo: list[ZonaDeAnilloDelElemento] = Field(default_factory=list, max_length=10)
     desperdicio_concreto_pct: float = Field(default=5.0, ge=0, le=50)
     drivers: DriversDeRecetaPeticion = Field(default_factory=DriversDeRecetaPeticion)
+    obra_id: UUID | None = Field(
+        default=None,
+        description="La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre.",
+    )
 
 
 class SeccionCalculada(BaseModel):
@@ -254,6 +268,9 @@ class CalculoDelElementoEstructural(BaseModel):
     mano_de_obra: ManoDeObraDelElemento
     conciliacion: list[ConciliacionConUnConcepto]
     camino_de_colado_y_cimbra: CaminoDeColadoYCimbra | None
+    drivers_usados: list[DriverUsadoRespuesta] = Field(
+        default_factory=list, description="Los drivers que leyó el cálculo y de dónde salió cada valor."
+    )
     advertencias: list[str]
 
 
@@ -276,11 +293,18 @@ async def definicion_del_elemento_estructural(clave: str) -> dict[str, Any]:
     summary="Calcula un elemento estructural por ml o por pieza y lo contrasta con el catálogo (solo cálculo)",
     responses={404: {"description": "No hay un elemento con esa clave."}, 422: {"description": "Un dato no vale."}},
 )
-async def calcular_elemento_estructural(clave: str, peticion: CalculoDelElementoEstructuralPeticion) -> dict[str, Any]:
+async def calcular_elemento_estructural(
+    clave: str, peticion: CalculoDelElementoEstructuralPeticion, drivers_de_obra: DriversDeObraDep
+) -> dict[str, Any]:
     if definicion_del_elemento(clave) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No hay un elemento {clave} en la familia de estructura de la biblioteca.")
+    vigentes = await drivers_de_obra.valores(peticion.obra_id)
+    drivers, usados = receta_de_obra(vigentes, explicitos_de_receta(peticion.drivers))
+    explicito = peticion.desperdicio_concreto_pct if "desperdicio_concreto_pct" in peticion.model_fields_set else None
+    desperdicio_pct, u_concreto = desperdicio_concreto_de_obra(vigentes, explicito_pct=explicito)
+    usados.append(u_concreto)
     try:
-        return calcular_elemento(
+        r = calcular_elemento(
             EntradaElementoEstructural(
                 clave=clave,
                 modo=peticion.modo,
@@ -288,9 +312,10 @@ async def calcular_elemento_estructural(clave: str, peticion: CalculoDelElemento
                 alto_m=peticion.alto_m,
                 cantidad=peticion.cantidad,
                 zonas_de_anillo=[(z.len_cm, z.sep_cm) for z in peticion.zonas_de_anillo],
-                desperdicio_concreto_pct=peticion.desperdicio_concreto_pct,
-                drivers=DriversDeReceta(**peticion.drivers.model_dump()),
+                desperdicio_concreto_pct=desperdicio_pct,
+                drivers=drivers,
             )
         )
+        return {**r, "drivers_usados": a_respuesta(usados)}
     except ErrorDeElementoEstructural as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e

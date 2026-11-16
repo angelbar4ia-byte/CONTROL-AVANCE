@@ -25,6 +25,8 @@ import type { CalculoDeEstructura, ConceptoConciliado } from '@/api/generado/mod
 import { queryClient } from '@/app/queryClient';
 import { useSesion } from '@/app/sesion';
 
+import { DriversUsadosDelCalculo } from './DriversUsadosDelCalculo';
+
 import { numeroTecleado } from '../volumen';
 
 function num(n: number | null | undefined, dec = 2): string {
@@ -46,9 +48,11 @@ const ROL: Record<string, string> = { costos: 'Costos', control_obra: 'Control d
 
 interface Props {
   readonly clave: string;
+  /** La obra actual: el cálculo lee sus drivers (altura estándar, traslapes, puntas, desperdicios…). */
+  readonly obraId?: string;
 }
 
-export function TarjetaEstructura({ clave }: Props) {
+export function TarjetaEstructura({ clave, obraId = '' }: Props) {
   const { sesion } = useSesion();
   const puedeProponer = sesion?.rol === 'control_obra' || sesion?.rol === 'costos';
   const puedeAutorizar = sesion?.rol === 'control_obra';
@@ -75,16 +79,18 @@ export function TarjetaEstructura({ clave }: Props) {
   }, [clave]);
 
   const altoPorDefecto = definicion.data?.alto_por_defecto_m;
-  const campoAlto = alto ?? (altoPorDefecto !== undefined ? altoPorDefecto.toFixed(2) : '');
+  const campoAlto = alto ?? (calculo ? calculo.alto_m.toFixed(2) : altoPorDefecto !== undefined ? altoPorDefecto.toFixed(2) : '');
   const altoNumerico = useMemo(() => numeroTecleado(campoAlto), [campoAlto]);
 
   const { mutateAsync } = calcular;
   useEffect(() => {
     if (altoPorDefecto === undefined) return;
-    if (!(altoNumerico > 0)) return;
+    const tecleado = alto === null ? null : numeroTecleado(alto);
+    if (tecleado !== null && !(tecleado > 0)) return;
     const mio = ++turno.current;
     const espera = setTimeout(() => {
-      mutateAsync({ clave, data: { alto_m: altoNumerico } })
+      // Con el alto sin tocar no se manda: lo da la altura estándar de la obra (driver) o el alto fijo del elemento.
+      mutateAsync({ clave, data: { ...(tecleado === null ? {} : { alto_m: tecleado }), ...(obraId === '' ? {} : { obra_id: obraId }) } })
         .then((r) => {
           if (mio !== turno.current) return;
           setCalculo(r);
@@ -96,7 +102,7 @@ export function TarjetaEstructura({ clave }: Props) {
         });
     }, 200);
     return () => clearTimeout(espera);
-  }, [clave, altoNumerico, altoPorDefecto, mutateAsync]);
+  }, [clave, alto, altoPorDefecto, obraId, mutateAsync]);
 
   function recargar() {
     void queryClient.invalidateQueries();
@@ -184,6 +190,8 @@ export function TarjetaEstructura({ clave }: Props) {
           {aviso}
         </p>
       )}
+
+      <DriversUsadosDelCalculo usados={calculo?.drivers_usados} hayObra={obraId !== ''} />
 
       {calculo && (
         <>
