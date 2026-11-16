@@ -30,7 +30,14 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
 
     // Una plantilla con un castillo ubicado (los crea Control de obra: el elemento ya está autorizado).
     const clave = `K${sufijo}`;
-    await llamarApi(request, 'control', 'POST', '/elementos-parametricos', { clave, nombre: `Castillo ${clave}`, tipo: 'castillo' });
+    // El alto propio del elemento hace única su firma: la biblioteca rechaza un segundo castillo idéntico (409) y otros specs crean castillos.
+    const altoDelElemento = 2.5 + (Date.now() % 100000) / 100000;
+    await llamarApi(request, 'control', 'POST', '/elementos-parametricos', {
+      clave,
+      nombre: `Castillo ${clave}`,
+      tipo: 'castillo',
+      parametros: { alto: Number(altoDelElemento.toFixed(5)) },
+    });
     const nombre = `Plantilla ${sufijo}`;
     await llamarApi(request, 'control', 'POST', '/muro-plantillas', {
       nombre,
