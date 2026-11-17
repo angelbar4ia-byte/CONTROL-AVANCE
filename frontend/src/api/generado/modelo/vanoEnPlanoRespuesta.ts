@@ -9,6 +9,7 @@ import type { VanoEnPlanoRespuestaPosicionM } from "./vanoEnPlanoRespuestaPosici
 import type { VanoEnPlanoRespuestaBisagra } from "./vanoEnPlanoRespuestaBisagra";
 import type { VanoEnPlanoRespuestaLadoHoja } from "./vanoEnPlanoRespuestaLadoHoja";
 import type { VanoEnPlanoRespuestaLadoMuro } from "./vanoEnPlanoRespuestaLadoMuro";
+import type { VanoEnPlanoRespuestaElementoUid } from "./vanoEnPlanoRespuestaElementoUid";
 
 export interface VanoEnPlanoRespuesta {
   id: string;
@@ -27,6 +28,8 @@ export interface VanoEnPlanoRespuesta {
   lado_hoja?: VanoEnPlanoRespuestaLadoHoja;
   apertura_grados?: number;
   lado_muro?: VanoEnPlanoRespuestaLadoMuro;
+  /** Un castillo sembrado con su elemento: el uso en la plantilla del muro o la clave del K elegido a mano. */
+  elemento_uid?: VanoEnPlanoRespuestaElementoUid;
   /** Grosor del muro en unidades de plano (0 si no tiene). */
   grosor_plano?: number;
   /** Dónde va, en coordenadas del plano. */

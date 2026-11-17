@@ -6,6 +6,11 @@ colocados y qué concepto paga cada parte en ese contexto, o por qué no cuenta 
 es idempotente: reemplaza solo las instancias de la plantilla, no los castillos ni los vanos puestos a mano. `retirar` las quita.
 
 Un muro sin plantilla se comporta como siempre (la regla vieja del «muro con cadena» sigue en `GestionarVanos.agregar`).
+
+**Cambiar de plantilla** (`ver_cambio`, `cambiar_plantilla`): un trazo pasa de la plantilla 1 (muro confinado: propone los castillos) a la 2
+(«muros y cadena»: los castillos reales se siembran uno por uno) y viceversa **sin perder lo medido**: la medición del muro y todos sus
+vanos se conservan. `ver_cambio` dice antes qué cambia (qué deja de estimarse, qué empieza a estimarse, los castillos ya sembrados); solo
+con `retirar_castillos` se quitan los castillos sembrados (por ejemplo, al volver a un muro confinado que ya los estima).
 """
 
 from __future__ import annotations
@@ -25,12 +30,14 @@ from obractrl.application.casos_uso.cuantificar import (
     VanoCambiado,
 )
 from obractrl.application.casos_uso.parametrico import vigentes_de_obra
+from obractrl.application.casos_uso.plantillas_de_muro import PlantillaNoEncontrada
 from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
     Colocacion,
     ConceptoColocado,
     colocar_plantilla,
 )
 from obractrl.domain.cuantificacion.elementos_parametricos import normalizar_parametros
+from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 from obractrl.domain.shared.diccionario import Rol
 
@@ -47,10 +54,11 @@ def _concepto_dict(c: ConceptoColocado) -> dict[str, Any]:
 
 
 class ColocarElementosDeMuro(GestionarVanos):
-    def __init__(self, *, elementos: Any, parametrico: Any, **deps: Any) -> None:
-        super().__init__(**deps)
-        self._elementos = elementos
+    def __init__(self, *, elementos: Any, parametrico: Any, plantillas: Any | None = None, **deps: Any) -> None:
+        super().__init__(elementos=elementos, **deps)
         self._parametrico = parametrico
+        # Las plantillas de muro: para cambiar de una a otra.
+        self._plantillas = plantillas
 
     async def _separacion_de_castillos(self, contexto: dict[str, Any]) -> Decimal | None:
         """El driver `separacion_castillos` vigente en la obra del muro (la separación de un castillo que la plantilla no fija)."""
@@ -130,7 +138,7 @@ class ColocarElementosDeMuro(GestionarVanos):
             )
         return {
             "trazo_id": trazo_id,
-            "plantilla_id": plantilla["id"], "plantilla": plantilla["nombre"], "version": plantilla["version"],
+            "plantilla_id": plantilla["id"], "plantilla": plantilla["nombre"], "version": plantilla["version"], "tipo": plantilla["tipo"],
             "largo_m": colocacion.largo_m, "altura_m": colocacion.altura_m,
             "nivel": nivel_para_conceptos(contexto.get("nivel_orden")), "ubicacion": contexto.get("ubicacion"),
             "elementos": elementos,
@@ -161,7 +169,7 @@ class ColocarElementosDeMuro(GestionarVanos):
 
         async def poner() -> UUID:
             nonlocal quitados
-            quitados = await self._trazos.quitar_instancias_de_plantilla(trazo_id)
+            quitados = await self._trazos.quitar_instancias_de_plantilla(trazo_id, [i.uid for i in a_colocar])
             primero: UUID | None = None
             for i in a_colocar:
                 assert i.alto_m is not None and i.ancho_m is not None
@@ -186,11 +194,134 @@ class ColocarElementosDeMuro(GestionarVanos):
         if await self._trazos.obtener(trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         quitados = 0
+        plantilla = await self._trazos.plantilla_de_muro(trazo_id)
+        # Solo lo que la plantilla coloca (sus castillos ubicados): un castillo sembrado a mano de otro K no se toca.
+        uids = [str(e["uid"]) for e in (plantilla["elementos"] if plantilla else []) or [] if e.get("clase") == "castillo" and e.get("modo") == "ubicado"]
 
         async def quitar() -> UUID:
             nonlocal quitados
-            quitados = await self._trazos.quitar_instancias_de_plantilla(trazo_id)
+            quitados = await self._trazos.quitar_instancias_de_plantilla(trazo_id, uids if plantilla is not None else None)
             return trazo_id
 
         r = await self._cambiar(trazo_id, rol, autor_id, detectada_en, quitar)
         return {"retirados": quitados, "recalculos": r.recalculos}
+
+    # --- Cambiar de plantilla sin perder lo medido --------------------------------------------------------------------
+
+    async def _estimado_de(self, plantilla: dict[str, Any] | None, *, largo: Decimal, altura: Decimal, separacion: Decimal | None) -> Colocacion | None:
+        """Lo que la plantilla cuenta en este muro sin colocarlo (castillos estimados y cadenas); `None` si la plantilla no cabe en el muro."""
+        if plantilla is None:
+            return None
+        elementos = [e for e in plantilla["elementos"] or [] if e.get("clase") == "cadena" or (e.get("clase") == "castillo" and e.get("modo") == "estimado")]
+        try:
+            return colocar_plantilla(elementos, largo_m=largo, altura_m=altura, anchos_m={}, separacion_m=separacion)
+        except ErrorDeCuantificacion:
+            return None
+
+    @staticmethod
+    def _efectos(antes: Colocacion | None, despues: Colocacion | None) -> list[dict[str, Any]]:
+        """Qué elementos que la plantilla cuenta (castillos estimados y cadenas) dejan de contarse, empiezan o siguen."""
+        previos = {i.uid: i for i in (antes.instancias if antes else [])}
+        nuevos = {i.uid: i for i in (despues.instancias if despues else [])}
+        salida: list[dict[str, Any]] = []
+        for uid in dict.fromkeys([*previos, *nuevos]):
+            i = nuevos.get(uid) or previos[uid]
+            efecto = "sigue" if uid in previos and uid in nuevos else ("nuevo" if uid in nuevos else "deja")
+            salida.append(
+                {
+                    "uid": uid, "ref": i.ref, "clase": i.clase, "efecto": efecto, "regla": i.regla,
+                    "piezas": i.piezas_exactas if i.clase == "castillo" else Decimal(0), "metros": i.metros,
+                }
+            )
+        return salida
+
+    async def ver_cambio(self, trazo_id: UUID, hacia_id: UUID) -> dict[str, Any]:
+        """Qué cambia si el muro pasa a la plantilla `hacia_id`: el tipo, el material y la ubicación; los castillos estimados y las cadenas
+        que dejan de contarse, empiezan o siguen; los castillos ya sembrados; y lo que se conserva. No cambia nada."""
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if not await self._trazos.es_linea(trazo_id):
+            raise ErrorDeCuantificacion("La plantilla se cambia sobre una línea (un muro).")
+        hacia = await self._plantillas.obtener(hacia_id) if self._plantillas is not None else None
+        if hacia is None:
+            raise PlantillaNoEncontrada(f"La plantilla de muro {hacia_id} no existe o está fuera de tu alcance.")
+        actual = await self._trazos.plantilla_de_muro(trazo_id)
+        clasificacion = await self._trazos.clasificacion_de_muro(trazo_id)
+        contexto = await self._elementos.contexto_de_trazo(trazo_id) or {}
+        largo, altura = await self._trazos.largo_del_eje(trazo_id), await self._altura_del_muro(trazo_id)
+        separacion = await self._separacion_de_castillos(contexto)
+        efectos = self._efectos(
+            await self._estimado_de(actual, largo=largo, altura=altura, separacion=separacion),
+            await self._estimado_de(hacia, largo=largo, altura=altura, separacion=separacion),
+        )
+        vanos = await self._trazos.vanos_de_trazo(trazo_id)
+        sembrados = [v for v in vanos if v["tipo"] == "castillo" and v.get("elemento_uid")]
+        otros = [v for v in vanos if not (v["tipo"] == "castillo" and v.get("elemento_uid"))]
+        por_colocar = sum(
+            1 for e in hacia["elementos"] or [] if e.get("clase") == "castillo" and e.get("modo") == "ubicado"
+        )
+        cambia = [
+            {"campo": campo, "de": clasificacion.get(campo), "a": hacia[campo]}
+            for campo in ("tipo", "material", "ubicacion")
+            if clasificacion.get(campo) != hacia[campo]
+        ]
+        avisos: list[str] = []
+        if actual is not None and actual["id"] == hacia["id"]:
+            avisos.append("El muro ya tiene esta plantilla.")
+        if any(e["clase"] == "castillo" and e["efecto"] == "deja" for e in efectos):
+            avisos.append("Los castillos que la plantilla actual estimaba dejan de contarse por regla.")
+        if hacia["tipo"] == "con_cadena" and any(e["clase"] == "castillo" and e["efecto"] == "deja" for e in efectos):
+            avisos.append("La plantilla nueva es de «muros y cadena»: los castillos reales se siembran uno por uno en el plano, cada uno de su tipo K.")
+        if hacia["tipo"] == "confinado" and sembrados:
+            avisos.append(
+                f"El muro tiene {len(sembrados)} castillo{'s' if len(sembrados) != 1 else ''} sembrado{'s' if len(sembrados) != 1 else ''} y la plantilla "
+                "nueva estima los suyos: se contarían dos veces. Retira los sembrados al cambiar si ya no los quieres."
+            )
+        if hacia["tipo"] == "con_cadena" and por_colocar:
+            avisos.append("La plantilla nueva lleva castillos ubicados: colócalos con «Colocar los elementos de la plantilla».")
+        if hacia["tipo"] != "con_cadena" and hacia["tipo"] != "confinado":
+            avisos.append("Un muro de tabique no lleva castillos ni cadenas.")
+        if hacia["validacion"] != "validada":
+            avisos.append("La plantilla nueva aún está por validar: es provisional.")
+        if actual is not None or clasificacion.get("tipo"):
+            avisos.append("El acabado del muro pasa al de la plantilla nueva.")
+        conserva = [f"La medición del muro ({altura:g} m de alto × {largo:.2f} m de largo)."]
+        if otros:
+            conserva.append(f"{len(otros)} vano{'s' if len(otros) != 1 else ''} (puertas, ventanas, pasos y castillos a mano sin elemento).")
+        if sembrados and hacia["tipo"] == "con_cadena":
+            conserva.append(f"{len(sembrados)} castillo{'s' if len(sembrados) != 1 else ''} sembrado{'s' if len(sembrados) != 1 else ''} con su elemento.")
+        return {
+            "trazo_id": trazo_id,
+            "de": None if actual is None else {"id": actual["id"], "nombre": actual["nombre"], "version": actual["version"], "tipo": actual["tipo"]},
+            "hacia": {"id": hacia["id"], "nombre": hacia["nombre"], "version": hacia["version"], "tipo": hacia["tipo"]},
+            "cambia": cambia, "efectos": efectos,
+            "castillos_sembrados": len(sembrados), "castillos_por_colocar": por_colocar,
+            "conserva": conserva, "avisos": list(dict.fromkeys(avisos)),
+        }
+
+    async def cambiar_plantilla(
+        self, trazo_id: UUID, hacia_id: UUID, *, retirar_castillos: bool, rol: Rol, autor_id: UUID, detectada_en: datetime
+    ) -> dict[str, Any]:
+        """El muro pasa a la plantilla `hacia_id`: toma su tipo, material, ubicación y acabado y guarda la versión (Q9). La medición y los vanos
+        se conservan; los castillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman."""
+        antes = await self.ver_cambio(trazo_id, hacia_id)
+        hacia = await self._plantillas.obtener(hacia_id)
+        assert hacia is not None
+        retirados = 0
+
+        async def aplicar() -> UUID:
+            nonlocal retirados
+            await self._trazos.clasificar_muro(
+                trazo_id=trazo_id, tipo=hacia["tipo"], acabado=acabado_normalizado(hacia["acabado"]), material=hacia["material"],
+                ubicacion=hacia["ubicacion"], plantilla_id=hacia["id"],
+            )
+            if retirar_castillos:
+                retirados = await self._trazos.quitar_instancias_de_plantilla(trazo_id)
+            return trazo_id
+
+        r = await self._cambiar(trazo_id, rol, autor_id, detectada_en, aplicar)
+        return {
+            "antes": antes["de"], "despues": antes["hacia"], "retirados": retirados,
+            "conservados": 0 if retirar_castillos else antes["castillos_sembrados"],
+            "recalculos": r.recalculos, "avisos": antes["avisos"],
+        }

@@ -16,6 +16,7 @@ import {
   useQuitarVersionApiV1VanosVersionVersionIdDelete,
 } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import type { VersionDeVanoRespuesta } from '@/api/generado/modelo';
+import { useListarElementosParametricosApiV1ElementosParametricosGet } from '@/api/generado/elementos-parametricos/elementos-parametricos';
 import { queryClient } from '@/app/queryClient';
 
 import { CampoDecimal } from './CampoDecimal';
@@ -37,6 +38,8 @@ export interface OpcionesDelVano {
   readonly alturaLinea: number;
   readonly antepechoLinea: number;
   readonly piezas: number;
+  /** Solo castillos: la clave del K del catálogo que se siembra. Vacío = el de la plantilla del muro. */
+  readonly elementoRef: string;
 }
 
 export const OPCIONES_DE_VANO_INICIALES: OpcionesDelVano = {
@@ -47,6 +50,7 @@ export const OPCIONES_DE_VANO_INICIALES: OpcionesDelVano = {
   alturaLinea: 2.1,
   antepechoLinea: 0.9,
   piezas: 1,
+  elementoRef: '',
 };
 
 const NOMBRE_DEL_EJE: Readonly<Record<'i' | 'c' | 'd', string>> = { i: 'izquierda', c: 'centro', d: 'derecha' };
@@ -86,6 +90,8 @@ function ValoresUsuales({ etiqueta, valores, actual, onElegir }: { readonly etiq
 
 export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo, onAviso, onError }: Props) {
   const lista = useListarVersionesApiV1VanosVersionGet();
+  const catalogo = useListarElementosParametricosApiV1ElementosParametricosGet();
+  const castillos = (catalogo.data ?? []).filter((e) => e.categoria === 'castillos');
   const crear = useCrearVersionApiV1VanosVersionPost<ErrorApi>();
   const cambiar = useCambiarVersionApiV1VanosVersionVersionIdPatch<ErrorApi>();
   const quitar = useQuitarVersionApiV1VanosVersionVersionIdDelete<ErrorApi>();
@@ -186,6 +192,25 @@ export function OpcionesDeVano({ opciones, onCambiar, puedeDefinir, hayObjetivo,
           chip(opciones.tipo === t, TIPOS_DE_VANO[t].nombre, () => onCambiar({ tipo: t, versionId: null }), t, t === 'paso' ? 'vano sin puerta' : undefined),
         )}
       </div>
+
+      {opciones.tipo === 'castillo' && (
+        <label className="text-xs" style={{ display: 'grid', gap: 2 }}>
+          Castillo que se siembra (tipo K)
+          <select
+            className="input"
+            aria-label="Castillo que se siembra"
+            value={opciones.elementoRef}
+            onChange={(e) => onCambiar({ elementoRef: e.target.value })}
+          >
+            <option value="">El de la plantilla del muro</option>
+            {castillos.map((e) => (
+              <option key={e.clave} value={e.clave}>
+                {e.clave} · {e.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {opciones.modo === 'punto' && (
         <div className="row" style={{ gap: 10, alignItems: 'center' }}>

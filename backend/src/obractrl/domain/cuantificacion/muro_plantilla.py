@@ -11,7 +11,8 @@ enlazada a los conceptos del elemento. El Cuantificador solo elige la plantilla 
 - **Versiones** (Q9): al cambiar una plantilla **ya validada** nace una versión nueva y los trazos ya medidos conservan la anterior
   (apuntan a su fila). Una plantilla aún por validar se edita en el lugar.
 - **El castillo depende de la plantilla** y no del tipo «con cadena»: un castillo se coloca en el plano si la plantilla del muro
-  lleva un castillo *ubicado* (`admite_castillos_ubicados`).
+  es de «muros y cadena» (`admite_castillos_a_mano`): el castillo a mano elige cualquier K del catálogo; si la plantilla lleva castillos
+  *ubicados* (`admite_castillos_ubicados`) también se pueden colocar de una vez por separación o extremos.
 
 Nada de esto inventa precios ni destajos. Funciones puras, sin base de datos.
 """
@@ -60,6 +61,7 @@ __all__ = [
     "ElementoParaValidar",
     "ErrorDePlantillaDeMuro",
     "InfoDeElemento",
+    "admite_castillos_a_mano",
     "admite_castillos_ubicados",
     "cambia_la_plantilla",
     "clase_de_elemento",
@@ -271,6 +273,12 @@ def normalizar_plantilla(entrada: Mapping[str, Any], elementos: Mapping[str, Inf
         "notas": notas,
         "por_confirmar": bool(entrada.get("por_confirmar") or False),
     }
+
+
+def admite_castillos_a_mano(tipo: str | None) -> bool:
+    """¿Se colocan castillos a mano en un muro con esta plantilla? Sí en la de «muros y cadena» (muro con cadena), con o sin castillos propios:
+    cuando hay plano estructural los castillos reales se siembran uno por uno en el plano, cada uno de su tipo K. El muro confinado los estima."""
+    return tipo == "con_cadena"
 
 
 def admite_castillos_ubicados(elementos: Iterable[Mapping[str, Any]]) -> bool:

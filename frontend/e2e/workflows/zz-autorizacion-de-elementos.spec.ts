@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
+import { altoPropio, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
 
 /**
  * Costos propone, Control de obra autoriza (plan de elementos de muro, fase I):
@@ -29,7 +29,7 @@ test.describe('Cuantificador · autorización de elementos', () => {
 
     // Costos da de alta un elemento: queda pendiente y se usa como provisional.
     const clave = `KA-${sufijo}`.slice(0, 20);
-    const alto = 3.2 + (Date.now() % 1_000_000) / 1e7;
+    const alto = altoPropio(3.2);
     const elemento = await llamarApi<{ id: string; estado_autorizacion: string }>(request, 'costos', 'POST', '/elementos-parametricos', {
       clave, nombre: 'Castillo propuesto', tipo: 'castillo', parametros: { alto },
     });

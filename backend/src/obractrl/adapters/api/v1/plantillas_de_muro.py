@@ -226,8 +226,8 @@ class AplicarUbicacionRespuesta(BaseModel):
 
 
 _DESCRIPCIONES_DE_TIPO = {
-    "confinado": "Rápido: los castillos se estiman por separación, sin colocarlos en el plano.",
-    "con_cadena": "Los castillos se colocan en el plano y se restan de los m² de la mampostería.",
+    "confinado": "Plantilla 1, sin plano estructural: propone (estima) los castillos por regla —cada separación, extremos, por ml o total del prototipo—, sin colocarlos en el plano.",
+    "con_cadena": "Plantilla 2, «muros y cadena», con plano estructural: el muro y las cadenas; los castillos reales se siembran uno por uno en el plano, cada uno de su tipo K, y restan de los m² de la mampostería.",
     "tabique": "Sin cadenas ni castillos.",
 }
 _REGLAS_DE_CASTILLO = (
@@ -518,6 +518,7 @@ class ColocacionDelMuroRespuesta(BaseModel):
     plantilla_id: UUID
     plantilla: str
     version: int
+    tipo: TipoDeMuro = Field(description="El tipo de la plantilla: confinado estima los castillos; con_cadena («muros y cadena») los siembra a mano.")
     largo_m: Decimal
     altura_m: Decimal = Field(description="La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra.")
     nivel: int | None = Field(description="El número de nivel con que se eligen los conceptos (el orden del nivel de la partida que ya mide el muro).")
@@ -579,3 +580,88 @@ async def colocar_plantilla_en_el_muro(trazo_id: UUID, ctx: ContextoActual, caso
 async def retirar_plantilla_del_muro(trazo_id: UUID, ctx: ContextoActual, caso_uso: ColocarElementosDeMuroDep) -> MuroRetiradoRespuesta:
     r = await caso_uso.retirar(trazo_id, rol=Rol(ctx.rol), autor_id=ctx.usuario_id, detectada_en=datetime.now(UTC))
     return MuroRetiradoRespuesta(retirados=r["retirados"])
+
+
+# --- Cambiar de plantilla sin perder lo medido -----------------------------------------------------------------------------
+
+
+class PlantillaDelCambio(BaseModel):
+    id: UUID
+    nombre: str
+    version: int
+    tipo: TipoDeMuro
+
+
+class CampoQueCambia(BaseModel):
+    campo: Literal["tipo", "material", "ubicacion"]
+    de: str | None
+    a: str
+
+
+class EfectoDelCambio(BaseModel):
+    uid: str
+    ref: str
+    clase: Literal["castillo", "cadena"]
+    efecto: Literal["deja", "nuevo", "sigue"] = Field(description="`deja`: la plantilla de ahora lo cuenta y la nueva no; `nuevo`: lo contará la nueva; `sigue`: lo cuentan las dos.")
+    regla: ReglaDeCastillo | None
+    piezas: Decimal = Field(description="Castillos: las piezas que cuenta en este muro (con fracción en «por ml» y «total»).")
+    metros: Decimal
+
+
+class CambioDePlantillaRespuesta(BaseModel):
+    trazo_id: UUID
+    de: PlantillaDelCambio | None = Field(description="La plantilla que tiene el muro; `null` si no tenía ninguna.")
+    hacia: PlantillaDelCambio
+    cambia: list[CampoQueCambia]
+    efectos: list[EfectoDelCambio]
+    castillos_sembrados: int = Field(description="Castillos ya colocados en el plano con su elemento (de la plantilla o a mano con un K elegido).")
+    castillos_por_colocar: int = Field(description="Castillos ubicados que lleva la plantilla nueva (se colocan aparte).")
+    conserva: list[str]
+    avisos: list[str]
+
+
+class CambiarPlantillaPeticion(BaseModel):
+    plantilla_id: UUID
+    retirar_castillos: bool = Field(
+        default=False,
+        description="Quita los castillos ya sembrados en el plano (por ejemplo, al volver a un muro confinado que ya los estima). Por defecto se conservan.",
+    )
+
+
+class CambioAplicadoRespuesta(BaseModel):
+    antes: PlantillaDelCambio | None
+    despues: PlantillaDelCambio
+    retirados: int
+    conservados: int = Field(description="Castillos sembrados que se conservan.")
+    avisos: list[str]
+
+
+@router.get(
+    "/trazos/{trazo_id}/muro/plantilla/cambio",
+    response_model=CambioDePlantillaRespuesta,
+    summary="Qué cambia si el muro pasa a otra plantilla (no cambia nada)",
+    responses={404: {"description": "El trazo o la plantilla no existen o están fuera de tu alcance."}, 422: {"description": "El trazo no es una línea."}},
+)
+async def ver_cambio_de_plantilla(trazo_id: UUID, hacia: UUID, caso_uso: ColocarElementosDeMuroDep) -> CambioDePlantillaRespuesta:
+    """De la plantilla 1 (muro confinado: propone los castillos) a la 2 («muros y cadena»: se siembran uno por uno) y viceversa. Dice qué se
+    deja de estimar, qué empieza a estimarse, cuántos castillos hay sembrados y qué se conserva. La medición del muro y sus vanos no se pierden."""
+    return CambioDePlantillaRespuesta.model_validate(await caso_uso.ver_cambio(trazo_id, hacia))
+
+
+@router.post(
+    "/trazos/{trazo_id}/muro/plantilla/cambio",
+    response_model=CambioAplicadoRespuesta,
+    summary="Cambiar el muro a otra plantilla sin perder lo medido",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses=_COLOCAR,
+)
+async def cambiar_de_plantilla(
+    trazo_id: UUID, peticion: CambiarPlantillaPeticion, ctx: ContextoActual, caso_uso: ColocarElementosDeMuroDep
+) -> CambioAplicadoRespuesta:
+    """Toma el tipo, material, ubicación y acabado de la plantilla nueva y guarda su versión (Q9). La medición y los vanos se conservan; los
+    castillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman."""
+    r = await caso_uso.cambiar_plantilla(
+        trazo_id, peticion.plantilla_id, retirar_castillos=peticion.retirar_castillos, rol=Rol(ctx.rol), autor_id=ctx.usuario_id,
+        detectada_en=datetime.now(UTC),
+    )
+    return CambioAplicadoRespuesta.model_validate(r)
