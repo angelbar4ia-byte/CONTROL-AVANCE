@@ -12,6 +12,7 @@ from obractrl.domain.cuantificacion.muro_plantilla import (
     ElementoParaValidar,
     ErrorDePlantillaDeMuro,
     InfoDeElemento,
+    admite_castillos_a_mano,
     admite_castillos_ubicados,
     cambia_la_plantilla,
     clase_de_elemento,
@@ -300,3 +301,16 @@ def test_cambiar_el_prototipo_las_notas_o_si_esta_por_confirmar_es_un_cambio() -
     assert not cambia_la_plantilla(a, normalizar_plantilla(_confinada(), INFO_K))
     for cambio in ({"notas": "Otra nota"}, {"por_confirmar": False}, {"planta": None, "prototipo": None}, {"planta": "PA"}):
         assert cambia_la_plantilla(a, normalizar_plantilla(_confinada(**cambio), INFO_K)), cambio
+
+
+# --- Plantilla 2 «muros y cadena»: los castillos se siembran a mano ---------------------------------------------------------------
+
+
+def test_la_plantilla_de_muros_y_cadena_admite_castillos_a_mano_con_o_sin_castillos_propios_y_el_confinado_no() -> None:
+    assert admite_castillos_a_mano("con_cadena") is True
+    for tipo in ("confinado", "tabique", None):
+        assert admite_castillos_a_mano(tipo) is False
+    # «Muros y cadena»: el muro y la cadena, sin castillos; se normaliza y no lleva elementos ubicados que colocar.
+    p = normalizar_plantilla(_base(elementos=[{"ref": "CE-1"}]), INFO)
+    assert [e["ref"] for e in p["elementos"]] == ["CE-1"]
+    assert admite_castillos_ubicados(p["elementos"]) is False and admite_castillos_a_mano(p["tipo"]) is True

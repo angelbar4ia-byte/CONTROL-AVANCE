@@ -26,14 +26,16 @@ import {
 } from '@/api/generado/cuantificacion/cuantificacion';
 import { queryClient } from '@/app/queryClient';
 
+import { CambioDePlantilla } from './CambioDePlantilla';
 import { ColocacionDeLaPlantilla } from './ColocacionDeLaPlantilla';
+import { useState } from 'react';
 
 export type TipoDeMuro = 'confinado' | 'con_cadena' | 'tabique';
 export type Acabado = Record<'interior' | 'fachada', Record<'gris' | 'blanca' | 'pintura', boolean>>;
 
 export const TIPOS_DE_MURO: readonly { clave: TipoDeMuro; nombre: string; ayuda: string }[] = [
-  { clave: 'confinado', nombre: 'Confinado', ayuda: 'Con cadenas y castillos aún sin ubicar: para algo rápido.' },
-  { clave: 'con_cadena', nombre: 'Con cadena', ayuda: 'Los castillos ya se conocen: se colocan y restan de los m² del muro.' },
+  { clave: 'confinado', nombre: 'Confinado', ayuda: 'Sin plano estructural: la plantilla propone (estima) los castillos por regla; no se colocan en el plano.' },
+  { clave: 'con_cadena', nombre: 'Con cadena', ayuda: 'Con plano estructural («muros y cadena»): los castillos reales se siembran uno por uno, cada uno de su tipo K, y restan de los m² del muro.' },
   { clave: 'tabique', nombre: 'Tabique', ayuda: 'Sin cadenas ni castillos.' },
 ];
 
@@ -161,6 +163,8 @@ export function ClasificacionDelMuro({
   const plantillas = useListarPlantillasApiV1MuroPlantillasGet();
   const fijar = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
   const elegir = useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut<ErrorApi>();
+  // Cambiar una plantilla por otra pide ver antes qué cambia (la elección inicial y desligarla siguen siendo inmediatas).
+  const [haciaId, setHaciaId] = useState<string | null>(null);
   const tipo = (consulta.data?.tipo ?? null) as TipoDeMuro | null;
   const material = consulta.data?.material ?? '';
   const ubicacion = consulta.data?.ubicacion ?? '';
@@ -194,6 +198,11 @@ export function ClasificacionDelMuro({
   }
 
   async function elegirPlantilla(id: string) {
+    if (plantillaId && id && id !== plantillaId) {
+      setHaciaId(id);
+      return;
+    }
+    setHaciaId(null);
     try {
       await elegir.mutateAsync({ trazoId, data: { plantilla_id: id || null } });
       refrescar();
@@ -259,7 +268,7 @@ export function ClasificacionDelMuro({
             <select
               className="input"
               aria-label="Plantilla de muro"
-              value={plantillaId}
+              value={haciaId ?? plantillaId}
               disabled={ocupado}
               onChange={(e) => void elegirPlantilla(e.target.value)}
             >
@@ -275,6 +284,20 @@ export function ClasificacionDelMuro({
           </label>
           {plantilla && plantilla.validacion !== 'validada' && (
             <p className="text-xs mct__aviso">La plantilla aún está por validar: es provisional.</p>
+          )}
+          {haciaId && (
+            <CambioDePlantilla
+              key={haciaId}
+              trazoId={trazoId}
+              haciaId={haciaId}
+              onCancelar={() => setHaciaId(null)}
+              onCambiado={(aviso) => {
+                setHaciaId(null);
+                refrescar();
+                onCambio(aviso);
+              }}
+              onError={onError}
+            />
           )}
           {plantillaId && <ColocacionDeLaPlantilla key={plantillaId} trazoId={trazoId} onCambio={onCambio} onError={onError} />}
         </div>

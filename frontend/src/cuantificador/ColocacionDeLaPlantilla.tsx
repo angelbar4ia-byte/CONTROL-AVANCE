@@ -106,6 +106,11 @@ export function ColocacionDeLaPlantilla({ trazoId, onCambio, onError }: Props) {
           {a}
         </p>
       ))}
+      {d.tipo === 'con_cadena' && (
+        <p className="text-mute text-xs" data-testid="aviso-de-castillos-a-mano">
+          En «muros y cadena» los castillos reales se siembran uno por uno con la herramienta de vanos (Castillo), eligiendo su tipo K del catálogo.
+        </p>
+      )}
       <div className="opciones__fila">
         <button type="button" className="btn btn--sm" disabled={ocupado || !hayQueColocar} onClick={() => void ponerEnElPlano()}>
           Colocar los elementos de la plantilla

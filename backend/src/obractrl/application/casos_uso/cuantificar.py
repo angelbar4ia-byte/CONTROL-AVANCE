@@ -93,7 +93,10 @@ from obractrl.domain.cuantificacion.muro import (
     altura_efectiva,
     factor_de_muro,
 )
-from obractrl.domain.cuantificacion.muro_plantilla import admite_castillos_ubicados
+from obractrl.domain.cuantificacion.muro_plantilla import (
+    admite_castillos_a_mano,
+    clase_de_elemento,
+)
 from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado, tipo_valido
 from obractrl.domain.cuantificacion.muro_ubicacion import (
     material_valido,
@@ -255,6 +258,8 @@ class ComandoAgregarVano:
     autor_id: UUID
     rol: Rol
     lado_muro: int = 0
+    elemento_ref: str | None = None
+    """Un castillo a mano en un muro con plantilla de «muros y cadena»: la clave del castillo (K-1…) del catálogo que se siembra."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -1344,10 +1349,12 @@ class GestionarVanos(AgregarHuecoATrazo):
     sube lo alto del muro menos su arranque y, al cambiar, rehace lo que los conceptos toman de los elementos (`tomas`).
     """
 
-    def __init__(self, *, tomas: Any | None = None, **deps: Any) -> None:
+    def __init__(self, *, tomas: Any | None = None, elementos: Any | None = None, **deps: Any) -> None:
         super().__init__(**deps)
         # Lo que un concepto toma de lo colocado en el plano (SincronizarTomas): con él, cambiar un castillo de una plantilla rehace la toma.
         self._tomas = tomas
+        # El catálogo de elementos: el castillo a mano elige cualquier K de él.
+        self._elementos = elementos
 
     async def _rehacer_tomas(self, trazo_id: UUID) -> None:
         """Si el muro lleva plantilla, los castillos colocados alimentan conceptos: se rehace la toma de la obra (dentro de la misma transacción)."""
@@ -1405,26 +1412,24 @@ class GestionarVanos(AgregarHuecoATrazo):
                 raise ErrorDeCuantificacion("Un castillo se coloca sobre una línea (un muro).")
             plantilla = await self._trazos.plantilla_de_muro(cmd.trazo_id)
             if plantilla is not None:
-                if not admite_castillos_ubicados(plantilla["elementos"] or []):
+                if not admite_castillos_a_mano(str(plantilla["tipo"])):
                     raise ErrorDeCuantificacion(
-                        f"La plantilla «{plantilla['nombre']}» del muro no lleva castillos ubicados en el plano: agrega un "
-                        "castillo a la plantilla (en un muro con cadena) y vuelve a colocarlos."
+                        f"La plantilla «{plantilla['nombre']}» del muro es de muro confinado: sus castillos se estiman por regla y no se "
+                        "colocan a mano. Cambia el muro a una plantilla de «muros y cadena» (muro con cadena) para sembrar los castillos del plano."
                     )
             elif (await self._trazos.clasificacion_de_muro(cmd.trazo_id))["tipo"] != "con_cadena":
                 # Sin plantilla se conserva la regla de siempre: el muro debe ser «con cadena».
                 raise ErrorDeCuantificacion(
-                    "Los castillos se colocan en un muro «con cadena» o con una plantilla que lleve castillos ubicados: "
+                    "Los castillos se colocan en un muro «con cadena» o con una plantilla de «muros y cadena»: "
                     "cambia el tipo del muro o elige una plantilla y vuelve a colocarlos."
                 )
             alto_m = await self._altura_del_muro(cmd.trazo_id)
             if plantilla is not None:
-                # El castillo del plano es una instancia del castillo ubicado de la plantilla: toma su uid y sube lo alto del muro
-                # menos su arranque (z). Sin plantilla (la regla vieja del «muro con cadena») queda como siempre: sin elemento.
-                ubicado = next(
-                    e for e in (plantilla["elementos"] or []) if e.get("clase") == "castillo" and e.get("modo") == "ubicado"
+                elemento_uid, alto_m = await self._castillo_de_la_plantilla(plantilla, cmd.elemento_ref, alto_m)
+            elif cmd.elemento_ref:
+                raise ErrorDeCuantificacion(
+                    "Elegir el castillo (K-1…) pide una plantilla de «muros y cadena» en el muro: sin plantilla el castillo no lleva elemento."
                 )
-                elemento_uid = str(ubicado["uid"])
-                alto_m = alto_de_castillo(alto_m, Decimal(str(ubicado.get("z_m") or 0)))
 
         async def crear() -> UUID:
             return await self._trazos.crear_vano(
@@ -1442,6 +1447,36 @@ class GestionarVanos(AgregarHuecoATrazo):
             )
 
         return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)
+
+    async def _castillo_de_la_plantilla(
+        self, plantilla: dict[str, Any], elemento_ref: str | None, altura_m: Decimal
+    ) -> tuple[str, Decimal]:
+        """(uid, alto) del castillo que se siembra en un muro con plantilla. Con un K elegido (`elemento_ref`) vale cualquier castillo del
+        catálogo: si la plantilla lo trae toma ese uso (su arranque z); si no, el castillo nace con su clave por uid. Sin K elegido, el primer
+        castillo ubicado de la plantilla (como antes); una plantilla sin castillos pide que se elija."""
+        instancias = [e for e in (plantilla["elementos"] or []) if e.get("clase") == "castillo"]
+        if elemento_ref:
+            if self._elementos is None:
+                raise ErrorDeCuantificacion("No se puede elegir el castillo: falta el catálogo de elementos.")
+            clave = elemento_ref.strip().upper()
+            # Rehacer un castillo quitado (deshacer) manda el uid de su uso en la plantilla (K-1#2…): vale igual que la clave.
+            por_uid = next((e for e in instancias if str(e["uid"]).upper() == clave and e.get("modo") == "ubicado"), None)
+            if por_uid is not None:
+                return str(por_uid["uid"]), alto_de_castillo(altura_m, Decimal(str(por_uid.get("z_m") or 0)))
+            catalogo = {str(e["clave"]).upper(): e for e in await self._elementos.listar()}
+            el = catalogo.get(clave)
+            if el is None or clase_de_elemento(str(el["categoria"]), str(el["subcategoria"])) != "castillo":
+                raise ErrorDeCuantificacion(f"«{elemento_ref}» no es un castillo del catálogo: elige uno de los castillos (K-1…).")
+            propio = next((e for e in instancias if str(e["ref"]).upper() == clave and e.get("modo") == "ubicado"), None)
+            if propio is not None:
+                return str(propio["uid"]), alto_de_castillo(altura_m, Decimal(str(propio.get("z_m") or 0)))
+            return str(el["clave"]), alto_de_castillo(altura_m)
+        ubicado = next((e for e in instancias if e.get("modo") == "ubicado"), None)
+        if ubicado is None:
+            raise ErrorDeCuantificacion(
+                f"La plantilla «{plantilla['nombre']}» no lleva castillos: elige el castillo (K-1…) que vas a sembrar en el plano."
+            )
+        return str(ubicado["uid"]), alto_de_castillo(altura_m, Decimal(str(ubicado.get("z_m") or 0)))
 
     async def _altura_del_muro(self, trazo_id: UUID) -> Decimal:
         return await altura_del_muro(self._trazos, trazo_id)

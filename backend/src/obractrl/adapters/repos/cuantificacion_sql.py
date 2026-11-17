@@ -611,6 +611,7 @@ class RepositorioTrazosSQL:
             else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
         )
         lado_v = "v.lado_muro" if await _hay_columna(self._sesion, "vano", "lado_muro") else "0 as lado_muro"
+        lado_v += ", v.elemento_uid" if await _hay_columna(self._sesion, "vano", "elemento_uid") else ", null as elemento_uid"
         filas = (
             await self._sesion.execute(
                 text(
@@ -642,7 +643,7 @@ class RepositorioTrazosSQL:
                     )
                     select id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas,
                            coalesce(posicion_m, round((fr * largo * escala)::numeric, 3)) as posicion_m, bisagra, lado_hoja, apertura_grados,
-                           lado_muro, grosor_plano,
+                           lado_muro, elemento_uid, grosor_plano,
                            ST_X(c) as x, ST_Y(c) as y,
                            degrees(atan2(ST_Y(d) - ST_Y(a), ST_X(d) - ST_X(a))) as angulo,
                            ancho_m / escala as ancho_plano
@@ -1075,13 +1076,20 @@ class RepositorioTrazosSQL:
         ).scalar_one_or_none()
         return Decimal(str(valor)) if valor is not None else Decimal(0)
 
-    async def quitar_instancias_de_plantilla(self, trazo_id: UUID) -> int:
-        """Quita los vanos del trazo que son instancias de un elemento de la plantilla (`elemento_uid`); los puestos a mano y los
-        demás vanos no se tocan. Devuelve cuántos quitó."""
+    async def quitar_instancias_de_plantilla(self, trazo_id: UUID, uids: list[str] | None = None) -> int:
+        """Quita los vanos del trazo que son instancias de un elemento de la plantilla (`elemento_uid`); los demás vanos no se tocan. Con
+        `uids` solo los de esos usos del elemento (lo que la plantilla coloca: un castillo sembrado a mano de otro K no se toca); sin ellos,
+        todos los que traen elemento. Devuelve cuántos quitó."""
         if not await _hay_columna(self._sesion, "vano", "elemento_uid"):
             return 0
+        if uids is not None and not uids:
+            return 0
         r = await self._sesion.execute(
-            text("delete from vano where trazo_id = :t and elemento_uid is not null"), {"t": str(trazo_id)}
+            text(
+                "delete from vano where trazo_id = :t and elemento_uid is not null"
+                + (" and elemento_uid = any(cast(:u as text[]))" if uids is not None else "")
+            ),
+            {"t": str(trazo_id)} | ({"u": uids} if uids is not None else {}),
         )
         return int(getattr(r, "rowcount", 0) or 0)
 

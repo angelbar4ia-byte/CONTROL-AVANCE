@@ -30,7 +30,7 @@ test.describe('Cuantificador · encuadre del visor', () => {
     const vacio = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, { nombre: 'Vacío', archivo_url: 'planos/vacio.dwg' });
     const clave = `KE-${sufijo}`.slice(0, 20);
     await llamarApi(request, 'control', 'POST', '/elementos-parametricos', {
-      clave, nombre: 'Castillo del encuadre', tipo: 'castillo', parametros: { alto: 3.2 + (Date.now() % 1_000_000) / 1e6 },
+      clave, nombre: 'Castillo del encuadre', tipo: 'castillo', parametros: { alto: 6 + (Date.now() % 1_000_000) / 1e7 }, // rango propio (6.0 a 6.1): ningún otro spec lo usa
     });
 
     await entrarComo(page, 'control');
