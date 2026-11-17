@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
+import { altoPropio, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
 
 /**
  * La clasificación de los elementos paramétricos en la biblioteca (plan de elementos de muro, fase A):
@@ -30,7 +30,7 @@ test.describe('Cuantificador · clasificación de los elementos', () => {
       archivo_url: 'planos/clasificacion.dwg',
     });
 
-    const alto = 0.5 + (Date.now() % 1_000_000) / 1e7;
+    const alto = altoPropio(0.5);
     const cadena = (clave: string, subcategoria: string) => ({
       clave,
       nombre: `Cadena ${clave}`,

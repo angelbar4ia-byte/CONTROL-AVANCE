@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
+import { altoPropio, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
 
 /**
  * Insumos permitidos por tipo de elemento, familias y comparación con el catálogo (plan de elementos de muro, fase D):
@@ -55,7 +55,7 @@ test.describe('Cuantificador · insumos del elemento', () => {
     await insumo('PET', `PIEDRA ${sufijo}`, piedras);
 
     const clave = `KI-${sufijo}`.slice(0, 20);
-    const alto = 3.1 + (Date.now() % 1_000_000) / 1e7;
+    const alto = altoPropio(3.1);
     const elemento = await llamarApi<{ id: string }>(request, 'control', 'POST', '/elementos-parametricos', {
       clave, nombre: 'Castillo con insumos', tipo: 'castillo', parametros: { alto },
     });

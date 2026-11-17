@@ -1,4 +1,4 @@
-import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { altoPropio, cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * Ola 4C · trazar un muro con plantilla coloca sus castillos: toman la altura del driver de la obra (no 2.6 m), restan de los m² del muro y
@@ -31,7 +31,7 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
     // Una plantilla con un castillo ubicado (los crea Control de obra: el elemento ya está autorizado).
     const clave = `K${sufijo}`;
     // El alto propio del elemento hace única su firma: la biblioteca rechaza un segundo castillo idéntico (409) y otros specs crean castillos.
-    const altoDelElemento = 2.5 + (Date.now() % 100000) / 100000;
+    const altoDelElemento = altoPropio(2.5);
     await llamarApi(request, 'control', 'POST', '/elementos-parametricos', {
       clave,
       nombre: `Castillo ${clave}`,
