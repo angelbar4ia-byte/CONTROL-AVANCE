@@ -35,7 +35,14 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
     // --- Los elementos del catálogo que usan los ejemplos de Oro (se crean solo si faltan; la firma de cada uno es única) --------
     const existentes = new Set((await llamarApi<Elemento[]>(request, 'control', 'GET', '/elementos-parametricos')).map((e) => e.clave));
     const crear = async (clave: string, cuerpo: Record<string, unknown>) => {
-      if (!existentes.has(clave)) await llamarApi(request, 'control', 'POST', '/elementos-parametricos', { clave, nombre: `Elemento ${clave}`, ...cuerpo });
+      if (existentes.has(clave)) return;
+      try {
+        await llamarApi(request, 'control', 'POST', '/elementos-parametricos', { clave, nombre: `Elemento ${clave}`, ...cuerpo });
+      } catch (e) {
+        // Otra corrida lo creó a la vez: basta con que ya exista.
+        const ahora = await llamarApi<Elemento[]>(request, 'control', 'GET', '/elementos-parametricos');
+        if (!ahora.some((x) => x.clave === clave)) throw e;
+      }
     };
     for (const [n, k] of ['K-1', 'K-2', 'K-3', 'K-6', 'K-7'].entries()) {
       await crear(k, { tipo: 'castillo', parametros: { largo: 0.4 + n / 1000, ancho: 0.15 } });
