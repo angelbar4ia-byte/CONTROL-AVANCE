@@ -31,7 +31,8 @@ async def conceptos_de_lo_colocado(
     *, elementos: Any, parametrico: Any, obra_id: UUID, instancias: Iterable[dict[str, Any]]
 ) -> list[tuple[dict[str, Any], list[ConceptoColocado], list[str]]]:
     """Para cada castillo colocado (dict con `elemento_id`, `ref`, `alto_m`, `piezas`, `nivel_orden`, `nivel_id`, `etapa_id`, `ubicacion`)
-    los conceptos que paga y los avisos. `instancias` ya viene agrupada: `piezas` es cuántos castillos iguales son."""
+    o cadena de una plantilla (dict con `metros` y sin alto) los conceptos que paga y los avisos. `instancias` ya viene agrupada: `piezas`
+    es cuántos castillos iguales son (con fracción en la regla «por ml» o «total» de un castillo estimado)."""
     # Import aquí: `conceptos_de_elemento` llega a `tomas_de_elemento` (que usa este módulo) y un import arriba cerraría el círculo.
     from obractrl.application.casos_uso.conceptos_de_elemento import _concepto
 
@@ -50,8 +51,9 @@ async def conceptos_de_lo_colocado(
             ref=str(i["ref"]),
             nivel=nivel_para_conceptos(i.get("nivel_orden")),
             ubicacion=i.get("ubicacion"),
-            alto_m=Decimal(str(i["alto_m"])),
-            piezas=int(i["piezas"]),
+            alto_m=Decimal(str(i["alto_m"])) if i.get("alto_m") is not None else None,
+            piezas=Decimal(str(i["piezas"])),
+            metros=Decimal(str(i["metros"])) if i.get("metros") is not None else None,
             enlaces=enlaces,
             partidas=partidas,
             nivel_id=i.get("nivel_id"),

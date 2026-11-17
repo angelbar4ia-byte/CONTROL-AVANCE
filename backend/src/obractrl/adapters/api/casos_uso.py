@@ -929,6 +929,7 @@ def _sincronizador_de_tomas(sesion: SesionRLS, elementos: RepositorioElementosPa
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
         desviaciones=RepositorioDesviacionesSQL(sesion),
         parametrico=RepositorioParametricoSQL(sesion),
+        trazos=RepositorioTrazosSQL(sesion),
     )
 
 
@@ -1041,6 +1042,7 @@ def obtener_gestionar_plantillas_de_muro(sesion: SesionRLS) -> GestionarPlantill
         conceptos=RepositorioConceptosSQL(sesion),
         trazos=RepositorioTrazosSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        tomas=_sincronizador_de_tomas(sesion),
     )
 
 
