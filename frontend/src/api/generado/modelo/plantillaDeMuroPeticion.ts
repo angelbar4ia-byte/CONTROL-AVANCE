@@ -11,6 +11,9 @@ import type { PlantillaDeMuroPeticionAlturaM } from "./plantillaDeMuroPeticionAl
 import type { ParteDeAlturaDePlantillaInput } from "./parteDeAlturaDePlantillaInput";
 import type { ElementoDePlantillaInput } from "./elementoDePlantillaInput";
 import type { PlantillaDeMuroPeticionAcabado } from "./plantillaDeMuroPeticionAcabado";
+import type { PlantillaDeMuroPeticionPrototipo } from "./plantillaDeMuroPeticionPrototipo";
+import type { PlantillaDeMuroPeticionPlanta } from "./plantillaDeMuroPeticionPlanta";
+import type { PlantillaDeMuroPeticionNotas } from "./plantillaDeMuroPeticionNotas";
 
 export interface PlantillaDeMuroPeticion {
   /**
@@ -30,4 +33,12 @@ export interface PlantillaDeMuroPeticion {
   elementos?: ElementoDePlantillaInput[];
   /** Sí/No por capa y cara; lo que falta toma el defecto. */
   acabado?: PlantillaDeMuroPeticionAcabado;
+  /** Solo muro confinado: el prototipo de la plantilla (oro_401, zafiro_1…) o `global_1` / `global_2`; `null` = ninguno. */
+  prototipo?: PlantillaDeMuroPeticionPrototipo;
+  /** PB o PA del prototipo; la plantilla global no lleva planta. */
+  planta?: PlantillaDeMuroPeticionPlanta;
+  /** De dónde salen los datos (fila y celda del Excel) y lo pendiente. */
+  notas?: PlantillaDeMuroPeticionNotas;
+  /** Los datos son de ejemplo o aún no los confirma el usuario (no es la validación). */
+  por_confirmar?: boolean;
 }

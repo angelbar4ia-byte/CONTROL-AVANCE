@@ -232,3 +232,71 @@ def test_concepto_propuesto_provisional_y_sin_conceptos_avisan() -> None:
     assert [a.codigo for a in validar_contra_matriz([_elemento([])])] == ["sin_concepto"]
     sin_matriz = _c("X", {"concreto", "acero", "cimbra"}, None, estado="sin_matriz")
     assert [a.codigo for a in validar_contra_matriz([_elemento([sin_matriz])])] == ["concepto_sin_matriz"]
+
+
+# --- Plantilla por prototipo: varios castillos con su regla, planta y notas (0136) ------------------------------------------------
+
+K2 = InfoDeElemento("K-2", "Castillo K-2", "castillo", "castillos", "muro")
+K3 = InfoDeElemento("K-3", "Castillo K-3", "castillo", "castillos", "muro")
+INFO_K = {**INFO, "K-2": K2, "K-3": K3}
+
+
+def _confinada(**cambios: object) -> dict:
+    return {
+        "nombre": "Oro PB", "tipo": "confinado", "material": "tabique_rojo", "ubicacion": "interior", "prototipo": "oro_401", "planta": "PB",
+        "por_confirmar": True, "notas": "  Celdas del Excel.  ",
+        "elementos": [
+            {"ref": "K-1", "regla": "total", "total_m": "126", "base_m2": "286", "origen": "ASIGNACIÓN!K2152"},
+            {"ref": "K-2", "regla": "separacion", "sep_m": "2.5"},
+            {"ref": "K-3", "regla": "por_ml", "piezas_por_ml": "0.4"},
+            {"ref": "CE-1"},
+        ],
+        **cambios,
+    }
+
+
+def test_la_plantilla_de_un_prototipo_lleva_varios_castillos_cada_uno_con_su_regla() -> None:
+    p = normalizar_plantilla(_confinada(), INFO_K)
+    assert (p["prototipo"], p["planta"], p["por_confirmar"], p["notas"]) == ("oro_401", "PB", True, "Celdas del Excel.")
+    k1, k2, k3, ce = p["elementos"]
+    assert (k1["regla"], k1["total_m"], k1["base_m2"], k1["sep_m"], k1["origen"]) == ("total", "126", "286", None, "ASIGNACIÓN!K2152")
+    assert (k2["regla"], k2["sep_m"]) == ("separacion", "2.5")
+    assert (k3["regla"], k3["piezas_por_ml"]) == ("por_ml", "0.4")
+    assert ce["clase"] == "cadena" and "regla" not in ce
+
+
+def test_el_prototipo_pide_su_planta_y_solo_vale_en_muro_confinado() -> None:
+    for malo in ({"planta": None}, {"planta": "PA", "prototipo": "zafiro_1"}, {"tipo": "con_cadena", "elementos": []}, {"tipo": "tabique", "elementos": []}):
+        with pytest.raises(ErrorDeCuantificacion):
+            normalizar_plantilla(_confinada(**malo), INFO_K)
+    sin = normalizar_plantilla(_confinada(prototipo=None, planta=None, notas="", por_confirmar=None), INFO_K)
+    assert (sin["prototipo"], sin["planta"], sin["notas"], sin["por_confirmar"]) == (None, None, None, False)
+
+
+def test_las_reglas_de_un_castillo_piden_sus_datos_y_un_castillo_ubicado_solo_cuenta_enteros() -> None:
+    for malo in (
+        {"ref": "K-1", "regla": "por_ml"},
+        {"ref": "K-1", "regla": "total", "total_m": "5"},
+        {"ref": "K-1", "regla": "total", "total_m": "0", "base_m2": "10"},
+        {"ref": "K-1", "regla": "nada"},
+    ):
+        with pytest.raises(ErrorDePlantillaDeMuro):
+            normalizar_plantilla(_confinada(elementos=[malo]), INFO_K)
+    with pytest.raises(ErrorDePlantillaDeMuro, match="por ml"):
+        normalizar_plantilla(_base(elementos=[{"ref": "K-1", "regla": "total", "total_m": "5", "base_m2": "10"}]), INFO_K)
+    ok = normalizar_plantilla(_base(elementos=[{"ref": "K-1", "regla": "extremos", "sep_m": "2"}]), INFO_K)
+    assert (ok["elementos"][0]["regla"], ok["elementos"][0]["sep_m"]) == ("extremos", None)  # «solo extremos» ignora la separación
+
+
+def test_sin_regla_se_normaliza_como_siempre() -> None:
+    p = normalizar_plantilla(_base(elementos=[{"ref": "K-1"}, {"uid": "K-1#2", "ref": "K-1", "sep_m": "2"}]), INFO_K)
+    assert [(e["regla"], e["sep_m"]) for e in p["elementos"]] == [("extremos", None), ("separacion", "2")]  # ubicado: extremos o separación propia
+    c = normalizar_plantilla(_base(tipo="confinado", elementos=[{"ref": "K-1"}]), INFO_K)
+    assert [(e["regla"], e["sep_m"]) for e in c["elementos"]] == [("separacion", None)]  # estimado: la separación del driver
+
+
+def test_cambiar_el_prototipo_las_notas_o_si_esta_por_confirmar_es_un_cambio() -> None:
+    a = normalizar_plantilla(_confinada(), INFO_K)
+    assert not cambia_la_plantilla(a, normalizar_plantilla(_confinada(), INFO_K))
+    for cambio in ({"notas": "Otra nota"}, {"por_confirmar": False}, {"planta": None, "prototipo": None}, {"planta": "PA"}):
+        assert cambia_la_plantilla(a, normalizar_plantilla(_confinada(**cambio), INFO_K)), cambio

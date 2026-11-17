@@ -9,6 +9,11 @@ import type { ElementoDePlantillaOutputUid } from "./elementoDePlantillaOutputUi
 import type { ElementoDePlantillaOutputClase } from "./elementoDePlantillaOutputClase";
 import type { ElementoDePlantillaOutputModo } from "./elementoDePlantillaOutputModo";
 import type { ElementoDePlantillaOutputSepM } from "./elementoDePlantillaOutputSepM";
+import type { ElementoDePlantillaOutputRegla } from "./elementoDePlantillaOutputRegla";
+import type { ElementoDePlantillaOutputPiezasPorMl } from "./elementoDePlantillaOutputPiezasPorMl";
+import type { ElementoDePlantillaOutputTotalM } from "./elementoDePlantillaOutputTotalM";
+import type { ElementoDePlantillaOutputBaseM2 } from "./elementoDePlantillaOutputBaseM2";
+import type { ElementoDePlantillaOutputOrigen } from "./elementoDePlantillaOutputOrigen";
 import type { ElementoDePlantillaOutputPosicion } from "./elementoDePlantillaOutputPosicion";
 import type { ElementoDePlantillaOutputZM } from "./elementoDePlantillaOutputZM";
 
@@ -27,6 +32,16 @@ export interface ElementoDePlantillaOutput {
   modo?: ElementoDePlantillaOutputModo;
   /** Castillos estimados: separación (m); `null` = la del driver. */
   sep_m?: ElementoDePlantillaOutputSepM;
+  /** Solo castillos: cómo cuenta sus piezas. `separacion` (cada separación y extremos), `extremos` (solo extremos), `por_ml` (piezas por metro lineal de muro) o `total` (metros de castillo de un prototipo repartidos por m² de muro). Sin ella: separación si trae `sep_m`; si no, extremos (muro con cadena) o la separación del driver (confinado). */
+  regla?: ElementoDePlantillaOutputRegla;
+  /** Regla `por_ml`: piezas por metro lineal de muro. */
+  piezas_por_ml?: ElementoDePlantillaOutputPiezasPorMl;
+  /** Regla `total`: metros de castillo del prototipo (y planta) en el Excel. */
+  total_m?: ElementoDePlantillaOutputTotalM;
+  /** Regla `total`: m² de muro de tabique sobre los que se repartieron `total_m`. */
+  base_m2?: ElementoDePlantillaOutputBaseM2;
+  /** De dónde sale el dato (fila y celda del Excel). */
+  origen?: ElementoDePlantillaOutputOrigen;
   /** Solo cadenas. */
   posicion?: ElementoDePlantillaOutputPosicion;
   /** Altura de arranque sobre el cuerpo del muro (m). */

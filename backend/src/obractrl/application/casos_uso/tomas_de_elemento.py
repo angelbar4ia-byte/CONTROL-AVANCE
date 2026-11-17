@@ -17,7 +17,9 @@ from uuid import UUID
 from obractrl.application.casos_uso.conceptos_de_lo_colocado import (
     conceptos_de_lo_colocado,
 )
-from obractrl.application.casos_uso.cuantificar import _recalcular_nodo
+from obractrl.application.casos_uso.cuantificar import _recalcular_nodo, altura_del_muro
+from obractrl.application.casos_uso.parametrico import vigentes_de_obra
+from obractrl.domain.cuantificacion.colocacion_de_plantilla import colocar_plantilla
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     MATERIALES_DE_UN_ELEMENTO,
     lados_por_defecto,
@@ -25,7 +27,10 @@ from obractrl.domain.cuantificacion.elementos_parametricos import (
     receta,
     toma_por_unidad,
 )
-from obractrl.domain.cuantificacion.reglas import TipoNodoCuantificacion
+from obractrl.domain.cuantificacion.reglas import (
+    ErrorDeCuantificacion,
+    TipoNodoCuantificacion,
+)
 
 __all__ = ["SincronizarTomas", "filas_de_toma", "totales_de_trazos"]
 
@@ -108,9 +113,12 @@ class SincronizarTomas:
         prototipo_nodos: Any,
         desviaciones: Any,
         parametrico: Any | None = None,
+        trazos: Any | None = None,
     ) -> None:
         # Con el repositorio del Paramétrico, los castillos colocados desde la plantilla de un muro también alimentan conceptos (Ola 4C).
         self._parametrico = parametrico
+        # Con el de trazos, lo que trae la plantilla de un muro (cadenas y castillos estimados) alimenta conceptos sin colocarse en el plano.
+        self._trazos = trazos
         self._elementos = elementos
         self._matrices = matrices
         self._enlaces = enlaces
@@ -128,10 +136,58 @@ class SincronizarTomas:
             antes = suma.get(cid)
             cantidad = Decimal(str(f["cantidad"])) + (antes[0] if antes and antes[1] == f["unidad"] else Decimal(0))
             suma[cid] = (cantidad, f["unidad"])
-        for cid, cantidad, unidad in await self._tomas_de_castillos_colocados(obra_id):
+        for cid, cantidad, unidad in [*await self._tomas_de_castillos_colocados(obra_id), *await self._tomas_de_plantillas(obra_id)]:
             antes = suma.get(cid)
             suma[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
         return suma
+
+    async def _tomas_de_plantillas(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str]]:
+        """Lo que toman los conceptos de lo que trae la plantilla de cada muro de la obra **sin colocarse en el plano**: las cadenas (el largo
+        del muro, en ml) y los castillos estimados del muro confinado (sus piezas por la regla de la plantilla). Los castillos ubicados salen
+        de lo colocado (`_tomas_de_castillos_colocados`), así que no se cuentan dos veces. Si el concepto no cuenta (propuesto, sin partida
+        en el árbol, unidad no admitida) avisa en el reporte de lo colocado y no suma. Un muro cuya plantilla no cabe se omite aquí; el
+        reporte de su colocación dice por qué."""
+        if self._parametrico is None or self._trazos is None:
+            return []
+        filas = await self._elementos.trazos_con_plantilla_de_la_obra(obra_id)
+        if not filas:
+            return []
+        catalogo = {str(e["clave"]): e for e in await self._elementos.listar_todos()}
+        vigentes = await vigentes_de_obra(self._parametrico, obra_id)
+        separacion = vigentes.get("separacion_castillos")
+        grupos: list[dict[str, Any]] = []
+        for f in filas:
+            elementos = [
+                e for e in (f["elementos"] or [])
+                if e.get("clase") == "cadena" or (e.get("clase") == "castillo" and e.get("modo") == "estimado")
+            ]
+            if not elementos:
+                continue
+            try:
+                largo = await self._trazos.largo_del_eje(f["trazo_id"])
+                altura = await altura_del_muro(self._trazos, f["trazo_id"])
+                colocacion = colocar_plantilla(
+                    elementos, largo_m=largo, altura_m=altura, anchos_m={}, separacion_m=separacion.valor if separacion is not None else None
+                )
+            except ErrorDeCuantificacion:
+                continue
+            for i in colocacion.instancias:
+                el = catalogo.get(i.ref)
+                if el is None:
+                    continue
+                grupos.append(
+                    {
+                        "elemento_id": el["id"], "ref": i.ref, "uid": i.uid, "clase": i.clase, "nivel_orden": f.get("nivel_orden"),
+                        "nivel_id": f.get("nivel_id"), "etapa_id": f.get("etapa_id"), "ubicacion": f.get("ubicacion"),
+                        **({"alto_m": i.alto_m, "piezas": i.piezas_exactas} if i.clase == "castillo" else {"alto_m": None, "piezas": 1, "metros": i.metros}),
+                    }
+                )
+        salida: list[tuple[UUID, Decimal, str]] = []
+        for _, conceptos, _avisos in await conceptos_de_lo_colocado(
+            elementos=self._elementos, parametrico=self._parametrico, obra_id=obra_id, instancias=grupos
+        ):
+            salida.extend((c.concepto_id, c.cantidad, c.unidad) for c in conceptos if c.cuenta and c.concepto_id is not None)
+        return salida
 
     async def _tomas_de_castillos_colocados(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str]]:
         """Lo que toman los conceptos de los castillos colocados desde la plantilla de un muro (0135): por cada muro y alto, el concepto lo
@@ -177,9 +233,9 @@ class SincronizarTomas:
             )
 
     async def obra_si_es_elemento(self, trazo_id: UUID) -> UUID | None:
-        """La obra del trazo, si está marcado como un elemento (para rehacer sus tomas al borrarlo)."""
+        """La obra del trazo, si está marcado como un elemento o eligió una plantilla de muro (para rehacer sus tomas al borrarlo)."""
         trazo = await self._elementos.trazo_de(trazo_id)
-        if trazo is None or trazo["elemento_parametrico_id"] is None:
+        if trazo is None or (trazo["elemento_parametrico_id"] is None and not trazo.get("muro_plantilla_id")):
             return None
         return await self._elementos.obra_del_trazo(trazo_id)
 

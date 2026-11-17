@@ -17,7 +17,7 @@ __all__ = ["RepositorioPlantillasDeMuroSQL"]
 _COLUMNAS = """
     p.id, p.raiz_id, p.version, p.vigente, p.nombre, p.tipo, p.material, p.ubicacion, p.altura_m, p.partes, p.elementos, p.acabado,
     p.validacion, p.propuso_id, u1.nombre as propuso_nombre, p.propuso_rol, p.validada_por, u2.nombre as validada_por_nombre,
-    p.validada_en, p.created_at, p.updated_at,
+    p.validada_en, p.created_at, p.updated_at, p.prototipo, p.planta, p.notas, p.por_confirmar,
     (select count(*) from trazo t where t.muro_plantilla_id = p.id) as trazos
 """
 _DE = """
@@ -66,9 +66,11 @@ class RepositorioPlantillasDeMuroSQL:
                     text(
                         """
                         insert into muro_plantilla (id, org_id, raiz_id, version, vigente, nombre, tipo, material, ubicacion, altura_m,
-                                                    partes, elementos, acabado, propuso_id, propuso_rol)
+                                                    partes, elementos, acabado, propuso_id, propuso_rol,
+                                                    prototipo, planta, notas, por_confirmar)
                         select :id, app.current_org_id(), :raiz, :v, true, :nombre, :tipo, :material, :ubicacion, :altura,
-                               cast(:partes as jsonb), cast(:elementos as jsonb), cast(:acabado as jsonb), :autor, :rol
+                               cast(:partes as jsonb), cast(:elementos as jsonb), cast(:acabado as jsonb), :autor, :rol,
+                               :prototipo, :planta, :notas, :por_confirmar
                         """
                     ),
                     self._valores(datos)
@@ -88,6 +90,10 @@ class RepositorioPlantillasDeMuroSQL:
             "partes": json.dumps(datos["partes"]),
             "elementos": json.dumps(datos["elementos"]),
             "acabado": json.dumps(datos["acabado"]) if datos.get("acabado") is not None else None,
+            "prototipo": datos.get("prototipo"),
+            "planta": datos.get("planta"),
+            "notas": datos.get("notas"),
+            "por_confirmar": bool(datos.get("por_confirmar")),
         }
 
     async def reemplazar(self, plantilla_id: UUID, datos: dict[str, Any], *, autor_id: UUID, rol: str) -> None:
@@ -99,7 +105,8 @@ class RepositorioPlantillasDeMuroSQL:
                         """
                         update muro_plantilla set nombre = :nombre, tipo = :tipo, material = :material, ubicacion = :ubicacion,
                                altura_m = :altura, partes = cast(:partes as jsonb), elementos = cast(:elementos as jsonb),
-                               acabado = cast(:acabado as jsonb), propuso_id = :autor, propuso_rol = :rol
+                               acabado = cast(:acabado as jsonb), propuso_id = :autor, propuso_rol = :rol,
+                               prototipo = :prototipo, planta = :planta, notas = :notas, por_confirmar = :por_confirmar
                          where id = :id
                         """
                     ),
@@ -130,6 +137,19 @@ class RepositorioPlantillasDeMuroSQL:
                 )
             ).scalar_one()
         )
+
+    async def obras_de_la_plantilla(self, plantilla_id: UUID) -> list[UUID]:
+        """Las obras con trazos que usan esta versión de la plantilla (para rehacer lo que sus conceptos toman al editarla en el lugar)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    "select distinct p.obra_id from trazo t join plano p on p.id = t.plano_id "
+                    "where t.muro_plantilla_id = :i and t.hueco_de is null and not t.propuesta"
+                ),
+                {"i": str(plantilla_id)},
+            )
+        ).scalars().all()
+        return [UUID(str(o)) for o in filas]
 
     async def eliminar_raiz(self, raiz_id: UUID) -> None:
         await self._sesion.execute(text("delete from muro_plantilla where raiz_id = :r"), {"r": str(raiz_id)})

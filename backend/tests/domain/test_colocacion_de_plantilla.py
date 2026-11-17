@@ -207,3 +207,85 @@ def test_un_castillo_ubicado_sin_separacion_sigue_en_los_extremos_aunque_haya_dr
     sin = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "z_m": "0"}]
     c = colocar_plantilla(sin, largo_m=D(10), altura_m=D(3), anchos_m={"K-1": D("0.15")}, separacion_m=D(3))
     assert c.instancias[0].piezas == 2
+
+
+# --- Varios castillos por plantilla, cada uno con su regla (muro confinado por prototipo) --------------------------------------
+
+
+def _estimado(uid: str, **regla: str) -> dict[str, object]:
+    return {"uid": uid, "ref": uid, "clase": "castillo", "modo": "estimado", **regla}
+
+
+def test_una_plantilla_confinada_lleva_varios_castillos_cada_uno_con_su_regla() -> None:
+    elementos = [
+        _estimado("K-1", regla="separacion", sep_m="2.5"),
+        _estimado("K-2", regla="extremos"),
+        _estimado("K-3", regla="por_ml", piezas_por_ml="0.5"),
+        _estimado("K-7", regla="total", total_m="24", base_m2="286"),
+        {"uid": "CE-1", "ref": "CE-1", "clase": "cadena", "posicion": "cerramiento"},
+    ]
+    c = colocar_plantilla(elementos, largo_m=D(10), altura_m=D("3.00"), anchos_m={})
+    por_uid = {i.uid: i for i in c.instancias}
+    assert (por_uid["K-1"].regla, por_uid["K-1"].piezas_exactas, por_uid["K-1"].piezas) == ("separacion", D(5), 5)  # ⌈10 ÷ 2.5⌉ + 1
+    assert (por_uid["K-2"].regla, por_uid["K-2"].piezas_exactas) == ("extremos", D(2))
+    assert (por_uid["K-3"].regla, por_uid["K-3"].piezas_exactas, por_uid["K-3"].metros) == ("por_ml", D(5), D(15))  # 10 ml × 0.5 pza/ml
+    k7 = por_uid["K-7"]
+    # 24 m de castillo sobre 286 m² de muro; este muro mide 10 × 3.00 = 30 m²: 24 × 30 ÷ 286 = 2.517 m = 0.839 piezas de 3.00 m.
+    assert (k7.regla, k7.piezas_exactas, k7.piezas) == ("total", D("0.839"), 1)
+    assert k7.metros == D("0.839") * D(3)
+    assert all(not i.se_coloca and i.posiciones_m == () and i.descuento_m2_por_cara == 0 for i in c.instancias if i.clase == "castillo")
+    assert por_uid["CE-1"].metros == D(10)
+
+
+def test_la_regla_total_usa_el_area_que_se_le_da_y_si_no_el_muro_bruto() -> None:
+    k = [_estimado("K-1", regla="total", total_m="126", base_m2="286")]
+    bruto = colocar_plantilla(k, largo_m=D(10), altura_m=D(3), anchos_m={}).instancias[0]
+    neto = colocar_plantilla(k, largo_m=D(10), altura_m=D(3), anchos_m={}, area_m2=D(26)).instancias[0]
+    assert bruto.metros == pytest.approx(D("13.2168"), abs=D("0.01"))
+    assert neto.metros == pytest.approx(D("11.4545"), abs=D("0.01"))
+
+
+def test_una_plantilla_anterior_sin_regla_cuenta_como_antes() -> None:
+    antes = [
+        {"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "estimado", "sep_m": "2"},
+        {"uid": "K-2", "ref": "K-2", "clase": "castillo", "modo": "estimado"},
+        {"uid": "K-3", "ref": "K-3", "clase": "castillo", "modo": "ubicado"},
+    ]
+    c = colocar_plantilla(antes, largo_m=D(10), altura_m=D(3), anchos_m={"K-3": D("0.15")}, separacion_m=D(5))
+    assert [(i.regla, i.piezas) for i in c.instancias] == [("separacion", 6), ("separacion", 3), ("extremos", 2)]
+
+
+def test_un_castillo_estimado_no_necesita_ancho_y_los_que_no_valen_se_rechazan() -> None:
+    colocar_plantilla([_estimado("K-1", regla="extremos")], largo_m=D(4), altura_m=D(3), anchos_m={})
+    for malo in (
+        {"regla": "por_ml"},
+        {"regla": "total", "total_m": "5"},
+        {"regla": "al_tanteo"},
+    ):
+        with pytest.raises(ErrorDeColocacion):
+            colocar_plantilla([_estimado("K-1", **malo)], largo_m=D(4), altura_m=D(3), anchos_m={})
+    ubicado = {"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "ubicado", "regla": "total", "total_m": "5", "base_m2": "10"}
+    with pytest.raises(ErrorDeColocacion):
+        colocar_plantilla([ubicado], largo_m=D(4), altura_m=D(3), anchos_m={"K-1": D("0.15")})
+
+
+def test_una_cadena_alimenta_conceptos_en_ml_con_los_metros_del_muro_y_no_en_pza() -> None:
+    nivel, etapa, cadena_c, pieza_c = uuid4(), uuid4(), uuid4(), uuid4()
+    conceptos = [
+        ConceptoDeElemento(
+            id=uuid4(), clave="CAD-1", descripcion="", unidad="ml", toma={"concreto": True, "acero": True, "cimbra": True},
+            contexto=Contexto(), alto_hasta_m=None, estado="autorizado", concepto_id=cadena_c,
+        ),
+    ]
+    partidas = [Partida(id=uuid4(), concepto_id=cadena_c, nivel_id=nivel, etapa_id=etapa, nombre="CAD-1")]
+    ok, _ = conceptos_de_instancia(
+        conceptos, ref="CE-1", nivel=1, ubicacion=None, alto_m=None, piezas=1, metros=D("10"), enlaces=[], partidas=partidas,
+        nivel_id=nivel, etapa_id=etapa, unidades={},
+    )
+    (c,) = ok
+    assert (c.clave, c.unidad, c.cantidad, c.cuenta, c.estado) == ("CAD-1", "ml", D(10), True, "cuenta")
+    en_pza = [ConceptoDeElemento(id=uuid4(), clave="CAD-P", descripcion="", unidad="pza", toma={"concreto": True}, contexto=Contexto(), alto_hasta_m=None, estado="autorizado", concepto_id=pieza_c)]
+    malo, _ = conceptos_de_instancia(
+        en_pza, ref="CE-1", nivel=1, ubicacion=None, alto_m=None, piezas=1, metros=D("10"), enlaces=[], partidas=[], nivel_id=nivel, etapa_id=etapa, unidades={},
+    )
+    assert (malo[0].cuenta, malo[0].estado) == (False, "unidad_no_admitida") and "cadena" in (malo[0].aviso or "")

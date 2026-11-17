@@ -155,6 +155,7 @@ __all__ = [
     "TrazoRegistrado",
     "TrazoTransformado",
     "VanoCambiado",
+    "altura_del_muro",
 ]
 
 RADIO_DE_UNION_M = Decimal("0.5")
@@ -1313,6 +1314,26 @@ class AgregarHuecoATrazo:
         return HuecoAgregado(hueco_id=hueco_id, recalculos=recalculos)
 
 
+async def altura_sin_propia(trazos: Any, trazo_id: UUID) -> Decimal:
+    """La altura de un muro que no trae la suya: la que ya usa su conversión guardada (Q1: lo guardado la conserva) o, si nace sin ella, la
+    altura estándar de la obra (el driver `altura_estandar`)."""
+    de_la_conversion = await trazos.altura_de_la_conversion(trazo_id)
+    return de_la_conversion if de_la_conversion is not None else await trazos.altura_estandar_de_trazo(trazo_id)
+
+
+async def altura_del_muro(trazos: Any, trazo_id: UUID) -> Decimal:
+    """Lo alto del muro: el tope de sus partes o su altura única; sin ninguna, la altura estándar de la obra (el driver `altura_estandar`,
+    3.00 m de partida). Lo que sube un castillo. Un muro que ya trae su altura la conserva (Q1)."""
+    muro = await trazos.muro_de_trazo(trazo_id)
+    partes = muro.get("partes")
+    if partes:
+        return max(Decimal(str(p["hasta_m"])) for p in partes)
+    altura = muro.get("altura_m")
+    if altura is not None:
+        return Decimal(str(altura))
+    return await altura_sin_propia(trazos, trazo_id)
+
+
 class GestionarVanos(AgregarHuecoATrazo):
     """Coloca o quita un vano (puerta, ventana, paso) sobre una línea.
 
@@ -1423,22 +1444,10 @@ class GestionarVanos(AgregarHuecoATrazo):
         return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)
 
     async def _altura_del_muro(self, trazo_id: UUID) -> Decimal:
-        """Lo alto del muro: el tope de sus partes o su altura única; sin ninguna, la altura estándar de la obra (el driver
-        `altura_estandar`, 3.00 m de partida). Lo que sube un castillo. Un muro que ya trae su altura la conserva (Q1)."""
-        muro = await self._trazos.muro_de_trazo(trazo_id)
-        partes = muro.get("partes")
-        if partes:
-            return max(Decimal(str(p["hasta_m"])) for p in partes)
-        altura = muro.get("altura_m")
-        if altura is not None:
-            return Decimal(str(altura))
-        return await self._altura_sin_propia(trazo_id)
+        return await altura_del_muro(self._trazos, trazo_id)
 
     async def _altura_sin_propia(self, trazo_id: UUID) -> Decimal:
-        """La altura de un muro que no trae la suya: la que ya usa su conversión guardada (Q1: lo guardado la conserva) o, si
-        nace sin ella, la altura estándar de la obra (el driver `altura_estandar`)."""
-        de_la_conversion = await self._trazos.altura_de_la_conversion(trazo_id)
-        return de_la_conversion if de_la_conversion is not None else await self._trazos.altura_estandar_de_trazo(trazo_id)
+        return await altura_sin_propia(self._trazos, trazo_id)
 
     async def quitar(
         self, vano_id: UUID, *, autor_id: UUID, rol: Rol, detectada_en: datetime

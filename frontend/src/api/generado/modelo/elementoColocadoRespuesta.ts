@@ -7,6 +7,8 @@
  */
 import type { ElementoColocadoRespuestaClase } from "./elementoColocadoRespuestaClase";
 import type { ElementoColocadoRespuestaModo } from "./elementoColocadoRespuestaModo";
+import type { ElementoColocadoRespuestaRegla } from "./elementoColocadoRespuestaRegla";
+import type { ElementoColocadoRespuestaOrigen } from "./elementoColocadoRespuestaOrigen";
 import type { ElementoColocadoRespuestaAltoM } from "./elementoColocadoRespuestaAltoM";
 import type { ConceptoColocadoRespuesta } from "./conceptoColocadoRespuesta";
 
@@ -16,6 +18,15 @@ export interface ElementoColocadoRespuesta {
   nombre: string;
   clase: ElementoColocadoRespuestaClase;
   modo: ElementoColocadoRespuestaModo;
+  /** Castillos: cómo cuenta sus piezas. */
+  regla?: ElementoColocadoRespuestaRegla;
+  /** De dónde sale el dato de la regla (fila y celda del Excel). */
+  origen?: ElementoColocadoRespuestaOrigen;
+  /**
+   * Castillos: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  piezas_estimadas?: string;
   piezas: number;
   /** Lo alto de cada castillo: la altura del muro menos su arranque. */
   alto_m: ElementoColocadoRespuestaAltoM;
