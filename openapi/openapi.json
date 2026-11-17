@@ -16519,6 +16519,343 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/zonas-de-losa": {
+      "get": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Las zonas de losa de un plano, sus losas y sus puntos de nivel exterior",
+        "operationId": "zonas_del_plano_api_v1_planos__plano_id__zonas_de_losa_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZonasDelPlano"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Crear una zona de losa (solo Control de obra)",
+        "operationId": "crear_zona_api_v1_planos__plano_id__zonas_de_losa_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZonaDeLosaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZonaDeLosa"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Cotas o espesor fuera de rango, o nombre repetido en el plano."
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}": {
+      "put": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Cambiar las cotas o el nombre de una zona de losa (solo Control de obra)",
+        "operationId": "cambiar_zona_api_v1_zonas_de_losa__zona_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZonaDeLosaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZonaDeLosa"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Borrar una zona de losa: sus polígonos quedan como trazos comunes (solo Control de obra)",
+        "operationId": "borrar_zona_api_v1_zonas_de_losa__zona_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/losa": {
+      "put": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Dar o quitar el rol de losa de una zona a un polígono (solo Control de obra)",
+        "operationId": "fijar_losa_api_v1_trazos__trazo_id__losa_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LosaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LosaFijada"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El trazo no es un polígono, o la zona es de otro plano."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/nivel-exterior": {
+      "put": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Marcar o quitar un punto de nivel exterior con su cota y su rótulo (solo Control de obra)",
+        "operationId": "fijar_nivel_exterior_api_v1_trazos__trazo_id__nivel_exterior_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NivelExteriorPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NivelExteriorFijado"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El trazo no es un punto o la cota está fuera de rango."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/zonas-de-losa": {
+      "get": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Qué zona, altura, enrase y cara aplicarían a un muro (solo muestra; no cambia nada)",
+        "operationId": "resolver_muro_api_v1_trazos__trazo_id__zonas_de_losa_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolucionDelMuro"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El trazo no es una línea."
+          }
+        }
+      }
+    },
     "/api/v1/correcciones-de-catalogo": {
       "get": {
         "tags": [
@@ -36983,6 +37320,26 @@
         ],
         "title": "EnlacesDeRanuraRespuesta"
       },
+      "EnraseDelTramo": {
+        "properties": {
+          "desde_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hasta M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "EnraseDelTramo"
+      },
       "EnsambleCreadoRespuesta": {
         "properties": {
           "id": {
@@ -41876,6 +42233,172 @@
         ],
         "title": "ItemProgramaBaseRespuesta"
       },
+      "LadoDelTramo": {
+        "properties": {
+          "lado": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B"
+            ],
+            "title": "Lado",
+            "description": "A = izquierda del sentido de dibujo; B = derecha."
+          },
+          "cara": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara",
+            "description": "`null` si el muro no cae en ninguna zona."
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "losa",
+              "punto_de_nivel",
+              "sin_losa",
+              "sin_zona"
+            ],
+            "title": "Origen",
+            "description": "Por qué: cuelga de una losa; lo confirma un punto de nivel exterior; sin losa de ese lado; fuera de toda zona."
+          },
+          "zona_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona Id"
+          },
+          "zona": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona"
+          },
+          "losa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losa Id"
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M"
+          },
+          "cota_inferior_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Inferior M"
+          },
+          "cota_superior_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Superior M"
+          },
+          "altura_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura M",
+            "description": "La altura de esta cara."
+          },
+          "punto_de_nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto De Nivel Id"
+          },
+          "nivel_exterior_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Exterior M"
+          },
+          "rotulo_del_punto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo Del Punto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lado",
+          "cara",
+          "origen"
+        ],
+        "title": "LadoDelTramo"
+      },
       "LineaDeControlRespuesta": {
         "properties": {
           "id": {
@@ -42380,6 +42903,121 @@
         ],
         "title": "LineaPeticion",
         "description": "Una actividad dentro de la solicitud.\n\nVarias a propósito: el residente pide por sub-frente, y si se le agotó el\ncemento en tres actividades de albañilería manda **una** solicitud con tres\nrenglones, no tres que alguien tenga que relacionar después."
+      },
+      "LosaDeZona": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "espesor_propio_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Propio M",
+            "description": "Subzona: espesor estructural propio; `null` = el de la zona."
+          },
+          "espesor_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Espesor M",
+            "description": "El espesor que aplica (el propio, si hay)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "espesor_propio_m",
+          "espesor_m"
+        ],
+        "title": "LosaDeZona"
+      },
+      "LosaFijada": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "zona_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona Id"
+          },
+          "espesor_propio_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Propio M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "zona_id",
+          "espesor_propio_m"
+        ],
+        "title": "LosaFijada"
+      },
+      "LosaPeticion": {
+        "properties": {
+          "zona_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona Id",
+            "description": "La zona de la que este polígono es losa; `null` le quita el rol de losa."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Subzona: espesor estructural propio dentro de la zona; `null` = el de la zona."
+          }
+        },
+        "type": "object",
+        "required": [
+          "zona_id"
+        ],
+        "title": "LosaPeticion"
       },
       "LoteRespuesta": {
         "properties": {
@@ -43840,6 +44478,85 @@
           "final"
         ],
         "title": "NivelEvaluacion"
+      },
+      "NivelExteriorFijado": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "cota_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota M"
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "cota_m",
+          "rotulo"
+        ],
+        "title": "NivelExteriorFijado"
+      },
+      "NivelExteriorPeticion": {
+        "properties": {
+          "cota_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -30.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota M",
+            "description": "Cota del punto de nivel exterior (piso terminado de PB = 0); `null` quita la marca."
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo",
+            "description": "Rótulo del punto (p. ej. «Banqueta»)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cota_m"
+        ],
+        "title": "NivelExteriorPeticion"
       },
       "NivelPeticion": {
         "properties": {
@@ -46215,6 +46932,77 @@
           "detalle"
         ],
         "title": "ParteDelArmado"
+      },
+      "ParteDelTramo": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "desde_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desde M"
+          },
+          "hasta_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hasta M"
+          },
+          "suma": {
+            "type": "boolean",
+            "title": "Suma",
+            "default": true
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "cuerpo",
+              "enrase"
+            ],
+            "title": "Rol"
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A"
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "desde_m",
+          "hasta_m",
+          "rol",
+          "cara_a",
+          "cara_b"
+        ],
+        "title": "ParteDelTramo"
       },
       "ParteIndependientePeticion": {
         "properties": {
@@ -49671,6 +50459,38 @@
         "type": "object",
         "title": "PublicarCPUPeticion"
       },
+      "PuntoDeNivelDelPlano": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "cota_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cota M"
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "cota_m",
+          "rotulo"
+        ],
+        "title": "PuntoDeNivelDelPlano"
+      },
       "PuntoDelPerfil": {
         "properties": {
           "s_m": {
@@ -51867,6 +52687,94 @@
         ],
         "title": "ResolucionDeRanura"
       },
+      "ResolucionDelMuro": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "escala_definida": {
+            "type": "boolean",
+            "title": "Escala Definida"
+          },
+          "altura_explicita_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura Explicita M",
+            "description": "La altura que el trazo trae (partes o altura única); manda sobre la zona."
+          },
+          "altura_estandar_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Altura Estandar M",
+            "description": "El driver `altura_estandar` de la obra."
+          },
+          "altura_guardada_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altura Guardada M",
+            "description": "Con la que ya mide hoy su conversión guardada (no se cambia sola, Q1)."
+          },
+          "con_zona": {
+            "type": "boolean",
+            "title": "Con Zona",
+            "description": "Algún lado del muro cuelga de una losa; si no, el muro se comporta como siempre."
+          },
+          "parte_el_muro": {
+            "type": "boolean",
+            "title": "Parte El Muro",
+            "description": "Los tramos tienen alturas distintas: habría que partir el muro en el límite de zona."
+          },
+          "aplicada": {
+            "type": "boolean",
+            "title": "Aplicada",
+            "description": "Siempre `false`: esto es lo que se sugiere, no algo aplicado."
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoDelMuro"
+            },
+            "type": "array",
+            "title": "Tramos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "escala_definida",
+          "altura_explicita_m",
+          "altura_estandar_m",
+          "altura_guardada_m",
+          "con_zona",
+          "parte_el_muro",
+          "aplicada",
+          "advertencias",
+          "tramos"
+        ],
+        "title": "ResolucionDelMuro"
+      },
       "ResolverCambioPeticion": {
         "properties": {
           "autorizado": {
@@ -53262,6 +54170,42 @@
         ],
         "title": "SubcategoriaDeClasificacion"
       },
+      "SugerenciaDeCaras": {
+        "properties": {
+          "indice": {
+            "type": "integer",
+            "title": "Indice"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "cara_a": {
+            "type": "string",
+            "enum": [
+              "exterior",
+              "interior"
+            ],
+            "title": "Cara A"
+          },
+          "cara_b": {
+            "type": "string",
+            "enum": [
+              "exterior",
+              "interior"
+            ],
+            "title": "Cara B"
+          }
+        },
+        "type": "object",
+        "required": [
+          "indice",
+          "nombre",
+          "cara_a",
+          "cara_b"
+        ],
+        "title": "SugerenciaDeCaras"
+      },
       "SugerenciaDeHerramienta": {
         "properties": {
           "clave": {
@@ -54009,6 +54953,89 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TramoDelMuro": {
+        "properties": {
+          "desde_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desde M",
+            "description": "Distancia al inicio del trazo, a lo largo (m)."
+          },
+          "hasta_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hasta M"
+          },
+          "longitud_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Longitud M"
+          },
+          "lado_a": {
+            "$ref": "#/components/schemas/LadoDelTramo"
+          },
+          "lado_b": {
+            "$ref": "#/components/schemas/LadoDelTramo"
+          },
+          "altura_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Altura M",
+            "description": "Lo alto del cuerpo del muro en este tramo."
+          },
+          "origen_de_altura": {
+            "type": "string",
+            "enum": [
+              "trazo",
+              "zona",
+              "driver"
+            ],
+            "title": "Origen De Altura",
+            "description": "De dónde sale: la altura explícita del trazo, la zona de losa o el driver `altura_estandar`."
+          },
+          "enrase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnraseDelTramo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Entre la losa baja y la alta, si los dos lados cuelgan de losas a distinta cota."
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDelTramo"
+            },
+            "type": "array",
+            "title": "Partes",
+            "description": "Partes de altura (la estructura de la 4A) que aplicarían a este tramo."
+          },
+          "sugerencias": {
+            "items": {
+              "$ref": "#/components/schemas/SugerenciaDeCaras"
+            },
+            "type": "array",
+            "title": "Sugerencias",
+            "description": "Lo que la losa más baja SUGIERE para el enrase; nunca se aplica solo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m",
+          "longitud_m",
+          "lado_a",
+          "lado_b",
+          "altura_m",
+          "origen_de_altura",
+          "enrase",
+          "partes",
+          "sugerencias"
+        ],
+        "title": "TramoDelMuro"
+      },
       "TransformarTrazosPeticion": {
         "properties": {
           "trazo_ids": {
@@ -54711,6 +55738,57 @@
             ],
             "title": "Revestimiento Cara",
             "description": "La cara del muro que lleva el revestimiento (0125)."
+          },
+          "losa_zona_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losa Zona Id",
+            "description": "Si el trazo es un polígono con rol de losa, su zona de losa (0137); `null` = un trazo común."
+          },
+          "losa_espesor_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losa Espesor M",
+            "description": "Subzona: espesor estructural propio de esta losa dentro de su zona (0137)."
+          },
+          "nivel_exterior_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Exterior M",
+            "description": "Si el trazo es un punto de nivel exterior, su cota (piso terminado de PB = 0) (0137)."
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo",
+            "description": "Rótulo de un punto de nivel exterior (0137)."
           },
           "conexiones": {
             "items": {
@@ -57364,6 +58442,206 @@
           "peso_kg_m"
         ],
         "title": "ZonaDeAnilloPeticion"
+      },
+      "ZonaDeLosa": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "cota_piso_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cota Piso M"
+          },
+          "altura_libre_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Altura Libre M"
+          },
+          "espesor_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Espesor M"
+          },
+          "cota_inferior_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cota Inferior M",
+            "description": "Cota del nivel bajo de la losa (cota del piso + altura libre)."
+          },
+          "cota_superior_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cota Superior M",
+            "description": "Cota del nivel alto de la losa (nivel bajo + espesor)."
+          },
+          "losas": {
+            "items": {
+              "$ref": "#/components/schemas/LosaDeZona"
+            },
+            "type": "array",
+            "title": "Losas"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plano_id",
+          "nombre",
+          "nivel",
+          "cota_piso_m",
+          "altura_libre_m",
+          "espesor_m",
+          "cota_inferior_m",
+          "cota_superior_m",
+          "losas",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ZonaDeLosa"
+      },
+      "ZonaDeLosaPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Nombre",
+            "description": "Nombre de la zona (único en el plano), p. ej. «Entrepiso 3.00»."
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel",
+            "description": "La planta o nivel al que pertenece (texto libre)."
+          },
+          "cota_piso_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cota Piso M",
+            "description": "Cota del piso terminado de la zona; el piso terminado de PB = 0.",
+            "default": "0"
+          },
+          "altura_libre_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Altura Libre M",
+            "description": "Del piso terminado al nivel BAJO de la losa: la altura que toma el muro."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Espesor de la losa (la cota que sigue a la altura libre)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "altura_libre_m",
+          "espesor_m"
+        ],
+        "title": "ZonaDeLosaPeticion"
+      },
+      "ZonasDelPlano": {
+        "properties": {
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "escala_definida": {
+            "type": "boolean",
+            "title": "Escala Definida",
+            "description": "Sin escala calibrada se toma 1 unidad de plano = 1 m (como las uniones de muro)."
+          },
+          "zonas": {
+            "items": {
+              "$ref": "#/components/schemas/ZonaDeLosa"
+            },
+            "type": "array",
+            "title": "Zonas"
+          },
+          "puntos_de_nivel": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoDeNivelDelPlano"
+            },
+            "type": "array",
+            "title": "Puntos De Nivel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plano_id",
+          "escala_definida",
+          "zonas",
+          "puntos_de_nivel"
+        ],
+        "title": "ZonasDelPlano"
       },
       "obractrl__adapters__api__v1__arbol__PartidaRespuesta": {
         "properties": {

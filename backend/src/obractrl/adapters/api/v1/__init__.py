@@ -90,6 +90,7 @@ from obractrl.adapters.api.v1.revisiones import router as router_revisiones
 from obractrl.adapters.api.v1.torre import router as router_torre
 from obractrl.adapters.api.v1.usuarios import router as router_usuarios
 from obractrl.adapters.api.v1.vanos_catalogo import router as router_vanos_catalogo
+from obractrl.adapters.api.v1.zonas_de_losa import router as router_zonas_de_losa
 
 api_v1 = APIRouter()
 
@@ -135,6 +136,7 @@ api_v1.include_router(router_elementos_estructurales)
 api_v1.include_router(router_muros_de_tabique)
 api_v1.include_router(router_bastones)
 api_v1.include_router(router_plantillas_de_muro)
+api_v1.include_router(router_zonas_de_losa)
 api_v1.include_router(router_correcciones_de_catalogo)
 api_v1.include_router(router_parametrico)
 api_v1.include_router(router_biblioteca_de_elementos)

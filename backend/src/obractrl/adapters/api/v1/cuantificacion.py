@@ -973,6 +973,16 @@ class TrazoPropiedades(BaseModel):
     revestimiento_cara: Literal["interior", "fachada"] | None = Field(
         default=None, description="La cara del muro que lleva el revestimiento (0125)."
     )
+    losa_zona_id: UUID | None = Field(
+        default=None, description="Si el trazo es un polígono con rol de losa, su zona de losa (0137); `null` = un trazo común."
+    )
+    losa_espesor_m: Decimal | None = Field(
+        default=None, description="Subzona: espesor estructural propio de esta losa dentro de su zona (0137)."
+    )
+    nivel_exterior_m: Decimal | None = Field(
+        default=None, description="Si el trazo es un punto de nivel exterior, su cota (piso terminado de PB = 0) (0137)."
+    )
+    rotulo: str | None = Field(default=None, description="Rótulo de un punto de nivel exterior (0137).")
     conexiones: list[ConexionDeMuro] = Field(
         default_factory=list,
         description="Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo.",
@@ -1130,6 +1140,10 @@ async def trazos_de_plano(
                     muro_plantilla_id=trazo.get("muro_plantilla_id"),
                     revestimiento_de=trazo.get("revestimiento_de"),
                     revestimiento_cara=trazo.get("revestimiento_cara"),
+                    losa_zona_id=trazo.get("losa_zona_id"),
+                    losa_espesor_m=trazo.get("losa_espesor_m"),
+                    nivel_exterior_m=trazo.get("nivel_exterior_m"),
+                    rotulo=trazo.get("rotulo"),
                     conexiones=[ConexionDeMuro(**c) for c in trazo.get("conexiones", [])],
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),

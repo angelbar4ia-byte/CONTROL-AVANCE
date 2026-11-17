@@ -121,6 +121,7 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
 from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
+from obractrl.application.casos_uso.zonas_de_losa import ZonaDeLosaNoEncontrada
 from obractrl.application.puertos.auth import ErrorDelProveedorDeAuth
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
@@ -1683,6 +1684,18 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="plano-no-encontrado",
             titulo="Plano no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ZonaDeLosaNoEncontrada)
+    async def _zona_de_losa_no_encontrada(
+        request: Request, exc: ZonaDeLosaNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="zona-de-losa-no-encontrada",
+            titulo="Zona de losa no encontrada",
             detalle=str(exc),
         )
 
