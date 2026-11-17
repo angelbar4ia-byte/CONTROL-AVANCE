@@ -19,6 +19,10 @@ import type { TrazoPropiedadesMuroPlantillaId } from "./trazoPropiedadesMuroPlan
 import type { TrazoPropiedadesMuroAcabado } from "./trazoPropiedadesMuroAcabado";
 import type { TrazoPropiedadesRevestimientoDe } from "./trazoPropiedadesRevestimientoDe";
 import type { TrazoPropiedadesRevestimientoCara } from "./trazoPropiedadesRevestimientoCara";
+import type { TrazoPropiedadesLosaZonaId } from "./trazoPropiedadesLosaZonaId";
+import type { TrazoPropiedadesLosaEspesorM } from "./trazoPropiedadesLosaEspesorM";
+import type { TrazoPropiedadesNivelExteriorM } from "./trazoPropiedadesNivelExteriorM";
+import type { TrazoPropiedadesRotulo } from "./trazoPropiedadesRotulo";
 import type { ConexionDeMuro } from "./conexionDeMuro";
 import type { TrazoPropiedadesMedicionId } from "./trazoPropiedadesMedicionId";
 import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
@@ -57,6 +61,14 @@ export interface TrazoPropiedades {
   revestimiento_de?: TrazoPropiedadesRevestimientoDe;
   /** La cara del muro que lleva el revestimiento (0125). */
   revestimiento_cara?: TrazoPropiedadesRevestimientoCara;
+  /** Si el trazo es un polígono con rol de losa, su zona de losa (0137); `null` = un trazo común. */
+  losa_zona_id?: TrazoPropiedadesLosaZonaId;
+  /** Subzona: espesor estructural propio de esta losa dentro de su zona (0137). */
+  losa_espesor_m?: TrazoPropiedadesLosaEspesorM;
+  /** Si el trazo es un punto de nivel exterior, su cota (piso terminado de PB = 0) (0137). */
+  nivel_exterior_m?: TrazoPropiedadesNivelExteriorM;
+  /** Rótulo de un punto de nivel exterior (0137). */
+  rotulo?: TrazoPropiedadesRotulo;
   /** Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo. */
   conexiones?: ConexionDeMuro[];
   /** La medición a la que pertenece el trazo (0088); `null` = suelto. */

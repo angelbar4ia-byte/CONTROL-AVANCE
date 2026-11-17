@@ -114,6 +114,7 @@ from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.adapters.repos.versiones_de_elemento_sql import (
     RepositorioVersionesDeElementoSQL,
 )
+from obractrl.adapters.repos.zonas_de_losa_sql import RepositorioZonasDeLosaSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorConceptosBase,
@@ -388,6 +389,7 @@ from obractrl.application.casos_uso.valuacion_de_partes import (
     ConsultarValuacion,
     RedisenarParte,
 )
+from obractrl.application.casos_uso.zonas_de_losa import GestionarZonasDeLosa
 from obractrl.application.eventos import (
     ActividadCerrada,
     BusEnProceso,
@@ -518,6 +520,7 @@ __all__ = [
     "GestionarPropuestasDeEstructuraDep",
     "GestionarPropuestasDeTabiqueDep",
     "GestionarVanosDep",
+    "GestionarZonasDeLosaDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "MarcarParteIndependienteDep",
@@ -1044,6 +1047,14 @@ def obtener_gestionar_plantillas_de_muro(sesion: SesionRLS) -> GestionarPlantill
     )
 
 
+def obtener_gestionar_zonas_de_losa(sesion: SesionRLS) -> GestionarZonasDeLosa:
+    return GestionarZonasDeLosa(
+        zonas=RepositorioZonasDeLosaSQL(sesion),
+        trazos=RepositorioTrazosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_gestionar_insumos_de_elemento(sesion: SesionRLS) -> GestionarInsumosDeElemento:
     return GestionarInsumosDeElemento(
         elementos=RepositorioElementosParametricosSQL(sesion),
@@ -1445,6 +1456,7 @@ GestionarConceptosDeElementoDep = Annotated[
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 ColocarElementosDeMuroDep = Annotated[ColocarElementosDeMuro, Depends(obtener_colocar_elementos_de_muro)]
 GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obtener_gestionar_plantillas_de_muro)]
+GestionarZonasDeLosaDep = Annotated[GestionarZonasDeLosa, Depends(obtener_gestionar_zonas_de_losa)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
 PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]
 ArbolDeObraDep = Annotated[ArbolDeObra, Depends(obtener_arbol_de_obra)]

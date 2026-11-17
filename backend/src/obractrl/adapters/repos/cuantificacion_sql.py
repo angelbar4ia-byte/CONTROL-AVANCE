@@ -1302,6 +1302,9 @@ class RepositorioTrazosSQL:
                            to_jsonb(t)->>'muro_plantilla_id' as muro_plantilla_id,
                            -- El muro al que pertenece un revestimiento y su cara (0125).
                            to_jsonb(t)->>'revestimiento_de' as revestimiento_de, to_jsonb(t)->>'revestimiento_cara' as revestimiento_cara,
+                           -- El rol de losa de un polígono y el punto de nivel exterior (0137).
+                           to_jsonb(t)->>'losa_zona_id' as losa_zona_id, to_jsonb(t)->>'losa_espesor_m' as losa_espesor_m,
+                           to_jsonb(t)->>'nivel_exterior_m' as nivel_exterior_m, to_jsonb(t)->>'rotulo' as rotulo,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.
