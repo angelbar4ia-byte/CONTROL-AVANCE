@@ -335,7 +335,12 @@ class GestionarPlantillasDeMuro:
             datos = await self._normalizar(entrada)
             nuevo = uuid.uuid4()
             async with self._uow:
-                await self._plantillas.crear(plantilla_id=nuevo, raiz_id=nuevo, version=1, datos=datos, autor_id=autor_id, rol=rol)
+                try:
+                    await self._plantillas.crear(plantilla_id=nuevo, raiz_id=nuevo, version=1, datos=datos, autor_id=autor_id, rol=rol)
+                except ErrorDePlantillaDeMuro:
+                    # Otra petición la creó a la vez (el nombre vigente es único): ya existe, así que se omite.
+                    omitidas.append(ej["nombre"])
+                    continue
                 await self._uow.commit()
             creadas.append(await self.obtener(nuevo))
         return {"creadas": creadas, "omitidas": omitidas, "faltan": faltan}
