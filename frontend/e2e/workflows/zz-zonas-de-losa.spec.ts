@@ -1,4 +1,4 @@
-import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Zonas de losa, Fase 1: Control de obra define dos zonas (3.00 y 4.20) y dibuja sus losas sobre el plano; un muro que las cruza se
@@ -71,11 +71,12 @@ test.describe('Cuantificador · zonas de losa', () => {
     // Un muro (línea con grosor) que cruza el límite entre las dos losas: se lee en dos tramos con su altura.
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
     await page.getByRole('button', { name: '0.15 m' }).click();
-    await clic(0.55, 0.35);
-    await clic(0.85, 0.35);
+    await clic(0.55, 0.27);
+    await clic(0.85, 0.27);
     await expect.poll(async () => (await trazos()).filter((t) => t.geometry.type === 'LineString').length).toBe(1);
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    await pulsarMarca(page, page.locator('.visor__trazo').last());
+    // El muro queda dentro de las losas (un clic ahí elegiría la losa): se elige desde la lista de trazos.
+    await page.getByRole('list', { name: 'Todos los trazos del plano' }).getByRole('listitem').filter({ hasText: /Muro/ }).click();
     const detalle = page.getByTestId('zona-del-muro');
     await expect(detalle).toBeVisible();
     await expect(detalle.getByTestId('tramo-de-zona')).toHaveCount(2);
@@ -113,6 +114,41 @@ test.describe('Cuantificador · zonas de losa', () => {
     await page.keyboard.press('Escape');
     await expect(panel.getByTestId('punto-de-nivel')).toContainText('Banqueta');
     await expect(panel.getByTestId('punto-de-nivel')).toContainText('−0.30 m');
+  });
+
+  test('un muro bajo una sola losa muestra su altura y caras, y «Aplicar al muro» la fija sin tocar lo demás', async ({ page, request }) => {
+    const sufijo = Date.now().toString(36).toUpperCase();
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      clave: `ZA-${sufijo}`,
+    });
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, { nombre: 'P', archivo_url: 'planos/za.dwg' });
+    const zona = await llamarApi<{ id: string }>(request, 'control', 'POST', `/planos/${plano.id}/zonas-de-losa`, { nombre: 'Sala 3.00', altura_libre_m: '3', espesor_m: '0.12' });
+    const nuevo = (wkt: string, grosor = false) =>
+      llamarApi<{ trazo_id: string }>(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
+        version_plano: 1, fuente: 'pdf', geometria_wkt: wkt, enlaces: [], ...(grosor ? { grosor_m: '0.15', alineacion: 'centro' } : {}),
+      });
+    const losa = await nuevo('POLYGON((0 -4, 6 -4, 6 0, 0 0, 0 -4))');
+    await llamarApi(request, 'control', 'PUT', `/trazos/${losa.trazo_id}/losa`, { zona_id: zona.id });
+    // En el borde (y = 0): la losa queda a la izquierda del sentido de dibujo (cara A), por fuera no hay losa (cara B).
+    const muro = await nuevo('LINESTRING(1 0, 5 0)', true);
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    await page.getByRole('tab', { name: /Trazos/ }).click();
+    await page.getByRole('list', { name: 'Todos los trazos del plano' }).getByRole('listitem').filter({ hasText: /Muro/ }).click();
+    const detalle = page.getByTestId('zona-del-muro');
+    await expect(detalle.getByTestId('tramo-de-zona')).toHaveCount(1);
+    await expect(detalle.getByTestId('tramo-de-zona')).toContainText('3.00 m');
+    await expect(detalle.getByTestId('tramo-de-zona')).toContainText('interior');
+    await expect(detalle.getByTestId('tramo-de-zona')).toContainText('exterior');
+    await detalle.getByRole('button', { name: 'Aplicar al muro' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Altura de la zona aplicada' })).toBeVisible();
+    const m = await llamarApi<{ altura_m: string | null }>(request, 'control', 'GET', `/trazos/${muro.trazo_id}/muro`);
+    expect(Number(m.altura_m)).toBe(3);
   });
 
   test('Costos ve las zonas pero no las edita', async ({ page, request }) => {
