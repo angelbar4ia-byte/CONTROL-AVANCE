@@ -1360,6 +1360,12 @@ class VanoPeticion(BaseModel):
     piezas: int = Field(default=1, ge=1, le=999)
     posicion_m: Decimal | None = Field(default=None, ge=0, description="Distancia desde el inicio de la línea (o del borde de un área).")
     lado_muro: Literal[-1, 0, 1] = Field(default=0, description="De qué cara del muro cae el clic; solo afecta el dibujo.")
+    elemento_ref: str | None = Field(
+        default=None,
+        max_length=40,
+        description="Solo castillos, en un muro con plantilla de «muros y cadena»: la clave del castillo del catálogo (K-1…) que se siembra. Sin ella, "
+        "el primer castillo ubicado de la plantilla.",
+    )
 
 
 class VanoRespuesta(BaseModel):
@@ -1425,6 +1431,7 @@ async def colocar_vano(
             autor_id=ctx.usuario_id,
             rol=Rol(ctx.rol),
             lado_muro=peticion.lado_muro,
+            elemento_ref=peticion.elemento_ref,
         ),
         detectada_en=datetime.now(UTC),
     )
@@ -1899,6 +1906,9 @@ class VanoEnPlanoRespuesta(BaseModel):
     lado_hoja: Literal[-1, 1] = 1
     apertura_grados: int = 90
     lado_muro: Literal[-1, 0, 1] = 0
+    elemento_uid: str | None = Field(
+        default=None, description="Un castillo sembrado con su elemento: el uso en la plantilla del muro o la clave del K elegido a mano."
+    )
     grosor_plano: float = Field(default=0, description="Grosor del muro en unidades de plano (0 si no tiene).")
     x: float = Field(description="Dónde va, en coordenadas del plano.")
     y: float

@@ -16408,6 +16408,117 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/muro/plantilla/cambio": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Qué cambia si el muro pasa a otra plantilla (no cambia nada)",
+        "description": "De la plantilla 1 (muro confinado: propone los castillos) a la 2 («muros y cadena»: se siembran uno por uno) y viceversa. Dice qué se\ndeja de estimar, qué empieza a estimarse, cuántos castillos hay sembrados y qué se conserva. La medición del muro y sus vanos no se pierden.",
+        "operationId": "ver_cambio_de_plantilla_api_v1_trazos__trazo_id__muro_plantilla_cambio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          },
+          {
+            "name": "hacia",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hacia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CambioDePlantillaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo o la plantilla no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es una línea."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Cambiar el muro a otra plantilla sin perder lo medido",
+        "description": "Toma el tipo, material, ubicación y acabado de la plantilla nueva y guarda su versión (Q9). La medición y los vanos se conservan; los\ncastillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman.",
+        "operationId": "cambiar_de_plantilla_api_v1_trazos__trazo_id__muro_plantilla_cambio_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarPlantillaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CambioAplicadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El muro alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El muro no es una línea, no tiene plantilla o su plantilla no lleva castillos ubicados."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/zonas-de-losa": {
       "get": {
         "tags": [
@@ -26593,6 +26704,26 @@
         ],
         "title": "CambiarEstatusPeticion"
       },
+      "CambiarPlantillaPeticion": {
+        "properties": {
+          "plantilla_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plantilla Id"
+          },
+          "retirar_castillos": {
+            "type": "boolean",
+            "title": "Retirar Castillos",
+            "description": "Quita los castillos ya sembrados en el plano (por ejemplo, al volver a un muro confinado que ya los estima). Por defecto se conservan.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "plantilla_id"
+        ],
+        "title": "CambiarPlantillaPeticion"
+      },
       "CambiarPrototipoPeticion": {
         "properties": {
           "prototipo_id": {
@@ -26613,6 +26744,48 @@
           "clave"
         ],
         "title": "CambiarPrototipoPeticion"
+      },
+      "CambioAplicadoRespuesta": {
+        "properties": {
+          "antes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlantillaDelCambio"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "despues": {
+            "$ref": "#/components/schemas/PlantillaDelCambio"
+          },
+          "retirados": {
+            "type": "integer",
+            "title": "Retirados"
+          },
+          "conservados": {
+            "type": "integer",
+            "title": "Conservados",
+            "description": "Castillos sembrados que se conservan."
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "antes",
+          "despues",
+          "retirados",
+          "conservados",
+          "avisos"
+        ],
+        "title": "CambioAplicadoRespuesta"
       },
       "CambioDeLaPropuesta": {
         "properties": {
@@ -26641,6 +26814,80 @@
           "despues"
         ],
         "title": "CambioDeLaPropuesta"
+      },
+      "CambioDePlantillaRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "de": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlantillaDelCambio"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La plantilla que tiene el muro; `null` si no tenía ninguna."
+          },
+          "hacia": {
+            "$ref": "#/components/schemas/PlantillaDelCambio"
+          },
+          "cambia": {
+            "items": {
+              "$ref": "#/components/schemas/CampoQueCambia"
+            },
+            "type": "array",
+            "title": "Cambia"
+          },
+          "efectos": {
+            "items": {
+              "$ref": "#/components/schemas/EfectoDelCambio"
+            },
+            "type": "array",
+            "title": "Efectos"
+          },
+          "castillos_sembrados": {
+            "type": "integer",
+            "title": "Castillos Sembrados",
+            "description": "Castillos ya colocados en el plano con su elemento (de la plantilla o a mano con un K elegido)."
+          },
+          "castillos_por_colocar": {
+            "type": "integer",
+            "title": "Castillos Por Colocar",
+            "description": "Castillos ubicados que lleva la plantilla nueva (se colocan aparte)."
+          },
+          "conserva": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conserva"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "de",
+          "hacia",
+          "cambia",
+          "efectos",
+          "castillos_sembrados",
+          "castillos_por_colocar",
+          "conserva",
+          "avisos"
+        ],
+        "title": "CambioDePlantillaRespuesta"
       },
       "CambioDeUnidadPeticion": {
         "properties": {
@@ -26830,6 +27077,41 @@
         ],
         "title": "CaminoDeColadoYCimbra",
         "description": "Cómo se registraría después el concepto nuevo de colado y cimbra y el destajo por ml. No registra nada."
+      },
+      "CampoQueCambia": {
+        "properties": {
+          "campo": {
+            "type": "string",
+            "enum": [
+              "tipo",
+              "material",
+              "ubicacion"
+            ],
+            "title": "Campo"
+          },
+          "de": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "De"
+          },
+          "a": {
+            "type": "string",
+            "title": "A"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campo",
+          "de",
+          "a"
+        ],
+        "title": "CampoQueCambia"
       },
       "CampoRespuesta": {
         "properties": {
@@ -28292,6 +28574,16 @@
             "type": "integer",
             "title": "Version"
           },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "confinado",
+              "con_cadena",
+              "tabique"
+            ],
+            "title": "Tipo",
+            "description": "El tipo de la plantilla: confinado estima los castillos; con_cadena («muros y cadena») los siembra a mano."
+          },
           "largo_m": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -28347,6 +28639,7 @@
           "plantilla_id",
           "plantilla",
           "version",
+          "tipo",
           "largo_m",
           "altura_m",
           "nivel",
@@ -35298,6 +35591,75 @@
         "type": "object",
         "title": "EditarPrototipoPeticion",
         "description": "Solo viaja lo que cambia: lo que no viene no se toca; `null` lo deja sin decir."
+      },
+      "EfectoDelCambio": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "clase": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "cadena"
+            ],
+            "title": "Clase"
+          },
+          "efecto": {
+            "type": "string",
+            "enum": [
+              "deja",
+              "nuevo",
+              "sigue"
+            ],
+            "title": "Efecto",
+            "description": "`deja`: la plantilla de ahora lo cuenta y la nueva no; `nuevo`: lo contará la nueva; `sigue`: lo cuentan las dos."
+          },
+          "regla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "separacion",
+                  "extremos",
+                  "por_ml",
+                  "total"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regla"
+          },
+          "piezas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Piezas",
+            "description": "Castillos: las piezas que cuenta en este muro (con fracción en «por ml» y «total»)."
+          },
+          "metros": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Metros"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uid",
+          "ref",
+          "clase",
+          "efecto",
+          "regla",
+          "piezas",
+          "metros"
+        ],
+        "title": "EfectoDelCambio"
       },
       "EfectoRespuesta": {
         "properties": {
@@ -48506,6 +48868,40 @@
         ],
         "title": "PlantillaDePrototipo"
       },
+      "PlantillaDelCambio": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "confinado",
+              "con_cadena",
+              "tabique"
+            ],
+            "title": "Tipo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "version",
+          "tipo"
+        ],
+        "title": "PlantillaDelCambio"
+      },
       "PonerMatrizPeticion": {
         "properties": {
           "cantidad": {
@@ -56607,6 +57003,18 @@
             "title": "Lado Muro",
             "default": 0
           },
+          "elemento_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Uid",
+            "description": "Un castillo sembrado con su elemento: el uso en la plantilla del muro o la clave del K elegido a mano."
+          },
           "grosor_plano": {
             "type": "number",
             "title": "Grosor Plano",
@@ -56748,6 +57156,19 @@
             "title": "Lado Muro",
             "description": "De qué cara del muro cae el clic; solo afecta el dibujo.",
             "default": 0
+          },
+          "elemento_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Ref",
+            "description": "Solo castillos, en un muro con plantilla de «muros y cadena»: la clave del castillo del catálogo (K-1…) que se siembra. Sin ella, el primer castillo ubicado de la plantilla."
           }
         },
         "type": "object",

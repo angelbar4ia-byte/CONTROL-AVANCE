@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
+import { altoPropio, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
 
 /**
  * Los conceptos que paga un elemento por contexto (plan de elementos de muro, fase C):
@@ -40,7 +40,7 @@ test.describe('Cuantificador · conceptos del elemento por contexto', () => {
     const acero = await concepto('AC');
 
     const clave = `KC-${sufijo}`.slice(0, 20);
-    const alto = 3.5 + (Date.now() % 1_000_000) / 1e7;
+    const alto = altoPropio(3.5);
     const elemento = await llamarApi<{ id: string }>(request, 'control', 'POST', '/elementos-parametricos', {
       clave, nombre: 'Castillo por contexto', tipo: 'castillo', parametros: { alto },
     });
@@ -83,7 +83,7 @@ test.describe('Cuantificador · conceptos del elemento por contexto', () => {
     await expect(tarjeta.locator(`[data-concepto-por-contexto="C11-${sufijo}"]`)).toHaveAttribute('data-elegido', 'false');
 
     // Un castillo más alto que su último escalón avisa del alto sin escalón.
-    const alto2 = 9 + (Date.now() % 1_000_000) / 1e7;
+    const alto2 = altoPropio(9);
     const clave2 = `KD-${sufijo}`.slice(0, 20);
     const alto_elemento = await llamarApi<{ id: string }>(request, 'control', 'POST', '/elementos-parametricos', {
       clave: clave2, nombre: 'Castillo alto', tipo: 'castillo', parametros: { alto: alto2 },

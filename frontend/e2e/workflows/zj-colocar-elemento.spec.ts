@@ -1,4 +1,4 @@
-import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { altoPropio, cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * «Colocar este elemento» (D-604): se elige el elemento en la pestaña Trazos, se traza con la herramienta que le toca
@@ -30,7 +30,7 @@ test.describe('Cuantificador · colocar un elemento', () => {
       nombre: 'Castillo de prueba',
       tipo: 'castillo',
       // Un elemento idéntico a otro no se guarda (M-29): el alto, único por corrida, lo distingue de los de otros specs.
-      parametros: { alto: 2 + (Date.now() % 1_000_000) / 1e6 },
+      parametros: { alto: altoPropio(2) },
     });
 
     await entrarComo(page, 'control');

@@ -412,8 +412,9 @@ class RepositorioElementosParametricosSQL:
         return dict(fila) if fila else None
 
     async def instancias_de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
-        """Los castillos colocados desde la plantilla de un muro de la obra (0135), cada uno con el elemento de la plantilla de que es
-        instancia, lo alto que sube y el nivel y la ubicación donde se mide. Es lo que alimenta los conceptos del contexto."""
+        """Los castillos colocados desde la plantilla de un muro de la obra (0135), cada uno con el elemento de que es instancia (un uso de
+        la plantilla o, si el castillo se sembró a mano con otro K, ese K del catálogo por su clave), lo alto que sube y el nivel y la
+        ubicación donde se mide. Es lo que alimenta los conceptos del contexto."""
         if not await _hay_columna(self._sesion, "vano", "elemento_uid"):
             return []
         filas = (
@@ -426,8 +427,10 @@ class RepositorioElementosParametricosSQL:
                       join trazo t on t.id = v.trazo_id and t.hueco_de is null and not t.propuesta
                       join plano p on p.id = t.plano_id
                       join muro_plantilla mp on mp.id = t.muro_plantilla_id
-                      join lateral jsonb_array_elements(mp.elementos) el on el->>'uid' = v.elemento_uid
-                      join elemento_parametrico ep on ep.clave = el->>'ref' and ep.vigente
+                      left join lateral (
+                        select el from jsonb_array_elements(mp.elementos) el where el->>'uid' = v.elemento_uid limit 1
+                      ) inst on true
+                      join elemento_parametrico ep on ep.clave = coalesce(inst.el->>'ref', v.elemento_uid) and ep.vigente
                       left join lateral (
                         select coalesce(a.nivel_id, pn.nivel_id) as nivel_id, coalesce(a.etapa_id, pn.etapa_id) as etapa_id
                           from enlace_cuantificacion e

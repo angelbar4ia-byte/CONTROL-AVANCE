@@ -15,6 +15,7 @@ import {
   useQuitarVanoApiV1VanosVanoIdDelete,
   useVerMuroApiV1TrazosTrazoIdMuroGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
+import { useListarElementosParametricosApiV1ElementosParametricosGet } from '@/api/generado/elementos-parametricos/elementos-parametricos';
 import { queryClient } from '@/app/queryClient';
 
 import { CARAS_POR_DEFECTO } from './trazoPeticion';
@@ -42,6 +43,10 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
   const [alto, setAlto] = useState(String(TIPOS_DE_VANO.puerta.alto));
   const [antepecho, setAntepecho] = useState('0');
   const [piezas, setPiezas] = useState('1');
+  // Un castillo a mano elige su K del catálogo; sin elegir, el de la plantilla del muro.
+  const [castilloK, setCastilloK] = useState('');
+  const catalogo = useListarElementosParametricosApiV1ElementosParametricosGet();
+  const castillos = (catalogo.data ?? []).filter((e) => e.categoria === 'castillos');
 
   const lista = vanos.data ?? [];
   const recargar = () => {
@@ -72,6 +77,7 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
           alto_m: n(alto),
           antepecho_m: n(antepecho),
           piezas: n(piezas),
+          elemento_ref: tipo === 'castillo' && castilloK ? castilloK : null,
         },
       });
       recargar();
@@ -176,6 +182,16 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
           <input aria-label="Alto del vano (m)" inputMode="decimal" style={{ width: 48 }} value={alto} onChange={(e) => setAlto(e.target.value)} />
           {tipo === 'ventana' && (
             <input aria-label="Del piso a la ventana (m)" inputMode="decimal" style={{ width: 48 }} value={antepecho} onChange={(e) => setAntepecho(e.target.value)} />
+          )}
+          {tipo === 'castillo' && (
+            <select aria-label="Castillo que se coloca (tipo K)" value={castilloK} onChange={(e) => setCastilloK(e.target.value)}>
+              <option value="">El de la plantilla</option>
+              {castillos.map((e) => (
+                <option key={e.clave} value={e.clave}>
+                  {e.clave}
+                </option>
+              ))}
+            </select>
           )}
           <input aria-label="Piezas idénticas" inputMode="numeric" style={{ width: 36 }} value={piezas} onChange={(e) => setPiezas(e.target.value)} />
           <button type="button" className="btn btn--sm" disabled={!valido || colocar.isPending} onClick={() => void ponerVano()}>
