@@ -944,6 +944,7 @@ def obtener_gestionar_vanos(sesion: SesionRLS, ctx: ContextoActual) -> Gestionar
         eventos=_bus_de_partes(sesion, ctx),
         matrices=RepositorioMatricesSQL(sesion),
         tomas=_sincronizador_de_tomas(sesion),
+        elementos=RepositorioElementosParametricosSQL(sesion),
     )
 
 
@@ -960,6 +961,7 @@ def obtener_colocar_elementos_de_muro(sesion: SesionRLS, ctx: ContextoActual) ->
         tomas=_sincronizador_de_tomas(sesion),
         elementos=RepositorioElementosParametricosSQL(sesion),
         parametrico=RepositorioParametricoSQL(sesion),
+        plantillas=RepositorioPlantillasDeMuroSQL(sesion),
     )
 
 
