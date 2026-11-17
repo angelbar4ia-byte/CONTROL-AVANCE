@@ -111,6 +111,7 @@ test.describe('Cuantificador · muros y cadena', () => {
     await selector.selectOption(p2.id);
     await cambio.getByRole('button', { name: 'Cambiar de plantilla' }).click();
     await expect.poll(async () => (await clasificacion()).plantilla_id).toBe(p2.id);
+    await expect(selector).toHaveValue(p2.id); // la pantalla ya leyó el cambio
     expect((await clasificacion()).tipo).toBe('con_cadena');
     expect(await medida()).toBeCloseTo(m0, 3); // lo medido no se pierde
     await expect(page.getByTestId('aviso-de-castillos-a-mano')).toBeVisible();
@@ -137,6 +138,7 @@ test.describe('Cuantificador · muros y cadena', () => {
     await expect(cambio.locator('[data-elemento="K-1"]')).toHaveAttribute('data-efecto', 'nuevo');
     await cambio.getByRole('button', { name: 'Cambiar de plantilla' }).click();
     await expect.poll(async () => (await clasificacion()).plantilla_id).toBe(p1.id);
+    await expect(selector).toHaveValue(p1.id);
     expect(await vanos()).toHaveLength(2);
     expect(await medida()).toBeCloseTo(conCastillos, 3);
 
@@ -144,6 +146,7 @@ test.describe('Cuantificador · muros y cadena', () => {
     await selector.selectOption(p2.id);
     await cambio.getByRole('button', { name: 'Cambiar de plantilla' }).click();
     await expect.poll(async () => (await clasificacion()).plantilla_id).toBe(p2.id);
+    await expect(selector).toHaveValue(p2.id);
     await selector.selectOption(p1.id);
     await cambio.getByLabel('Retirar los castillos sembrados al cambiar').check();
     await cambio.getByRole('button', { name: 'Cambiar de plantilla' }).click();
