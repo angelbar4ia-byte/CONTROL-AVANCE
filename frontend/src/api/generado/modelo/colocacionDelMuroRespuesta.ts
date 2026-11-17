@@ -5,6 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { ColocacionDelMuroRespuestaTipo } from "./colocacionDelMuroRespuestaTipo";
 import type { ColocacionDelMuroRespuestaNivel } from "./colocacionDelMuroRespuestaNivel";
 import type { ColocacionDelMuroRespuestaUbicacion } from "./colocacionDelMuroRespuestaUbicacion";
 import type { ElementoColocadoRespuesta } from "./elementoColocadoRespuesta";
@@ -14,6 +15,8 @@ export interface ColocacionDelMuroRespuesta {
   plantilla_id: string;
   plantilla: string;
   version: number;
+  /** El tipo de la plantilla: confinado estima los castillos; con_cadena («muros y cadena») los siembra a mano. */
+  tipo: ColocacionDelMuroRespuestaTipo;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   largo_m: string;
   /**

@@ -28,6 +28,9 @@ import type {
 import type {
   AplicarUbicacionPeticion,
   AplicarUbicacionRespuesta,
+  CambiarPlantillaPeticion,
+  CambioAplicadoRespuesta,
+  CambioDePlantillaRespuesta,
   CatalogoDelArtefacto,
   ColocacionDelMuroRespuesta,
   EjemplosCargados,
@@ -42,6 +45,7 @@ import type {
   PrototipoDeMuro,
   RevisionDePlantilla,
   ValidarPeticion,
+  VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -4083,3 +4087,670 @@ export const useRetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDel
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * De la plantilla 1 (muro confinado: propone los castillos) a la 2 («muros y cadena»: se siembran uno por uno) y viceversa. Dice qué se
+deja de estimar, qué empieza a estimarse, cuántos castillos hay sembrados y qué se conserva. La medición del muro y sus vanos no se pierden.
+ * @summary Qué cambia si el muro pasa a otra plantilla (no cambia nada)
+ */
+export const verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet = (
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CambioDePlantillaRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/muro/plantilla/cambio`,
+      method: "GET",
+      params,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfiniteQueryKey =
+  (
+    trazoId?: string,
+    params?: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/trazos/${trazoId}/muro/plantilla/cambio`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetQueryKey =
+  (
+    trazoId?: string,
+    params?: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  ) => {
+    return [
+      `/api/v1/trazos/${trazoId}/muro/plantilla/cambio`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+        >
+      >
+    >,
+    TError = void,
+  >(
+    trazoId: string,
+    params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfiniteQueryKey(
+        trazoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+        >
+      >
+    > = ({ signal }) =>
+      verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet(
+        trazoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >
+  >;
+export type VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfiniteQueryError =
+  void;
+
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Qué cambia si el muro pasa a otra plantilla (no cambia nada)
+ */
+
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetInfiniteQueryOptions(
+      trazoId,
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >,
+    TError = void,
+  >(
+    trazoId: string,
+    params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetQueryKey(
+        trazoId,
+        params,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+        >
+      >
+    > = ({ signal }) =>
+      verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet(
+        trazoId,
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+      >
+    >
+  >;
+export type VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetQueryError =
+  void;
+
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Qué cambia si el muro pasa a otra plantilla (no cambia nada)
+ */
+
+export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet<
+  TData = Awaited<
+    ReturnType<
+      typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  params: VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof verCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetQueryOptions(
+      trazoId,
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Toma el tipo, material, ubicación y acabado de la plantilla nueva y guarda su versión (Q9). La medición y los vanos se conservan; los
+castillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman.
+ * @summary Cambiar el muro a otra plantilla sin perder lo medido
+ */
+export const cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost = (
+  trazoId: string,
+  cambiarPlantillaPeticion: CambiarPlantillaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CambioAplicadoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/muro/plantilla/cambio`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: cambiarPlantillaPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost
+        >
+      >,
+      TError,
+      { trazoId: string; data: CambiarPlantillaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost
+      >
+    >,
+    TError,
+    { trazoId: string; data: CambiarPlantillaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost
+        >
+      >,
+      { trazoId: string; data: CambiarPlantillaPeticion }
+    > = (props) => {
+      const { trazoId, data } = props ?? {};
+
+      return cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost(
+        trazoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost
+      >
+    >
+  >;
+export type CambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPostMutationBody =
+  CambiarPlantillaPeticion;
+export type CambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPostMutationError =
+  void;
+
+/**
+ * @summary Cambiar el muro a otra plantilla sin perder lo medido
+ */
+export const useCambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost
+        >
+      >,
+      TError,
+      { trazoId: string; data: CambiarPlantillaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost
+    >
+  >,
+  TError,
+  { trazoId: string; data: CambiarPlantillaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
