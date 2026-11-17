@@ -90,14 +90,20 @@ class ColocarElementosDeMuro(GestionarVanos):
         plantilla, contexto, colocacion, catalogo = await self._plan(trazo_id)
         puestos = [v for v in await self._trazos.vanos_de_trazo(trazo_id) if v.get("elemento_uid")]
         obra_id = UUID(str(contexto["obra_id"])) if contexto.get("obra_id") else None
+        # Los castillos (estimados y ubicados) y las cadenas alimentan conceptos: la cadena cuenta el largo del muro en ml (no se coloca).
         grupos = [
             {
-                "elemento_id": catalogo[i.ref]["id"], "ref": i.ref, "alto_m": i.alto_m, "piezas": i.piezas, "uid": i.uid,
+                "elemento_id": catalogo[i.ref]["id"], "ref": i.ref, "uid": i.uid,
                 "nivel_orden": contexto.get("nivel_orden"), "nivel_id": contexto.get("nivel_id"), "etapa_id": contexto.get("etapa_id"),
                 "ubicacion": contexto.get("ubicacion"),
+                **(
+                    {"alto_m": i.alto_m, "piezas": i.piezas_exactas}
+                    if i.clase == "castillo"
+                    else {"alto_m": None, "piezas": 1, "metros": i.metros}
+                ),
             }
             for i in colocacion.instancias
-            if i.clase == "castillo" and i.ref in catalogo and i.alto_m is not None
+            if i.ref in catalogo and (i.clase == "cadena" or (i.clase == "castillo" and i.alto_m is not None))
         ]
         conceptos: dict[str, tuple[list[ConceptoColocado], list[str]]] = {}
         if obra_id is not None and grupos:
@@ -106,6 +112,7 @@ class ColocarElementosDeMuro(GestionarVanos):
             ):
                 conceptos[g["uid"]] = (cs, avisos)
         avisos_generales = list(colocacion.avisos)
+        origenes = {str(e.get("uid")): e.get("origen") for e in plantilla["elementos"] or []}
         elementos = []
         for i in colocacion.instancias:
             cs, avisos = conceptos.get(i.uid, ([], []))
@@ -113,6 +120,7 @@ class ColocarElementosDeMuro(GestionarVanos):
             elementos.append(
                 {
                     "uid": i.uid, "ref": i.ref, "nombre": catalogo.get(i.ref, {}).get("nombre", i.ref), "clase": i.clase, "modo": i.modo,
+                    "regla": i.regla, "piezas_estimadas": i.piezas_exactas, "origen": origenes.get(i.uid),
                     "piezas": i.piezas, "alto_m": i.alto_m, "z_m": i.z_m, "metros": i.metros,
                     "posiciones_m": list(i.posiciones_m), "se_coloca": i.se_coloca,
                     "colocados": sum(int(v["piezas"]) for v in puestos if v["elemento_uid"] == i.uid),

@@ -11,6 +11,9 @@ import type { PlantillaDeMuroGuardadaAlturaM } from "./plantillaDeMuroGuardadaAl
 import type { ParteDeAlturaDePlantillaOutput } from "./parteDeAlturaDePlantillaOutput";
 import type { ElementoDePlantillaOutput } from "./elementoDePlantillaOutput";
 import type { PlantillaDeMuroGuardadaAcabado } from "./plantillaDeMuroGuardadaAcabado";
+import type { PlantillaDeMuroGuardadaPrototipo } from "./plantillaDeMuroGuardadaPrototipo";
+import type { PlantillaDeMuroGuardadaPlanta } from "./plantillaDeMuroGuardadaPlanta";
+import type { PlantillaDeMuroGuardadaNotas } from "./plantillaDeMuroGuardadaNotas";
 import type { PlantillaDeMuroGuardadaValidacion } from "./plantillaDeMuroGuardadaValidacion";
 import type { PlantillaDeMuroGuardadaPropusoNombre } from "./plantillaDeMuroGuardadaPropusoNombre";
 import type { PlantillaDeMuroGuardadaPropusoRol } from "./plantillaDeMuroGuardadaPropusoRol";
@@ -32,6 +35,10 @@ export interface PlantillaDeMuroGuardada {
   partes: ParteDeAlturaDePlantillaOutput[];
   elementos: ElementoDePlantillaOutput[];
   acabado: PlantillaDeMuroGuardadaAcabado;
+  prototipo?: PlantillaDeMuroGuardadaPrototipo;
+  planta?: PlantillaDeMuroGuardadaPlanta;
+  notas?: PlantillaDeMuroGuardadaNotas;
+  por_confirmar?: boolean;
   validacion: PlantillaDeMuroGuardadaValidacion;
   propuso_nombre: PlantillaDeMuroGuardadaPropusoNombre;
   propuso_rol: PlantillaDeMuroGuardadaPropusoRol;

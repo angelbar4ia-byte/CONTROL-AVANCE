@@ -42,6 +42,12 @@ from obractrl.domain.cuantificacion.muro_tabique import (
 )
 from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado
 from obractrl.domain.cuantificacion.muro_ubicacion import MATERIALES_DE_MURO
+from obractrl.domain.cuantificacion.prototipos_de_muro import (
+    CLAVES_DE_ELEMENTO,
+    PROTOTIPOS,
+    ejemplos_de_prototipo,
+    plantas_de,
+)
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = ["GestionarPlantillasDeMuro", "PlantillaEnUso", "PlantillaNoEncontrada"]
@@ -64,12 +70,16 @@ def _es_de_muro_de_tabique(clave: str) -> bool:
 
 
 class GestionarPlantillasDeMuro:
-    def __init__(self, *, plantillas: Any, elementos: Any, conceptos: Any, trazos: Any, uow: UnidadDeTrabajo) -> None:
+    def __init__(
+        self, *, plantillas: Any, elementos: Any, conceptos: Any, trazos: Any, uow: UnidadDeTrabajo, tomas: Any | None = None
+    ) -> None:
         self._plantillas = plantillas
         self._elementos = elementos
         self._conceptos = conceptos
         self._trazos = trazos
         self._uow = uow
+        # Lo que un concepto toma de lo que trae la plantilla (castillos estimados y cadenas): al elegirla o cambiarla se rehace (SincronizarTomas).
+        self._tomas = tomas
 
     # --- Lectura -------------------------------------------------------------------------------------------------
 
@@ -145,6 +155,10 @@ class GestionarPlantillasDeMuro:
             return {**(await self.obtener(nuevo)), "version_nueva": True}
         async with self._uow:
             await self._plantillas.reemplazar(plantilla_id, datos, autor_id=autor_id, rol=rol)
+            if self._tomas is not None:
+                # Los trazos que ya usan esta versión (aún por validar) cambian lo que sus conceptos toman.
+                for obra_id in await self._plantillas.obras_de_la_plantilla(plantilla_id):
+                    await self._tomas.de_la_obra(obra_id)
             await self._uow.commit()
         return {**(await self.obtener(plantilla_id)), "version_nueva": False}
 
@@ -266,6 +280,76 @@ class GestionarPlantillasDeMuro:
             uid=uid, ref=ref, nombre=str(d["nombre"]), clase="muro", partes={"muro": insumos}, conceptos=conceptos, implicito=implicito
         )
 
+    # --- Prototipos y ejemplos ---------------------------------------------------------------------------------------
+
+    async def prototipos(self) -> list[dict[str, Any]]:
+        """Los prototipos con sus plantas y la plantilla de confinado vigente de cada una (o `None`: estructura aún sin capturar)."""
+        vigentes = {(p.get("prototipo"), p.get("planta")): p for p in await self._plantillas.listar() if p.get("prototipo")}
+        salida: list[dict[str, Any]] = []
+        for pr in PROTOTIPOS:
+            plantas: list[str | None] = [None] if pr["global"] else list(plantas_de(pr["clave"]))
+            salida.append(
+                {
+                    "clave": pr["clave"], "nombre": pr["nombre"], "plantas": pr["plantas"], "es_global": bool(pr["global"]),
+                    "muro_m2": pr["muro_m2"],
+                    "plantillas": [
+                        {
+                            "planta": planta,
+                            "plantilla_id": (vigentes[(pr["clave"], planta)]["id"] if (pr["clave"], planta) in vigentes else None),
+                            "nombre": (vigentes[(pr["clave"], planta)]["nombre"] if (pr["clave"], planta) in vigentes else None),
+                            "por_confirmar": bool(vigentes[(pr["clave"], planta)]["por_confirmar"]) if (pr["clave"], planta) in vigentes else None,
+                        }
+                        for planta in plantas
+                    ],
+                }
+            )
+        return salida
+
+    async def cargar_ejemplos(self, *, autor_id: UUID, rol: str) -> dict[str, Any]:
+        """Crea las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas) «por confirmar», con las notas de dónde sale cada dato.
+        Idempotente: el prototipo y la planta que ya tienen plantilla vigente se omiten. Los castillos y cadenas se buscan en el catálogo
+        de la organización; si falta alguno no se inventa: ese ejemplo no se crea y se dice qué elementos faltan."""
+        validar_que_edita(rol)
+        catalogo = {str(e["clave"]).upper(): e for e in await self._elementos.listar()}
+        ya = {(p.get("prototipo"), p.get("planta")) for p in await self._plantillas.listar() if p.get("prototipo")}
+        creadas: list[dict[str, Any]] = []
+        omitidas: list[str] = []
+        faltan: list[dict[str, Any]] = []
+        for ej in ejemplos_de_prototipo():
+            if (ej["prototipo"], ej["planta"]) in ya:
+                omitidas.append(ej["nombre"])
+                continue
+            elementos: list[dict[str, Any]] = []
+            sin: list[str] = []
+            for linea in ej["lineas"]:
+                el = next((catalogo[c.upper()] for c in CLAVES_DE_ELEMENTO.get(linea["tipo"], (linea["tipo"],)) if c.upper() in catalogo), None)
+                if el is None or clase_de_elemento(str(el["categoria"]), str(el["subcategoria"])) != linea["clase"]:
+                    sin.append(linea["tipo"])
+                    continue
+                item = {k: v for k, v in linea.items() if k not in ("tipo", "clase")}
+                elementos.append({**item, "ref": str(el["clave"]), "uid": str(el["clave"]), "modo": "estimado" if linea["clase"] == "castillo" else None})
+            if sin:
+                faltan.append({"plantilla": ej["nombre"], "elementos": sin})
+                continue
+            entrada = {k: v for k, v in ej.items() if k != "lineas"} | {"elementos": elementos}
+            datos = await self._normalizar(entrada)
+            nuevo = uuid.uuid4()
+            async with self._uow:
+                try:
+                    await self._plantillas.crear(plantilla_id=nuevo, raiz_id=nuevo, version=1, datos=datos, autor_id=autor_id, rol=rol)
+                except ErrorDePlantillaDeMuro:
+                    # Otra petición la creó a la vez (el nombre vigente es único): ya existe, así que se omite.
+                    omitidas.append(ej["nombre"])
+                    continue
+                await self._uow.commit()
+            creadas.append(await self.obtener(nuevo))
+        return {"creadas": creadas, "omitidas": omitidas, "faltan": faltan}
+
+    async def _rehacer_tomas(self, trazo_id: UUID) -> None:
+        """Elegir o desligar la plantilla cambia lo que sus conceptos toman (castillos estimados y cadenas): se rehace dentro de la transacción."""
+        if self._tomas is not None:
+            await self._tomas.de_la_obra_del_trazo(trazo_id)
+
     # --- Elegir la plantilla en un trazo ---------------------------------------------------------------------------
 
     async def elegir_en_trazo(self, trazo_id: UUID, plantilla_id: UUID | None) -> dict[str, Any]:
@@ -282,6 +366,7 @@ class GestionarPlantillasDeMuro:
                     trazo_id=trazo_id, tipo=actual["tipo"], acabado=actual["acabado"], material=actual["material"],
                     ubicacion=actual["ubicacion"], plantilla_id=None,
                 )
+                await self._rehacer_tomas(trazo_id)
                 await self._uow.commit()
         else:
             p = await self._existente(plantilla_id)
@@ -290,6 +375,7 @@ class GestionarPlantillasDeMuro:
                     trazo_id=trazo_id, tipo=p["tipo"], acabado=acabado_normalizado(p["acabado"]), material=p["material"],
                     ubicacion=p["ubicacion"], plantilla_id=p["id"],
                 )
+                await self._rehacer_tomas(trazo_id)
                 await self._uow.commit()
         c = await self._trazos.clasificacion_de_muro(trazo_id)
         return {**c, "acabado": acabado_normalizado(c["acabado"]) if c["tipo"] else None}

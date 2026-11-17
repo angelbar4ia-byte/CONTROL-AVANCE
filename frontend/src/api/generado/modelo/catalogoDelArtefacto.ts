@@ -5,6 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { ReglaDeCastilloFicha } from "./reglaDeCastilloFicha";
 import type { TipoDeMuroFicha } from "./tipoDeMuroFicha";
 import type { MaterialDeMuro } from "./materialDeMuro";
 import type { UbicacionDeMuroFicha } from "./ubicacionDeMuroFicha";
@@ -12,6 +13,7 @@ import type { CatalogoDelArtefactoCarasItem } from "./catalogoDelArtefactoCarasI
 import type { CatalogoDelArtefactoRolesDeParteItem } from "./catalogoDelArtefactoRolesDeParteItem";
 
 export interface CatalogoDelArtefacto {
+  reglas_de_castillo?: ReglaDeCastilloFicha[];
   tipos: TipoDeMuroFicha[];
   materiales: MaterialDeMuro[];
   ubicaciones: UbicacionDeMuroFicha[];
