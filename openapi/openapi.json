@@ -15771,6 +15771,66 @@
         }
       }
     },
+    "/api/v1/muro-artefacto/prototipos": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Los prototipos (y las plantillas globales) con la plantilla de confinado de cada planta, o vacía si falta capturarla",
+        "operationId": "prototipos_de_muro_api_v1_muro_artefacto_prototipos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrototipoDeMuro"
+                  },
+                  "type": "array",
+                  "title": "Response Prototipos De Muro Api V1 Muro Artefacto Prototipos Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/muro-plantillas/ejemplos-de-prototipo": {
+      "post": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar",
+        "description": "Idempotente. Cada línea trae su fila y celda del Excel en `origen`. Si el catálogo de la organización no tiene alguno de los castillos\n(K-1, K-2…) o cadenas (CE-1…) que usa un ejemplo, ese ejemplo no se crea y se dice cuáles faltan.",
+        "operationId": "cargar_ejemplos_de_prototipo_api_v1_muro_plantillas_ejemplos_de_prototipo_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EjemplosCargados"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Editan Costos y Control de obra."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/muro-plantillas": {
       "get": {
         "tags": [
@@ -26940,6 +27000,13 @@
       },
       "CatalogoDelArtefacto": {
         "properties": {
+          "reglas_de_castillo": {
+            "items": {
+              "$ref": "#/components/schemas/ReglaDeCastilloFicha"
+            },
+            "type": "array",
+            "title": "Reglas De Castillo"
+          },
           "tipos": {
             "items": {
               "$ref": "#/components/schemas/TipoDeMuroFicha"
@@ -34914,6 +34981,62 @@
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
       },
+      "EjemploFaltante": {
+        "properties": {
+          "plantilla": {
+            "type": "string",
+            "title": "Plantilla"
+          },
+          "elementos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Elementos",
+            "description": "Los castillos o cadenas que faltan en el catálogo de la organización."
+          }
+        },
+        "type": "object",
+        "required": [
+          "plantilla",
+          "elementos"
+        ],
+        "title": "EjemploFaltante"
+      },
+      "EjemplosCargados": {
+        "properties": {
+          "creadas": {
+            "items": {
+              "$ref": "#/components/schemas/PlantillaDeMuro"
+            },
+            "type": "array",
+            "title": "Creadas"
+          },
+          "omitidas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Omitidas",
+            "description": "Ya tenían plantilla vigente: no se tocan."
+          },
+          "faltan": {
+            "items": {
+              "$ref": "#/components/schemas/EjemploFaltante"
+            },
+            "type": "array",
+            "title": "Faltan",
+            "description": "No se crearon: faltan elementos en el catálogo. No se inventan."
+          }
+        },
+        "type": "object",
+        "required": [
+          "creadas",
+          "omitidas",
+          "faltan"
+        ],
+        "title": "EjemplosCargados"
+      },
       "ElegirPlantillaPeticion": {
         "properties": {
           "plantilla_id": {
@@ -35095,6 +35218,43 @@
               }
             ],
             "title": "Modo"
+          },
+          "regla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "separacion",
+                  "extremos",
+                  "por_ml",
+                  "total"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regla",
+            "description": "Castillos: cómo cuenta sus piezas."
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen",
+            "description": "De dónde sale el dato de la regla (fila y celda del Excel)."
+          },
+          "piezas_estimadas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Piezas Estimadas",
+            "description": "Castillos: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).",
+            "default": "0"
           },
           "piezas": {
             "type": "integer",
@@ -35304,6 +35464,88 @@
             "title": "Sep M",
             "description": "Castillos estimados: separación (m); `null` = la del driver."
           },
+          "regla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "separacion",
+                  "extremos",
+                  "por_ml",
+                  "total"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regla",
+            "description": "Solo castillos: cómo cuenta sus piezas. `separacion` (cada separación y extremos), `extremos` (solo extremos), `por_ml` (piezas por metro lineal de muro) o `total` (metros de castillo de un prototipo repartidos por m² de muro). Sin ella: separación si trae `sep_m`; si no, extremos (muro con cadena) o la separación del driver (confinado)."
+          },
+          "piezas_por_ml": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Piezas Por Ml",
+            "description": "Regla `por_ml`: piezas por metro lineal de muro."
+          },
+          "total_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total M",
+            "description": "Regla `total`: metros de castillo del prototipo (y planta) en el Excel."
+          },
+          "base_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base M2",
+            "description": "Regla `total`: m² de muro de tabique sobre los que se repartieron `total_m`."
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen",
+            "description": "De dónde sale el dato (fila y celda del Excel)."
+          },
           "posicion": {
             "anyOf": [
               {
@@ -35412,6 +35654,76 @@
             ],
             "title": "Sep M",
             "description": "Castillos estimados: separación (m); `null` = la del driver."
+          },
+          "regla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "separacion",
+                  "extremos",
+                  "por_ml",
+                  "total"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regla",
+            "description": "Solo castillos: cómo cuenta sus piezas. `separacion` (cada separación y extremos), `extremos` (solo extremos), `por_ml` (piezas por metro lineal de muro) o `total` (metros de castillo de un prototipo repartidos por m² de muro). Sin ella: separación si trae `sep_m`; si no, extremos (muro con cadena) o la separación del driver (confinado)."
+          },
+          "piezas_por_ml": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Piezas Por Ml",
+            "description": "Regla `por_ml`: piezas por metro lineal de muro."
+          },
+          "total_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total M",
+            "description": "Regla `total`: metros de castillo del prototipo (y planta) en el Excel."
+          },
+          "base_m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base M2",
+            "description": "Regla `total`: m² de muro de tabique sobre los que se repartieron `total_m`."
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen",
+            "description": "De dónde sale el dato (fila y celda del Excel)."
           },
           "posicion": {
             "anyOf": [
@@ -46828,6 +47140,48 @@
             ],
             "title": "Acabado"
           },
+          "prototipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo"
+          },
+          "planta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PB",
+                  "PA"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planta"
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          },
+          "por_confirmar": {
+            "type": "boolean",
+            "title": "Por Confirmar",
+            "default": false
+          },
           "validacion": {
             "type": "string",
             "enum": [
@@ -47016,6 +47370,48 @@
             ],
             "title": "Acabado"
           },
+          "prototipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo"
+          },
+          "planta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PB",
+                  "PA"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planta"
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          },
+          "por_confirmar": {
+            "type": "boolean",
+            "title": "Por Confirmar",
+            "default": false
+          },
           "validacion": {
             "type": "string",
             "enum": [
@@ -47200,6 +47596,54 @@
             ],
             "title": "Acabado",
             "description": "Sí/No por capa y cara; lo que falta toma el defecto."
+          },
+          "prototipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo",
+            "description": "Solo muro confinado: el prototipo de la plantilla (oro_401, zafiro_1…) o `global_1` / `global_2`; `null` = ninguno."
+          },
+          "planta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PB",
+                  "PA"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planta",
+            "description": "PB o PA del prototipo; la plantilla global no lleva planta."
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 6000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas",
+            "description": "De dónde salen los datos (fila y celda del Excel) y lo pendiente."
+          },
+          "por_confirmar": {
+            "type": "boolean",
+            "title": "Por Confirmar",
+            "description": "Los datos son de ejemplo o aún no los confirma el usuario (no es la validación).",
+            "default": false
           }
         },
         "type": "object",
@@ -47210,6 +47654,69 @@
           "ubicacion"
         ],
         "title": "PlantillaDeMuroPeticion"
+      },
+      "PlantillaDePrototipo": {
+        "properties": {
+          "planta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PB",
+                  "PA"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planta",
+            "description": "PB o PA; `null` en la plantilla global."
+          },
+          "plantilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantilla Id",
+            "description": "La plantilla vigente; `null` = estructura aún sin capturar."
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "por_confirmar": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Por Confirmar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "planta",
+          "plantilla_id",
+          "nombre",
+          "por_confirmar"
+        ],
+        "title": "PlantillaDePrototipo"
       },
       "PonerMatrizPeticion": {
         "properties": {
@@ -48520,6 +49027,58 @@
         ],
         "title": "PropuestasRechazadasRespuesta"
       },
+      "PrototipoDeMuro": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "plantas": {
+            "type": "integer",
+            "title": "Plantas",
+            "description": "1 o 2: se INFIERE del subcapítulo PLANTA ALTA del Excel (a confirmar)."
+          },
+          "es_global": {
+            "type": "boolean",
+            "title": "Es Global",
+            "description": "Es una plantilla global (promedio de los prototipos más parecidos)."
+          },
+          "muro_m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro M2",
+            "description": "El divisor MURO del Excel (m² de tabique del prototipo entero)."
+          },
+          "plantillas": {
+            "items": {
+              "$ref": "#/components/schemas/PlantillaDePrototipo"
+            },
+            "type": "array",
+            "title": "Plantillas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "plantas",
+          "es_global",
+          "muro_m2",
+          "plantillas"
+        ],
+        "title": "PrototipoDeMuro"
+      },
       "PrototipoRespuesta": {
         "properties": {
           "id": {
@@ -49639,6 +50198,41 @@
           "creada_en"
         ],
         "title": "RegistroDeModificacionRespuesta"
+      },
+      "ReglaDeCastilloFicha": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "enum": [
+              "separacion",
+              "extremos",
+              "por_ml",
+              "total"
+            ],
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "solo_estimado": {
+            "type": "boolean",
+            "title": "Solo Estimado",
+            "description": "Un castillo que se coloca en el plano (muro con cadena) no la admite: sus piezas son enteras."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "descripcion",
+          "solo_estimado"
+        ],
+        "title": "ReglaDeCastilloFicha"
       },
       "RendimientoPorConceptoRespuesta": {
         "properties": {

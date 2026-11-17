@@ -30,6 +30,7 @@ import type {
   AplicarUbicacionRespuesta,
   CatalogoDelArtefacto,
   ColocacionDelMuroRespuesta,
+  EjemplosCargados,
   ElegirPlantillaPeticion,
   ElegirPlantillaRespuesta,
   HTTPValidationError,
@@ -38,6 +39,7 @@ import type {
   PlantillaDeMuro,
   PlantillaDeMuroGuardada,
   PlantillaDeMuroPeticion,
+  PrototipoDeMuro,
   RevisionDePlantilla,
   ValidarPeticion,
 } from ".././modelo";
@@ -557,6 +559,496 @@ export const useAplicarUbicacionAPartesApiV1MuroArtefactoUbicacionPost = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Los prototipos (y las plantillas globales) con la plantilla de confinado de cada planta, o vacía si falta capturarla
+ */
+export const prototiposDeMuroApiV1MuroArtefactoPrototiposGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<PrototipoDeMuro[]>(
+    { url: `/api/v1/muro-artefacto/prototipos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfiniteQueryKey =
+  () => {
+    return ["infinite", `/api/v1/muro-artefacto/prototipos`] as const;
+  };
+
+export const getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryKey =
+  () => {
+    return [`/api/v1/muro-artefacto/prototipos`] as const;
+  };
+
+export const getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+      >
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+      >
+    > = ({ signal }) =>
+      prototiposDeMuroApiV1MuroArtefactoPrototiposGet(requestOptions, signal);
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  >;
+export type PrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfiniteQueryError =
+  unknown;
+
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los prototipos (y las plantillas globales) con la plantilla de confinado de cada planta, o vacía si falta capturarla
+ */
+
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<
+        ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+      >,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  > = ({ signal }) =>
+    prototiposDeMuroApiV1MuroArtefactoPrototiposGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type PrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>>
+  >;
+export type PrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryError = unknown;
+
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet<
+  TData = Awaited<
+    ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet<
+  TData = Awaited<
+    ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet<
+  TData = Awaited<
+    ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los prototipos (y las plantillas globales) con la plantilla de confinado de cada planta, o vacía si falta capturarla
+ */
+
+export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet<
+  TData = Awaited<
+    ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof prototiposDeMuroApiV1MuroArtefactoPrototiposGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Idempotente. Cada línea trae su fila y celda del Excel en `origen`. Si el catálogo de la organización no tiene alguno de los castillos
+(K-1, K-2…) o cadenas (CE-1…) que usa un ejemplo, ese ejemplo no se crea y se dice cuáles faltan.
+ * @summary Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar
+ */
+export const cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost =
+  (options?: SecondParameter<typeof peticion>, signal?: AbortSignal) => {
+    return peticion<EjemplosCargados>(
+      {
+        url: `/api/v1/muro-plantillas/ejemplos-de-prototipo`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
+        >
+      >,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
+      >
+    >,
+    TError,
+    void,
+    TContext
+  > => {
+    const mutationKey = [
+      "cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
+        >
+      >,
+      void
+    > = () => {
+      return cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost(
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
+      >
+    >
+  >;
+
+export type CargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationError =
+  void;
+
+/**
+ * @summary Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar
+ */
+export const useCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
+          >
+        >,
+        TError,
+        void,
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
+      >
+    >,
+    TError,
+    void,
+    TContext
+  > => {
+    const mutationOptions =
+      getCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * @summary Las plantillas de muro vigentes
  */
