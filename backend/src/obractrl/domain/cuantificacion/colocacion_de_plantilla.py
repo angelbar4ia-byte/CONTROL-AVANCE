@@ -9,6 +9,11 @@ muro con cadena)— y cadenas. Al trazar un muro con plantilla el plano coloca e
 - Un **castillo estimado** se cuenta igual pero **no se resta** de la mampostería ni se coloca: es solo una cantidad.
 - Una **cadena** son los metros del largo del muro.
 
+Un castillo **estimado** (muro confinado, sin plano estructural) cuenta según su **regla**: «cada separación y extremos» (⌈largo ÷ sep⌉ + 1),
+«solo extremos» (2), «por ml» (piezas por metro lineal de muro) o «total» (los metros de castillo de un prototipo repartidos por m² de muro:
+`total_m × m² del muro ÷ base_m2`, como la fórmula `L = I / $D$3` del Excel). Una plantilla lleva VARIOS castillos, cada uno con su regla. Un
+castillo **ubicado** solo usa «separación» o «extremos» (las piezas se colocan una por una, enteras).
+
 Las posiciones van **a lo largo del muro** (centro de cada castillo, en metros desde el inicio), repartidas del primero, pegado al
 inicio, al último, pegado al final. Todo es aritmética con `Decimal`; no hay precios ni destajos. Funciones puras.
 """
@@ -45,6 +50,7 @@ from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
     "ALTO_MINIMO_M",
+    "REGLAS_DE_CASTILLO",
     "Colocacion",
     "ConceptoColocado",
     "ErrorDeColocacion",
@@ -53,11 +59,15 @@ __all__ = [
     "colocar_plantilla",
     "conceptos_de_instancia",
     "piezas_de_castillo",
+    "piezas_exactas_de_castillo",
     "posiciones_de_castillos",
+    "regla_de_castillo",
 ]
 
 ALTO_MINIMO_M = Decimal("0.10")
 _MILI = Decimal("0.001")
+REGLAS_DE_CASTILLO: tuple[str, ...] = ("separacion", "extremos", "por_ml", "total")
+"""Cómo cuenta la plantilla las piezas de un castillo: cada separación y extremos, solo extremos, por ml de muro o total del prototipo."""
 
 
 class ErrorDeColocacion(ErrorDeCuantificacion):
@@ -105,6 +115,50 @@ def posiciones_de_castillos(largo_m: Decimal, piezas: int, ancho_m: Decimal) -> 
     return [(primero + paso * i).quantize(_MILI, ROUND_HALF_UP) for i in range(piezas)]
 
 
+def regla_de_castillo(e: Mapping[str, Any], *, ubicado: bool) -> str:
+    """La regla con que cuenta un castillo de la plantilla. Las plantillas anteriores a la regla no la traen: con separación propia cuentan «cada
+    separación y extremos»; sin ella, un castillo ubicado va «solo en los extremos» y uno estimado toma la separación del driver."""
+    regla = str(e.get("regla") or "")
+    if regla:
+        return regla
+    if e.get("sep_m") not in (None, ""):
+        return "separacion"
+    return "extremos" if ubicado else "separacion"
+
+
+def piezas_exactas_de_castillo(
+    e: Mapping[str, Any],
+    *,
+    ubicado: bool,
+    largo_m: Decimal,
+    area_m2: Decimal,
+    alto_m: Decimal,
+    separacion_m: Decimal | None,
+) -> Decimal:
+    """Cuántas piezas cuenta el castillo en este muro. Enteras con separación o extremos; con «por ml» y «total» pueden ser fraccionarias: es
+    una estimación que reparte lo del prototipo, y redondear cada muro hacia arriba inflaría la suma de toda la obra."""
+    regla = regla_de_castillo(e, ubicado=ubicado)
+    if regla == "extremos":
+        return Decimal(2)
+    if regla == "separacion":
+        propia = _d(e["sep_m"]) if e.get("sep_m") not in (None, "") else None
+        return Decimal(piezas_de_castillo(largo_m, propia if propia is not None else (None if ubicado else separacion_m)))
+    if ubicado:
+        raise ErrorDeColocacion("Un castillo que se coloca en el plano cuenta por separación o por extremos (sus piezas son enteras).")
+    if regla == "por_ml":
+        por_ml = _d(e["piezas_por_ml"]) if e.get("piezas_por_ml") not in (None, "") else Decimal(0)
+        if por_ml <= 0:
+            raise ErrorDeColocacion("La regla «por ml» necesita las piezas por metro lineal de muro.")
+        return (largo_m * por_ml).quantize(_MILI, ROUND_HALF_UP)
+    if regla == "total":
+        total = _d(e["total_m"]) if e.get("total_m") not in (None, "") else Decimal(0)
+        base = _d(e["base_m2"]) if e.get("base_m2") not in (None, "") else Decimal(0)
+        if total <= 0 or base <= 0:
+            raise ErrorDeColocacion("La regla «total» necesita los metros de castillo del prototipo y los m² de muro de su base.")
+        return (total * area_m2 / base / alto_m).quantize(_MILI, ROUND_HALF_UP)
+    raise ErrorDeColocacion(f"La regla de un castillo es una de {', '.join(REGLAS_DE_CASTILLO)} (no «{regla}»).")
+
+
 @dataclass(frozen=True, slots=True)
 class Instancia:
     """Un uso de un elemento de la plantilla ya resuelto en este muro."""
@@ -120,12 +174,16 @@ class Instancia:
     ancho_m: Decimal | None
     """Castillo: lo que ocupa a lo largo del muro."""
     metros: Decimal
-    """Castillo: piezas × alto (lo que cuenta un concepto por metro). Cadena: el largo del muro."""
+    """Castillo: piezas exactas × alto (lo que cuenta un concepto por metro). Cadena: el largo del muro."""
     posiciones_m: tuple[Decimal, ...] = ()
     z_m: Decimal = Decimal(0)
     se_coloca: bool = False
     """Es un castillo ubicado: se coloca en el plano como vanos y resta de la mampostería."""
     descuento_m2_por_cara: Decimal = Decimal(0)
+    regla: str | None = None
+    """Castillo: cómo cuenta sus piezas (separacion, extremos, por_ml o total)."""
+    piezas_exactas: Decimal = Decimal(0)
+    """Castillo: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` es esa cuenta redondeada hacia arriba, para dibujar)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +201,7 @@ def colocar_plantilla(
     altura_m: Decimal,
     anchos_m: Mapping[str, Decimal],
     separacion_m: Decimal | None = None,
+    area_m2: Decimal | None = None,
 ) -> Colocacion:
     """Lo que la plantilla coloca en un muro de este largo y esta altura.
 
@@ -152,6 +211,8 @@ def colocar_plantilla(
     `separacion_m` es el driver `separacion_castillos` de la obra: la separación de un castillo **estimado** que la plantilla no fija
     (su `sep_m` vacío). La separación propia del castillo en la plantilla manda sobre el driver. Un castillo **ubicado** sin
     separación sigue siendo «extremos» (2 piezas), como antes, y sin driver (`None`) también el estimado.
+
+    `area_m2` son los m² de muro con que reparte la regla «total» (sin dato, largo × alto: el muro bruto, sin descontar vanos).
     """
     if largo_m <= 0:
         raise ErrorDeColocacion("El largo del muro debe ser mayor que cero.")
@@ -164,25 +225,28 @@ def colocar_plantilla(
         z = _d(e.get("z_m") or 0)
         if clase == "castillo":
             ubicado = e.get("modo") == "ubicado"
-            # Sin separación propia: un castillo estimado (muro confinado) se reparte por la del driver; uno ubicado (muro con
-            # cadena) se coloca en los extremos, como antes.
-            sep = _d(e["sep_m"]) if e.get("sep_m") not in (None, "") else (None if ubicado else separacion_m)
             ancho = anchos_m.get(ref)
-            if ancho is None or ancho <= 0:
+            if ubicado and (ancho is None or ancho <= 0):
                 raise ErrorDeColocacion(f"El castillo {ref} no trae el ancho con que se coloca en el muro.")
-            n = piezas_de_castillo(largo_m, sep)
             alto = alto_de_castillo(altura_m, z)
-            posiciones = tuple(posiciones_de_castillos(largo_m, n, ancho)) if ubicado else ()
+            regla = regla_de_castillo(e, ubicado=ubicado)
+            exactas = piezas_exactas_de_castillo(
+                e, ubicado=ubicado, largo_m=largo_m, area_m2=area_m2 if area_m2 is not None else largo_m * altura_m,
+                alto_m=alto, separacion_m=separacion_m,
+            )
+            n = math.ceil(exactas)
+            posiciones = tuple(posiciones_de_castillos(largo_m, n, ancho)) if ubicado and ancho is not None else ()
             salida.instancias.append(
                 Instancia(
                     uid=uid, ref=ref, clase="castillo", modo=str(e.get("modo") or "") or None, piezas=n, alto_m=alto, ancho_m=ancho,
-                    metros=alto * n, posiciones_m=posiciones, z_m=z, se_coloca=ubicado,
-                    descuento_m2_por_cara=ancho * alto * n if ubicado else Decimal(0),
+                    metros=alto * exactas, posiciones_m=posiciones, z_m=z, se_coloca=ubicado,
+                    descuento_m2_por_cara=(ancho or Decimal(0)) * alto * n if ubicado else Decimal(0),
+                    regla=regla, piezas_exactas=exactas,
                 )
             )
             if not ubicado:
                 salida.avisos.append(
-                    f"Los castillos {ref} son estimados ({n} piezas): se cuentan pero no se restan de la mampostería."
+                    f"Los castillos {ref} son estimados ({exactas:g} piezas): se cuentan pero no se restan de la mampostería."
                 )
         elif clase == "cadena":
             salida.instancias.append(
@@ -218,11 +282,14 @@ class ConceptoColocado:
     partida_id: UUID | None = None
 
 
-def _cantidad(unidad: str, piezas: int, alto_m: Decimal) -> Decimal | None:
+def _cantidad(unidad: str, piezas: Decimal | int, alto_m: Decimal | None, metros: Decimal | None) -> Decimal | None:
+    """Lo que cuenta un concepto en su unidad. Un castillo: piezas, o metros (alto × piezas). Una cadena (`metros` dados): solo ml."""
+    if metros is not None:
+        return metros if unidad == "ml" else None
     if unidad == "pza":
         return Decimal(piezas)
-    if unidad == "ml":
-        return alto_m * piezas
+    if unidad == "ml" and alto_m is not None:
+        return alto_m * Decimal(piezas)
     return None
 
 
@@ -232,15 +299,16 @@ def conceptos_de_instancia(
     ref: str,
     nivel: int | None,
     ubicacion: str | None,
-    alto_m: Decimal,
-    piezas: int,
+    alto_m: Decimal | None,
+    piezas: Decimal | int,
     enlaces: Sequence[EnlaceDeRanura],
     partidas: Sequence[Partida],
     nivel_id: UUID | None,
     etapa_id: UUID | None,
     unidades: Mapping[UUID, str],
+    metros: Decimal | None = None,
 ) -> tuple[list[ConceptoColocado], list[str]]:
-    """Los conceptos que paga un castillo colocado (`piezas` de `alto_m`) en este nivel y esta ubicación.
+    """Los conceptos que paga un castillo colocado (`piezas` de `alto_m`) o una cadena (`metros`, sin alto) en este nivel y esta ubicación.
 
     1. El concepto lo eligen el nivel, la ubicación y el alto (2A): `resolver` da uno por parte (acero, concreto, cimbra), con el
        escalón de altura que alcanza.
@@ -249,6 +317,7 @@ def conceptos_de_instancia(
        concepto propuesto (sin autorizar) tampoco cuenta.
 
     `unidades` da la unidad de los conceptos enlazados (un concepto ligado a una ranura puede medirse distinto del que trae el elemento).
+    Una **cadena** (`metros` = el largo del muro, sin alto) se cuenta solo en ml: un concepto suyo en pza o m² avisa y no cuenta.
     """
     ubic_concepto = ubicacion if ubicacion in UBICACIONES_DE_CONCEPTO else None
     ubic_ranura = ubicacion if ubicacion in UBICACIONES_DE_RANURA else None
@@ -282,12 +351,12 @@ def conceptos_de_instancia(
                 assert res.enlace is not None and res.partida is not None
                 concepto_id, clave, origen = res.enlace.concepto_id, res.enlace.concepto_clave, "ranura"
                 unidad = unidades.get(concepto_id, c.unidad)
-        cantidad = _cantidad(unidad, piezas, alto_m)
+        cantidad = _cantidad(unidad, piezas, alto_m, metros)
         if cantidad is None:
             salida.append(
                 ConceptoColocado(
                     ranura, concepto_id, clave, unidad, Decimal(0), False, origen, "unidad_no_admitida",
-                    f"El concepto {clave} se mide en {unidad}: un castillo se cuenta en pza o ml, así que no cuenta.",
+                    f"El concepto {clave} se mide en {unidad}: {'una cadena se cuenta en ml' if metros is not None else 'un castillo se cuenta en pza o ml'}, así que no cuenta.",
                 )
             )
             continue

@@ -7,6 +7,8 @@
 --   3. Un solo nombre y una sola versión vigente por plantilla; un solo número de versión por raíz.
 --   4. «Validada» exige quién y cuándo; el tipo y la ubicación solo toman los valores del Artefacto.
 --   5. Un trazo no puede apuntar a la plantilla de otra organización y una plantilla en uso no se borra.
+--   6. (0136) El prototipo y la planta de una plantilla: cada organización ve los suyos; la planta es PB o PA y solo va con un prototipo; las
+--      notas no pasan de 6000 caracteres; la columna «por confirmar» nace en falso.
 -- Uso:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/test_rls_muro_plantilla.sql
 -- ============================================================
 
@@ -147,6 +149,42 @@ begin
   raise exception 'FALLA [pretil como tipo de muro del trazo]';
 exception when check_violation then
   raise notice 'OK  [el trazo no acepta pretil como tipo]';
+end $$;
+
+-- 6 · Prototipo, planta, notas y «por confirmar» (0136)
+set local role obractrl_api;
+select pg_temp.como('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000003', 'control_obra');
+insert into muro_plantilla (id, org_id, raiz_id, nombre, tipo, material, ubicacion, prototipo, planta, notas, por_confirmar) values
+  ('c2000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'c2000000-0000-0000-0000-000000000001',
+   'Muro confinado · Oro 4.01 · PB', 'confinado', 'tabique_rojo', 'interior', 'oro_401', 'PB', 'ASIGNACIÓN!K2152', true);
+select pg_temp.esperar('Alfa ve su plantilla de prototipo', count(*), 1) from muro_plantilla where prototipo = 'oro_401' and planta = 'PB' and por_confirmar;
+select pg_temp.esperar('Una plantilla sin prototipo nace sin por confirmar', count(*), 1) from muro_plantilla where id = 'c1000000-0000-0000-0000-000000000002' and not por_confirmar and prototipo is null;
+select pg_temp.como('22222222-2222-2222-2222-222222222222', 'bbbbbbbb-0000-0000-0000-000000000001', 'costos');
+select pg_temp.esperar('Beta no ve los prototipos de Alfa', count(*), 0) from muro_plantilla where prototipo is not null;
+select pg_temp.como('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000003', 'control_obra');
+do $$
+begin
+  insert into muro_plantilla (org_id, raiz_id, nombre, tipo, material, ubicacion, planta) values
+    ('11111111-1111-1111-1111-111111111111', gen_random_uuid(), 'Planta suelta', 'confinado', 'tabique_rojo', 'interior', 'PB');
+  raise exception 'FALLA [una planta sin prototipo]';
+exception when check_violation then
+  raise notice 'OK  [la planta solo va con un prototipo]';
+end $$;
+do $$
+begin
+  insert into muro_plantilla (org_id, raiz_id, nombre, tipo, material, ubicacion, prototipo, planta) values
+    ('11111111-1111-1111-1111-111111111111', gen_random_uuid(), 'Planta X', 'confinado', 'tabique_rojo', 'interior', 'oro_401', 'PX');
+  raise exception 'FALLA [una planta que no es PB ni PA]';
+exception when check_violation then
+  raise notice 'OK  [la planta es PB o PA]';
+end $$;
+do $$
+begin
+  insert into muro_plantilla (org_id, raiz_id, nombre, tipo, material, ubicacion, notas) values
+    ('11111111-1111-1111-1111-111111111111', gen_random_uuid(), 'Notas largas', 'confinado', 'tabique_rojo', 'interior', repeat('x', 6001));
+  raise exception 'FALLA [notas de más de 6000 caracteres]';
+exception when check_violation then
+  raise notice 'OK  [las notas no pasan de 6000 caracteres]';
 end $$;
 
 rollback;
