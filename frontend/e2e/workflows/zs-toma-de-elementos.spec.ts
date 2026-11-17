@@ -1,4 +1,4 @@
-import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
+import { altoPropio, cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
  * Lo que un concepto toma de un elemento (D-630, D-639): un concepto con una matriz «Habilitado» (en piezas) que toma el
@@ -48,7 +48,7 @@ test.describe('Cuantificador · lo que toma un concepto de un elemento', () => {
     const elemento = await llamarApi<{ id: string }>(request, 'control', 'POST', '/elementos-parametricos', {
       clave, nombre: 'Castillo de prueba', tipo: 'castillo',
       // Un elemento idéntico a otro no se guarda (M-29): el alto, único por corrida, lo distingue de los de otros specs.
-      parametros: { alto: 3 + (Date.now() % 1_000_000) / 1e6 },
+      parametros: { alto: altoPropio(3) },
     });
     await llamarApi(request, 'control', 'PUT', `/elementos-parametricos/${elemento.id}/conceptos/${hab.id}`, {
       unidad: 'pza', toma: { acero: true },
