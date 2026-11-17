@@ -46,6 +46,8 @@ Ubicacion = Literal["interior", "fachada_a", "fachada_b", "pretil", "barda", "pe
 Cara = Literal["exterior", "interior"]
 RolDeParte = Literal["cuerpo", "enrase", "pretil", "cadena"]
 ClaseDeElemento = Literal["castillo", "cadena", "muro"]
+ReglaDeCastillo = Literal["separacion", "extremos", "por_ml", "total"]
+Planta = Literal["PB", "PA"]
 
 
 class ParteDeAlturaDePlantilla(BaseModel):
@@ -67,6 +69,16 @@ class ElementoDePlantilla(BaseModel):
         default=None, description="Solo castillos: sale del tipo (confinado: estimado; con_cadena: ubicado)."
     )
     sep_m: Decimal | None = Field(default=None, gt=0, description="Castillos estimados: separación (m); `null` = la del driver.")
+    regla: ReglaDeCastillo | None = Field(
+        default=None,
+        description="Solo castillos: cómo cuenta sus piezas. `separacion` (cada separación y extremos), `extremos` (solo extremos), `por_ml` "
+        "(piezas por metro lineal de muro) o `total` (metros de castillo de un prototipo repartidos por m² de muro). Sin ella: separación si "
+        "trae `sep_m`; si no, extremos (muro con cadena) o la separación del driver (confinado).",
+    )
+    piezas_por_ml: Decimal | None = Field(default=None, gt=0, description="Regla `por_ml`: piezas por metro lineal de muro.")
+    total_m: Decimal | None = Field(default=None, gt=0, description="Regla `total`: metros de castillo del prototipo (y planta) en el Excel.")
+    base_m2: Decimal | None = Field(default=None, gt=0, description="Regla `total`: m² de muro de tabique sobre los que se repartieron `total_m`.")
+    origen: str | None = Field(default=None, max_length=300, description="De dónde sale el dato (fila y celda del Excel).")
     posicion: Literal["desplante", "cerramiento", "remate"] | None = Field(default=None, description="Solo cadenas.")
     z_m: Decimal | None = Field(default=None, ge=0, description="Altura de arranque sobre el cuerpo del muro (m).")
 
@@ -80,6 +92,13 @@ class PlantillaDeMuroPeticion(BaseModel):
     partes: list[ParteDeAlturaDePlantilla] = Field(default_factory=list, max_length=20)
     elementos: list[ElementoDePlantilla] = Field(default_factory=list, max_length=40)
     acabado: dict[str, dict[str, bool]] | None = Field(default=None, description="Sí/No por capa y cara; lo que falta toma el defecto.")
+    prototipo: str | None = Field(
+        default=None, max_length=40,
+        description="Solo muro confinado: el prototipo de la plantilla (oro_401, zafiro_1…) o `global_1` / `global_2`; `null` = ninguno.",
+    )
+    planta: Planta | None = Field(default=None, description="PB o PA del prototipo; la plantilla global no lleva planta.")
+    notas: str | None = Field(default=None, max_length=6000, description="De dónde salen los datos (fila y celda del Excel) y lo pendiente.")
+    por_confirmar: bool = Field(default=False, description="Los datos son de ejemplo o aún no los confirma el usuario (no es la validación).")
 
 
 class PlantillaDeMuro(BaseModel):
@@ -95,6 +114,10 @@ class PlantillaDeMuro(BaseModel):
     partes: list[ParteDeAlturaDePlantilla]
     elementos: list[ElementoDePlantilla]
     acabado: dict[str, dict[str, bool]] | None
+    prototipo: str | None = None
+    planta: Planta | None = None
+    notas: str | None = None
+    por_confirmar: bool = False
     validacion: Literal["por_validar", "validada"]
     propuso_nombre: str | None
     propuso_rol: str | None
@@ -165,7 +188,15 @@ class UbicacionDeMuroFicha(BaseModel):
     elementos_sugeridos: list[str]
 
 
+class ReglaDeCastilloFicha(BaseModel):
+    clave: ReglaDeCastillo
+    nombre: str
+    descripcion: str
+    solo_estimado: bool = Field(description="Un castillo que se coloca en el plano (muro con cadena) no la admite: sus piezas son enteras.")
+
+
 class CatalogoDelArtefacto(BaseModel):
+    reglas_de_castillo: list[ReglaDeCastilloFicha] = Field(default_factory=list)
     tipos: list[TipoDeMuroFicha]
     materiales: list[MaterialDeMuro]
     ubicaciones: list[UbicacionDeMuroFicha]
@@ -199,6 +230,12 @@ _DESCRIPCIONES_DE_TIPO = {
     "con_cadena": "Los castillos se colocan en el plano y se restan de los m² de la mampostería.",
     "tabique": "Sin cadenas ni castillos.",
 }
+_REGLAS_DE_CASTILLO = (
+    ("separacion", "Cada separación y extremos", "⌈largo ÷ separación⌉ + 1 piezas; sin separación propia, la del driver de la obra.", False),
+    ("extremos", "Solo extremos", "2 piezas: una en cada extremo del muro.", False),
+    ("por_ml", "Por metro lineal", "Piezas por cada metro lineal de muro (fracciones: es una estimación).", True),
+    ("total", "Total del prototipo", "Metros de castillo del prototipo repartidos por m² de muro: total × m² del muro ÷ base.", True),
+)
 _NOMBRES_DE_TIPO = {"confinado": "Muro confinado", "con_cadena": "Muro con cadena", "tabique": "Muro de tabique"}
 
 
@@ -233,6 +270,7 @@ _NO_ENCONTRADA = {404: {"description": "La plantilla no existe o está fuera de 
 )
 async def catalogo_del_artefacto() -> CatalogoDelArtefacto:
     return CatalogoDelArtefacto(
+        reglas_de_castillo=[ReglaDeCastilloFicha(clave=c, nombre=n, descripcion=d, solo_estimado=e) for c, n, d, e in _REGLAS_DE_CASTILLO],  # type: ignore[arg-type]
         tipos=[
             TipoDeMuroFicha(clave=t, nombre=_NOMBRES_DE_TIPO[t], castillo_modo=CASTILLO_MODO_POR_TIPO[t], descripcion=_DESCRIPCIONES_DE_TIPO[t])  # type: ignore[arg-type]
             for t in TIPOS_DE_MURO
@@ -268,6 +306,62 @@ async def aplicar_ubicacion_a_partes(peticion: AplicarUbicacionPeticion) -> Apli
         ubicacion=ubicacion_resultante(peticion.ubicacion, nuevas),  # type: ignore[arg-type]
         partes=[ParteDeAlturaDePlantilla.model_validate(p) for p in nuevas],
         sugerencias=[SugerenciaPorLosa(**s) for s in sugerencias],
+    )
+
+
+# --- Prototipos y ejemplos ---------------------------------------------------------------------------------------------------
+
+
+class PlantillaDePrototipo(BaseModel):
+    planta: Planta | None = Field(description="PB o PA; `null` en la plantilla global.")
+    plantilla_id: UUID | None = Field(description="La plantilla vigente; `null` = estructura aún sin capturar.")
+    nombre: str | None
+    por_confirmar: bool | None
+
+
+class PrototipoDeMuro(BaseModel):
+    clave: str
+    nombre: str
+    plantas: int = Field(description="1 o 2: se INFIERE del subcapítulo PLANTA ALTA del Excel (a confirmar).")
+    es_global: bool = Field(description="Es una plantilla global (promedio de los prototipos más parecidos).")
+    muro_m2: Decimal | None = Field(description="El divisor MURO del Excel (m² de tabique del prototipo entero).")
+    plantillas: list[PlantillaDePrototipo]
+
+
+class EjemploFaltante(BaseModel):
+    plantilla: str
+    elementos: list[str] = Field(description="Los castillos o cadenas que faltan en el catálogo de la organización.")
+
+
+class EjemplosCargados(BaseModel):
+    creadas: list[PlantillaDeMuro]
+    omitidas: list[str] = Field(description="Ya tenían plantilla vigente: no se tocan.")
+    faltan: list[EjemploFaltante] = Field(description="No se crearon: faltan elementos en el catálogo. No se inventan.")
+
+
+@router.get(
+    "/muro-artefacto/prototipos",
+    response_model=list[PrototipoDeMuro],
+    summary="Los prototipos (y las plantillas globales) con la plantilla de confinado de cada planta, o vacía si falta capturarla",
+)
+async def prototipos_de_muro(caso_uso: GestionarPlantillasDeMuroDep) -> list[PrototipoDeMuro]:
+    return [PrototipoDeMuro.model_validate(p) for p in await caso_uso.prototipos()]
+
+
+@router.post(
+    "/muro-plantillas/ejemplos-de-prototipo",
+    response_model=EjemplosCargados,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
+    responses={403: {"description": "Editan Costos y Control de obra."}},
+)
+async def cargar_ejemplos_de_prototipo(ctx: ContextoActual, caso_uso: GestionarPlantillasDeMuroDep) -> EjemplosCargados:
+    """Idempotente. Cada línea trae su fila y celda del Excel en `origen`. Si el catálogo de la organización no tiene alguno de los castillos
+    (K-1, K-2…) o cadenas (CE-1…) que usa un ejemplo, ese ejemplo no se crea y se dice cuáles faltan."""
+    r = await caso_uso.cargar_ejemplos(autor_id=ctx.usuario_id, rol=str(Rol(ctx.rol).value))
+    return EjemplosCargados(
+        creadas=[_plantilla(f) for f in r["creadas"]], omitidas=r["omitidas"], faltan=[EjemploFaltante(**f) for f in r["faltan"]]
     )
 
 
@@ -403,6 +497,11 @@ class ElementoColocadoRespuesta(BaseModel):
     nombre: str
     clase: Literal["castillo", "cadena"]
     modo: Literal["estimado", "ubicado"] | None
+    regla: ReglaDeCastillo | None = Field(default=None, description="Castillos: cómo cuenta sus piezas.")
+    origen: str | None = Field(default=None, description="De dónde sale el dato de la regla (fila y celda del Excel).")
+    piezas_estimadas: Decimal = Field(
+        default=Decimal(0), description="Castillos: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba)."
+    )
     piezas: int
     alto_m: Decimal | None = Field(description="Lo alto de cada castillo: la altura del muro menos su arranque.")
     z_m: Decimal

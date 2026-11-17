@@ -12,11 +12,13 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ErrorApi } from '@/api/cliente';
 import {
   getListarPlantillasApiV1MuroPlantillasGetQueryKey,
+  getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryKey,
   getRevisarPlantillaApiV1MuroPlantillasPlantillaIdRevisionGetQueryKey,
   useBorrarPlantillaApiV1MuroPlantillasPlantillaIdDelete,
   useCambiarPlantillaApiV1MuroPlantillasPlantillaIdPut,
   useCatalogoDelArtefactoApiV1MuroArtefactoCatalogoGet,
   useCrearPlantillaApiV1MuroPlantillasPost,
+  usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet,
   useRevisarPlantillaApiV1MuroPlantillasPlantillaIdRevisionGet,
   useValidarPlantillaApiV1MuroPlantillasPlantillaIdValidarPost,
   useVerPlantillaApiV1MuroPlantillasPlantillaIdGet,
@@ -28,24 +30,35 @@ import { queryClient } from '@/app/queryClient';
 import { useDriversDeObraApiV1ObrasObraIdDriversGet } from '@/api/generado/parametrico/parametrico';
 import { useSesion } from '@/app/sesion';
 
-import { PLANTILLA_NUEVA } from './PanelDePlantillas';
 import {
   type Borrador,
   borradorDe,
+  borradorDePrototipo,
   borradorVacio,
   cambio,
   driversDeVistaDe,
   type ElementoBorrador,
+  esPlantillaNueva,
   geometriaDeVista,
   type MedidaDeElemento,
   type ParteBorrador,
   peticionDe,
+  type Planta,
+  prototipoDeNueva,
+  type ReglaDeCastillo,
+  reglasDeCastillo,
   type RolDeParte,
   type TipoDeMuro,
 } from './plantillaDeMuro';
 import { VistaPreviaDePlantilla } from './VistaPreviaDePlantilla';
 
 const ROLES_DE_PARTE: readonly RolDeParte[] = ['cuerpo', 'enrase', 'pretil', 'cadena'];
+const NOMBRE_DE_REGLA: Readonly<Record<ReglaDeCastillo, string>> = {
+  separacion: 'Cada separación y extremos',
+  extremos: 'Solo extremos',
+  por_ml: 'Por metro lineal',
+  total: 'Total del prototipo',
+};
 const CARAS = [
   ['', '—'],
   ['exterior', 'Exterior'],
@@ -75,10 +88,11 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
   const rol = sesion?.rol;
   const puedeEditar = rol === 'control_obra' || rol === 'costos';
   const puedeValidar = rol === 'control_obra';
-  const nueva = plantillaId === PLANTILLA_NUEVA;
+  const nueva = esPlantillaNueva(plantillaId);
   const idGuardada = plantillaId && !nueva ? plantillaId : null;
 
   const catalogo = useCatalogoDelArtefactoApiV1MuroArtefactoCatalogoGet();
+  const prototipos = usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet();
   const consulta = useVerPlantillaApiV1MuroPlantillasPlantillaIdGet(idGuardada ?? '', { query: { enabled: idGuardada !== null } });
   const guardada = idGuardada ? (consulta.data ?? null) : null;
   const versiones = useVersionesDeLaPlantillaApiV1MuroPlantillasPlantillaIdVersionesGet(idGuardada ?? '', {
@@ -103,11 +117,21 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
   // Al cambiar de plantilla (o al llegar su versión nueva) el borrador vuelve a lo guardado.
   const huella = guardada ? `${guardada.id}:${guardada.updated_at}` : (plantillaId ?? '');
   useEffect(() => {
-    setBorrador(guardada ? borradorDe(guardada) : borradorVacio());
+    // Una plantilla nueva de un prototipo nace como muro confinado de ese prototipo y planta, sin castillos (estructura por capturar).
+    const { prototipo, planta } = prototipoDeNueva(nueva ? plantillaId : null);
+    const ficha = (prototipos.data ?? []).find((x) => x.clave === prototipo);
+    const sufijo = planta ? ` · ${planta}` : '';
+    setBorrador(
+      guardada
+        ? borradorDe(guardada)
+        : prototipo
+          ? borradorDePrototipo(prototipo, planta, `Muro confinado · ${ficha?.nombre ?? prototipo}${sufijo}`)
+          : borradorVacio(),
+    );
     setError(null);
     setAceptar(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [huella]);
+  }, [huella, prototipos.isSuccess]);
 
   const opciones = useMemo<OpcionDeElemento[]>(() => {
     const salida: OpcionDeElemento[] = [];
@@ -162,6 +186,16 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
   const cambiarElemento = (i: number, c: Partial<ElementoBorrador>) =>
     setBorrador((b) => ({ ...b, elementos: b.elementos.map((e, k) => (k === i ? { ...e, ...c } : e)) }));
 
+  /** Cambiar el tipo de muro: solo el confinado lleva prototipo, y un castillo que se coloca en el plano (con cadena) no cuenta «por ml» ni «total». */
+  function cambiarTipo(tipo: TipoDeMuro) {
+    setBorrador((b) => ({
+      ...b,
+      tipo,
+      ...(tipo === 'confinado' ? {} : { prototipo: '', planta: '' as const, porConfirmar: b.porConfirmar }),
+      elementos: b.elementos.map((e) => (e.clase === 'castillo' && e.regla && !reglasDeCastillo(tipo).includes(e.regla) ? { ...e, regla: '' as const } : e)),
+    }));
+  }
+
   async function aplicarUbicacion(clave: string) {
     // Elegir la ubicación fija las caras de todas las partes (reglas 1 y 2): las calcula el servidor.
     setBorrador((b) => ({ ...b, ubicacion: clave }));
@@ -194,12 +228,22 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
     setBorrador((b) => {
       let uid = o.ref;
       for (let n = 2; b.elementos.some((e) => e.uid === uid); n++) uid = `${o.ref}#${n}`;
-      return { ...b, elementos: [...b.elementos, { uid, ref: o.ref, clase: o.clase, sep: '', posicion: o.clase === 'cadena' ? 'cerramiento' : '', z: '' }] };
+      return {
+        ...b,
+        elementos: [
+          ...b.elementos,
+          {
+            uid, ref: o.ref, clase: o.clase, sep: '', posicion: o.clase === 'cadena' ? 'cerramiento' : '', z: '',
+            regla: '', piezasPorMl: '', totalM: '', baseM2: '', origen: '',
+          },
+        ],
+      };
     });
   }
 
   function refrescar() {
     void queryClient.invalidateQueries({ queryKey: getListarPlantillasApiV1MuroPlantillasGetQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryKey() });
     if (idGuardada) {
       void queryClient.invalidateQueries({ queryKey: [`/api/v1/muro-plantillas/${idGuardada}`] });
       void queryClient.invalidateQueries({ queryKey: [`/api/v1/muro-plantillas/${idGuardada}/versiones`] });
@@ -364,13 +408,80 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
                 aria-pressed={borrador.tipo === t.clave}
                 disabled={!editable}
                 title={t.descripcion}
-                onClick={() => cambiarCampo({ tipo: t.clave as TipoDeMuro })}
+                onClick={() => cambiarTipo(t.clave as TipoDeMuro)}
               >
                 {t.nombre}
               </button>
             ))}
           </div>
           {tipoFicha && <p className="text-mute text-xs">{tipoFicha.descripcion}</p>}
+          {borrador.tipo === 'confinado' && (
+            <div className="mct__parametros" role="group" aria-label="Datos del prototipo">
+              <label className="mct__campo">
+                Prototipo
+                <select
+                  className="input"
+                  aria-label="Prototipo de la plantilla"
+                  value={borrador.prototipo}
+                  disabled={!editable}
+                  onChange={(e) => {
+                    const ficha = (prototipos.data ?? []).find((x) => x.clave === e.target.value);
+                    cambiarCampo({ prototipo: e.target.value, planta: ficha && !ficha.es_global ? 'PB' : '' });
+                  }}
+                >
+                  <option value="">Ninguno (plantilla general)</option>
+                  {(prototipos.data ?? []).map((x) => (
+                    <option key={x.clave} value={x.clave}>
+                      {x.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {borrador.prototipo !== '' && !borrador.prototipo.startsWith('global_') && (
+                <label className="mct__campo">
+                  Planta
+                  <select
+                    className="input"
+                    aria-label="Planta de la plantilla"
+                    value={borrador.planta}
+                    disabled={!editable}
+                    onChange={(e) => cambiarCampo({ planta: e.target.value as Planta })}
+                  >
+                    {((prototipos.data ?? []).find((x) => x.clave === borrador.prototipo)?.plantas ?? 2) >= 2 ? (
+                      <>
+                        <option value="PB">Planta baja (PB)</option>
+                        <option value="PA">Planta alta (PA)</option>
+                      </>
+                    ) : (
+                      <option value="PB">Planta baja (PB)</option>
+                    )}
+                  </select>
+                </label>
+              )}
+              <label className="mct__manual">
+                <input
+                  type="checkbox"
+                  aria-label="Datos por confirmar"
+                  checked={borrador.porConfirmar}
+                  disabled={!editable}
+                  onChange={(e) => cambiarCampo({ porConfirmar: e.target.checked })}
+                />
+                Datos por confirmar
+              </label>
+            </div>
+          )}
+          <label className="mct__campo">
+            Notas (de dónde salen los datos)
+            <textarea
+              className="input"
+              aria-label="Notas de la plantilla"
+              rows={borrador.notas ? 6 : 2}
+              maxLength={6000}
+              value={borrador.notas}
+              disabled={!editable}
+              onChange={(e) => cambiarCampo({ notas: e.target.value })}
+            />
+          </label>
         </div>
 
         <div className="mct__bloque">
@@ -477,19 +588,82 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
                 <span className="badge badge--outline">{e.clase === 'castillo' ? 'castillo' : e.clase === 'cadena' ? 'cadena' : 'muro'}</span>
                 {e.clase === 'castillo' && (
                   <>
-                    <span className="text-mute text-xs">{borrador.tipo === 'con_cadena' ? 'ubicado en el plano' : 'estimado por separación'}</span>
+                    <span className="text-mute text-xs">{borrador.tipo === 'con_cadena' ? 'ubicado en el plano' : 'estimado'}</span>
                     <label className="text-xs">
-                      Separación (m)
-                      <input
+                      Regla
+                      <select
                         className="input"
-                        inputMode="decimal"
-                        aria-label={`Separación de ${e.uid} (m)`}
-                        placeholder={borrador.tipo === 'confinado' ? String(driversDeVista.separacion_m) : 'extremos'}
-                        value={e.sep}
+                        aria-label={`Regla de ${e.uid}`}
+                        value={e.regla}
                         disabled={!editable}
-                        onChange={(ev) => /^[0-9]*[.,]?[0-9]*$/.test(ev.target.value) && cambiarElemento(i, { sep: ev.target.value })}
-                      />
+                        onChange={(ev) => cambiarElemento(i, { regla: ev.target.value as ReglaDeCastillo | '' })}
+                      >
+                        <option value="">{borrador.tipo === 'con_cadena' ? 'Extremos' : 'Separación de la obra'} (por defecto)</option>
+                        {reglasDeCastillo(borrador.tipo).map((r) => (
+                          <option key={r} value={r}>
+                            {NOMBRE_DE_REGLA[r]}
+                          </option>
+                        ))}
+                      </select>
                     </label>
+                    {(e.regla === '' || e.regla === 'separacion') && (
+                      <label className="text-xs">
+                        Separación (m)
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          aria-label={`Separación de ${e.uid} (m)`}
+                          placeholder={borrador.tipo === 'confinado' ? String(driversDeVista.separacion_m) : 'extremos'}
+                          value={e.sep}
+                          disabled={!editable}
+                          onChange={(ev) => /^[0-9]*[.,]?[0-9]*$/.test(ev.target.value) && cambiarElemento(i, { sep: ev.target.value })}
+                        />
+                      </label>
+                    )}
+                    {e.regla === 'por_ml' && (
+                      <label className="text-xs">
+                        Piezas por ml de muro
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          aria-label={`Piezas por ml de ${e.uid}`}
+                          value={e.piezasPorMl}
+                          disabled={!editable}
+                          onChange={(ev) => /^[0-9]*[.,]?[0-9]*$/.test(ev.target.value) && cambiarElemento(i, { piezasPorMl: ev.target.value })}
+                        />
+                      </label>
+                    )}
+                    {e.regla === 'total' && (
+                      <>
+                        <label className="text-xs">
+                          Metros de castillo (total)
+                          <input
+                            className="input"
+                            inputMode="decimal"
+                            aria-label={`Metros totales de ${e.uid}`}
+                            value={e.totalM}
+                            disabled={!editable}
+                            onChange={(ev) => /^[0-9]*[.,]?[0-9]*$/.test(ev.target.value) && cambiarElemento(i, { totalM: ev.target.value })}
+                          />
+                        </label>
+                        <label className="text-xs">
+                          Sobre m² de muro
+                          <input
+                            className="input"
+                            inputMode="decimal"
+                            aria-label={`m² de muro de la base de ${e.uid}`}
+                            value={e.baseM2}
+                            disabled={!editable}
+                            onChange={(ev) => /^[0-9]*[.,]?[0-9]*$/.test(ev.target.value) && cambiarElemento(i, { baseM2: ev.target.value })}
+                          />
+                        </label>
+                      </>
+                    )}
+                    {e.origen && (
+                      <span className="text-mute text-xs mono" data-testid={`origen-de-${e.uid}`}>
+                        {e.origen}
+                      </span>
+                    )}
                   </>
                 )}
                 {e.clase === 'cadena' && (
@@ -538,7 +712,7 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
           <h3>Vista previa</h3>
           <VistaPreviaDePlantilla g={geometria} aparente />
           <p className="text-mute text-xs">
-            Tramo de muestra de 6 m. Sin altura propia se dibuja con la altura estándar de la obra ({driversDeVista.altura_m} m); un castillo
+            Tramo de muestra de 6 m. Un castillo «por ml» o «total» cuenta piezas con fracción (una estimación); aquí se dibujan redondeadas hacia arriba. Sin altura propia se dibuja con la altura estándar de la obra ({driversDeVista.altura_m} m); un castillo
             estimado sin separación propia se reparte con la separación de castillos de la obra ({driversDeVista.separacion_m} m), y uno
             ubicado va en los extremos. Los dos valores son drivers del Paramétrico{obraId === '' ? ' (sin obra elegida: valores de partida)' : ''}.
           </p>

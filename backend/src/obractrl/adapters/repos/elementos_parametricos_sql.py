@@ -325,7 +325,7 @@ class RepositorioElementosParametricosSQL:
     async def trazo_de(self, trazo_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
-                text("select id, elemento_parametrico_id, lados_cimbra from trazo where id = :id"),
+                text("select id, elemento_parametrico_id, lados_cimbra, to_jsonb(trazo)->>'muro_plantilla_id' as muro_plantilla_id from trazo where id = :id"),
                 {"id": str(trazo_id)},
             )
         ).mappings().first()
@@ -439,6 +439,38 @@ class RepositorioElementosParametricosSQL:
                       left join nivel n on n.id = x.nivel_id
                      where p.obra_id = :o and v.elemento_uid is not null and v.tipo = 'castillo'
                      order by v.created_at, v.id
+                    """
+                ),
+                {"o": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def trazos_con_plantilla_de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Los muros (líneas) de la obra que eligieron una plantilla, con los elementos de la versión que eligieron, la ubicación y el nivel y la
+        etapa donde se miden. De ahí salen las cadenas y los castillos estimados de la plantilla: no hace falta colocarlos en el plano."""
+        if not await _hay_columna(self._sesion, "trazo", "muro_plantilla_id"):
+            return []
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.id as trazo_id, mp.elementos, t.muro_ubicacion as ubicacion, n.orden as nivel_orden, x.nivel_id, x.etapa_id
+                      from trazo t
+                      join plano p on p.id = t.plano_id
+                      join muro_plantilla mp on mp.id = t.muro_plantilla_id
+                      left join lateral (
+                        select coalesce(a.nivel_id, pn.nivel_id) as nivel_id, coalesce(a.etapa_id, pn.etapa_id) as etapa_id
+                          from enlace_cuantificacion e
+                          left join actividad a on a.id = e.actividad_id
+                          left join prototipo_nodo pn on pn.id = e.prototipo_nodo_id
+                         where e.trazo_id = t.id and e.vigente and coalesce(a.nivel_id, pn.nivel_id, a.etapa_id, pn.etapa_id) is not null
+                         order by e.created_at, e.id limit 1
+                      ) x on true
+                      left join nivel n on n.id = x.nivel_id
+                     where p.obra_id = :o and t.hueco_de is null and not t.propuesta
+                       and ST_GeometryType(t.geometria) = 'ST_LineString'
+                     order by t.id
                     """
                 ),
                 {"o": str(obra_id)},
