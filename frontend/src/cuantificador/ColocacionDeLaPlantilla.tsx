@@ -23,6 +23,13 @@ interface Props {
   readonly onError: (mensaje: string) => void;
 }
 
+const NOMBRE_DE_REGLA = {
+  separacion: 'cada separación y extremos',
+  extremos: 'solo extremos',
+  por_ml: 'por ml de muro',
+  total: 'total del prototipo (por m² de muro)',
+} as const;
+
 /** Recarga lo que cambia al colocar o retirar: los vanos del muro, el plano, las cantidades y lo que toman los elementos. */
 function recargar(trazoId: string) {
   void queryClient.invalidateQueries({ queryKey: getColocacionDelMuroApiV1TrazosTrazoIdMuroPlantillaColocacionGetQueryKey(trazoId) });
@@ -76,9 +83,11 @@ export function ColocacionDeLaPlantilla({ trazoId, onCambio, onError }: Props) {
             <div>
               <b className="mono">{e.ref}</b>{' '}
               {e.clase === 'castillo'
-                ? `· ${e.piezas} pza × ${fmtNum(e.alto_m)} m · ${e.modo === 'ubicado' ? `colocados ${e.colocados} de ${e.piezas}` : 'estimados (no se colocan)'}`
+                ? `· ${e.modo === 'ubicado' ? e.piezas : fmtNum(e.piezas_estimadas)} pza × ${fmtNum(e.alto_m)} m · ${e.modo === 'ubicado' ? `colocados ${e.colocados} de ${e.piezas}` : 'estimados (no se colocan)'}`
                 : `· ${fmtNum(e.metros)} ml (el largo del muro)`}
+              {e.regla && e.modo !== 'ubicado' && <span className="text-mute text-xs" data-testid={`regla-de-${e.uid}`}> · {NOMBRE_DE_REGLA[e.regla]}</span>}
             </div>
+            {e.origen && <div className="text-mute text-xs mono">{e.origen}</div>}
             {e.conceptos.length > 0 && (
               <ul className="colocacion-plantilla__conceptos">
                 {e.conceptos.map((c) => (

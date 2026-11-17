@@ -2,7 +2,26 @@ import { describe, expect, it } from 'vitest';
 
 import type { PlantillaDeMuro } from '@/api/generado/modelo';
 
-import { borradorDe, borradorVacio, cambio, driversDeVistaDe, geometriaDeVista, peticionDe, type Borrador } from './plantillaDeMuro';
+import {
+  borradorDe,
+  borradorDePrototipo,
+  borradorVacio,
+  cambio,
+  driversDeVistaDe,
+  type ElementoBorrador,
+  esPlantillaNueva,
+  geometriaDeVista,
+  peticionDe,
+  plantillaNuevaDe,
+  prototipoDeNueva,
+  reglasDeCastillo,
+  type Borrador,
+} from './plantillaDeMuro';
+
+/** Un elemento del borrador con lo que no se dice en blanco. */
+const elemento = (e: Pick<ElementoBorrador, 'uid' | 'ref' | 'clase'> & Partial<ElementoBorrador>): ElementoBorrador => ({
+  sep: '', posicion: '', z: '', regla: '', piezasPorMl: '', totalM: '', baseM2: '', origen: '', ...e,
+});
 
 const PLANTILLA = {
   id: 'p1',
@@ -89,7 +108,7 @@ describe('la vista previa del muro', () => {
   });
 
   it('en un muro confinado los castillos son estimados y la separación se respeta', () => {
-    const b: Borrador = { ...borradorDe(PLANTILLA), tipo: 'confinado', elementos: [{ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '2', posicion: '', z: '' }] };
+    const b: Borrador = { ...borradorDe(PLANTILLA), tipo: 'confinado', elementos: [elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '2', posicion: '', z: '' })] };
     const g = geometriaDeVista(b, medidas);
     expect(g.castillos).toHaveLength(4); // 0, 2, 4 y 6 m
     expect(g.castillos.every((c) => c.estimado)).toBe(true);
@@ -100,8 +119,8 @@ describe('la vista previa del muro', () => {
       ...borradorVacio(),
       altura: '3',
       elementos: [
-        { uid: 'CD-1', ref: 'CD-1', clase: 'cadena', sep: '', posicion: 'desplante', z: '' },
-        { uid: 'CE-1', ref: 'CE-1', clase: 'cadena', sep: '', posicion: 'remate', z: '' },
+        elemento({ uid: 'CD-1', ref: 'CD-1', clase: 'cadena', sep: '', posicion: 'desplante', z: '' }),
+        elemento({ uid: 'CE-1', ref: 'CE-1', clase: 'cadena', sep: '', posicion: 'remate', z: '' }),
       ],
     };
     const g = geometriaDeVista(b, medidas);
@@ -115,7 +134,7 @@ describe('los drivers de la obra en la vista previa', () => {
   const confinado: Borrador = {
     ...borradorVacio(),
     tipo: 'confinado',
-    elementos: [{ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '', posicion: '', z: '' }],
+    elementos: [elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '', posicion: '', z: '' })],
   };
 
   it('sin drivers de la obra vale lo de partida: 3.00 m de alto y castillos cada 3.00 m', () => {
@@ -136,7 +155,7 @@ describe('los drivers de la obra en la vista previa', () => {
   });
 
   it('la altura y la separación que la plantilla trae mandan sobre los drivers', () => {
-    const b: Borrador = { ...confinado, altura: '2.8', elementos: [{ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '1.5', posicion: '', z: '' }] };
+    const b: Borrador = { ...confinado, altura: '2.8', elementos: [elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', sep: '1.5', posicion: '', z: '' })] };
     const g = geometriaDeVista(b, medidas, { altura_m: 3.5, separacion_m: 2 });
     expect(g.altura_m).toBe(2.8);
     expect(g.castillos).toHaveLength(5); // 0, 1.5, 3, 4.5 y 6 m
@@ -145,5 +164,80 @@ describe('los drivers de la obra en la vista previa', () => {
   it('un driver que falta o no vale queda en su valor de partida', () => {
     expect(driversDeVistaDe(undefined)).toEqual({ altura_m: 3, separacion_m: 3 });
     expect(driversDeVistaDe([{ clave: 'separacion_castillos', valor_vigente: 'x' }])).toEqual({ altura_m: 3, separacion_m: 3 });
+  });
+});
+
+
+describe('plantilla de muro confinado por prototipo', () => {
+  const medidas = { 'K-1': { ancho_m: 0.15, alto_m: 0 }, 'K-2': { ancho_m: 0.15, alto_m: 0 } };
+  const oro: Borrador = {
+    ...borradorDePrototipo('oro_401', 'PB', 'Muro confinado · Oro 4.01 · PB'),
+    altura: '3',
+    elementos: [
+      elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', regla: 'total', totalM: '126', baseM2: '286', origen: 'ASIGNACIÓN!K2152' }),
+      elemento({ uid: 'K-2', ref: 'K-2', clase: 'castillo', regla: 'extremos' }),
+      elemento({ uid: 'CE-1', ref: 'CE-1', clase: 'cadena', posicion: 'cerramiento' }),
+    ],
+  };
+
+  it('un prototipo nuevo nace como muro confinado, por confirmar y sin castillos', () => {
+    const b = borradorDePrototipo('zafiro_1', 'PB', 'Muro confinado · Zafiro 1.0 · PB');
+    expect([b.tipo, b.prototipo, b.planta, b.porConfirmar, b.elementos.length]).toEqual(['confinado', 'zafiro_1', 'PB', true, 0]);
+  });
+
+  it('la petición lleva el prototipo, la planta, las notas y la regla de cada castillo', () => {
+    const r = peticionDe({ ...oro, notas: '  Celdas del Excel  ' });
+    if (!('peticion' in r)) throw new Error(r.motivo);
+    expect(r.peticion).toMatchObject({ prototipo: 'oro_401', planta: 'PB', notas: 'Celdas del Excel', por_confirmar: true });
+    expect(r.peticion.elementos?.map((e) => [e.ref, e.regla, e.total_m, e.base_m2, e.sep_m, e.origen])).toEqual([
+      ['K-1', 'total', 126, 286, null, 'ASIGNACIÓN!K2152'],
+      ['K-2', 'extremos', null, null, null, null],
+      ['CE-1', null, null, null, null, null],
+    ]);
+    const vuelta = borradorDe({ ...PLANTILLA, tipo: 'confinado', prototipo: 'oro_401', planta: 'PB', notas: 'x', por_confirmar: true, elementos: [
+      { uid: 'K-1', ref: 'K-1', clase: 'castillo', modo: 'estimado', sep_m: null, regla: 'total', total_m: '126.000', base_m2: '286.000', origen: 'ASIGNACIÓN!K2152', posicion: null, z_m: '0' },
+    ] } as unknown as PlantillaDeMuro);
+    expect(vuelta.elementos[0]).toMatchObject({ regla: 'total', totalM: '126', baseM2: '286', origen: 'ASIGNACIÓN!K2152' });
+    expect([vuelta.prototipo, vuelta.planta, vuelta.notas, vuelta.porConfirmar]).toEqual(['oro_401', 'PB', 'x', true]);
+  });
+
+  it('pide lo que falta de cada regla y la planta del prototipo', () => {
+    const sinPorMl = { ...oro, elementos: [elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', regla: 'por_ml' })] };
+    expect(peticionDe(sinPorMl)).toMatchObject({ motivo: expect.stringContaining('por ml') });
+    const sinBase = { ...oro, elementos: [elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', regla: 'total', totalM: '5' })] };
+    expect(peticionDe(sinBase)).toMatchObject({ motivo: expect.stringContaining('total') });
+    expect(peticionDe({ ...oro, planta: '' })).toMatchObject({ motivo: expect.stringContaining('planta') });
+    // La global no lleva planta aunque el borrador la traiga.
+    const global = peticionDe({ ...oro, prototipo: 'global_1', planta: 'PB' });
+    if (!('peticion' in global)) throw new Error(global.motivo);
+    expect(global.peticion.planta).toBeNull();
+  });
+
+  it('un muro con cadena solo cuenta por separación o extremos', () => {
+    expect(reglasDeCastillo('con_cadena')).toEqual(['separacion', 'extremos']);
+    expect(reglasDeCastillo('confinado')).toEqual(['separacion', 'extremos', 'por_ml', 'total']);
+  });
+
+  it('la vista previa dibuja cada castillo con su regla', () => {
+    const g = geometriaDeVista(oro, medidas);
+    const de = (uid: string) => g.castillos.filter((c) => c.uid === uid);
+    // Total: 126 × 6 m ÷ 286 m² = 2.643 piezas de 3.00 m en el tramo de 6 m: se dibujan 3, repartidas del inicio al final.
+    expect(de('K-1')).toHaveLength(3);
+    expect(de('K-1')[0]!.piezas).toBeCloseTo(2.643, 2);
+    expect(de('K-1').map((c) => c.regla)).toEqual(['total', 'total', 'total']);
+    expect(de('K-2').map((c) => c.x_m + c.ancho_m / 2)).toEqual([0.075, 5.925]);
+    const porMl = geometriaDeVista({ ...oro, elementos: [elemento({ uid: 'K-1', ref: 'K-1', clase: 'castillo', regla: 'por_ml', piezasPorMl: '0.5' })] }, medidas);
+    expect(porMl.castillos).toHaveLength(3); // 6 ml × 0.5 pza/ml
+    expect(porMl.castillos[0]!.piezas).toBe(3);
+  });
+
+  it('el identificador de una plantilla nueva lleva su prototipo y planta', () => {
+    expect(plantillaNuevaDe()).toBe('nueva');
+    expect(plantillaNuevaDe('oro_401', 'PA')).toBe('nueva:oro_401:PA');
+    expect(plantillaNuevaDe('global_1', null)).toBe('nueva:global_1:');
+    expect([esPlantillaNueva('nueva'), esPlantillaNueva('nueva:oro_401:PA'), esPlantillaNueva('c1'), esPlantillaNueva(null)]).toEqual([true, true, false, false]);
+    expect(prototipoDeNueva('nueva:oro_401:PA')).toEqual({ prototipo: 'oro_401', planta: 'PA' });
+    expect(prototipoDeNueva('nueva:global_1:')).toEqual({ prototipo: 'global_1', planta: '' });
+    expect(prototipoDeNueva('nueva')).toEqual({ prototipo: '', planta: '' });
   });
 });
