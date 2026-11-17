@@ -201,6 +201,9 @@ import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { PantallaDeArtefacto } from './elementos/PantallaDeArtefacto';
+import { PanelDeZonasDeLosa, ZonaDeLosaDelTrazo, type PorColocar } from './ZonasDeLosa';
+import { etiquetasDeZonas } from './zonasDeLosa';
+import { useFijarLosaApiV1TrazosTrazoIdLosaPut, useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut, useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet } from '@/api/generado/zonas-de-losa/zonas-de-losa';
 import { PanelDePlantillas } from './elementos/PanelDePlantillas';
 import { PanelDeBiblioteca } from './elementos/PanelDeBiblioteca';
 import { PantallaDeElementos } from './elementos/PantallaDeElementos';
@@ -974,6 +977,11 @@ export function EspacioDeTrazo({
   // La plantilla de muro que se edita en la pestaña Artefacto (o «nueva»).
   const [plantillaDeMuro, setPlantillaDeMuro] = useState<string | null>(null);
   const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
+  // Zonas de losa (0137): «Dibujar losa» de una zona o «Colocar punto de nivel exterior»: lo que se trace nace con ese rol.
+  const [zonaPorColocar, setZonaPorColocar] = useState<PorColocar | null>(null);
+  const fijarLosa = useFijarLosaApiV1TrazosTrazoIdLosaPut<ErrorApi>();
+  const fijarNivelExterior = useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut<ErrorApi>();
+  const zonasDelPlano = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(planoElegido, { query: { enabled: planoElegido !== '' } });
   // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
   // Mientras se coloca un elemento (D-604) se ve el plano: Esc termina y vuelve la pantalla.
   const pantallaPropia =
@@ -1759,6 +1767,37 @@ export function EspacioDeTrazo({
       );
       return;
     }
+    if (zonaPorColocar) {
+      const pedida = zonaPorColocar;
+      const geometriaPedida = pedida.tipo === 'losa' ? 'poligono' : 'punto';
+      if (geometriaPedida !== tipo) {
+        setAviso(pedida.tipo === 'losa' ? `La losa de «${pedida.nombre}» se traza con un área (Rectángulo o Polígono). Esc termina.` : 'El punto de nivel exterior se coloca con Punto. Esc termina.');
+        limpiarDibujo();
+        return;
+      }
+      const planoId = plano.id;
+      const cuerpo = trazoPeticion({ ...base, enlaces: [] });
+      registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
+        async (r) => {
+          alGuardar(r, { planoId, data: cuerpo });
+          try {
+            if (pedida.tipo === 'losa') {
+              await fijarLosa.mutateAsync({ trazoId: r.trazo_id, data: { zona_id: pedida.zonaId, espesor_m: null } });
+              setAviso(`Losa de «${pedida.nombre}» dibujada. Sigue trazando; Esc termina.`);
+            } else {
+              await fijarNivelExterior.mutateAsync({ trazoId: r.trazo_id, data: { cota_m: pedida.cotaM, rotulo: pedida.rotulo.trim() || null } });
+              setAviso('Punto de nivel exterior colocado. Sigue colocando; Esc termina.');
+            }
+            invalidarTrazos();
+            void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
+          } catch (err) {
+            setAviso(`Trazo guardado, pero no se pudo marcar su rol: ${err instanceof Error ? err.message : 'error'}`);
+          }
+        },
+        (err: unknown) => setAviso(`No se pudo guardar el trazo: ${err instanceof Error ? err.message : 'error'}`),
+      );
+      return;
+    }
     if (elementoPorColocar) {
       // Un castillo o una zapata se colocan con Punto, una trabe con Línea, una losa con un Área.
       const geometriaDelElemento = { castillo: 'punto', zapata: 'punto', lineal: 'linea', losa: 'poligono' }[elementoPorColocar.tipo];
@@ -1920,6 +1959,15 @@ export function EspacioDeTrazo({
     window.addEventListener('keydown', cerrar);
     return () => window.removeEventListener('keydown', cerrar);
   }, [revestimientoPorColocar]);
+  // «Dibujar losa» y «Colocar punto de nivel» terminan con Esc.
+  useEffect(() => {
+    if (zonaPorColocar === null) return;
+    const cerrar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZonaPorColocar(null);
+    };
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [zonaPorColocar]);
   // «Colocar este elemento» termina con Esc.
   useEffect(() => {
     if (elementoPorColocar === null) return;
@@ -2259,6 +2307,10 @@ export function EspacioDeTrazo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mostrarMedidas, featuresVisibles, escalaDelPlano, datosDeMatriz, listaDeMediciones, coloresDeMedicion, porActividad],
   );
+  const etiquetasConZonas = useMemo(
+    () => [...etiquetas, ...etiquetasDeZonas(featuresVisibles, zonasDelPlano.data?.zonas ?? [])],
+    [etiquetas, featuresVisibles, zonasDelPlano.data],
+  );
   const cotas = useMemo(
     () => (mostrarCotas ? featuresVisibles.flatMap((f) => cotasDe(f.geometry, escalaDelPlano, f.properties.pendiente_pct)) : []),
     [mostrarCotas, featuresVisibles, escalaDelPlano],
@@ -2566,6 +2618,22 @@ export function EspacioDeTrazo({
                     onError={(m) => setAviso(m)}
                   />
                 ))}
+            <ZonaDeLosaDelTrazo
+              trazoId={seleccionado.id as string}
+              planoId={planoElegido}
+              tipoDeGeometria={String(seleccionado.geometry.type)}
+              esMuro={seleccionado.geometry.type === 'LineString'}
+              losaZonaId={seleccionado.properties.losa_zona_id ?? null}
+              losaEspesorM={seleccionado.properties.losa_espesor_m ?? null}
+              nivelExteriorM={seleccionado.properties.nivel_exterior_m ?? null}
+              rotulo={seleccionado.properties.rotulo ?? null}
+              puedeEditar={sesion?.rol === 'control_obra'}
+              onCambio={(a) => {
+                setAviso(a);
+                invalidarTrazos();
+              }}
+              onError={(m) => setAviso(m)}
+            />
             {seleccionado.geometry.type === 'LineString' && seleccionado.properties.grosor_m != null && (
               <ClasificacionDelMuro
                 trazoId={seleccionado.id as string}
@@ -2864,6 +2932,24 @@ export function EspacioDeTrazo({
             onCambio={(aviso) => {
               void elementosConsulta.refetch();
               if (aviso) setAviso(aviso);
+            }}
+            onError={(m) => setAviso(m)}
+          />
+          <PanelDeZonasDeLosa
+            planoId={planoElegido}
+            puedeEditar={sesion?.rol === 'control_obra'}
+            colocando={zonaPorColocar}
+            onColocar={(c) => {
+              setZonaPorColocar(c);
+              if (c) {
+                setElementoPorColocar(null);
+                cambiarHerramienta(c.tipo === 'losa' ? 'rectangulo' : 'punto');
+                setAviso(c.tipo === 'losa' ? `Traza el área de la losa de «${c.nombre}». Esc termina.` : 'Un clic en el plano por cada punto de nivel exterior. Esc termina.');
+              }
+            }}
+            onCambio={(a) => {
+              setAviso(a);
+              invalidarTrazos();
             }}
             onError={(m) => setAviso(m)}
           />
@@ -3461,7 +3547,7 @@ export function EspacioDeTrazo({
                 huecoEnCurso={huecoEnCurso}
                 bandaEnCurso={bandaEnCurso}
                 fantasma={fantasma}
-                etiquetas={etiquetas}
+                etiquetas={etiquetasConZonas}
                 cotas={cotas}
                 onMover={asistida ? setCursor : undefined}
                 onCoordenadas={ponerCoordenadas}

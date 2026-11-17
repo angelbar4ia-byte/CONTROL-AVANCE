@@ -1,0 +1,454 @@
+/**
+ * Zonas de losa (Fase 1: geometría y cotas, sin conceptos de losa).
+ *
+ * - `PanelDeZonasDeLosa`: las zonas del plano (nombre, nivel, cota del piso, altura libre al nivel bajo de la losa y espesor), con
+ *   «Dibujar losa» (el polígono que se trace nace como losa de esa zona) y «Colocar punto de nivel exterior» (cota y rótulo).
+ *   Cotas relativas al piso terminado de la planta baja = 0. **Solo Control de obra edita; los demás leen.**
+ * - `ZonaDeLosaDelTrazo`: en el detalle del trazo elegido: un polígono (a qué zona pertenece, espesor propio de subzona), un punto
+ *   (su cota y su rótulo) o un muro (qué zona, altura, enrase y cara aplicarían, por tramo). Lo del muro es una sugerencia: solo se
+ *   aplica al pulsar «Aplicar al muro».
+ */
+
+import { useState } from 'react';
+
+import type { ErrorApi } from '@/api/cliente';
+import { queryClient } from '@/app/queryClient';
+import {
+  getResolverMuroApiV1TrazosTrazoIdZonasDeLosaGetQueryKey,
+  getZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGetQueryKey,
+  useBorrarZonaApiV1ZonasDeLosaZonaIdDelete,
+  useCambiarZonaApiV1ZonasDeLosaZonaIdPut,
+  useCrearZonaApiV1PlanosPlanoIdZonasDeLosaPost,
+  useFijarLosaApiV1TrazosTrazoIdLosaPut,
+  useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut,
+  useResolverMuroApiV1TrazosTrazoIdZonasDeLosaGet,
+  useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet,
+} from '@/api/generado/zonas-de-losa/zonas-de-losa';
+import { useFijarMuroApiV1TrazosTrazoIdMuroPut, useVerMuroApiV1TrazosTrazoIdMuroGet } from '@/api/generado/cuantificacion/cuantificacion';
+import type { ZonaDeLosa } from '@/api/generado/modelo';
+import { NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
+
+function mensaje(err: unknown, defecto: string): string {
+  return err instanceof Error ? err.message : defecto;
+}
+
+/** Lo que el plano pide cuando se está colocando algo: una losa de una zona o un punto de nivel. */
+export type PorColocar =
+  | { readonly tipo: 'losa'; readonly zonaId: string; readonly nombre: string }
+  | { readonly tipo: 'nivel'; readonly cotaM: string; readonly rotulo: string };
+
+interface PanelProps {
+  readonly planoId: string;
+  readonly puedeEditar: boolean;
+  readonly colocando: PorColocar | null;
+  readonly onColocar: (c: PorColocar | null) => void;
+  readonly onCambio: (aviso: string) => void;
+  readonly onError: (mensaje: string) => void;
+}
+
+interface Borrador {
+  nombre: string;
+  nivel: string;
+  cota: string;
+  altura: string;
+  espesor: string;
+}
+const BORRADOR_VACIO: Borrador = { nombre: '', nivel: '', cota: '0', altura: '3.00', espesor: '0.12' };
+
+function datosDe(b: Borrador) {
+  return {
+    nombre: b.nombre,
+    nivel: b.nivel.trim() || null,
+    cota_piso_m: b.cota,
+    altura_libre_m: b.altura,
+    espesor_m: b.espesor,
+  };
+}
+
+export function PanelDeZonasDeLosa({ planoId, puedeEditar, colocando, onColocar, onCambio, onError }: PanelProps) {
+  const consulta = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(planoId, { query: { enabled: planoId !== '' } });
+  const crear = useCrearZonaApiV1PlanosPlanoIdZonasDeLosaPost<ErrorApi>();
+  const cambiar = useCambiarZonaApiV1ZonasDeLosaZonaIdPut<ErrorApi>();
+  const borrar = useBorrarZonaApiV1ZonasDeLosaZonaIdDelete<ErrorApi>();
+  const [editando, setEditando] = useState<string | 'nueva' | null>(null);
+  const [borrador, setBorrador] = useState<Borrador>(BORRADOR_VACIO);
+  const [cotaNivel, setCotaNivel] = useState('0');
+  const [rotuloNivel, setRotuloNivel] = useState('');
+  const zonas = consulta.data?.zonas ?? [];
+  const puntos = consulta.data?.puntos_de_nivel ?? [];
+
+  function refrescar() {
+    void queryClient.invalidateQueries({ queryKey: getZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGetQueryKey(planoId) });
+    void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/trazos') });
+    void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
+  }
+
+  async function guardar() {
+    try {
+      if (editando === 'nueva') {
+        await crear.mutateAsync({ planoId, data: datosDe(borrador) });
+        onCambio(`Zona «${borrador.nombre.trim()}» creada.`);
+      } else if (editando) {
+        await cambiar.mutateAsync({ zonaId: editando, data: datosDe(borrador) });
+        onCambio(`Zona «${borrador.nombre.trim()}» guardada.`);
+      }
+      setEditando(null);
+      refrescar();
+    } catch (err) {
+      onError(mensaje(err, 'No se pudo guardar la zona.'));
+    }
+  }
+
+  function empezarAEditar(z: ZonaDeLosa) {
+    setBorrador({ nombre: z.nombre, nivel: z.nivel ?? '', cota: z.cota_piso_m, altura: z.altura_libre_m, espesor: z.espesor_m });
+    setEditando(z.id);
+  }
+
+  async function quitar(z: ZonaDeLosa) {
+    try {
+      await borrar.mutateAsync({ zonaId: z.id });
+      if (colocando?.tipo === 'losa' && colocando.zonaId === z.id) onColocar(null);
+      refrescar();
+      onCambio(`Zona «${z.nombre}» borrada: sus polígonos quedan como trazos comunes.`);
+    } catch (err) {
+      onError(mensaje(err, 'No se pudo borrar la zona.'));
+    }
+  }
+
+  const campo = (clave: keyof Borrador, etiqueta: string, ayuda?: string) => (
+    <label className="mct__campo" title={ayuda}>
+      {etiqueta}
+      <input className="input" aria-label={etiqueta} value={borrador[clave]} onChange={(e) => setBorrador({ ...borrador, [clave]: e.target.value })} />
+    </label>
+  );
+
+  return (
+    <section className="zonas-losa" aria-label="Zonas de losa" data-testid="zonas-de-losa">
+      <div className="estacion__subencabezado">
+        <span className="estacion__subtitulo">Zonas de losa</span>
+        {puedeEditar && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={() => {
+              setBorrador(BORRADOR_VACIO);
+              setEditando('nueva');
+            }}
+          >
+            Nueva zona
+          </button>
+        )}
+      </div>
+      <p className="text-mute text-xs">
+        Cotas en metros, relativas al piso terminado de planta baja = 0. La altura libre va del piso terminado al nivel bajo de la losa
+        (es la altura que toma el muro); el espesor es la cota que sigue.
+        {!puedeEditar && ' Solo Control de obra las edita.'}
+      </p>
+      {consulta.data && !consulta.data.escala_definida && (
+        <p className="text-mute text-xs">El plano no tiene escala calibrada: se toma 1 unidad de plano = 1 m.</p>
+      )}
+      {zonas.length === 0 && editando === null && <div className="text-mute text-sm">Este plano no tiene zonas de losa.</div>}
+      {zonas.map((z) => (
+        <div key={z.id} className="zonas-losa__zona" data-testid="zona-de-losa">
+          <div className="row">
+            <strong>{z.nombre}</strong>
+            {z.nivel && <span className="badge badge--outline">{z.nivel}</span>}
+          </div>
+          <div className="text-xs mono">
+            piso {textoDeCota(z.cota_piso_m)} · libre {textoDeMetros(z.altura_libre_m)} · losa {textoDeCota(z.cota_inferior_m)} a{' '}
+            {textoDeCota(z.cota_superior_m)} (e {textoDeMetros(z.espesor_m)})
+          </div>
+          <div className="text-mute text-xs">
+            {z.losas.length} {z.losas.length === 1 ? 'losa' : 'losas'}
+            {z.losas.some((l) => l.espesor_propio_m != null) && ` · subzonas: ${z.losas.filter((l) => l.espesor_propio_m != null).length}`}
+          </div>
+          {puedeEditar && (
+            <div className="row">
+              <button
+                type="button"
+                className={colocando?.tipo === 'losa' && colocando.zonaId === z.id ? 'btn btn--sm is-active' : 'btn btn--sm'}
+                aria-pressed={colocando?.tipo === 'losa' && colocando.zonaId === z.id}
+                onClick={() => onColocar(colocando?.tipo === 'losa' && colocando.zonaId === z.id ? null : { tipo: 'losa', zonaId: z.id, nombre: z.nombre })}
+              >
+                Dibujar losa
+              </button>
+              <button type="button" className="btn btn--sm" onClick={() => empezarAEditar(z)}>
+                Editar
+              </button>
+              <button type="button" className="btn btn--sm" aria-label={`Borrar la zona ${z.nombre}`} onClick={() => void quitar(z)}>
+                Borrar
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+      {puedeEditar && editando !== null && (
+        <div className="zonas-losa__form" role="group" aria-label="Datos de la zona">
+          {campo('nombre', 'Nombre de la zona')}
+          {campo('nivel', 'Nivel o planta', 'Texto libre: planta baja, entrepiso…')}
+          {campo('cota', 'Cota del piso terminado (m)', 'Piso terminado de PB = 0')}
+          {campo('altura', 'Altura libre (m)', 'Del piso terminado al nivel bajo de la losa')}
+          {campo('espesor', 'Espesor de la losa (m)')}
+          <div className="row">
+            <button type="button" className="btn btn--sm btn--primary" disabled={crear.isPending || cambiar.isPending} onClick={() => void guardar()}>
+              Guardar zona
+            </button>
+            <button type="button" className="btn btn--sm" onClick={() => setEditando(null)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="estacion__subencabezado">
+        <span className="estacion__subtitulo">Puntos de nivel exterior</span>
+      </div>
+      {puntos.length === 0 && <div className="text-mute text-sm">Sin puntos de nivel exterior.</div>}
+      {puntos.map((p) => (
+        <div key={p.trazo_id} className="text-xs mono" data-testid="punto-de-nivel">
+          {p.rotulo ?? 'Sin rótulo'} · {textoDeCota(p.cota_m)}
+        </div>
+      ))}
+      {puedeEditar && (
+        <div className="zonas-losa__form" role="group" aria-label="Punto de nivel exterior">
+          <label className="mct__campo">
+            Cota del punto (m)
+            <input className="input" aria-label="Cota del punto de nivel" value={cotaNivel} onChange={(e) => setCotaNivel(e.target.value)} />
+          </label>
+          <label className="mct__campo">
+            Rótulo
+            <input className="input" aria-label="Rótulo del punto de nivel" value={rotuloNivel} onChange={(e) => setRotuloNivel(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className={colocando?.tipo === 'nivel' ? 'btn btn--sm is-active' : 'btn btn--sm'}
+            aria-pressed={colocando?.tipo === 'nivel'}
+            onClick={() => onColocar(colocando?.tipo === 'nivel' ? null : { tipo: 'nivel', cotaM: cotaNivel, rotulo: rotuloNivel })}
+          >
+            Colocar punto de nivel exterior
+          </button>
+        </div>
+      )}
+      {colocando && (
+        <p className="text-xs" role="status">
+          {colocando.tipo === 'losa'
+            ? `Traza el área de la losa de «${colocando.nombre}» (polígono o rectángulo). Esc termina.`
+            : 'Haz clic en el plano para poner el punto (herramienta Punto). Esc termina.'}
+        </p>
+      )}
+    </section>
+  );
+}
+
+interface TrazoProps {
+  readonly trazoId: string;
+  readonly planoId: string;
+  readonly tipoDeGeometria: string;
+  readonly esMuro: boolean;
+  readonly losaZonaId: string | null;
+  readonly losaEspesorM: string | null;
+  readonly nivelExteriorM: string | null;
+  readonly rotulo: string | null;
+  readonly puedeEditar: boolean;
+  readonly onCambio: (aviso: string) => void;
+  readonly onError: (mensaje: string) => void;
+}
+
+/** En el detalle del trazo elegido: su rol de losa, su punto de nivel o lo que las zonas dicen de su muro. */
+export function ZonaDeLosaDelTrazo(p: TrazoProps) {
+  const zonasConsulta = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(p.planoId, { query: { enabled: p.planoId !== '' } });
+  const zonas = zonasConsulta.data?.zonas ?? [];
+  const hayZonas = zonas.length > 0;
+  if (p.tipoDeGeometria === 'Polygon') return <RolDeLosa {...p} zonas={zonas} />;
+  if (p.tipoDeGeometria === 'Point') return <PuntoDeNivel {...p} />;
+  if (p.tipoDeGeometria === 'LineString' && p.esMuro && hayZonas) return <ZonaDelMuro {...p} />;
+  return null;
+}
+
+function refrescarTodo() {
+  void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
+  void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/trazos') });
+  void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/muro') });
+}
+
+function RolDeLosa(p: TrazoProps & { readonly zonas: readonly ZonaDeLosa[] }) {
+  const fijar = useFijarLosaApiV1TrazosTrazoIdLosaPut<ErrorApi>();
+  const [espesor, setEspesor] = useState(p.losaEspesorM ?? '');
+  const zona = p.zonas.find((z) => z.id === p.losaZonaId);
+  if (p.zonas.length === 0 && !p.losaZonaId) return null;
+  async function poner(zonaId: string | null, espesorM: string | null) {
+    try {
+      await fijar.mutateAsync({ trazoId: p.trazoId, data: { zona_id: zonaId, espesor_m: espesorM } });
+      refrescarTodo();
+      p.onCambio(zonaId ? 'Polígono marcado como losa de su zona.' : 'El polígono ya no es una losa.');
+    } catch (err) {
+      p.onError(mensaje(err, 'No se pudo marcar la losa.'));
+    }
+  }
+  return (
+    <div className="zonas-losa__trazo" data-testid="losa-del-trazo">
+      <div className="opciones__titulo">Losa de zona</div>
+      <label className="mct__campo">
+        Zona
+        <select className="input" aria-label="Zona de la losa" value={p.losaZonaId ?? ''} disabled={!p.puedeEditar || fijar.isPending} onChange={(e) => void poner(e.target.value || null, null)}>
+          <option value="">No es una losa</option>
+          {p.zonas.map((z) => (
+            <option key={z.id} value={z.id}>
+              {z.nombre} · libre {z.altura_libre_m} m
+            </option>
+          ))}
+        </select>
+      </label>
+      {zona && (
+        <>
+          <label className="mct__campo" title="Subzona: espesor estructural propio dentro de la zona">
+            Espesor propio de esta losa (m)
+            <input className="input" aria-label="Espesor propio de la losa" placeholder={`el de la zona: ${zona.espesor_m}`} value={espesor} disabled={!p.puedeEditar} onChange={(e) => setEspesor(e.target.value)} />
+          </label>
+          {p.puedeEditar && (
+            <button type="button" className="btn btn--sm" onClick={() => void poner(zona.id, espesor.trim() || null)}>
+              Guardar espesor
+            </button>
+          )}
+          <p className="text-mute text-xs">
+            Espesor que aplica: {textoDeMetros(p.losaEspesorM ?? zona.espesor_m)}
+            {p.losaEspesorM ? ' (subzona, por razón estructural)' : ' (el de la zona)'}.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PuntoDeNivel(p: TrazoProps) {
+  const fijar = useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut<ErrorApi>();
+  const [cota, setCota] = useState(p.nivelExteriorM ?? '0');
+  const [rotulo, setRotulo] = useState(p.rotulo ?? '');
+  async function guardar(quitar: boolean) {
+    try {
+      await fijar.mutateAsync({ trazoId: p.trazoId, data: { cota_m: quitar ? null : cota, rotulo: quitar ? null : rotulo.trim() || null } });
+      refrescarTodo();
+      p.onCambio(quitar ? 'Punto de nivel exterior quitado.' : 'Punto de nivel exterior guardado.');
+    } catch (err) {
+      p.onError(mensaje(err, 'No se pudo guardar el punto de nivel.'));
+    }
+  }
+  if (p.nivelExteriorM == null && !p.puedeEditar) return null;
+  return (
+    <div className="zonas-losa__trazo" data-testid="nivel-del-trazo">
+      <div className="opciones__titulo">Punto de nivel exterior</div>
+      <label className="mct__campo">
+        Cota (m)
+        <input className="input" aria-label="Cota del punto de nivel exterior" value={cota} disabled={!p.puedeEditar} onChange={(e) => setCota(e.target.value)} />
+      </label>
+      <label className="mct__campo">
+        Rótulo
+        <input className="input" aria-label="Rótulo del punto de nivel exterior" value={rotulo} disabled={!p.puedeEditar} onChange={(e) => setRotulo(e.target.value)} />
+      </label>
+      {p.puedeEditar && (
+        <div className="row">
+          <button type="button" className="btn btn--sm" onClick={() => void guardar(false)}>
+            {p.nivelExteriorM == null ? 'Marcar como punto de nivel exterior' : 'Guardar punto de nivel'}
+          </button>
+          {p.nivelExteriorM != null && (
+            <button type="button" className="btn btn--sm" onClick={() => void guardar(true)}>
+              Quitar la marca
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ZonaDelMuro(p: TrazoProps) {
+  const consulta = useResolverMuroApiV1TrazosTrazoIdZonasDeLosaGet(p.trazoId);
+  const muro = useVerMuroApiV1TrazosTrazoIdMuroGet(p.trazoId);
+  const fijar = useFijarMuroApiV1TrazosTrazoIdMuroPut<ErrorApi>();
+  const r = consulta.data;
+  if (!r || !r.con_zona) return null;
+  const unico = r.tramos.length === 1 || !r.parte_el_muro ? r.tramos[0] : undefined;
+  async function aplicar() {
+    if (!unico || !r) return;
+    try {
+      const caras: 1 | 2 = muro.data?.caras === 1 ? 1 : 2;
+      const conEnrase = unico.partes.length > 1;
+      await fijar.mutateAsync({
+        trazoId: p.trazoId,
+        data: {
+          altura_m: unico.altura_m,
+          caras,
+          partes: conEnrase
+            ? unico.partes.map((x) => ({ nombre: x.nombre, desde_m: x.desde_m, hasta_m: x.hasta_m, suma: x.suma, rol: x.rol, cara_a: x.cara_a, cara_b: x.cara_b }))
+            : null,
+        },
+      });
+      void queryClient.invalidateQueries({ queryKey: getResolverMuroApiV1TrazosTrazoIdZonasDeLosaGetQueryKey(p.trazoId) });
+      refrescarTodo();
+      p.onCambio(`Altura de la zona aplicada al muro: ${textoDeMetros(unico.altura_m)}${conEnrase ? ' con enrase' : ''}.`);
+    } catch (err) {
+      p.onError(mensaje(err, 'No se pudo aplicar la zona al muro.'));
+    }
+  }
+  return (
+    <div className="zonas-losa__trazo" data-testid="zona-del-muro">
+      <div className="opciones__titulo">Zona de losa de este muro</div>
+      <p className="text-mute text-xs">Lo que sigue es lo que la losa sugiere; no cambia el muro hasta que lo apliques.</p>
+      {r.parte_el_muro && (
+        <span className="badge badge--warn" data-testid="muro-por-partir">
+          Cruza zonas de distinta altura: dibújalo en un trazo por zona para medir cada altura.
+        </span>
+      )}
+      <table className="table" aria-label="Tramos del muro por zona de losa">
+        <thead>
+          <tr>
+            <th>Tramo</th>
+            <th>Altura</th>
+            <th>Cara A</th>
+            <th>Cara B</th>
+          </tr>
+        </thead>
+        <tbody>
+          {r.tramos.map((t, i) => (
+            <tr key={i} data-testid="tramo-de-zona">
+              <td className="mono">
+                {textoDeMetros(t.desde_m)}–{textoDeMetros(t.hasta_m)}
+              </td>
+              <td>
+                {textoDeMetros(t.altura_m)}
+                <div className="text-mute text-xs">{NOMBRE_DE_ORIGEN_DE_ALTURA[t.origen_de_altura]}</div>
+                {t.enrase && (
+                  <div className="text-xs" data-testid="enrase-del-tramo">
+                    enrase {textoDeMetros(t.enrase.desde_m)}–{textoDeMetros(t.enrase.hasta_m)}
+                  </div>
+                )}
+              </td>
+              {[t.lado_a, t.lado_b].map((l) => (
+                <td key={l.lado}>
+                  <strong>{l.cara ?? 'sin zona'}</strong>
+                  <div className="text-mute text-xs">
+                    {l.zona ?? NOMBRE_DE_ORIGEN_DE_LADO[l.origen]}
+                    {l.altura_m != null && ` · ${textoDeMetros(l.altura_m)}`}
+                    {l.rotulo_del_punto && ` · ${l.rotulo_del_punto} ${textoDeCota(l.nivel_exterior_m ?? 0)}`}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {r.altura_guardada_m != null && Number(r.altura_guardada_m) !== Number(unico?.altura_m ?? r.altura_guardada_m) && (
+        <p className="text-mute text-xs">Hoy mide con {textoDeMetros(r.altura_guardada_m)}; lo guardado no cambia solo.</p>
+      )}
+      {r.advertencias.map((a) => (
+        <p key={a} className="text-mute text-xs">
+          {a}
+        </p>
+      ))}
+      {unico && unico.origen_de_altura === 'zona' && (
+        <button type="button" className="btn btn--sm" disabled={fijar.isPending} onClick={() => void aplicar()}>
+          Aplicar al muro
+        </button>
+      )}
+    </div>
+  );
+}
