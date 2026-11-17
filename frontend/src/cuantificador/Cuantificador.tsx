@@ -1397,6 +1397,8 @@ export function EspacioDeTrazo({
           piezas: datos.piezas,
           posicion_m: datos.centro * k,
           lado_muro: datos.lado as -1 | 0 | 1,
+          // Un castillo a mano elige su K del catálogo (cada uno de su tipo); sin elegir, el de la plantilla del muro.
+          elemento_ref: o.tipo === 'castillo' && o.elementoRef ? o.elementoRef : null,
         },
       });
       void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/vanos') });

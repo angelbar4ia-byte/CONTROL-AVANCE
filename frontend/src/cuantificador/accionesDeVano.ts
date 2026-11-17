@@ -166,6 +166,8 @@ export function useAccionesDeVano({ historial, alCambiarHistorial, avisar, alCam
       piezas: v.piezas,
       posicion_m: posicionDe(v),
       lado_muro: (v.lado_muro ?? 0) as -1 | 0 | 1,
+      // Un castillo sembrado con su elemento lo conserva al deshacer.
+      elemento_ref: v.tipo === 'castillo' ? (v.elemento_uid ?? null) : null,
     };
     const hojaAntes = hojaDe(v);
     const recrear = async () => {
