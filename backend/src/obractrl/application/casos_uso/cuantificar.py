@@ -159,6 +159,7 @@ __all__ = [
     "TrazoTransformado",
     "VanoCambiado",
     "altura_del_muro",
+    "area_de_muro",
 ]
 
 RADIO_DE_UNION_M = Decimal("0.5")
@@ -1324,6 +1325,19 @@ async def altura_sin_propia(trazos: Any, trazo_id: UUID) -> Decimal:
     altura estándar de la obra (el driver `altura_estandar`)."""
     de_la_conversion = await trazos.altura_de_la_conversion(trazo_id)
     return de_la_conversion if de_la_conversion is not None else await trazos.altura_estandar_de_trazo(trazo_id)
+
+
+async def area_de_muro(trazos: Any, trazo_id: UUID, largo_m: Decimal, altura_m: Decimal) -> tuple[Decimal, Decimal, Decimal]:
+    """(bruto, vanos, neto) en m² de un muro. El muro es **bruto** (largo × alto) hasta que se coloca un vano; entonces es **neto**: se le
+    restan los m² de los vanos ya colocados (puertas, ventanas, pasos…: ancho × alto × piezas). Los castillos no cuentan aquí: no son
+    aperturas. Sin vanos, neto = bruto. Es la base con que la regla «total» de un castillo reparte los metros del prototipo."""
+    bruto = largo_m * altura_m
+    vanos = sum(
+        (Decimal(str(v["ancho_m"])) * Decimal(str(v["alto_m"])) * Decimal(int(v["piezas"])) for v in await trazos.vanos_de_trazo(trazo_id) if v["tipo"] != "castillo"),
+        Decimal(0),
+    )
+    vanos = min(vanos, bruto)
+    return bruto, vanos, bruto - vanos
 
 
 async def altura_del_muro(trazos: Any, trazo_id: UUID) -> Decimal:

@@ -17,9 +17,16 @@ from uuid import UUID
 from obractrl.application.casos_uso.conceptos_de_lo_colocado import (
     conceptos_de_lo_colocado,
 )
-from obractrl.application.casos_uso.cuantificar import _recalcular_nodo, altura_del_muro
+from obractrl.application.casos_uso.cuantificar import (
+    _recalcular_nodo,
+    altura_del_muro,
+    area_de_muro,
+)
 from obractrl.application.casos_uso.parametrico import vigentes_de_obra
-from obractrl.domain.cuantificacion.colocacion_de_plantilla import colocar_plantilla
+from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
+    colocar_plantilla,
+    sembrados_por_tipo,
+)
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     MATERIALES_DE_UN_ELEMENTO,
     lados_por_defecto,
@@ -166,14 +173,17 @@ class SincronizarTomas:
             try:
                 largo = await self._trazos.largo_del_eje(f["trazo_id"])
                 altura = await altura_del_muro(self._trazos, f["trazo_id"])
+                neta = (await area_de_muro(self._trazos, f["trazo_id"], largo, altura))[2]
                 colocacion = colocar_plantilla(
-                    elementos, largo_m=largo, altura_m=altura, anchos_m={}, separacion_m=separacion.valor if separacion is not None else None
+                    elementos, largo_m=largo, altura_m=altura, anchos_m={}, separacion_m=separacion.valor if separacion is not None else None,
+                    area_m2=neta,
+                    sembrados=sembrados_por_tipo(await self._trazos.vanos_de_trazo(f["trazo_id"]), f["elementos"] or []),
                 )
             except ErrorDeCuantificacion:
                 continue
             for i in colocacion.instancias:
                 el = catalogo.get(i.ref)
-                if el is None:
+                if el is None or (i.clase == "castillo" and i.piezas_exactas <= 0):
                     continue
                 grupos.append(
                     {

@@ -33,7 +33,6 @@ import type {
   CambioDePlantillaRespuesta,
   CatalogoDelArtefacto,
   ColocacionDelMuroRespuesta,
-  EjemplosCargados,
   ElegirPlantillaPeticion,
   ElegirPlantillaRespuesta,
   HTTPValidationError,
@@ -938,121 +937,6 @@ export function usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet<
   return query;
 }
 
-/**
- * Idempotente. Cada línea trae su fila y celda del Excel en `origen`. Si el catálogo de la organización no tiene alguno de los castillos
-(K-1, K-2…) o cadenas (CE-1…) que usa un ejemplo, ese ejemplo no se crea y se dice cuáles faltan.
- * @summary Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar
- */
-export const cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost =
-  (options?: SecondParameter<typeof peticion>, signal?: AbortSignal) => {
-    return peticion<EjemplosCargados>(
-      {
-        url: `/api/v1/muro-plantillas/ejemplos-de-prototipo`,
-        method: "POST",
-        signal,
-      },
-      options,
-    );
-  };
-
-export const getCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationOptions =
-  <TError = void, TContext = unknown>(options?: {
-    mutation?: UseMutationOptions<
-      Awaited<
-        ReturnType<
-          typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
-        >
-      >,
-      TError,
-      void,
-      TContext
-    >;
-    request?: SecondParameter<typeof peticion>;
-  }): UseMutationOptions<
-    Awaited<
-      ReturnType<
-        typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
-      >
-    >,
-    TError,
-    void,
-    TContext
-  > => {
-    const mutationKey = [
-      "cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost",
-    ];
-    const { mutation: mutationOptions, request: requestOptions } = options
-      ? options.mutation &&
-        "mutationKey" in options.mutation &&
-        options.mutation.mutationKey
-        ? options
-        : { ...options, mutation: { ...options.mutation, mutationKey } }
-      : { mutation: { mutationKey }, request: undefined };
-
-    const mutationFn: MutationFunction<
-      Awaited<
-        ReturnType<
-          typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
-        >
-      >,
-      void
-    > = () => {
-      return cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost(
-        requestOptions,
-      );
-    };
-
-    return { mutationFn, ...mutationOptions };
-  };
-
-export type CargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationResult =
-  NonNullable<
-    Awaited<
-      ReturnType<
-        typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
-      >
-    >
-  >;
-
-export type CargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationError =
-  void;
-
-/**
- * @summary Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar
- */
-export const useCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost =
-  <TError = void, TContext = unknown>(
-    options?: {
-      mutation?: UseMutationOptions<
-        Awaited<
-          ReturnType<
-            typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
-          >
-        >,
-        TError,
-        void,
-        TContext
-      >;
-      request?: SecondParameter<typeof peticion>;
-    },
-    queryClient?: QueryClient,
-  ): UseMutationResult<
-    Awaited<
-      ReturnType<
-        typeof cargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost
-      >
-    >,
-    TError,
-    void,
-    TContext
-  > => {
-    const mutationOptions =
-      getCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPostMutationOptions(
-        options,
-      );
-
-    return useMutation(mutationOptions, queryClient);
-  };
 /**
  * @summary Las plantillas de muro vigentes
  */
@@ -4627,8 +4511,9 @@ export function useVerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGet<
 }
 
 /**
- * Toma el tipo, material, ubicación y acabado de la plantilla nueva y guarda su versión (Q9). La medición y los vanos se conservan; los
-castillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman.
+ * Toma el tipo, material y ubicación de la plantilla nueva y guarda su versión (Q9). El acabado ya capturado se conserva (la plantilla es
+la guía). La medición y los vanos se conservan; los castillos sembrados solo se quitan con `retirar_castillos` y la plantilla de confinado no
+los cuenta dos veces. Rehace lo que los conceptos toman.
  * @summary Cambiar el muro a otra plantilla sin perder lo medido
  */
 export const cambiarDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioPost = (

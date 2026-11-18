@@ -77,16 +77,27 @@ export function ColocacionDeLaPlantilla({ trazoId, onCambio, onError }: Props) {
         {fmtNum(d.largo_m)} m de largo · {fmtNum(d.altura_m)} m de alto
         {d.nivel !== null && d.nivel !== undefined ? ` · nivel ${d.nivel}` : ''}
       </p>
+      <p className="text-mute text-xs" data-testid="area-de-la-plantilla" data-area={d.area_usada}>
+        Área para la regla «total»: {d.area_usada === 'neto' ? 'neta' : 'bruta'} · {fmtNum(d.area_neta_m2)} m²
+        {d.area_usada === 'neto'
+          ? ` (${fmtNum(d.area_bruta_m2)} m² brutos − ${fmtNum(d.vanos_m2)} m² de vanos ya colocados)`
+          : ' (sin vanos colocados: igual al bruto)'}
+      </p>
       <ul className="colocacion-plantilla__lista">
         {d.elementos.map((e) => (
           <li key={e.uid} data-elemento={e.uid}>
             <div>
               <b className="mono">{e.ref}</b>{' '}
               {e.clase === 'castillo'
-                ? `· ${e.modo === 'ubicado' ? e.piezas : fmtNum(e.piezas_estimadas)} pza × ${fmtNum(e.alto_m)} m · ${e.modo === 'ubicado' ? `colocados ${e.colocados} de ${e.piezas}` : 'estimados (no se colocan)'}`
+                ? `· ${e.modo === 'ubicado' ? e.piezas : fmtNum(e.piezas_contadas)} pza × ${fmtNum(e.alto_m)} m · ${e.modo === 'ubicado' ? `colocados ${e.colocados} de ${e.piezas}` : 'estimados (no se colocan)'}`
                 : `· ${fmtNum(e.metros)} ml (el largo del muro)`}
               {e.regla && e.modo !== 'ubicado' && <span className="text-mute text-xs" data-testid={`regla-de-${e.uid}`}> · {NOMBRE_DE_REGLA[e.regla]}</span>}
             </div>
+            {e.clase === 'castillo' && e.modo !== 'ubicado' && Number(e.piezas_sembradas) > 0 && (
+              <div className="text-xs" data-testid={`sembrados-de-${e.uid}`}>
+                estimados {fmtNum(e.piezas_estimadas)}, sembrados {fmtNum(e.piezas_sembradas)}, contados {fmtNum(e.piezas_contadas)}
+              </div>
+            )}
             {e.origen && <div className="text-mute text-xs mono">{e.origen}</div>}
             {e.conceptos.length > 0 && (
               <ul className="colocacion-plantilla__conceptos">

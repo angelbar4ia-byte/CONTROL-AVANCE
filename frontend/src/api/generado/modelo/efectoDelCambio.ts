@@ -23,4 +23,14 @@ export interface EfectoDelCambio {
   piezas: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   metros: string;
+  /**
+   * Castillos estimados: lo que estima la regla, antes de descontar los sembrados.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  piezas_estimadas?: string;
+  /**
+   * Castillos estimados: los sembrados del mismo tipo K que se descontaron.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  piezas_sembradas?: string;
 }

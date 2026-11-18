@@ -351,6 +351,7 @@ export type * from "./cohorteItemRespuesta";
 export type * from "./coladoDeEstructura";
 export type * from "./coladoDeEstructuraConcretoM3Ml";
 export type * from "./colocacionDelMuroRespuesta";
+export * from "./colocacionDelMuroRespuestaAreaUsada";
 export type * from "./colocacionDelMuroRespuestaNivel";
 export * from "./colocacionDelMuroRespuestaTipo";
 export type * from "./colocacionDelMuroRespuestaUbicacion";

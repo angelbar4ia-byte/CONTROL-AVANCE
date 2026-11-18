@@ -309,7 +309,7 @@ async def aplicar_ubicacion_a_partes(peticion: AplicarUbicacionPeticion) -> Apli
     )
 
 
-# --- Prototipos y ejemplos ---------------------------------------------------------------------------------------------------
+# --- Prototipos ---------------------------------------------------------------------------------------------------
 
 
 class PlantillaDePrototipo(BaseModel):
@@ -328,17 +328,6 @@ class PrototipoDeMuro(BaseModel):
     plantillas: list[PlantillaDePrototipo]
 
 
-class EjemploFaltante(BaseModel):
-    plantilla: str
-    elementos: list[str] = Field(description="Los castillos o cadenas que faltan en el catálogo de la organización.")
-
-
-class EjemplosCargados(BaseModel):
-    creadas: list[PlantillaDeMuro]
-    omitidas: list[str] = Field(description="Ya tenían plantilla vigente: no se tocan.")
-    faltan: list[EjemploFaltante] = Field(description="No se crearon: faltan elementos en el catálogo. No se inventan.")
-
-
 @router.get(
     "/muro-artefacto/prototipos",
     response_model=list[PrototipoDeMuro],
@@ -346,23 +335,6 @@ class EjemplosCargados(BaseModel):
 )
 async def prototipos_de_muro(caso_uso: GestionarPlantillasDeMuroDep) -> list[PrototipoDeMuro]:
     return [PrototipoDeMuro.model_validate(p) for p in await caso_uso.prototipos()]
-
-
-@router.post(
-    "/muro-plantillas/ejemplos-de-prototipo",
-    response_model=EjemplosCargados,
-    status_code=status.HTTP_201_CREATED,
-    summary="Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar",
-    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
-    responses={403: {"description": "Editan Costos y Control de obra."}},
-)
-async def cargar_ejemplos_de_prototipo(ctx: ContextoActual, caso_uso: GestionarPlantillasDeMuroDep) -> EjemplosCargados:
-    """Idempotente. Cada línea trae su fila y celda del Excel en `origen`. Si el catálogo de la organización no tiene alguno de los castillos
-    (K-1, K-2…) o cadenas (CE-1…) que usa un ejemplo, ese ejemplo no se crea y se dice cuáles faltan."""
-    r = await caso_uso.cargar_ejemplos(autor_id=ctx.usuario_id, rol=str(Rol(ctx.rol).value))
-    return EjemplosCargados(
-        creadas=[_plantilla(f) for f in r["creadas"]], omitidas=r["omitidas"], faltan=[EjemploFaltante(**f) for f in r["faltan"]]
-    )
 
 
 @router.get("/muro-plantillas", response_model=list[PlantillaDeMuro], summary="Las plantillas de muro vigentes")
@@ -500,7 +472,14 @@ class ElementoColocadoRespuesta(BaseModel):
     regla: ReglaDeCastillo | None = Field(default=None, description="Castillos: cómo cuenta sus piezas.")
     origen: str | None = Field(default=None, description="De dónde sale el dato de la regla (fila y celda del Excel).")
     piezas_estimadas: Decimal = Field(
-        default=Decimal(0), description="Castillos: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba)."
+        default=Decimal(0), description="Castillos estimados: las piezas que estima la regla de la plantilla, antes de descontar los sembrados."
+    )
+    piezas_sembradas: Decimal = Field(
+        default=Decimal(0), description="Castillos estimados: las piezas de este tipo K ya sembradas en el muro que se descontaron de las estimadas."
+    )
+    piezas_contadas: Decimal = Field(
+        default=Decimal(0),
+        description="Castillos: las piezas que cuenta (estimadas − sembradas, mínimo 0), con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).",
     )
     piezas: int
     alto_m: Decimal | None = Field(description="Lo alto de cada castillo: la altura del muro menos su arranque.")
@@ -521,6 +500,10 @@ class ColocacionDelMuroRespuesta(BaseModel):
     tipo: TipoDeMuro = Field(description="El tipo de la plantilla: confinado estima los castillos; con_cadena («muros y cadena») los siembra a mano.")
     largo_m: Decimal
     altura_m: Decimal = Field(description="La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra.")
+    area_bruta_m2: Decimal = Field(default=Decimal(0), description="Largo × alto del muro.")
+    vanos_m2: Decimal = Field(default=Decimal(0), description="m² de los vanos ya colocados (puertas, ventanas, pasos…) que se descontaron; 0 si no hay.")
+    area_neta_m2: Decimal = Field(default=Decimal(0), description="Bruto − vanos: el área sobre la que la regla «total» reparte los metros del prototipo.")
+    area_usada: Literal["bruto", "neto"] = Field(default="bruto", description="El muro es bruto hasta que se coloca un vano; entonces se vuelve neto.")
     nivel: int | None = Field(description="El número de nivel con que se eligen los conceptos (el orden del nivel de la partida que ya mide el muro).")
     ubicacion: str | None
     elementos: list[ElementoColocadoRespuesta]
@@ -606,6 +589,8 @@ class EfectoDelCambio(BaseModel):
     regla: ReglaDeCastillo | None
     piezas: Decimal = Field(description="Castillos: las piezas que cuenta en este muro (con fracción en «por ml» y «total»).")
     metros: Decimal
+    piezas_estimadas: Decimal = Field(default=Decimal(0), description="Castillos estimados: lo que estima la regla, antes de descontar los sembrados.")
+    piezas_sembradas: Decimal = Field(default=Decimal(0), description="Castillos estimados: los sembrados del mismo tipo K que se descontaron.")
 
 
 class CambioDePlantillaRespuesta(BaseModel):
@@ -616,6 +601,7 @@ class CambioDePlantillaRespuesta(BaseModel):
     efectos: list[EfectoDelCambio]
     castillos_sembrados: int = Field(description="Castillos ya colocados en el plano con su elemento (de la plantilla o a mano con un K elegido).")
     castillos_por_colocar: int = Field(description="Castillos ubicados que lleva la plantilla nueva (se colocan aparte).")
+    acabado_se_conserva: bool = Field(default=False, description="El muro ya tiene acabado capturado: el cambio de plantilla no lo pisa.")
     conserva: list[str]
     avisos: list[str]
 
@@ -658,8 +644,9 @@ async def ver_cambio_de_plantilla(trazo_id: UUID, hacia: UUID, caso_uso: Colocar
 async def cambiar_de_plantilla(
     trazo_id: UUID, peticion: CambiarPlantillaPeticion, ctx: ContextoActual, caso_uso: ColocarElementosDeMuroDep
 ) -> CambioAplicadoRespuesta:
-    """Toma el tipo, material, ubicación y acabado de la plantilla nueva y guarda su versión (Q9). La medición y los vanos se conservan; los
-    castillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman."""
+    """Toma el tipo, material y ubicación de la plantilla nueva y guarda su versión (Q9). El acabado ya capturado se conserva (la plantilla es
+    la guía). La medición y los vanos se conservan; los castillos sembrados solo se quitan con `retirar_castillos` y la plantilla de confinado no
+    los cuenta dos veces. Rehace lo que los conceptos toman."""
     r = await caso_uso.cambiar_plantilla(
         trazo_id, peticion.plantilla_id, retirar_castillos=peticion.retirar_castillos, rol=Rol(ctx.rol), autor_id=ctx.usuario_id,
         detectada_en=datetime.now(UTC),

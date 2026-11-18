@@ -23,10 +23,20 @@ export interface ElementoColocadoRespuesta {
   /** De dónde sale el dato de la regla (fila y celda del Excel). */
   origen?: ElementoColocadoRespuestaOrigen;
   /**
-   * Castillos: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).
+   * Castillos estimados: las piezas que estima la regla de la plantilla, antes de descontar los sembrados.
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
   piezas_estimadas?: string;
+  /**
+   * Castillos estimados: las piezas de este tipo K ya sembradas en el muro que se descontaron de las estimadas.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  piezas_sembradas?: string;
+  /**
+   * Castillos: las piezas que cuenta (estimadas − sembradas, mínimo 0), con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  piezas_contadas?: string;
   piezas: number;
   /** Lo alto de cada castillo: la altura del muro menos su arranque. */
   alto_m: ElementoColocadoRespuestaAltoM;

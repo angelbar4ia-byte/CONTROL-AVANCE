@@ -14,6 +14,7 @@ from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
     conceptos_de_instancia,
     piezas_de_castillo,
     posiciones_de_castillos,
+    sembrados_por_tipo,
 )
 from obractrl.domain.cuantificacion.conceptos_de_elemento import (
     ConceptoDeElemento,
@@ -243,6 +244,28 @@ def test_la_regla_total_usa_el_area_que_se_le_da_y_si_no_el_muro_bruto() -> None
     neto = colocar_plantilla(k, largo_m=D(10), altura_m=D(3), anchos_m={}, area_m2=D(26)).instancias[0]
     assert bruto.metros == pytest.approx(D("13.2168"), abs=D("0.01"))
     assert neto.metros == pytest.approx(D("11.4545"), abs=D("0.01"))
+
+
+def test_los_castillos_sembrados_se_descuentan_de_los_estimados_por_tipo_sin_bajar_de_cero() -> None:
+    k = [_estimado("K-1", regla="por_ml", piezas_por_ml="0.4"), _estimado("K-2", regla="por_ml", piezas_por_ml="0.2")]
+    c = colocar_plantilla(k, largo_m=D(10), altura_m=D(3), anchos_m={}, sembrados={"K-1": D(3), "K-2": D(5)})
+    k1, k2 = c.instancias
+    assert (k1.piezas_estimadas, k1.piezas_sembradas, k1.piezas_exactas) == (D(4), D(3), D(1))
+    assert (k2.piezas_estimadas, k2.piezas_sembradas, k2.piezas_exactas, k2.piezas) == (D(2), D(2), D(0), 0)  # mínimo 0
+    assert k1.metros == D(3) and k2.metros == D(0)
+    assert any("estimados 4, sembrados 3, contados 1" in a for a in c.avisos)
+    sin = colocar_plantilla(k, largo_m=D(10), altura_m=D(3), anchos_m={}).instancias[0]
+    assert (sin.piezas_estimadas, sin.piezas_sembradas, sin.piezas_exactas) == (D(4), D(0), D(4))
+
+
+def test_sembrados_por_tipo_toma_el_k_de_la_plantilla_o_el_elegido_a_mano() -> None:
+    vanos = [
+        {"tipo": "castillo", "elemento_uid": "uso-1", "piezas": 2},
+        {"tipo": "castillo", "elemento_uid": "k-1", "piezas": 1},
+        {"tipo": "puerta", "elemento_uid": None, "piezas": 1},
+        {"tipo": "castillo", "elemento_uid": None, "piezas": 1},
+    ]
+    assert sembrados_por_tipo(vanos, [{"uid": "uso-1", "ref": "K-1"}]) == {"K-1": D(3)}
 
 
 def test_una_plantilla_anterior_sin_regla_cuenta_como_antes() -> None:
