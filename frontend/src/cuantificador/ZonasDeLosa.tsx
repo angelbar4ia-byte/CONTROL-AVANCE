@@ -16,6 +16,7 @@ import { queryClient } from '@/app/queryClient';
 import {
   getResolverMuroApiV1TrazosTrazoIdZonasDeLosaGetQueryKey,
   getZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGetQueryKey,
+  useAplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost,
   useBorrarZonaApiV1ZonasDeLosaZonaIdDelete,
   useCambiarZonaApiV1ZonasDeLosaZonaIdPut,
   useCrearZonaApiV1PlanosPlanoIdZonasDeLosaPost,
@@ -24,9 +25,8 @@ import {
   useResolverMuroApiV1TrazosTrazoIdZonasDeLosaGet,
   useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet,
 } from '@/api/generado/zonas-de-losa/zonas-de-losa';
-import { useFijarMuroApiV1TrazosTrazoIdMuroPut, useVerMuroApiV1TrazosTrazoIdMuroGet } from '@/api/generado/cuantificacion/cuantificacion';
 import type { ZonaDeLosa } from '@/api/generado/modelo';
-import { NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
+import { NOMBRE_DE_CARA, NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
 
 function mensaje(err: unknown, defecto: string): string {
   return err instanceof Error ? err.message : defecto;
@@ -362,29 +362,24 @@ function PuntoDeNivel(p: TrazoProps) {
 
 function ZonaDelMuro(p: TrazoProps) {
   const consulta = useResolverMuroApiV1TrazosTrazoIdZonasDeLosaGet(p.trazoId);
-  const muro = useVerMuroApiV1TrazosTrazoIdMuroGet(p.trazoId);
-  const fijar = useFijarMuroApiV1TrazosTrazoIdMuroPut<ErrorApi>();
+  const aplicarAlMuro = useAplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost<ErrorApi>();
   const r = consulta.data;
   if (!r || !r.con_zona) return null;
-  const unico = r.tramos.length === 1 || !r.parte_el_muro ? r.tramos[0] : undefined;
+  const unico = r.tramos.length === 1 ? r.tramos[0] : undefined;
+  // Un muro que trae su altura la conserva (manda sobre la de la zona): no hay nada que aplicar.
+  const aplicable = r.altura_explicita_m == null;
   async function aplicar() {
-    if (!unico || !r) return;
+    if (!r) return;
     try {
-      const caras: 1 | 2 = muro.data?.caras === 1 ? 1 : 2;
-      const conEnrase = unico.partes.length > 1;
-      await fijar.mutateAsync({
-        trazoId: p.trazoId,
-        data: {
-          altura_m: unico.altura_m,
-          caras,
-          partes: conEnrase
-            ? unico.partes.map((x) => ({ nombre: x.nombre, desde_m: x.desde_m, hasta_m: x.hasta_m, suma: x.suma, rol: x.rol, cara_a: x.cara_a, cara_b: x.cara_b }))
-            : null,
-        },
-      });
+      const res = await aplicarAlMuro.mutateAsync({ trazoId: p.trazoId });
       void queryClient.invalidateQueries({ queryKey: getResolverMuroApiV1TrazosTrazoIdZonasDeLosaGetQueryKey(p.trazoId) });
       refrescarTodo();
-      p.onCambio(`Altura de la zona aplicada al muro: ${textoDeMetros(unico.altura_m)}${conEnrase ? ' con enrase' : ''}.`);
+      const conEnrase = (unico?.partes.length ?? 0) > 1;
+      p.onCambio(
+        unico
+          ? `Altura de la zona aplicada al muro: ${textoDeMetros(unico.altura_m)}${conEnrase ? ' con enrase y altura por cara' : ''}.`
+          : `Altura de la zona aplicada al muro: cuenta por ${res.tramos.length} tramos dentro del mismo trazo (${res.enlaces_aplicados} enlace${res.enlaces_aplicados === 1 ? '' : 's'}).`,
+      );
     } catch (err) {
       p.onError(mensaje(err, 'No se pudo aplicar la zona al muro.'));
     }
@@ -395,7 +390,7 @@ function ZonaDelMuro(p: TrazoProps) {
       <p className="text-mute text-xs">Lo que sigue es lo que la losa sugiere; no cambia el muro hasta que lo apliques.</p>
       {r.parte_el_muro && (
         <span className="badge badge--warn" data-testid="muro-por-partir">
-          Cruza zonas de distinta altura: dibújalo en un trazo por zona para medir cada altura.
+          Cruza zonas de distinta altura: cuenta por {r.tramos.length} tramos dentro del mismo trazo (no se parte; los vanos van al tramo donde caen).
         </span>
       )}
       <table className="table" aria-label="Tramos del muro por zona de losa">
@@ -421,6 +416,20 @@ function ZonaDelMuro(p: TrazoProps) {
                     enrase {textoDeMetros(t.enrase.desde_m)}–{textoDeMetros(t.enrase.hasta_m)}
                   </div>
                 )}
+                {t.partes.length > 1 && (
+                  <ul className="text-xs" aria-label="Altura por cara" data-testid="partes-por-cara">
+                    {t.partes.map((x) => (
+                      <li key={x.nombre} data-testid="parte-por-cara">
+                        {x.nombre} {textoDeMetros(x.desde_m)}–{textoDeMetros(x.hasta_m)} · A {NOMBRE_DE_CARA[x.cara_a ?? ''] ?? 'sin zona'} · B {NOMBRE_DE_CARA[x.cara_b ?? ''] ?? 'sin zona'}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {(r.vanos_por_tramo[i] ?? []).length > 0 && (
+                  <div className="text-mute text-xs" data-testid="vanos-del-tramo">
+                    Vanos: {(r.vanos_por_tramo[i] ?? []).map((v) => v.clave).join(', ')}
+                  </div>
+                )}
               </td>
               {[t.lado_a, t.lado_b].map((l) => (
                 <td key={l.lado}>
@@ -444,8 +453,8 @@ function ZonaDelMuro(p: TrazoProps) {
           {a}
         </p>
       ))}
-      {unico && unico.origen_de_altura === 'zona' && (
-        <button type="button" className="btn btn--sm" disabled={fijar.isPending} onClick={() => void aplicar()}>
+      {aplicable && r.tramos.some((t) => t.origen_de_altura === 'zona') && (
+        <button type="button" className="btn btn--sm" disabled={aplicarAlMuro.isPending} onClick={() => void aplicar()}>
           Aplicar al muro
         </button>
       )}
