@@ -74,15 +74,7 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
       })
     ).trazo_id;
 
-    await page.setViewportSize({ width: 1400, height: 1100 });
-    await entrarComo(page, 'control');
-    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
-    const pestanas = page.getByRole('tablist', { name: 'Panel lateral' });
-    await pestanas.getByRole('tab', { name: /^Artefacto/ }).click();
-    const area = page.getByRole('region', { name: 'Artefacto', exact: true });
-    const panel = page.getByRole('navigation', { name: 'Plantillas de muro' });
-
-    // --- 1. Una plantilla de Oro PB capturada (el Excel es solo referencia: no se carga como datos) -----------------------------
+    // Una plantilla de Oro PB capturada a mano (el Excel es solo referencia: no se carga como datos); antes de abrir la pantalla.
     const nombreOro = `Oro PB ${sufijo}`;
     const oroPb = await llamarApi<Plantilla>(request, 'control', 'POST', '/muro-plantillas', {
       nombre: nombreOro, tipo: 'confinado', material: 'tabique_rojo', ubicacion: 'interior', prototipo: 'oro_401', planta: 'PB', por_confirmar: true,
@@ -95,7 +87,15 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
         { ref: 'CE-1' },
       ],
     });
+    await page.setViewportSize({ width: 1400, height: 1100 });
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
+    const pestanas = page.getByRole('tablist', { name: 'Panel lateral' });
     await pestanas.getByRole('tab', { name: /^Artefacto/ }).click();
+    const area = page.getByRole('region', { name: 'Artefacto', exact: true });
+    const panel = page.getByRole('navigation', { name: 'Plantillas de muro' });
+
+    // --- 1. Una plantilla de Oro PB capturada (ya creada arriba: el Excel es solo referencia, no se carga como datos) ----------
     await expect(panel.getByRole('button', { name: 'Cargar los ejemplos (Oro y global)' })).toHaveCount(0); // ya no hay ejemplos que cargar
     const oro = panel.locator('[data-prototipo="oro_401"]');
     await expect(oro.getByRole('button', { name: 'Oro 4.01 PB: abrir la plantilla' })).toBeVisible();

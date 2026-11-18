@@ -223,7 +223,8 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(page.locator('.visor__trazo')).toHaveCount(1);
-    const caja = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    // El diseño asienta tarde (paneles que llegan): medir antes mueve el clic fuera del extremo.
+    const caja = await cajaEstable(page, page.locator('.visor__trazo path').first());
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     await barra.getByRole('button', { name: 'Polilínea', exact: true }).click();
 

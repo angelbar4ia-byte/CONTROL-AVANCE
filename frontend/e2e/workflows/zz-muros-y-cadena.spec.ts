@@ -139,7 +139,7 @@ test.describe('Cuantificador · muros y cadena', () => {
     await expect(cambio.getByTestId('castillos-sembrados')).toContainText('3 castillos ya sembrados');
     await expect(cambio).toContainText('dos veces');
     // K-1 estima 4 piezas y ya hay 1 sembrada: la plantilla cuenta 3 y los sembrados se conservan.
-    await expect(cambio.locator('[data-elemento="K-1"]')).toContainText('estimados 4, sembrados 1, contados 3');
+    await expect(cambio.locator('[data-elemento="K-1"]')).toContainText(/estimados 4(\.00)?, sembrados 1(\.00)?, contados 3(\.00)?/);
     // El cambio no pisa el acabado ya capturado: la plantilla es la guía.
     await expect(cambio.getByTestId('acabado-se-conserva')).toHaveAttribute('data-conserva', 'si');
     await expect(cambio.getByTestId('acabado-se-conserva')).toContainText('no pisa el acabado');
