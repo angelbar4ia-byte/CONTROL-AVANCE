@@ -156,22 +156,33 @@ export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = opcionesDeMuroIniciale
 
 /** La conversión con que nace un muro (o una línea) sobre un concepto en m²: su superficie por caras × altura. Una altura que no
  *  vale cae a `alturaPorDefectoM` (la estándar de la obra). */
-export function conversionDeMuro(o: OpcionesDeMuro, alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M): ConversionPeticion {
+export function conversionDeMuro(
+  o: OpcionesDeMuro,
+  alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M,
+  /** `false`: la altura del panel es solo la propuesta (no se tecleó): se manda sin `alt` y el servidor toma la de la zona de losa
+   *  bajo la que cae el muro, o la estándar de la obra (3.00 m de partida) si no hay zona. */
+  alturaTecleada: boolean = true,
+): ConversionPeticion {
   const alt = Number(String(o.alt).replace(',', '.'));
   return {
     modo: 'area',
     mide: o.mide,
     cara: o.cara,
     lado: o.lado,
-    alt: Number.isFinite(alt) && alt > 0 ? alt : alturaPorDefectoM,
+    ...(alturaTecleada || o.partes.length > 0 ? { alt: Number.isFinite(alt) && alt > 0 ? alt : alturaPorDefectoM } : {}),
     ...(o.partes.length > 0 ? { partes: o.partes.map((p) => ({ ...p })) } : {}),
   } as ConversionPeticion;
 }
 
 /** Cómo se dijo que se midió, para la barra: «largo del eje × 3 m de altura», «2 caras × 3 m de altura». */
-export function textoDeMuro(o: OpcionesDeMuro, alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M): string {
-  const alt = conversionDeMuro(o, alturaPorDefectoM).alt;
-  const alturas = o.partes.length > 0 ? `${o.partes.filter((p) => p.suma).length} de ${o.partes.length} partes de altura` : `${alt} m de altura`;
+export function textoDeMuro(o: OpcionesDeMuro, alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M, alturaTecleada: boolean = true): string {
+  const alt = conversionDeMuro(o, alturaPorDefectoM).alt ?? alturaPorDefectoM;
+  const alturas =
+    o.partes.length > 0
+      ? `${o.partes.filter((p) => p.suma).length} de ${o.partes.length} partes de altura`
+      : alturaTecleada
+        ? `${alt} m de altura`
+        : `la altura de su zona de losa (o ${alt} m si no cae bajo ninguna)`;
   const base = o.mide === 'eje' ? 'largo del eje' : o.mide === 'cara1' ? `1 cara (${o.cara === 'ext' ? 'exterior' : 'interior'})` : '2 caras';
   return `${base} × ${alturas}`;
 }
