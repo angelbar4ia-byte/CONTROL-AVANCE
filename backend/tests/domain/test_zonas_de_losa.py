@@ -79,8 +79,9 @@ def test_el_muro_en_el_limite_entre_3_y_4_20_lleva_enrase_y_cada_cara_su_altura(
     cuerpo, enrase = t.partes
     assert (cuerpo["rol"], cuerpo["desde_m"], cuerpo["hasta_m"]) == ("cuerpo", D(0), D("3.000"))
     assert (cuerpo["cara_a"], cuerpo["cara_b"]) == ("interior", "interior")
-    # La losa más baja que el muro solo SUGIERE: el enrase sale exterior por la regla 4 y nada queda aplicado.
-    assert (enrase["rol"], enrase["cara_a"], enrase["cara_b"]) == ("enrase", "exterior", "exterior")
+    # Altura por cara: el lado de la losa baja (A, 3.00) es exterior de 3.00 a 4.20; el de la losa alta (B, 4.20) sigue interior.
+    # La losa más baja solo SUGIERE: nada queda aplicado.
+    assert (enrase["rol"], enrase["cara_a"], enrase["cara_b"]) == ("enrase", "exterior", "interior")
     assert [s["indice"] for s in t.sugerencias] == [1]
     assert r.aplicada is False
 
@@ -190,3 +191,19 @@ def test_validar_zona_normaliza_y_rechaza() -> None:
     ):
         with pytest.raises(ErrorDeZonaDeLosa):
             validar_zona(**mal)
+
+
+def test_los_tramos_para_la_conversion_son_contiguos_y_unen_lo_que_mide_igual() -> None:
+    from obractrl.domain.cuantificacion.zonas_de_losa import tramos_para_conversion
+
+    r = _r([(2, -2), (10, -2)])
+    assert tramos_para_conversion(r) == [
+        {"desde_m": 0.0, "hasta_m": 4.0, "alt": 3.0},
+        {"desde_m": 4.0, "hasta_m": 8.0, "alt": 4.2},
+    ]
+    # Un vértice dentro de la misma zona no parte los tramos.
+    assert tramos_para_conversion(_r([(1, -1), (3, -1), (5, -3)])) == [{"desde_m": 0.0, "hasta_m": 4.828, "alt": 3.0}]
+    # En el límite: un solo tramo con partes (cuerpo y enrase) y sus caras.
+    limite = tramos_para_conversion(_r([(6, 0), (6, -4)]))
+    assert len(limite) == 1 and [p["rol"] for p in limite[0]["partes"]] == ["cuerpo", "enrase"]
+    assert (limite[0]["partes"][1]["cara_a"], limite[0]["partes"][1]["cara_b"]) == ("exterior", "interior")

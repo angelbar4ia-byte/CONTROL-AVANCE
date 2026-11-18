@@ -8,6 +8,8 @@
 import type { ResolucionDelMuroAlturaExplicitaM } from "./resolucionDelMuroAlturaExplicitaM";
 import type { ResolucionDelMuroAlturaGuardadaM } from "./resolucionDelMuroAlturaGuardadaM";
 import type { TramoDelMuro } from "./tramoDelMuro";
+import type { VanoDelTramo } from "./vanoDelTramo";
+import type { ResolucionDelMuroTramosDeConversionItem } from "./resolucionDelMuroTramosDeConversionItem";
 
 export interface ResolucionDelMuro {
   trazo_id: string;
@@ -29,4 +31,8 @@ export interface ResolucionDelMuro {
   aplicada: boolean;
   advertencias: string[];
   tramos: TramoDelMuro[];
+  /** Los vanos del muro repartidos por tramo: cada uno cae donde está su centro. */
+  vanos_por_tramo: VanoDelTramo[][];
+  /** Los tramos lógicos con los que contaría el muro si se aplican (`conversion.tramos`). */
+  tramos_de_conversion: ResolucionDelMuroTramosDeConversionItem[];
 }

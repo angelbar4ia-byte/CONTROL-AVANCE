@@ -32,7 +32,6 @@ from decimal import ROUND_HALF_UP, Decimal
 from itertools import pairwise
 from typing import Any
 
-from obractrl.domain.cuantificacion.muro_ubicacion import sugerencia_por_losa
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
@@ -47,6 +46,7 @@ __all__ = [
     "ZonaDeLosa",
     "elegir_altura",
     "resolver_muro",
+    "tramos_para_conversion",
     "validar_zona",
 ]
 
@@ -421,22 +421,14 @@ def _tramo(
                         "cara_b": None,
                     },
                 ]
-                # Regla 4 del mockup: la losa más baja que el muro SUGIERE las partes de arriba exteriores; no se aplica.
-                sugerencias = sugerencia_por_losa(
-                    [
-                        {
-                            k: (str(v) if isinstance(v, Decimal) else v)
-                            for k, v in p.items()
-                        }
-                        for p in partes
-                    ],
-                    bajo,
-                )
-                for s in sugerencias:
-                    partes[s["indice"]]["cara_a"], partes[s["indice"]]["cara_b"] = (
-                        s["cara_a"],
-                        s["cara_b"],
-                    )
+                # Altura POR CARA (decisión del usuario, zonas de losa 1.1): el muro se traza una vez, a la altura mayor, y la losa
+                # baja lo corta. La cara del lado de la losa alta es interior de 0 a la altura mayor; la del lado de la losa baja es
+                # interior hasta su losa y EXTERIOR del enrase hacia arriba. Es una sugerencia: solo se aplica al confirmar.
+                alta = inferiores[-1]
+                cara_enrase_a = "interior" if a.cota_inferior_m == alta else "exterior"
+                cara_enrase_b = "interior" if b.cota_inferior_m == alta else "exterior"
+                partes[1]["cara_a"], partes[1]["cara_b"] = cara_enrase_a, cara_enrase_b
+                sugerencias = [{"indice": 1, "nombre": "Enrase", "cara_a": cara_enrase_a, "cara_b": cara_enrase_b}]
             else:
                 partes = [
                     {
@@ -578,3 +570,29 @@ def resolver_muro(
         con_zona=con_zona,
         advertencias=tuple(advertencias),
     )
+
+
+def tramos_para_conversion(resolucion: ResolucionDeMuro) -> list[dict[str, Any]]:
+    """Los tramos lógicos con los que cuenta un muro que cruza zonas (``conversion.tramos``, 0138): sobre el eje, contiguos desde 0,
+    cada uno con su altura única o sus partes de altura. Los contiguos que miden lo mismo se unen. Distancias en metros (floats)."""
+    salida: list[dict[str, Any]] = []
+    for t in resolucion.tramos:
+        partes = [
+            {
+                "nombre": p["nombre"], "desde_m": float(p["desde_m"]), "hasta_m": float(p["hasta_m"]), "suma": bool(p["suma"]),
+                "rol": p["rol"], "cara_a": p["cara_a"], "cara_b": p["cara_b"],
+            }
+            for p in t.partes
+        ]
+        tramo: dict[str, Any] = {"desde_m": float(t.desde_m), "hasta_m": float(t.hasta_m)}
+        if len(partes) > 1:
+            tramo["partes"] = partes
+        else:
+            tramo["alt"] = float(t.altura_m)
+        if salida and {k: v for k, v in salida[-1].items() if k not in ("desde_m", "hasta_m")} == {
+            k: v for k, v in tramo.items() if k not in ("desde_m", "hasta_m")
+        }:
+            salida[-1]["hasta_m"] = tramo["hasta_m"]
+        else:
+            salida.append(tramo)
+    return salida

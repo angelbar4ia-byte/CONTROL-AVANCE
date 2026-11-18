@@ -5,6 +5,9 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { ParteDeAlturaEnConversionRol } from "./parteDeAlturaEnConversionRol";
+import type { ParteDeAlturaEnConversionCaraA } from "./parteDeAlturaEnConversionCaraA";
+import type { ParteDeAlturaEnConversionCaraB } from "./parteDeAlturaEnConversionCaraB";
 
 export interface ParteDeAlturaEnConversion {
   /** @maxLength 40 */
@@ -14,4 +17,10 @@ export interface ParteDeAlturaEnConversion {
   /** */
   hasta_m: number;
   suma?: boolean;
+  /** Solo informa (0138). */
+  rol?: ParteDeAlturaEnConversionRol;
+  /** Cara A (izquierda del sentido de dibujo); solo informa. */
+  cara_a?: ParteDeAlturaEnConversionCaraA;
+  /** Cara B (derecha); solo informa. */
+  cara_b?: ParteDeAlturaEnConversionCaraB;
 }

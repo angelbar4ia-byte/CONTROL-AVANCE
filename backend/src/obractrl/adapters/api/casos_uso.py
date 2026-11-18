@@ -139,6 +139,7 @@ from obractrl.application.casos_uso.aplicar_catalogo_mano_de_obra import (
     AplicadorCatalogoManoDeObra,
     AplicadorSemillaCuadrillas,
 )
+from obractrl.application.casos_uso.aplicar_zona_al_muro import AplicarZonaAlMuro
 from obractrl.application.casos_uso.apu_desde_elemento import ActualizarApuDesdeElemento
 from obractrl.application.casos_uso.arbol import ArmarArbol
 from obractrl.application.casos_uso.arbol_de_obra import ArbolDeObra
@@ -419,6 +420,7 @@ __all__ = [
     "AgregarHuecoDep",
     "AgregarRespuestasDep",
     "AplicarReprogramacionDep",
+    "AplicarZonaAlMuroDep",
     "AprobarCierreDeFrenteDep",
     "AprobarPendientesEnLoteDep",
     "AprobarTrazoDep",
@@ -906,6 +908,9 @@ def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS, ctx: ContextoActual) 
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
         matrices=RepositorioMatricesSQL(sesion),
+        tramos_de_zona=GestionarZonasDeLosa(
+            zonas=RepositorioZonasDeLosaSQL(sesion), trazos=RepositorioTrazosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).tramos_del_muro_nuevo,
     )
 
 
@@ -1056,6 +1061,15 @@ def obtener_gestionar_zonas_de_losa(sesion: SesionRLS) -> GestionarZonasDeLosa:
         zonas=RepositorioZonasDeLosaSQL(sesion),
         trazos=RepositorioTrazosSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_aplicar_zona_al_muro(sesion: SesionRLS, ctx: ContextoActual) -> AplicarZonaAlMuro:
+    return AplicarZonaAlMuro(
+        zonas=obtener_gestionar_zonas_de_losa(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        conversiones=obtener_conversion_del_enlace(sesion, ctx),
+        vanos=obtener_gestionar_vanos(sesion, ctx),
     )
 
 
@@ -1461,6 +1475,7 @@ GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 ColocarElementosDeMuroDep = Annotated[ColocarElementosDeMuro, Depends(obtener_colocar_elementos_de_muro)]
 GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obtener_gestionar_plantillas_de_muro)]
 GestionarZonasDeLosaDep = Annotated[GestionarZonasDeLosa, Depends(obtener_gestionar_zonas_de_losa)]
+AplicarZonaAlMuroDep = Annotated[AplicarZonaAlMuro, Depends(obtener_aplicar_zona_al_muro)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
 PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]
 ArbolDeObraDep = Annotated[ArbolDeObra, Depends(obtener_arbol_de_obra)]

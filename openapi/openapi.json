@@ -16856,6 +16856,48 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/zonas-de-losa/aplicar": {
+      "post": {
+        "tags": [
+          "zonas de losa"
+        ],
+        "summary": "Aplicar al muro la altura, las partes por cara o los tramos de sus zonas de losa",
+        "description": "Un acto explícito: reemplaza el enlace del muro con la conversión de su zona (el anterior queda como evidencia) y recalcula lo que\nalimenta. Un muro que cruza zonas cuenta por tramos lógicos dentro del mismo trazo; los demás trazos no cambian.",
+        "operationId": "aplicar_zona_al_muro_api_v1_trazos__trazo_id__zonas_de_losa_aplicar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZonaAplicadaAlMuro"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El muro no cae bajo ninguna zona, o trae su altura (manda sobre la de la zona)."
+          }
+        }
+      }
+    },
     "/api/v1/correcciones-de-catalogo": {
       "get": {
         "tags": [
@@ -31723,6 +31765,14 @@
             "type": "array",
             "title": "Partes",
             "description": "Altura por partes."
+          },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoDeConversion"
+            },
+            "type": "array",
+            "title": "Tramos",
+            "description": "Un muro que cruza zonas de losa: sus tramos a lo largo del eje, cada uno con su altura o partes (0138). Vacío = un solo tramo."
           }
         },
         "type": "object",
@@ -46685,6 +46735,56 @@
             "type": "boolean",
             "title": "Suma",
             "default": true
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cuerpo",
+                  "enrase",
+                  "pretil",
+                  "cadena"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol",
+            "description": "Solo informa (0138)."
+          },
+          "cara_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara A",
+            "description": "Cara A (izquierda del sentido de dibujo); solo informa."
+          },
+          "cara_b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "exterior",
+                  "interior"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cara B",
+            "description": "Cara B (derecha); solo informa."
           }
         },
         "type": "object",
@@ -52758,6 +52858,26 @@
             },
             "type": "array",
             "title": "Tramos"
+          },
+          "vanos_por_tramo": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/VanoDelTramo"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Vanos Por Tramo",
+            "description": "Los vanos del muro repartidos por tramo: cada uno cae donde está su centro."
+          },
+          "tramos_de_conversion": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tramos De Conversion",
+            "description": "Los tramos lógicos con los que contaría el muro si se aplican (`conversion.tramos`)."
           }
         },
         "type": "object",
@@ -52771,7 +52891,9 @@
           "parte_el_muro",
           "aplicada",
           "advertencias",
-          "tramos"
+          "tramos",
+          "vanos_por_tramo",
+          "tramos_de_conversion"
         ],
         "title": "ResolucionDelMuro"
       },
@@ -54953,6 +55075,48 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TramoDeConversion": {
+        "properties": {
+          "desde_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Desde M",
+            "description": "Distancia al inicio del trazo, sobre el eje (m)."
+          },
+          "hasta_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Hasta M"
+          },
+          "alt": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt",
+            "description": "Altura del tramo (m); si hay partes, suman ellas."
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDeAlturaEnConversion"
+            },
+            "type": "array",
+            "title": "Partes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "desde_m",
+          "hasta_m"
+        ],
+        "title": "TramoDeConversion",
+        "description": "Un tramo lógico del muro a lo largo de su eje (0138): su altura única o sus partes de altura."
+      },
       "TramoDelMuro": {
         "properties": {
           "desde_m": {
@@ -56918,6 +57082,43 @@
         ],
         "title": "VanoCambiadoRespuesta"
       },
+      "VanoDelTramo": {
+        "properties": {
+          "vano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vano Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "posicion_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vano_id",
+          "clave",
+          "tipo",
+          "posicion_m"
+        ],
+        "title": "VanoDelTramo"
+      },
       "VanoEnPlanoRespuesta": {
         "properties": {
           "id": {
@@ -58315,6 +58516,41 @@
           "total_m3"
         ],
         "title": "VolumenDelTrazo"
+      },
+      "ZonaAplicadaAlMuro": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "tramos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tramos"
+          },
+          "enlaces_aplicados": {
+            "type": "integer",
+            "title": "Enlaces Aplicados",
+            "description": "Cuántos enlaces del muro (en m² o m³) pasaron a contar con la zona."
+          },
+          "enlaces_sin_conversion": {
+            "type": "integer",
+            "title": "Enlaces Sin Conversion",
+            "description": "Enlaces antiguos de factor fijo: no se tocan (Q1)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "tramos",
+          "enlaces_aplicados",
+          "enlaces_sin_conversion"
+        ],
+        "title": "ZonaAplicadaAlMuro"
       },
       "ZonaDeAnilloDeLaReceta": {
         "properties": {
