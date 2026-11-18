@@ -43,9 +43,7 @@ from obractrl.domain.cuantificacion.muro_tabique import (
 from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado
 from obractrl.domain.cuantificacion.muro_ubicacion import MATERIALES_DE_MURO
 from obractrl.domain.cuantificacion.prototipos_de_muro import (
-    CLAVES_DE_ELEMENTO,
     PROTOTIPOS,
-    ejemplos_de_prototipo,
     plantas_de,
 )
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
@@ -280,7 +278,7 @@ class GestionarPlantillasDeMuro:
             uid=uid, ref=ref, nombre=str(d["nombre"]), clase="muro", partes={"muro": insumos}, conceptos=conceptos, implicito=implicito
         )
 
-    # --- Prototipos y ejemplos ---------------------------------------------------------------------------------------
+    # --- Prototipos ---------------------------------------------------------------------------------------
 
     async def prototipos(self) -> list[dict[str, Any]]:
         """Los prototipos con sus plantas y la plantilla de confinado vigente de cada una (o `None`: estructura aún sin capturar)."""
@@ -304,46 +302,6 @@ class GestionarPlantillasDeMuro:
                 }
             )
         return salida
-
-    async def cargar_ejemplos(self, *, autor_id: UUID, rol: str) -> dict[str, Any]:
-        """Crea las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas) «por confirmar», con las notas de dónde sale cada dato.
-        Idempotente: el prototipo y la planta que ya tienen plantilla vigente se omiten. Los castillos y cadenas se buscan en el catálogo
-        de la organización; si falta alguno no se inventa: ese ejemplo no se crea y se dice qué elementos faltan."""
-        validar_que_edita(rol)
-        catalogo = {str(e["clave"]).upper(): e for e in await self._elementos.listar()}
-        ya = {(p.get("prototipo"), p.get("planta")) for p in await self._plantillas.listar() if p.get("prototipo")}
-        creadas: list[dict[str, Any]] = []
-        omitidas: list[str] = []
-        faltan: list[dict[str, Any]] = []
-        for ej in ejemplos_de_prototipo():
-            if (ej["prototipo"], ej["planta"]) in ya:
-                omitidas.append(ej["nombre"])
-                continue
-            elementos: list[dict[str, Any]] = []
-            sin: list[str] = []
-            for linea in ej["lineas"]:
-                el = next((catalogo[c.upper()] for c in CLAVES_DE_ELEMENTO.get(linea["tipo"], (linea["tipo"],)) if c.upper() in catalogo), None)
-                if el is None or clase_de_elemento(str(el["categoria"]), str(el["subcategoria"])) != linea["clase"]:
-                    sin.append(linea["tipo"])
-                    continue
-                item = {k: v for k, v in linea.items() if k not in ("tipo", "clase")}
-                elementos.append({**item, "ref": str(el["clave"]), "uid": str(el["clave"]), "modo": "estimado" if linea["clase"] == "castillo" else None})
-            if sin:
-                faltan.append({"plantilla": ej["nombre"], "elementos": sin})
-                continue
-            entrada = {k: v for k, v in ej.items() if k != "lineas"} | {"elementos": elementos}
-            datos = await self._normalizar(entrada)
-            nuevo = uuid.uuid4()
-            async with self._uow:
-                try:
-                    await self._plantillas.crear(plantilla_id=nuevo, raiz_id=nuevo, version=1, datos=datos, autor_id=autor_id, rol=rol)
-                except ErrorDePlantillaDeMuro:
-                    # Otra petición la creó a la vez (el nombre vigente es único): ya existe, así que se omite.
-                    omitidas.append(ej["nombre"])
-                    continue
-                await self._uow.commit()
-            creadas.append(await self.obtener(nuevo))
-        return {"creadas": creadas, "omitidas": omitidas, "faltan": faltan}
 
     async def _rehacer_tomas(self, trazo_id: UUID) -> None:
         """Elegir o desligar la plantilla cambia lo que sus conceptos toman (castillos estimados y cadenas): se rehace dentro de la transacción."""

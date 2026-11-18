@@ -4,17 +4,10 @@
  * sin plantilla es estructura vacía que se captura con «Capturar».
  */
 
-import { useState } from 'react';
-
-import type { ErrorApi } from '@/api/cliente';
 import {
-  getListarPlantillasApiV1MuroPlantillasGetQueryKey,
-  getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryKey,
-  useCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost,
   useListarPlantillasApiV1MuroPlantillasGet,
   usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet,
 } from '@/api/generado/artefacto-de-muros/artefacto-de-muros';
-import { queryClient } from '@/app/queryClient';
 
 import { esPlantillaNueva, PLANTILLA_NUEVA, plantillaNuevaDe, type Planta } from './plantillaDeMuro';
 
@@ -29,26 +22,6 @@ interface Props {
 export function PanelDePlantillas({ elegida, onElegir, puedeCrear }: Props) {
   const consulta = useListarPlantillasApiV1MuroPlantillasGet();
   const prototipos = usePrototiposDeMuroApiV1MuroArtefactoPrototiposGet();
-  const cargar = useCargarEjemplosDePrototipoApiV1MuroPlantillasEjemplosDePrototipoPost<ErrorApi>();
-  const [aviso, setAviso] = useState<string | null>(null);
-
-  async function cargarEjemplos() {
-    setAviso(null);
-    try {
-      const r = await cargar.mutateAsync();
-      void queryClient.invalidateQueries({ queryKey: getListarPlantillasApiV1MuroPlantillasGetQueryKey() });
-      void queryClient.invalidateQueries({ queryKey: getPrototiposDeMuroApiV1MuroArtefactoPrototiposGetQueryKey() });
-      const partes = [
-        r.creadas.length > 0 ? `Se crearon ${r.creadas.length} plantillas de ejemplo, por confirmar.` : null,
-        r.omitidas.length > 0 ? `${r.omitidas.length} ya existían.` : null,
-        ...r.faltan.map((f) => `«${f.plantilla}» no se creó: faltan en tu catálogo ${f.elementos.join(', ')}.`),
-      ].filter(Boolean);
-      setAviso(partes.join(' ') || 'No hay nada que cargar.');
-    } catch (e) {
-      setAviso(e instanceof Error ? e.message : 'No se pudieron cargar los ejemplos.');
-    }
-  }
-
   if (consulta.isLoading)
     return (
       <p className="text-mute text-sm" style={{ padding: 10 }}>
@@ -100,18 +73,8 @@ export function PanelDePlantillas({ elegida, onElegir, puedeCrear }: Props) {
       <div role="group" aria-label="Prototipos del muro confinado" style={{ display: 'grid', gap: 6, marginTop: 6 }}>
         <div className="opciones__titulo">Prototipos (muro confinado)</div>
         <p className="text-mute text-xs" style={{ margin: 0 }}>
-          Sin plano estructural, la plantilla del prototipo propone los castillos. Las plantas se infieren del subcapítulo «planta alta» del Excel.
+          Sin plano estructural, la plantilla del prototipo propone los castillos. Las plantas se infieren del subcapítulo «planta alta» del Excel, que es solo referencia: cada plantilla se captura a mano.
         </p>
-        {puedeCrear && (
-          <button type="button" className="btn btn--sm" disabled={cargar.isPending} onClick={() => void cargarEjemplos()}>
-            Cargar los ejemplos (Oro y global)
-          </button>
-        )}
-        {aviso && (
-          <p className="text-xs" role="status" data-testid="aviso-de-ejemplos" style={{ margin: 0 }}>
-            {aviso}
-          </p>
-        )}
         {(prototipos.data ?? []).map((pr) => (
           <div key={pr.clave} data-prototipo={pr.clave} style={{ display: 'grid', gap: 3 }}>
             <strong className="text-sm">
