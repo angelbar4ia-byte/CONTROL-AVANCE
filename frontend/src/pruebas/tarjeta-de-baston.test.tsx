@@ -41,7 +41,7 @@ const DEFINICION = {
   se_mide_por: 'metro lineal de trazo',
   categoria: { clave: 'aceros', nombre: 'Acero de refuerzo' },
   subcategoria: { clave: 'bastones', nombre: 'Bastones' },
-  parametros_por_defecto: { varilla_numero: 3, sep_cm: 25, largo_cm: 120, puntas_cm: 0, traslape_diametros: 40, trazo_m: 1 },
+  parametros_por_defecto: { varilla_numero: 3, sep_cm: 25, largo_cm: 120, puntas_cm: 0, ganchos: 2, gancho_diametros: 12, traslape_diametros: 40, trazo_m: 1 },
   varillas: [
     { numero: 3, clave: 'ACR-00001', nombre: '3/8', peso_kg_m: 0.56 },
     { numero: 4, clave: 'ACR-00002', nombre: '1/2', peso_kg_m: 0.994 },
@@ -61,17 +61,18 @@ const CALCULO = {
   unidad: 'ml de trazo',
   trazo_m: 10,
   varilla: { clave: 'ACR-00001', numero: 3, nombre: '3/8', peso_kg_m: 0.56, largo_m: 12 },
-  parametros: { sep_cm: 25, largo_cm: 120, puntas_cm: 0, traslape_diametros: 40 },
+  parametros: { sep_cm: 25, largo_cm: 120, puntas_cm: 0, ganchos: 2, gancho_diametros: 12, gancho_cm: 11.43, traslape_diametros: 40 },
+  gancho: { ganchos: 2, diametros: 12, diametro_varilla_cm: 0.9525, longitud_cm: 11.43, total_por_baston_cm: 22.86, origen: '12 diámetros × 0.9525 cm de diámetro de la varilla', formula: 'corte = largo + puntas + ganchos × longitud del gancho' },
   bastones_por_metro: 4,
   ajustado: {
-    corte: { piezas_por_baston: 1, modulo_m: 1.5, material_por_baston_m: 1.5, traslape_m: 0, puntas_m: 0, necesario_m: 1.2, sobrante_por_baston_m: 0.3, piezas_por_varilla: 8, excede_maximo: false },
+    corte: { piezas_por_baston: 1, modulo_m: 1.5, material_por_baston_m: 1.5, traslape_m: 0, puntas_m: 0, gancho_m: 0.2286, necesario_m: 1.4286, sobrante_por_baston_m: 0.3, piezas_por_varilla: 8, excede_maximo: false },
     bastones: 41,
     varillas: 6,
     material_m: 61.5,
     kg: 34.44,
     sobra_m: 10.5,
   },
-  exacto: { bastones: 41, varillas: 5, material_m: 49.2, kg: 27.55, sobra_m: 10.8 },
+  exacto: { bastones: 41, varillas: 6, material_m: 58.57, kg: 32.8, sobra_m: 13.43 },
   varillas_por_metro: 0.5,
   pago: { modo: 'pieza', unidad: 'pza', cantidad: 41, texto: 'Pago por pieza' },
   concepto: { clave: 'AUX-02010', descripcion: 'Bastones var 3/8" de 1.20 @25 cm', unidad: 'ml', estado: 'catalogo', clave_provisional: false, escalon: 'exacto', largo_m: 1.2, sep_cm: 25 },
@@ -122,7 +123,7 @@ const PROPUESTA = {
 };
 
 // El traslape sin tocar no se manda: lo da el driver de la obra (o el valor por defecto del servidor).
-const PETICION = { trazo_m: 1, varilla_numero: 3, sep_cm: 25, largo_cm: 120, puntas_cm: 0 };
+const PETICION = { trazo_m: 1, varilla_numero: 3, sep_cm: 25, largo_cm: 120, puntas_cm: 0, ganchos: 2, gancho_diametros: 12 };
 
 beforeEach(() => {
   for (const f of [m.calcular, m.proponerNuevo, m.proponerApu, m.autorizar, m.rechazar]) f.mockReset();
@@ -159,6 +160,8 @@ describe('TarjetaBaston', () => {
     await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'BA-1', data: PETICION }));
     expect(await screen.findByTestId('baston-piezas')).toHaveTextContent('41 bastones');
     expect(screen.getByTestId('baston-corte')).toHaveTextContent('1 × 1.5 m · 8 por varilla');
+    expect(screen.getByTestId('baston-gancho')).toHaveTextContent('Gancho 2 × 11.43 cm = 22.86 cm por bastón');
+    expect(screen.getByTestId('baston-corte')).toHaveTextContent('Corte de 1.43 m (con gancho)');
     expect(screen.getByTestId('baston-varillas')).toHaveTextContent('6 varillas');
     expect(screen.getByTestId('baston-kg')).toHaveTextContent('34.44 kg');
     expect(screen.getByTestId('baston-varilla')).toBeInTheDocument();
@@ -172,7 +175,7 @@ describe('TarjetaBaston', () => {
     render(<TarjetaBaston clave="BA-1" />);
     const tabla = await screen.findByTestId('baston-comparacion');
     expect(within(tabla).getByText('Ajustado a módulos').closest('tr')).toHaveTextContent('6');
-    expect(tabla.querySelector('tr[data-corte="exacto"]')).toHaveTextContent('27.55');
+    expect(tabla.querySelector('tr[data-corte="exacto"]')).toHaveTextContent('32.8');
   });
 
   it('la conciliación marca ≠ y solo en el catálogo, sin precios', async () => {

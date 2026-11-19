@@ -11,6 +11,8 @@ export interface ParametrosDelBaston {
   sep_cm: number;
   largo_cm: number;
   puntas_cm: number;
+  ganchos: number;
+  gancho_diametros: number;
   traslape_diametros: number;
   trazo_m: number;
 }

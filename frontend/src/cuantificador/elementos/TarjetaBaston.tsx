@@ -99,6 +99,10 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
   const [sep, setSep] = useState('25');
   const [largo, setLargo] = useState('120');
   const [puntas, setPuntas] = useState('0');
+  // E1: el gancho entra en la longitud de corte. Número de ganchos y su largo en diámetros; `gancho` en cm vacío = se usan los diámetros.
+  const [ganchos, setGanchos] = useState('2');
+  const [ganchoDiam, setGanchoDiam] = useState('12');
+  const [ganchoCm, setGanchoCm] = useState('');
   // `null` = sin tocar: el traslape lo da el driver de la obra (o el valor por defecto) y no se manda.
   const [traslape, setTraslape] = useState<string | null>(null);
   const [calculo, setCalculo] = useState<CalculoDelBaston | null>(null);
@@ -115,6 +119,9 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
     setSep(String(p.sep_cm));
     setLargo(String(p.largo_cm));
     setPuntas(String(p.puntas_cm));
+    setGanchos(String(p.ganchos));
+    setGanchoDiam(String(p.gancho_diametros));
+    setGanchoCm('');
     setTraslape(null);
     setCalculo(null);
     setError(null);
@@ -123,24 +130,30 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
 
   const peticion = useMemo<CalculoDelBastonPeticion | null>(() => {
     if (!d) return null;
-    if ([trazo, sep, largo, puntas, traslape ?? '0'].some((t) => t.trim() === '')) return null;
+    if ([trazo, sep, largo, puntas, ganchos, ganchoDiam, traslape ?? '0'].some((t) => t.trim() === '')) return null;
     const t = numeroTecleado(trazo);
     const s = numeroTecleado(sep);
     const l = numeroTecleado(largo);
     const p = numeroTecleado(puntas);
     const tr = traslape === null ? null : numeroTecleado(traslape);
+    const g = Math.trunc(numeroTecleado(ganchos));
+    const gd = numeroTecleado(ganchoDiam);
+    const gc = ganchoCm.trim() === '' ? null : numeroTecleado(ganchoCm);
     const v = Math.trunc(numeroTecleado(varilla));
-    if (!(t > 0 && s >= 5 && s <= 200 && l >= 10 && l <= 3000 && p >= 0 && p <= 100 && (tr === null || (tr >= 0 && tr <= 100)) && v >= 3 && v <= 6)) return null;
+    if (!(t > 0 && s >= 5 && s <= 200 && l >= 10 && l <= 3000 && p >= 0 && p <= 100 && (tr === null || (tr >= 0 && tr <= 100)) && v >= 3 && v <= 6 && g >= 0 && g <= 2 && gd >= 0 && gd <= 40 && (gc === null || (gc >= 0 && gc <= 100)))) return null;
     return {
       trazo_m: t,
       varilla_numero: v,
       sep_cm: s,
       largo_cm: l,
       puntas_cm: p,
+      ganchos: g,
+      gancho_diametros: gd,
+      ...(gc === null ? {} : { gancho_cm: gc }),
       ...(tr === null ? {} : { traslape_diametros: tr }),
       ...(obraId === '' ? {} : { obra_id: obraId }),
     };
-  }, [d, trazo, varilla, sep, largo, puntas, traslape, obraId]);
+  }, [d, trazo, varilla, sep, largo, puntas, ganchos, ganchoDiam, ganchoCm, traslape, obraId]);
 
   const { mutateAsync } = calcular;
   useEffect(() => {
@@ -235,8 +248,31 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
           <input className="input" inputMode="decimal" aria-label="Largo del bastón en centímetros" value={largo} onChange={(e) => setLargo(e.target.value)} />
         </label>
         <label className="mct__campo">
-          <span>Puntas (cm; 0 = sin gancho)</span>
+          <span>Puntas (cm; anclaje que no es gancho)</span>
           <input className="input" inputMode="decimal" aria-label="Puntas en centímetros" value={puntas} onChange={(e) => setPuntas(e.target.value)} />
+        </label>
+        <label className="mct__campo">
+          <span>Ganchos por bastón (0 = sin gancho)</span>
+          <select className="input" aria-label="Ganchos por bastón" value={ganchos} onChange={(e) => setGanchos(e.target.value)}>
+            <option value="0">0 · sin gancho</option>
+            <option value="1">1 · en una punta</option>
+            <option value="2">2 · en las dos puntas</option>
+          </select>
+        </label>
+        <label className="mct__campo">
+          <span>Gancho (diámetros de la varilla)</span>
+          <input className="input" inputMode="decimal" aria-label="Gancho en diámetros" value={ganchoDiam} onChange={(e) => setGanchoDiam(e.target.value)} />
+        </label>
+        <label className="mct__campo">
+          <span>Gancho (cm; vacío = por diámetros)</span>
+          <input
+            className="input"
+            inputMode="decimal"
+            aria-label="Gancho en centímetros"
+            placeholder={calculo ? num(calculo.gancho.longitud_cm, 2) : ''}
+            value={ganchoCm}
+            onChange={(e) => setGanchoCm(e.target.value)}
+          />
         </label>
         <label className="mct__campo">
           <span>Traslape (diámetros)</span>
@@ -247,7 +283,7 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
       <DriversUsadosDelCalculo usados={calculo?.drivers_usados} hayObra={obraId !== ''} />
 
       {peticion === null && (
-        <p className="text-sm mct__aviso">Captura la separación (5 a 200 cm), el largo (10 a 3000 cm), las puntas (0 a 100 cm) y un trazo mayor que cero.</p>
+        <p className="text-sm mct__aviso">Captura la separación (5 a 200 cm), el largo (10 a 3000 cm), las puntas (0 a 100 cm), los ganchos (0 a 2; 0 a 40 diámetros o 0 a 100 cm) y un trazo mayor que cero.</p>
       )}
       {error && (
         <p className="text-sm mct__error" role="alert">
@@ -266,8 +302,11 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
             <span className="chip" data-testid="baston-piezas">
               <b>{num(calculo.ajustado.bastones, 0)} bastones</b> (pago por pieza)
             </span>
+            <span className="chip" data-testid="baston-gancho">
+              Gancho {num(calculo.gancho.ganchos, 0)} × {num(calculo.gancho.longitud_cm, 2)} cm = {num(calculo.gancho.total_por_baston_cm, 2)} cm por bastón
+            </span>
             <span className="chip" data-testid="baston-corte">
-              Corte {num(calculo.ajustado.corte.piezas_por_baston, 0)} × {num(calculo.ajustado.corte.modulo_m, 1)} m · {num(calculo.ajustado.corte.piezas_por_varilla, 0)} por varilla
+              Corte de {num(calculo.ajustado.corte.necesario_m, 2)} m (con gancho): {num(calculo.ajustado.corte.piezas_por_baston, 0)} × {num(calculo.ajustado.corte.modulo_m, 1)} m · {num(calculo.ajustado.corte.piezas_por_varilla, 0)} por varilla
             </span>
             <span className="chip" data-testid="baston-varillas">
               <b>{num(calculo.ajustado.varillas, 0)} varillas</b> de {num(calculo.varilla.largo_m, 0)} m

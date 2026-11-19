@@ -5,7 +5,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  *
  *  1. La biblioteca trae Acero de refuerzo › Bastones › BA-1.
  *  2. Con los valores por defecto (3/8, 1.20 m a cada 25 cm) el bastón sale del módulo de 1.5 m y se paga con el escalón AUX-02010.
- *  3. El corte ajustado a módulos y el exacto salen lado a lado; el ajustado gasta más (Q28).
+ *  3. El corte ajustado a módulos y el exacto salen lado a lado; el ajustado gasta más (Q28); el gancho entra en el corte (E1).
  *  4. Un largo sin escalón exacto se paga con el primero más largo y avisa; otra separación o varilla avisa y propone concepto nuevo.
  *  5. Un bastón de 7 m se corta en dos piezas con traslape.
  *  6. Costos propone el concepto nuevo y la actualización del APU y no autoriza; Control de obra autoriza y nace la versión.
@@ -54,7 +54,15 @@ test.describe('Cuantificador · bastones por longitud de trazo', () => {
     await expect(baston.getByTestId('baston-varilla')).toBeVisible();
     const comparacion = baston.getByTestId('baston-comparacion');
     await expect(comparacion.locator('tr[data-corte="ajustado"]')).toContainText('34.44');
+    await expect(comparacion.locator('tr[data-corte="exacto"]')).toContainText('32.80');
+    // E1: el gancho (2 × 12 diámetros de 3/8) está en el desglose y en la longitud de corte; sin gancho vuelve al corte recto.
+    await expect(baston.getByTestId('baston-gancho')).toContainText('2 × 11.43 cm = 22.86 cm por bastón');
+    await expect(baston.getByTestId('baston-corte')).toContainText('Corte de 1.43 m (con gancho)');
+    await baston.getByLabel('Ganchos por bastón').selectOption('0');
+    await expect(baston.getByTestId('baston-corte')).toContainText('Corte de 1.20 m (con gancho)');
     await expect(comparacion.locator('tr[data-corte="exacto"]')).toContainText('27.55');
+    await baston.getByLabel('Ganchos por bastón').selectOption('2');
+    await expect(baston.getByTestId('baston-gancho')).toContainText('22.86 cm por bastón');
     const conciliacion = baston.locator('[data-conciliacion="AUX-02010"]');
     await expect(conciliacion.locator('tr[data-insumo="ACR-00001"]')).toHaveAttribute('data-marca', '≠');
     await expect(conciliacion.locator('tr[data-insumo="ACE-00001"]')).toHaveAttribute('data-marca', 'solo_catalogo');
