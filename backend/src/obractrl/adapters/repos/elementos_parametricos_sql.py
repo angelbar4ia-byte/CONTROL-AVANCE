@@ -385,14 +385,14 @@ class RepositorioElementosParametricosSQL:
 
     async def contexto_de_trazo(self, trazo_id: UUID) -> dict[str, Any] | None:
         """Dónde se mide un muro: su obra, el nivel y la etapa de la partida que ya mide (la primera actividad o nodo del prototipo a la que
-        está enlazado) y su ubicación. `nivel_orden` es el número de nivel con que se eligen los conceptos del elemento (el orden del nivel
+        está enlazado) y su ubicación. `numero_de_nivel` es el número de nivel con que se eligen los conceptos del elemento (el orden del nivel
         del árbol: PB = 1). Sin partida, el nivel y la etapa quedan en `None` y un dato que falta no descarta nada."""
         fila = (
             await self._sesion.execute(
                 text(
                     """
                     select p.obra_id, t.muro_ubicacion as ubicacion, t.muro_plantilla_id,
-                           n.id as nivel_id, n.orden as nivel_orden, x.etapa_id
+                           n.id as nivel_id, app.numero_de_nivel(n.id) as numero_de_nivel, x.etapa_id
                       from trazo t join plano p on p.id = t.plano_id
                       left join lateral (
                         select coalesce(a.nivel_id, pn.nivel_id) as nivel_id, coalesce(a.etapa_id, pn.etapa_id) as etapa_id
@@ -422,7 +422,7 @@ class RepositorioElementosParametricosSQL:
                 text(
                     """
                     select v.id as vano_id, v.trazo_id, v.alto_m, v.piezas, v.elemento_uid, t.muro_ubicacion as ubicacion,
-                           ep.id as elemento_id, ep.clave as ref, n.orden as nivel_orden, x.nivel_id, x.etapa_id
+                           ep.id as elemento_id, ep.clave as ref, app.numero_de_nivel(n.id) as numero_de_nivel, x.nivel_id, x.etapa_id
                       from vano v
                       join trazo t on t.id = v.trazo_id and t.hueco_de is null and not t.propuesta
                       join plano p on p.id = t.plano_id
@@ -458,7 +458,7 @@ class RepositorioElementosParametricosSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select t.id as trazo_id, mp.elementos, t.muro_ubicacion as ubicacion, n.orden as nivel_orden, x.nivel_id, x.etapa_id
+                    select t.id as trazo_id, mp.elementos, t.muro_ubicacion as ubicacion, app.numero_de_nivel(n.id) as numero_de_nivel, x.nivel_id, x.etapa_id
                       from trazo t
                       join plano p on p.id = t.plano_id
                       join muro_plantilla mp on mp.id = t.muro_plantilla_id

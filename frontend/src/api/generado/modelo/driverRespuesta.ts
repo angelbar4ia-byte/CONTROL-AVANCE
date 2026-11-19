@@ -11,6 +11,8 @@ import type { DriverRespuestaValorObra } from "./driverRespuestaValorObra";
 import type { DriverRespuestaOrigen } from "./driverRespuestaOrigen";
 import type { ConsumidorDelDriver } from "./consumidorDelDriver";
 import type { DriverRespuestaSinConsumidor } from "./driverRespuestaSinConsumidor";
+import type { PropuestaDeDriver } from "./propuestaDeDriver";
+import type { DriverRespuestaPropuesta } from "./driverRespuestaPropuesta";
 
 export interface DriverRespuesta {
   clave: string;
@@ -48,4 +50,10 @@ export interface DriverRespuesta {
   lo_usan?: ConsumidorDelDriver[];
   /** Si ningún cálculo lo lee todavía: el motivo. */
   sin_consumidor?: DriverRespuestaSinConsumidor;
+  /** F4: no se cambia ni se propone (el cálculo lo lee como constante del dominio). */
+  inmutable?: boolean;
+  /** Los cambios propuestos a este driver que Control de obra aún no decide (el global y, con obra, los de esa obra). */
+  propuestas_pendientes?: PropuestaDeDriver[];
+  /** Solo al proponer, autorizar o rechazar: la propuesta de la que sale esta respuesta. */
+  propuesta?: DriverRespuestaPropuesta;
 }

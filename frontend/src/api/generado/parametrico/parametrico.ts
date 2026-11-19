@@ -33,6 +33,11 @@ import type {
   EnlaceDeRanuraRespuesta,
   EnlacesDeRanuraRespuesta,
   HTTPValidationError,
+  NivelDelArbol,
+  NumeroDeNivelPeticion,
+  PropuestaDeDriver,
+  PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  RechazoDePropuesta,
   ResolucionDeRanura,
   ResolverRanuraApiV1ObrasObraIdEnlacesDeRanuraResolverGetParams,
 } from ".././modelo";
@@ -353,14 +358,14 @@ export function useDriversGlobalesApiV1DriversGet<
 }
 
 /**
- * @summary Cambiar el valor y/o el modo (fijo, ajustable) del driver global
+ * @summary Proponer el valor y/o el modo (fijo, ajustable) del driver global (lo autoriza Control de obra)
  */
 export const fijarDriverGlobalApiV1DriversClavePut = (
   clave: string,
   driverGlobalPeticion: DriverGlobalPeticion,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<DriverRespuesta>(
+  return peticion<DriverRespuesta | void>(
     {
       url: `/api/v1/drivers/${clave}`,
       method: "PUT",
@@ -417,7 +422,7 @@ export type FijarDriverGlobalApiV1DriversClavePutMutationBody =
 export type FijarDriverGlobalApiV1DriversClavePutMutationError = void;
 
 /**
- * @summary Cambiar el valor y/o el modo (fijo, ajustable) del driver global
+ * @summary Proponer el valor y/o el modo (fijo, ajustable) del driver global (lo autoriza Control de obra)
  */
 export const useFijarDriverGlobalApiV1DriversClavePut = <
   TError = void,
@@ -797,7 +802,7 @@ export function useDriversDeObraApiV1ObrasObraIdDriversGet<
 }
 
 /**
- * @summary El valor propio de una obra para un driver ajustable
+ * @summary Proponer el valor propio de una obra para un driver ajustable (lo autoriza Control de obra)
  */
 export const fijarDriverDeObraApiV1ObrasObraIdDriversClavePut = (
   obraId: string,
@@ -805,7 +810,7 @@ export const fijarDriverDeObraApiV1ObrasObraIdDriversClavePut = (
   driverDeObraPeticion: DriverDeObraPeticion,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<DriverRespuesta>(
+  return peticion<DriverRespuesta | void>(
     {
       url: `/api/v1/obras/${obraId}/drivers/${clave}`,
       method: "PUT",
@@ -873,7 +878,7 @@ export type FijarDriverDeObraApiV1ObrasObraIdDriversClavePutMutationError =
   void;
 
 /**
- * @summary El valor propio de una obra para un driver ajustable
+ * @summary Proponer el valor propio de una obra para un driver ajustable (lo autoriza Control de obra)
  */
 export const useFijarDriverDeObraApiV1ObrasObraIdDriversClavePut = <
   TError = void,
@@ -903,14 +908,14 @@ export const useFijarDriverDeObraApiV1ObrasObraIdDriversClavePut = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * @summary Quitar el ajuste de la obra: vuelve al valor global
+ * @summary Proponer quitar el ajuste de la obra: vuelve al valor global (lo autoriza Control de obra)
  */
 export const quitarDriverDeObraApiV1ObrasObraIdDriversClaveDelete = (
   obraId: string,
   clave: string,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<DriverRespuesta>(
+  return peticion<DriverRespuesta | void>(
     { url: `/api/v1/obras/${obraId}/drivers/${clave}`, method: "DELETE" },
     options,
   );
@@ -975,7 +980,7 @@ export type QuitarDriverDeObraApiV1ObrasObraIdDriversClaveDeleteMutationError =
   void;
 
 /**
- * @summary Quitar el ajuste de la obra: vuelve al valor global
+ * @summary Proponer quitar el ajuste de la obra: vuelve al valor global (lo autoriza Control de obra)
  */
 export const useQuitarDriverDeObraApiV1ObrasObraIdDriversClaveDelete = <
   TError = void,
@@ -1008,6 +1013,654 @@ export const useQuitarDriverDeObraApiV1ObrasObraIdDriversClaveDelete = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Las propuestas de cambio de drivers: quién propuso, quién decidió y cuándo (la bitácora)
+ */
+export const propuestasDeDriversApiV1DriversPropuestasGet = (
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<PropuestaDeDriver[]>(
+    { url: `/api/v1/drivers-propuestas`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getPropuestasDeDriversApiV1DriversPropuestasGetInfiniteQueryKey = (
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+) => {
+  return [
+    "infinite",
+    `/api/v1/drivers-propuestas`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getPropuestasDeDriversApiV1DriversPropuestasGetQueryKey = (
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+) => {
+  return [`/api/v1/drivers-propuestas`, ...(params ? [params] : [])] as const;
+};
+
+export const getPropuestasDeDriversApiV1DriversPropuestasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeDriversApiV1DriversPropuestasGetInfiniteQueryKey(params);
+
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+    > = ({ signal }) =>
+      propuestasDeDriversApiV1DriversPropuestasGet(
+        params,
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeDriversApiV1DriversPropuestasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  >;
+export type PropuestasDeDriversApiV1DriversPropuestasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeDriversApiV1DriversPropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: undefined | PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeDriversApiV1DriversPropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeDriversApiV1DriversPropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las propuestas de cambio de drivers: quién propuso, quién decidió y cuándo (la bitácora)
+ */
+
+export function usePropuestasDeDriversApiV1DriversPropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeDriversApiV1DriversPropuestasGetInfiniteQueryOptions(
+      params,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPropuestasDeDriversApiV1DriversPropuestasGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getPropuestasDeDriversApiV1DriversPropuestasGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  > = ({ signal }) =>
+    propuestasDeDriversApiV1DriversPropuestasGet(
+      params,
+      requestOptions,
+      signal,
+    );
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type PropuestasDeDriversApiV1DriversPropuestasGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>>
+  >;
+export type PropuestasDeDriversApiV1DriversPropuestasGetQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeDriversApiV1DriversPropuestasGet<
+  TData = Awaited<
+    ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: undefined | PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeDriversApiV1DriversPropuestasGet<
+  TData = Awaited<
+    ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeDriversApiV1DriversPropuestasGet<
+  TData = Awaited<
+    ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las propuestas de cambio de drivers: quién propuso, quién decidió y cuándo (la bitácora)
+ */
+
+export function usePropuestasDeDriversApiV1DriversPropuestasGet<
+  TData = Awaited<
+    ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params?: PropuestasDeDriversApiV1DriversPropuestasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof propuestasDeDriversApiV1DriversPropuestasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeDriversApiV1DriversPropuestasGetQueryOptions(
+      params,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Autorizar un cambio de driver (solo Control de obra): se aplica y queda quién y cuándo
+ */
+export const autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost =
+  (
+    propuestaId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<DriverRespuesta>(
+      {
+        url: `/api/v1/drivers-propuestas/${propuestaId}/autorizar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAutorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost
+        >
+      >,
+      TError,
+      { propuestaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost
+      >
+    >,
+    TError,
+    { propuestaId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost
+        >
+      >,
+      { propuestaId: string }
+    > = (props) => {
+      const { propuestaId } = props ?? {};
+
+      return autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost(
+        propuestaId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AutorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost
+      >
+    >
+  >;
+
+export type AutorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPostMutationError =
+  void;
+
+/**
+ * @summary Autorizar un cambio de driver (solo Control de obra): se aplica y queda quién y cuándo
+ */
+export const useAutorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost
+          >
+        >,
+        TError,
+        { propuestaId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof autorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost
+      >
+    >,
+    TError,
+    { propuestaId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAutorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Rechazar un cambio de driver (solo Control de obra)
+ */
+export const rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost =
+  (
+    propuestaId: string,
+    rechazoDePropuesta: RechazoDePropuesta,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<DriverRespuesta>(
+      {
+        url: `/api/v1/drivers-propuestas/${propuestaId}/rechazar`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: rechazoDePropuesta,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getRechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost
+        >
+      >,
+      TError,
+      { propuestaId: string; data: RechazoDePropuesta },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost
+      >
+    >,
+    TError,
+    { propuestaId: string; data: RechazoDePropuesta },
+    TContext
+  > => {
+    const mutationKey = [
+      "rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost
+        >
+      >,
+      { propuestaId: string; data: RechazoDePropuesta }
+    > = (props) => {
+      const { propuestaId, data } = props ?? {};
+
+      return rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost(
+        propuestaId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost
+      >
+    >
+  >;
+export type RechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPostMutationBody =
+  RechazoDePropuesta;
+export type RechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPostMutationError =
+  void;
+
+/**
+ * @summary Rechazar un cambio de driver (solo Control de obra)
+ */
+export const useRechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost
+          >
+        >,
+        TError,
+        { propuestaId: string; data: RechazoDePropuesta },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof rechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost
+      >
+    >,
+    TError,
+    { propuestaId: string; data: RechazoDePropuesta },
+    TContext
+  > => {
+    const mutationOptions =
+      getRechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * @summary Los enlaces de ranura de la obra, con lo que cuenta cada uno según el árbol
  */
@@ -1449,7 +2102,7 @@ export const enlazarRanuraApiV1ObrasObraIdEnlacesDeRanuraPut = (
   enlaceDeRanuraPeticion: EnlaceDeRanuraPeticion,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<EnlaceDeRanuraRespuesta>(
+  return peticion<EnlaceDeRanuraRespuesta | void>(
     {
       url: `/api/v1/obras/${obraId}/enlaces-de-ranura`,
       method: "PUT",
@@ -2079,7 +2732,7 @@ export const quitarEnlaceApiV1ObrasObraIdEnlacesDeRanuraEnlaceIdDelete = (
   enlaceId: string,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<void>(
+  return peticion<void | void>(
     {
       url: `/api/v1/obras/${obraId}/enlaces-de-ranura/${enlaceId}`,
       method: "DELETE",
@@ -2185,6 +2838,118 @@ export const useQuitarEnlaceApiV1ObrasObraIdEnlacesDeRanuraEnlaceIdDelete = <
 > => {
   const mutationOptions =
     getQuitarEnlaceApiV1ObrasObraIdEnlacesDeRanuraEnlaceIdDeleteMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Fijar el número de nivel explícito del contexto (PB = 1); con saltos de nivel ya no se usa el orden
+ */
+export const fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut = (
+  nivelId: string,
+  numeroDeNivelPeticion: NumeroDeNivelPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<NivelDelArbol | void>(
+    {
+      url: `/api/v1/niveles/${nivelId}/numero-de-nivel`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: numeroDeNivelPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut>
+      >,
+      TError,
+      { nivelId: string; data: NumeroDeNivelPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut>
+    >,
+    TError,
+    { nivelId: string; data: NumeroDeNivelPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut>
+      >,
+      { nivelId: string; data: NumeroDeNivelPeticion }
+    > = (props) => {
+      const { nivelId, data } = props ?? {};
+
+      return fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut(
+        nivelId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type FijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut>
+    >
+  >;
+export type FijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPutMutationBody =
+  NumeroDeNivelPeticion;
+export type FijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPutMutationError =
+  void;
+
+/**
+ * @summary Fijar el número de nivel explícito del contexto (PB = 1); con saltos de nivel ya no se usa el orden
+ */
+export const useFijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut>
+      >,
+      TError,
+      { nivelId: string; data: NumeroDeNivelPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof fijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPut>
+  >,
+  TError,
+  { nivelId: string; data: NumeroDeNivelPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarNumeroDeNivelApiV1NivelesNivelIdNumeroDeNivelPutMutationOptions(
       options,
     );
 

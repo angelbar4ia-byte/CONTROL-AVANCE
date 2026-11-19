@@ -58,7 +58,8 @@ async def arbol(escenario: Escenario) -> dict[str, Any]:
                     {"i": str(ids[k]), "o": org, "k": clave, "u": str(ids[unidad])},
                 )
             await c.execute(
-                text("insert into nivel (id, org_id, clave, descripcion, orden) values (:i, :o, 'NIV-1', 'Planta baja', 1), (:j, :o, 'NIV-3', 'Azotea', 3)"),
+                # F5: con un salto de nivel (no hay orden 2) el número del contexto es explícito, no `orden`.
+                text("insert into nivel (id, org_id, clave, descripcion, orden, numero_de_nivel) values (:i, :o, 'NIV-1', 'Planta baja', 1, 1), (:j, :o, 'NIV-3', 'Azotea', 3, 3)"),
                 {"i": str(ids["n1"]), "j": str(ids["n3"]), "o": org},
             )
             await c.execute(text("insert into etapa_constructiva (id, org_id, clave, descripcion, orden) values (:i, :o, 'ECO-1', 'Estructura', 1)"), {"i": str(ids["etapa"]), "o": org})

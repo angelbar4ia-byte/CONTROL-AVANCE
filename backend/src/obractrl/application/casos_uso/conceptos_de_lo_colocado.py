@@ -21,16 +21,17 @@ from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
 __all__ = ["conceptos_de_lo_colocado", "nivel_para_conceptos"]
 
 
-def nivel_para_conceptos(orden: Any) -> int | None:
-    """El número de nivel con que se eligen los conceptos del elemento: el orden del nivel del árbol (PB = 1). Sin nivel, o con un orden
-    que no es de nivel (0 o menos), no se descarta ningún concepto."""
-    return int(orden) if orden is not None and int(orden) >= 1 else None
+def nivel_para_conceptos(numero: Any) -> int | None:
+    """El número de nivel con que se eligen los conceptos del elemento (PB = 1): el campo EXPLÍCITO `nivel.numero_de_nivel` (F5, 0141) y, sin él,
+    el orden del nivel solo mientras los niveles de la organización sean consecutivos (lo resuelve `app.numero_de_nivel`). Con saltos de nivel y sin
+    número explícito llega `None`: no se descarta ningún concepto (no se adivina). Un número que no es de nivel (0 o menos) tampoco descarta."""
+    return int(numero) if numero is not None and int(numero) >= 1 else None
 
 
 async def conceptos_de_lo_colocado(
     *, elementos: Any, parametrico: Any, obra_id: UUID, instancias: Iterable[dict[str, Any]]
 ) -> list[tuple[dict[str, Any], list[ConceptoColocado], list[str]]]:
-    """Para cada castillo colocado (dict con `elemento_id`, `ref`, `alto_m`, `piezas`, `nivel_orden`, `nivel_id`, `etapa_id`, `ubicacion`)
+    """Para cada castillo colocado (dict con `elemento_id`, `ref`, `alto_m`, `piezas`, `numero_de_nivel`, `nivel_id`, `etapa_id`, `ubicacion`)
     o cadena de una plantilla (dict con `metros` y sin alto) los conceptos que paga y los avisos. `instancias` ya viene agrupada: `piezas`
     es cuántos castillos iguales son (con fracción en la regla «por ml» o «total» de un castillo estimado)."""
     # Import aquí: `conceptos_de_elemento` llega a `tomas_de_elemento` (que usa este módulo) y un import arriba cerraría el círculo.
@@ -49,7 +50,7 @@ async def conceptos_de_lo_colocado(
         conceptos, avisos = conceptos_de_instancia(
             cache[eid],
             ref=str(i["ref"]),
-            nivel=nivel_para_conceptos(i.get("nivel_orden")),
+            nivel=nivel_para_conceptos(i.get("numero_de_nivel")),
             ubicacion=i.get("ubicacion"),
             alto_m=Decimal(str(i["alto_m"])) if i.get("alto_m") is not None else None,
             piezas=Decimal(str(i["piezas"])),

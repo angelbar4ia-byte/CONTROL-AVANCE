@@ -215,6 +215,7 @@ from obractrl.application.casos_uso.enlaces_de_hoja import GestionarEnlacesDeHoj
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
+from obractrl.application.casos_uso.fachada_por_bandas import ConsultarFachadaPorBandas
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     GenerarObraDesdePrototipo,
     RevertirGeneracionDeObra,
@@ -364,6 +365,7 @@ from obractrl.application.casos_uso.notificar_reprogramacion import (
 from obractrl.application.casos_uso.parametrico import (
     GestionarDrivers,
     GestionarEnlacesDeRanura,
+    GestionarNumeroDeNivel,
 )
 from obractrl.application.casos_uso.plantillas_de_muro import GestionarPlantillasDeMuro
 from obractrl.application.casos_uso.preparar_obra_nueva import PrepararObraNueva
@@ -457,6 +459,7 @@ __all__ = [
     "ConsultarDesviacionesDep",
     "ConsultarEdicionesDeProgramaDep",
     "ConsultarExpedienteDep",
+    "ConsultarFachadaPorBandasDep",
     "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
     "ConsultarMatricesDep",
@@ -517,6 +520,7 @@ __all__ = [
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
+    "GestionarNumeroDeNivelDep",
     "GestionarPlantillasDeMuroDep",
     "GestionarPropuestasDeBastonDep",
     "GestionarPropuestasDeEstructuraDep",
@@ -1064,6 +1068,14 @@ def obtener_gestionar_zonas_de_losa(sesion: SesionRLS) -> GestionarZonasDeLosa:
     )
 
 
+def obtener_consultar_fachada_por_bandas(sesion: SesionRLS) -> ConsultarFachadaPorBandas:
+    return ConsultarFachadaPorBandas(
+        zonas=obtener_gestionar_zonas_de_losa(sesion),
+        repo_zonas=RepositorioZonasDeLosaSQL(sesion),
+        trazos=RepositorioTrazosSQL(sesion),
+    )
+
+
 def obtener_aplicar_zona_al_muro(sesion: SesionRLS, ctx: ContextoActual) -> AplicarZonaAlMuro:
     return AplicarZonaAlMuro(
         zonas=obtener_gestionar_zonas_de_losa(sesion),
@@ -1148,6 +1160,10 @@ def obtener_gestionar_correcciones_de_catalogo(sesion: SesionRLS) -> GestionarCo
     return GestionarCorreccionesDeCatalogo(
         correcciones=RepositorioCorreccionesDeCatalogoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
     )
+
+
+def obtener_gestionar_numero_de_nivel(sesion: SesionRLS) -> GestionarNumeroDeNivel:
+    return GestionarNumeroDeNivel(parametrico=RepositorioParametricoSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
 
 def obtener_gestionar_drivers(sesion: SesionRLS) -> GestionarDrivers:
@@ -1465,6 +1481,7 @@ AutorizarElementosDep = Annotated[AutorizarElementos, Depends(obtener_autorizar_
 GestionarCorreccionesDeCatalogoDep = Annotated[
     GestionarCorreccionesDeCatalogo, Depends(obtener_gestionar_correcciones_de_catalogo)
 ]
+GestionarNumeroDeNivelDep = Annotated[GestionarNumeroDeNivel, Depends(obtener_gestionar_numero_de_nivel)]
 GestionarDriversDep = Annotated[GestionarDrivers, Depends(obtener_gestionar_drivers)]
 DriversDeObraDep = Annotated[DriversDeObraPerezosos, Depends(obtener_drivers_de_obra)]
 GestionarEnlacesDeRanuraDep = Annotated[GestionarEnlacesDeRanura, Depends(obtener_gestionar_enlaces_de_ranura)]
@@ -1475,6 +1492,7 @@ GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 ColocarElementosDeMuroDep = Annotated[ColocarElementosDeMuro, Depends(obtener_colocar_elementos_de_muro)]
 GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obtener_gestionar_plantillas_de_muro)]
 GestionarZonasDeLosaDep = Annotated[GestionarZonasDeLosa, Depends(obtener_gestionar_zonas_de_losa)]
+ConsultarFachadaPorBandasDep = Annotated[ConsultarFachadaPorBandas, Depends(obtener_consultar_fachada_por_bandas)]
 AplicarZonaAlMuroDep = Annotated[AplicarZonaAlMuro, Depends(obtener_aplicar_zona_al_muro)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]
 PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]

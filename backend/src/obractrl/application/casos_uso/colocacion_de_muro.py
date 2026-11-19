@@ -116,7 +116,7 @@ class ColocarElementosDeMuro(GestionarVanos):
         grupos = [
             {
                 "elemento_id": catalogo[i.ref]["id"], "ref": i.ref, "uid": i.uid,
-                "nivel_orden": contexto.get("nivel_orden"), "nivel_id": contexto.get("nivel_id"), "etapa_id": contexto.get("etapa_id"),
+                "numero_de_nivel": contexto.get("numero_de_nivel"), "nivel_id": contexto.get("nivel_id"), "etapa_id": contexto.get("etapa_id"),
                 "ubicacion": contexto.get("ubicacion"),
                 **(
                     {"alto_m": i.alto_m, "piezas": i.piezas_exactas}
@@ -156,7 +156,7 @@ class ColocarElementosDeMuro(GestionarVanos):
             "plantilla_id": plantilla["id"], "plantilla": plantilla["nombre"], "version": plantilla["version"], "tipo": plantilla["tipo"],
             "largo_m": colocacion.largo_m, "altura_m": colocacion.altura_m,
             "area_bruta_m2": area[0], "vanos_m2": area[1], "area_neta_m2": area[2], "area_usada": "neto" if area[1] > 0 else "bruto",
-            "nivel": nivel_para_conceptos(contexto.get("nivel_orden")), "ubicacion": contexto.get("ubicacion"),
+            "nivel": nivel_para_conceptos(contexto.get("numero_de_nivel")), "ubicacion": contexto.get("ubicacion"),
             "elementos": elementos,
             "avisos": list(dict.fromkeys(avisos_generales)),
         }

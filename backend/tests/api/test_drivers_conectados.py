@@ -32,6 +32,7 @@ from obractrl.domain.cuantificacion.colocacion_de_plantilla import colocar_plant
 from obractrl.domain.cuantificacion.consumidores_de_drivers import (
     CONSUMIDORES,
     SIN_CONSUMIDOR_POR_AHORA,
+    SIN_DRIVER_POR_DECISION,
     consumidores_de,
 )
 from obractrl.domain.cuantificacion.conversion import conversion_por_defecto
@@ -329,3 +330,12 @@ def test_los_consumidores_de_vista_previa_y_colocar_leen_los_mismos_drivers() ->
     assert {c.id for c in CONSUMIDORES if c.verificado_en == "backend" and c.claves} <= (
         set(_BASES_DE_PRUEBA) | {"plantilla_colocar"}
     )
+
+
+def test_la_fachada_por_bandas_no_lee_ningun_driver_por_decision() -> None:
+    """F1: las bandas (0 a 3.00, 3.00 a 4.20, resto) son constantes de la decisión y la altura sale del muro y su zona: ningún driver las mueve
+    (la prueba de punta a punta cambia `altura_estandar` y comprueba que la fachada no se entera)."""
+    assert set(SIN_DRIVER_POR_DECISION) == {"fachada_por_bandas"}
+    assert not [c for c in CONSUMIDORES if c.id in SIN_DRIVER_POR_DECISION]
+    assert not [d for d in CATALOGO_DE_DRIVERS if d.clave.startswith("fachada")]
+    assert {c.id for c in consumidores_de("altura_estandar")} == {"estructura"}

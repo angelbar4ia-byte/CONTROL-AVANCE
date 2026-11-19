@@ -1,13 +1,15 @@
 """Endpoints del Paramétrico: drivers (global, por obra, mixto) y enlace de ranuras con el árbol de la obra (Ola 4B; migración 0134).
 
-Leen todos los roles con acceso a la obra; escriben **Costos y Control de obra** (Q3). Cambiar un driver no recalcula lo ya guardado
-(Q1). Una ranura sin partida en el árbol avisa y no cuenta. Controladores delgados.
+Leen todos los roles con acceso a la obra; **proponen** Costos y Control de obra (Q3) y **solo Control de obra autoriza** (F3): lo que
+propone Control de obra se aplica (200); lo de Costos queda pendiente y no cambia nada (202) hasta que Control de obra lo autorice. Cada
+propuesta guarda quién y cuándo. Cambiar un driver no recalcula lo ya guardado (Q1). Una ranura sin partida en el árbol avisa y no cuenta. Controladores delgados.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -16,6 +18,7 @@ from pydantic import BaseModel, Field
 from obractrl.adapters.api.casos_uso import (
     GestionarDriversDep,
     GestionarEnlacesDeRanuraDep,
+    GestionarNumeroDeNivelDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.domain.shared.diccionario import Rol
@@ -24,12 +27,38 @@ router = APIRouter(tags=["parametrico"])
 
 _ROLES = [Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))]
 _RESPUESTAS = {
-    403: {"description": "Lo editan Costos y Control de obra."},
+    202: {"description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."},
+    403: {"description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."},
     404: {"description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."},
     422: {"description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."},
 }
 
 ModoDelDriver = Literal["fijo", "ajustable"]
+
+
+EstadoDeLaPropuesta = Literal["pendiente", "autorizada", "rechazada"]
+
+
+class PropuestaDeDriver(BaseModel):
+    id: UUID
+    clave: str
+    alcance: Literal["global", "obra"]
+    obra_id: UUID | None
+    accion: Literal["fijar", "quitar"]
+    valor: Decimal | None = Field(description="El valor propuesto (`null` si solo cambia el modo o se quita el ajuste de la obra).")
+    modo: ModoDelDriver | None
+    valor_anterior: Decimal | None = Field(description="Lo que valía cuando se propuso.")
+    modo_anterior: ModoDelDriver | None
+    estado: EstadoDeLaPropuesta
+    propuso_id: UUID | None
+    propuso_nombre: str | None
+    propuso_rol: str
+    propuesto_en: datetime
+    decidio_id: UUID | None
+    decidio_nombre: str | None
+    decidio_rol: str | None
+    decidido_en: datetime | None
+    motivo: str | None = Field(description="Por qué se rechazó.")
 
 
 class DriverRespuesta(BaseModel):
@@ -51,6 +80,13 @@ class DriverRespuesta(BaseModel):
         default_factory=list, description="Los elementos y artefactos cuyo cálculo lee este driver (registro del dominio, probado)."
     )
     sin_consumidor: str | None = Field(default=None, description="Si ningún cálculo lo lee todavía: el motivo.")
+    inmutable: bool = Field(default=False, description="F4: no se cambia ni se propone (el cálculo lo lee como constante del dominio).")
+    propuestas_pendientes: list[PropuestaDeDriver] = Field(
+        default_factory=list, description="Los cambios propuestos a este driver que Control de obra aún no decide (el global y, con obra, los de esa obra)."
+    )
+    propuesta: PropuestaDeDriver | None = Field(
+        default=None, description="Solo al proponer, autorizar o rechazar: la propuesta de la que sale esta respuesta."
+    )
 
 
 class ConsumidorDelDriver(BaseModel):
@@ -80,18 +116,26 @@ async def drivers_globales(caso_uso: GestionarDriversDep) -> list[DriverRespuest
     return [DriverRespuesta(**f) for f in await caso_uso.listar()]
 
 
+def _con_codigo(resultado: dict, respuesta: Response) -> DriverRespuesta:
+    """200 si el cambio quedó aplicado; 202 si quedó pendiente de la autorización de Control de obra."""
+    propuesta = resultado.get("propuesta")
+    if propuesta is not None and propuesta["estado"] == "pendiente":
+        respuesta.status_code = status.HTTP_202_ACCEPTED
+    return DriverRespuesta(**resultado)
+
+
 @router.put(
     "/drivers/{clave}",
     response_model=DriverRespuesta,
-    summary="Cambiar el valor y/o el modo (fijo, ajustable) del driver global",
+    summary="Proponer el valor y/o el modo (fijo, ajustable) del driver global (lo autoriza Control de obra)",
     dependencies=_ROLES,
     responses=_RESPUESTAS,
 )
 async def fijar_driver_global(
-    clave: str, peticion: DriverGlobalPeticion, ctx: ContextoActual, caso_uso: GestionarDriversDep
+    clave: str, peticion: DriverGlobalPeticion, ctx: ContextoActual, caso_uso: GestionarDriversDep, respuesta: Response
 ) -> DriverRespuesta:
-    return DriverRespuesta(
-        **await caso_uso.fijar_global(clave, valor=peticion.valor, modo=peticion.modo, usuario_id=ctx.usuario_id, rol=ctx.rol)
+    return _con_codigo(
+        await caso_uso.fijar_global(clave, valor=peticion.valor, modo=peticion.modo, usuario_id=ctx.usuario_id, rol=ctx.rol), respuesta
     )
 
 
@@ -108,25 +152,72 @@ async def drivers_de_obra(obra_id: UUID, caso_uso: GestionarDriversDep) -> list[
 @router.put(
     "/obras/{obra_id}/drivers/{clave}",
     response_model=DriverRespuesta,
-    summary="El valor propio de una obra para un driver ajustable",
+    summary="Proponer el valor propio de una obra para un driver ajustable (lo autoriza Control de obra)",
     dependencies=_ROLES,
     responses=_RESPUESTAS,
 )
 async def fijar_driver_de_obra(
-    obra_id: UUID, clave: str, peticion: DriverDeObraPeticion, ctx: ContextoActual, caso_uso: GestionarDriversDep
+    obra_id: UUID, clave: str, peticion: DriverDeObraPeticion, ctx: ContextoActual, caso_uso: GestionarDriversDep, respuesta: Response
 ) -> DriverRespuesta:
-    return DriverRespuesta(**await caso_uso.fijar_de_obra(obra_id, clave, valor=peticion.valor, usuario_id=ctx.usuario_id, rol=ctx.rol))
+    return _con_codigo(
+        await caso_uso.fijar_de_obra(obra_id, clave, valor=peticion.valor, usuario_id=ctx.usuario_id, rol=ctx.rol), respuesta
+    )
 
 
 @router.delete(
     "/obras/{obra_id}/drivers/{clave}",
     response_model=DriverRespuesta,
-    summary="Quitar el ajuste de la obra: vuelve al valor global",
+    summary="Proponer quitar el ajuste de la obra: vuelve al valor global (lo autoriza Control de obra)",
     dependencies=_ROLES,
     responses=_RESPUESTAS,
 )
-async def quitar_driver_de_obra(obra_id: UUID, clave: str, ctx: ContextoActual, caso_uso: GestionarDriversDep) -> DriverRespuesta:
-    return DriverRespuesta(**await caso_uso.quitar_de_obra(obra_id, clave, rol=ctx.rol))
+async def quitar_driver_de_obra(
+    obra_id: UUID, clave: str, ctx: ContextoActual, caso_uso: GestionarDriversDep, respuesta: Response
+) -> DriverRespuesta:
+    return _con_codigo(await caso_uso.quitar_de_obra(obra_id, clave, usuario_id=ctx.usuario_id, rol=ctx.rol), respuesta)
+
+
+class RechazoDePropuesta(BaseModel):
+    motivo: str | None = Field(default=None, max_length=300, description="Por qué se rechaza (opcional).")
+
+
+@router.get(
+    "/drivers-propuestas",
+    response_model=list[PropuestaDeDriver],
+    summary="Las propuestas de cambio de drivers: quién propuso, quién decidió y cuándo (la bitácora)",
+    responses={404: _RESPUESTAS[404]},
+)
+async def propuestas_de_drivers(
+    caso_uso: GestionarDriversDep,
+    estado: Annotated[EstadoDeLaPropuesta | None, Query(description="Solo las que están en este estado.")] = None,
+    obra_id: Annotated[UUID | None, Query(description="Las globales y las de esta obra.")] = None,
+    clave: Annotated[str | None, Query(description="Solo las de este driver.")] = None,
+) -> list[PropuestaDeDriver]:
+    return [PropuestaDeDriver(**p) for p in await caso_uso.propuestas(estado=estado, obra_id=obra_id, clave=clave)]
+
+
+@router.post(
+    "/drivers-propuestas/{propuesta_id}/autorizar",
+    response_model=DriverRespuesta,
+    summary="Autorizar un cambio de driver (solo Control de obra): se aplica y queda quién y cuándo",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={403: {"description": "Solo Control de obra autoriza."}, 404: _RESPUESTAS[404], 422: _RESPUESTAS[422]},
+)
+async def autorizar_propuesta_de_driver(propuesta_id: UUID, ctx: ContextoActual, caso_uso: GestionarDriversDep) -> DriverRespuesta:
+    return DriverRespuesta(**await caso_uso.autorizar(propuesta_id, usuario_id=ctx.usuario_id, rol=ctx.rol))
+
+
+@router.post(
+    "/drivers-propuestas/{propuesta_id}/rechazar",
+    response_model=DriverRespuesta,
+    summary="Rechazar un cambio de driver (solo Control de obra)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={403: {"description": "Solo Control de obra decide."}, 404: _RESPUESTAS[404], 422: _RESPUESTAS[422]},
+)
+async def rechazar_propuesta_de_driver(
+    propuesta_id: UUID, peticion: RechazoDePropuesta, ctx: ContextoActual, caso_uso: GestionarDriversDep
+) -> DriverRespuesta:
+    return DriverRespuesta(**await caso_uso.rechazar(propuesta_id, usuario_id=ctx.usuario_id, rol=ctx.rol, motivo=peticion.motivo))
 
 
 # --- enlace de ranuras --------------------------------------------------------------------------------------------------
@@ -169,6 +260,21 @@ class CapaDelArbol(BaseModel):
     descripcion: str
 
 
+class NivelDelArbol(CapaDelArbol):
+    orden: int | None = Field(default=None, description="El orden del nivel en el árbol (puede tener saltos).")
+    numero_de_nivel: int | None = Field(
+        default=None, description="F5: el número de nivel explícito del contexto (PB = 1) con el que se eligen los conceptos de un elemento."
+    )
+    numero_efectivo: int | None = Field(
+        default=None,
+        description="El que se usa: el explícito; sin él, el orden si los niveles son consecutivos; con saltos y sin número, `null` (no descarta conceptos).",
+    )
+
+
+class NumeroDeNivelPeticion(BaseModel):
+    numero_de_nivel: int | None = Field(ge=1, le=99, description="PB = 1. `null` quita el número explícito.")
+
+
 class ConceptoDelArbol(BaseModel):
     clave: str
     descripcion: str
@@ -177,7 +283,7 @@ class ConceptoDelArbol(BaseModel):
 class EnlacesDeRanuraRespuesta(BaseModel):
     enlaces: list[EnlaceDeRanuraRespuesta]
     ranuras_de_plantilla: list[RanuraDePlantilla]
-    niveles: list[CapaDelArbol] = Field(description="Los niveles que usa el árbol de la obra.")
+    niveles: list[NivelDelArbol] = Field(description="Los niveles que usa el árbol de la obra.")
     etapas: list[CapaDelArbol] = Field(description="Las etapas que usa el árbol de la obra.")
     partidas_del_arbol: int = Field(description="Cuántos conceptos tiene el árbol de la obra.")
     conceptos_del_arbol: list[ConceptoDelArbol] = Field(description="Los conceptos distintos que el árbol de la obra ya trae: los que se enlazan sin avisos.")
@@ -223,7 +329,7 @@ async def enlaces_de_ranura(obra_id: UUID, caso_uso: GestionarEnlacesDeRanuraDep
     return EnlacesDeRanuraRespuesta(
         enlaces=[_respuesta_de_enlace(e) for e in r["enlaces"]],
         ranuras_de_plantilla=[RanuraDePlantilla(**x) for x in r["ranuras_de_plantilla"]],
-        niveles=[CapaDelArbol(**n) for n in r["niveles"]],
+        niveles=[NivelDelArbol(**n) for n in r["niveles"]],
         etapas=[CapaDelArbol(**n) for n in r["etapas"]],
         partidas_del_arbol=r["partidas_del_arbol"],
         conceptos_del_arbol=[ConceptoDelArbol(**c) for c in r["conceptos_del_arbol"]],
@@ -274,3 +380,14 @@ async def enlazar_ranura(
 )
 async def quitar_enlace(obra_id: UUID, enlace_id: UUID, ctx: ContextoActual, caso_uso: GestionarEnlacesDeRanuraDep) -> None:
     await caso_uso.quitar(obra_id, enlace_id, rol=ctx.rol)
+
+
+@router.put(
+    "/niveles/{nivel_id}/numero-de-nivel",
+    response_model=NivelDelArbol,
+    summary="Fijar el número de nivel explícito del contexto (PB = 1); con saltos de nivel ya no se usa el orden",
+    dependencies=_ROLES,
+    responses=_RESPUESTAS,
+)
+async def fijar_numero_de_nivel(nivel_id: UUID, peticion: NumeroDeNivelPeticion, caso_uso: GestionarNumeroDeNivelDep) -> NivelDelArbol:
+    return NivelDelArbol(**await caso_uso.fijar(nivel_id, peticion.numero_de_nivel))

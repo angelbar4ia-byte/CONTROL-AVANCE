@@ -12,6 +12,11 @@ Dos formas de leer un driver:
 - `constantes`: el driver es **fijo** (no se edita por obra) y el cálculo lo sigue leyendo como constante del dominio, que debe ser
   igual al valor de partida del driver (`escarpio_minimo`, `corona_cimiento_cm` en el muro de cimentación de piedra).
 
+La **fachada por bandas** (F1) NO lee ningún driver, a propósito: reparte los m² de cara exterior de los muros reales con las bandas de la
+decisión del usuario (0 a 3.00, 3.00 a 4.20, resto), que son constantes del dominio (`fachada_por_bandas`), y con la altura de cada muro y su zona
+de losa; no lee `altura_estandar` (el plano ya no la lee) ni ningún otro. `SIN_DRIVER_POR_DECISION` lo deja escrito y una prueba lo mantiene.
+`escarpio_minimo` y `corona_cimiento_cm` siguen **inmutables** (F4: ni su valor ni su modo se proponen ni se cambian).
+
 No hay precios ni destajos aquí. Datos puros.
 """
 
@@ -23,6 +28,7 @@ from typing import Literal
 __all__ = [
     "CONSUMIDORES",
     "SIN_CONSUMIDOR_POR_AHORA",
+    "SIN_DRIVER_POR_DECISION",
     "Consumidor",
     "consumidores_de",
 ]
@@ -93,6 +99,15 @@ SIN_CONSUMIDOR_POR_AHORA: dict[str, str] = {
 }
 """Drivers vigentes del catálogo que ningún cálculo lee todavía, con el motivo. La prueba falla si uno de ellos gana un consumidor
 sin salir de esta lista (o si un driver pierde el suyo y no entra)."""
+
+
+SIN_DRIVER_POR_DECISION: dict[str, str] = {
+    "fachada_por_bandas": (
+        "La fachada del plano por banda de altura (0 a 3.00, 3.00 a 4.20, resto; F1) sale de los muros, las zonas de losa y los puntos de nivel "
+        "exterior del plano; las bandas son constantes de la decisión, no un driver."
+    ),
+}
+"""Cálculos que, por decisión, NO leen ningún driver. Una prueba comprueba que cambiar cualquier driver no cambia su resultado."""
 
 
 def consumidores_de(clave: str) -> tuple[Consumidor, ...]:

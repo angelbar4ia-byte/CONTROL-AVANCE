@@ -76,6 +76,98 @@ class RepositorioParametricoSQL:
         )
         return bool(getattr(r, "rowcount", 0))
 
+    # --- propuestas de cambio de driver (0141, F3) -------------------------------------------------------------------------
+
+    _COLUMNAS_PROPUESTA = """
+        p.id, p.clave, p.alcance, p.obra_id, p.accion, p.valor, p.modo, p.valor_anterior, p.modo_anterior, p.estado,
+        p.propuso_id, u1.nombre as propuso_nombre, p.propuso_rol, p.propuesto_en,
+        p.decidio_id, u2.nombre as decidio_nombre, p.decidio_rol, p.decidido_en, p.motivo
+    """
+    _DE_PROPUESTA = """
+        from propuesta_de_driver p
+        left join usuario u1 on u1.id = p.propuso_id
+        left join usuario u2 on u2.id = p.decidio_id
+    """
+
+    async def propuestas_de_driver(
+        self, *, estado: str | None = None, obra_id: UUID | None = None, clave: str | None = None, limite: int = 200
+    ) -> list[dict[str, Any]]:
+        """Las propuestas de cambio de driver, las más nuevas primero. Con `obra_id` entran las globales y las de esa obra."""
+        filtros, params = [], {"limite": limite}
+        if estado is not None:
+            filtros.append("p.estado = :estado")
+            params["estado"] = estado
+        if obra_id is not None:
+            filtros.append("(p.obra_id is null or p.obra_id = :obra)")
+            params["obra"] = str(obra_id)
+        if clave is not None:
+            filtros.append("p.clave = :clave")
+            params["clave"] = clave
+        donde = f"where {' and '.join(filtros)}" if filtros else ""
+        filas = (
+            await self._sesion.execute(
+                text(f"select {self._COLUMNAS_PROPUESTA} {self._DE_PROPUESTA} {donde} order by p.propuesto_en desc, p.id limit :limite"),
+                params,
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def obtener_propuesta_de_driver(self, propuesta_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(f"select {self._COLUMNAS_PROPUESTA} {self._DE_PROPUESTA} where p.id = :i"), {"i": str(propuesta_id)}
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None
+
+    async def registrar_propuesta_de_driver(
+        self,
+        *,
+        clave: str,
+        alcance: str,
+        obra_id: UUID | None,
+        accion: str,
+        valor: Decimal | None,
+        modo: str | None,
+        valor_anterior: Decimal | None,
+        modo_anterior: str | None,
+        estado: str,
+        propuso_id: UUID,
+        propuso_rol: str,
+        decidio_id: UUID | None,
+        decidio_rol: str | None,
+    ) -> UUID:
+        decidida = estado != "pendiente"
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into propuesta_de_driver (org_id, clave, alcance, obra_id, accion, valor, modo, valor_anterior, modo_anterior,
+                                                     estado, propuso_id, propuso_rol, decidio_id, decidio_rol, decidido_en)
+                    values (app.current_org_id(), :c, :al, cast(:o as uuid), :ac, :v, :m, :va, :ma, :e, :pi, :pr,
+                            cast(:di as uuid), :dr, case when :dec then now() end)
+                    returning id
+                    """
+                ),
+                {
+                    "c": clave, "al": alcance, "o": str(obra_id) if obra_id else None, "ac": accion, "v": valor, "m": modo,
+                    "va": valor_anterior, "ma": modo_anterior, "e": estado, "pi": str(propuso_id), "pr": propuso_rol,
+                    "di": str(decidio_id) if decidio_id else None, "dr": decidio_rol, "dec": decidida,
+                },
+            )
+        ).scalar_one()
+
+    async def decidir_propuesta_de_driver(
+        self, propuesta_id: UUID, *, estado: str, decidio_id: UUID, decidio_rol: str, motivo: str | None
+    ) -> None:
+        await self._sesion.execute(
+            text(
+                "update propuesta_de_driver set estado = :e, decidio_id = :d, decidio_rol = :r, decidido_en = now(), motivo = :m "
+                "where id = :i and estado = 'pendiente'"
+            ),
+            {"e": estado, "d": str(decidio_id), "r": decidio_rol, "m": motivo, "i": str(propuesta_id)},
+        )
+
     # --- enlaces de ranura ----------------------------------------------------------------------------------------------
 
     async def enlaces(self, obra_id: UUID) -> list[dict[str, Any]]:
@@ -132,7 +224,7 @@ class RepositorioParametricoSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select distinct v.id, v.clave, v.descripcion, v.orden
+                    select distinct v.id, v.clave, v.descripcion, v.orden, v.numero_de_nivel, app.numero_de_nivel(v.id) as numero_efectivo
                       from prototipo_nodo n join obra o on o.prototipo_id = n.prototipo_id join nivel v on v.id = n.nivel_id
                      where o.id = :o order by v.orden, v.clave
                     """
@@ -153,6 +245,21 @@ class RepositorioParametricoSQL:
             )
         ).mappings().all()
         return {"niveles": [dict(f) for f in niveles], "etapas": [dict(f) for f in etapas]}
+
+    async def fijar_numero_de_nivel(self, nivel_id: UUID, numero: int | None) -> dict[str, Any] | None:
+        """El número de nivel explícito (F5, 0141); `None` lo quita. Devuelve el nivel con su número efectivo, o `None` si no existe."""
+        r = await self._sesion.execute(text("update nivel set numero_de_nivel = :n where id = :i"), {"n": numero, "i": str(nivel_id)})
+        if not getattr(r, "rowcount", 0):
+            return None
+        fila = (
+            await self._sesion.execute(
+                text(
+                    "select id, clave, descripcion, orden, numero_de_nivel, app.numero_de_nivel(id) as numero_efectivo from nivel where id = :i"
+                ),
+                {"i": str(nivel_id)},
+            )
+        ).mappings().one()
+        return dict(fila)
 
     async def concepto_por_clave(self, clave: str) -> dict[str, Any] | None:
         fila = (

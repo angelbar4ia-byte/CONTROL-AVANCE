@@ -47,6 +47,7 @@ __all__ = [
     "resolver",
     "validar_modo",
     "validar_que_edita",
+    "validar_que_se_puede_cambiar",
     "validar_valor",
 ]
 
@@ -78,6 +79,9 @@ class DefinicionDeDriver:
     """`True`: el valor debe ser mayor que el mínimo (la altura no puede ser 0)."""
     entero: bool = False
     por_confirmar: bool = False
+    inmutable: bool = False
+    """`True` (F4): ni el modo ni el valor se cambian, ni por proposición: el cálculo lo lee como constante del dominio (`escarpio_minimo`,
+    `corona_cimiento_cm`). Seguir siendo `fijo` no basta: un global «fijo» todavía se podía editar y volver «ajustable»."""
 
 
 def _d(valor: str) -> Decimal:
@@ -144,11 +148,12 @@ CATALOGO_DE_DRIVERS: tuple[DefinicionDeDriver, ...] = (
         "Valor fijo (no editable por obra): 1.5 (vertical) : 1 (horizontal), unos 56.3° desde la horizontal. Norma de mampostería, "
         "sección 8.4 Cimientos (figura 8.1): en cimientos de piedra braza la pendiente de las caras inclinadas (escarpio), medida "
         "desde la arista de la dala o muro, no será menor que 1.5 : 1. Título y año de la norma por confirmar.",
-        _d("0"), _d("10"), minimo_exclusivo=True, por_confirmar=True,
+        _d("0"), _d("10"), minimo_exclusivo=True, por_confirmar=True, inmutable=True,
     ),
     DefinicionDeDriver(
         "corona_cimiento_cm", "Corona del muro de cimentación de piedra", "cm", _d("40"), "fijo",
         "Siempre 40 cm, sin importar la altura (dato del usuario).", _d("0"), _d("300"), minimo_exclusivo=True,
+        inmutable=True,
     ),
 )
 
@@ -167,6 +172,14 @@ def puede_editar_drivers(rol: str) -> bool:
 def validar_que_edita(rol: str) -> None:
     if not puede_editar_drivers(rol):
         raise ErrorDeDriver("Solo Costos y Control de obra editan los drivers.")
+
+
+def validar_que_se_puede_cambiar(d: DefinicionDeDriver) -> None:
+    """F4: `escarpio_minimo` y `corona_cimiento_cm` siguen fijos: no se cambia su valor ni su modo, ni se ajustan por obra."""
+    if d.inmutable:
+        raise ErrorDeDriver(
+            f"«{d.nombre}» es fijo y no se cambia: el cálculo lo lee como constante del dominio (valor {d.inicial:g} {d.unidad})."
+        )
 
 
 def validar_modo(modo: str) -> ModoDeDriver:
