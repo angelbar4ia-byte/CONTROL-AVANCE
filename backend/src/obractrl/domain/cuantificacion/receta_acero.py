@@ -181,6 +181,9 @@ class EntradaRecetaAcero:
     cantidad: float = 1.0
     """Cuántas piezas (o ml) se piden: da los totales a comprar."""
     drivers: DriversDeReceta = field(default_factory=DriversDeReceta)
+    anclaje_cm: float | None = None
+    """Anclaje capturado por extremo de la pieza (cm), igual en los dos apoyos. Sustituye a las puntas de los drivers (40 diámetros
+    por extremo) solo en las varillas de una pieza; el cálculo no lo juzga: quien lo captura lo compara con la sugerencia."""
 
 
 @dataclass(frozen=True)
@@ -309,6 +312,8 @@ def _validar(e: EntradaRecetaAcero) -> float:
             raise ErrorDeRecetaAcero("Cada zona de anillos lleva separación mayor que cero y largo no negativo.")
     if not (0 <= e.recubrimiento_cm < min(e.ancho_cm, e.peralte_cm) / 2):
         raise ErrorDeRecetaAcero("El recubrimiento no cabe en la sección.")
+    if e.anclaje_cm is not None and not (0 <= e.anclaje_cm <= 500):
+        raise ErrorDeRecetaAcero("El anclaje va de 0 a 500 cm por extremo.")
     if e.gancho_cm < 0 or e.factor_anillo < 0:
         raise ErrorDeRecetaAcero("El gancho y el factor del anillo no pueden ser negativos.")
     if e.factor_anillo == 0 and not (e.gancho_cm > 0):
@@ -386,7 +391,11 @@ def calcular_receta_acero(e: EntradaRecetaAcero) -> dict[str, Any]:
         v = g.varilla
         dm = diametro_de_varilla_m(v.numero)
         lap = d.traslape_varilla_diametros * dm
-        puntas = (d.puntas_inferior_diametros + d.puntas_superior_diametros) * dm
+        puntas = (
+            2 * e.anclaje_cm / 100
+            if e.anclaje_cm is not None
+            else (d.puntas_inferior_diametros + d.puntas_superior_diametros) * dm
+        )
         corte_v: CorteDeVarilla | None = None
         if por_pieza:
             corte_v = corte_de(largo, v.largo_m, lap, puntas, d)

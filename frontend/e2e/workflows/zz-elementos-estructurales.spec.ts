@@ -6,7 +6,10 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  *  1. La biblioteca trae las categorías nuevas con sus elementos (24 trabes en «Trabes de losa (catálogo)»).
  *  2. La tarjeta de una trabe: sección ancho × peralte, cálculo por metro lineal y por pieza (largo y zonas de anillo), conciliación con
  *     el catálogo (= ≈ ≠) y el elemento sin mano de obra, con el colado y cimbra por registrar (sin clave ni destajo).
- *  3. La zapata Z-1 cuadra con EST-03020 sin dado; la columna C-1 pide su altura.
+ *  3. La zapata Z-1 cuadra con EST-03020 sin dado; la columna C-1 nace con su altura habitual de 4.20 m (editable) y su anclaje es una
+ *     sugerencia de 40 diámetros por extremo: el elemento avisa si el valor capturado cumple.
+ *  3b. T-2-12x20 (dos anillos) trae una versión propuesta del concepto: Costos la propone, Control de obra la autoriza y el catálogo
+ *     vigente sigue a la vista (D7).
  *  4. La corrección de EST-02330 (unidad m² → m) es una versión nueva del concepto: Costos la propone, Control de obra la autoriza y el
  *     catálogo vigente no cambia.
  */
@@ -93,10 +96,37 @@ test.describe('Cuantificador · elementos estructurales de la biblioteca', () =>
     await expect(zapata.getByLabel('Se mide por')).toHaveCount(0);
     await biblioteca.getByRole('button', { name: /^C-1\b/ }).click();
     const columna = area.getByRole('article', { name: /C-1/ });
-    await expect(columna.getByTestId('ee-concreto')).toContainText('0.5670 m³ por pieza'); // 0.30 × 0.30 × 6.00 × 1.05
+    await expect(columna.getByLabel('Altura de la columna en metros')).toHaveValue('4.2');
+    await expect(columna.getByTestId('ee-concreto')).toContainText('0.3969 m³ por pieza'); // 0.30 × 0.30 × 4.20 × 1.05
+    // El anclaje es una sugerencia (40 diámetros por extremo): vacío propone, capturado avisa si cumple.
+    await expect(columna.getByTestId('ee-anclaje')).toContainText('Sugerido: 40 diámetros por extremo');
+    await columna.getByLabel('Anclaje de la varilla por extremo en centímetros').fill('20');
+    await expect(columna.getByTestId('ee-anclaje')).toHaveAttribute('data-cumple', 'false');
+    await expect(columna.getByTestId('ee-anclaje')).toContainText('NO cumple');
+    await columna.getByLabel('Anclaje de la varilla por extremo en centímetros').fill('60');
+    await expect(columna.getByTestId('ee-anclaje')).toHaveAttribute('data-cumple', 'true');
     await columna.getByLabel('Altura de la columna en metros').fill('7');
     await expect(columna.getByRole('list', { name: 'Advertencias' })).toContainText('pasa del escalón');
     await expect(columna.locator('[data-conciliacion="EST-12011"]')).toBeVisible();
+
+    // --- 3b. T-2-12x20: dos anillos en el catálogo, una versión propuesta del concepto ------------------------------------
+    await biblioteca.getByRole('button', { name: /^T-2-12x20\b/ }).click();
+    const t2 = area.getByRole('article', { name: /T-2-12x20/ });
+    await expect(t2.locator('[data-conciliacion="AUX-10205"] tr[data-marca="solo_catalogo"]')).toContainText('ACE-00029'); // el segundo anillo
+    await expect(t2.locator('[data-conciliacion="AUX-10205"]')).toContainText('Versión propuesta'); // junto al catálogo vigente
+    const versiones = t2.getByRole('region', { name: 'Versiones propuestas' });
+    const proponer = versiones.getByRole('button', { name: 'Proponer las correcciones del catálogo' });
+    if (await proponer.count()) {
+      await proponer.click();
+      await expect(versiones.locator('[data-propuesta="AUX-10205"]')).toContainText(/Pendiente|Autorizada/); // lo que propone Control de obra nace autorizado
+    }
+    const propuesta = versiones.locator('[data-propuesta="AUX-10205"]');
+    await expect(propuesta).toContainText('ACE-00029');
+    const autorizar = propuesta.getByRole('button', { name: 'Autorizar' });
+    if (await autorizar.count()) await autorizar.click();
+    await expect(propuesta).toContainText('Autorizada');
+    // El catálogo vigente no cambió: la fila del segundo anillo sigue ahí con 0.6683.
+    await expect(t2.locator('[data-conciliacion="AUX-10205"]')).toContainText('0.6683');
 
     // --- 4. La corrección de EST-02330 como versión nueva del concepto ------------------------------------------------
     await biblioteca.getByRole('button', { name: /^T-1-15x25\b/ }).click();

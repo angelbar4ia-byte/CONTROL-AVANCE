@@ -19,6 +19,7 @@ import type { ConceptoDelCatalogoDelElemento } from "./conceptoDelCatalogoDelEle
 import type { DefinicionDelElementoEstructuralCaminoDeColadoYCimbra } from "./definicionDelElementoEstructuralCaminoDeColadoYCimbra";
 import type { UsoEnLosa } from "./usoEnLosa";
 import type { PendienteDelElementoEstructural } from "./pendienteDelElementoEstructural";
+import type { CorreccionDeFabrica } from "./correccionDeFabrica";
 
 export interface DefinicionDelElementoEstructural {
   clave: string;
@@ -43,4 +44,6 @@ export interface DefinicionDelElementoEstructural {
   usado_en: UsoEnLosa[];
   usos_total: number;
   pendientes: PendienteDelElementoEstructural[];
+  /** Las versiones de concepto que este elemento propone al catálogo (vacío si no tiene). Se registran con las propuestas de estructura. */
+  correcciones_de_fabrica: CorreccionDeFabrica[];
 }

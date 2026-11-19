@@ -7,6 +7,10 @@
  * conciliación con la composición real del catálogo (= ≈ ≠ solo en el catálogo / solo en el elemento): lo que el catálogo trae
  * distinto se muestra, no se corrige. El elemento NO tiene mano de obra y el concepto de colado y cimbra por ml queda por registrar
  * (Q51, Q52): la tarjeta lo dice y no crea nada.
+ *
+ * La columna C-1 nace con su altura habitual de 4.20 m (editable). El anclaje de la varilla de una pieza es una **sugerencia** de 40
+ * diámetros por extremo: se puede capturar otro valor y el servidor dice si cumple. Lo que el catálogo trae mal en una trabe se muestra
+ * como versión propuesta del concepto (el catálogo vigente no se edita).
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -15,6 +19,7 @@ import type { ErrorApi } from '@/api/cliente';
 import {
   useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost,
   useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet,
+  usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet,
 } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
 import type {
   CalculoDelElementoEstructural,
@@ -26,6 +31,7 @@ import type {
 import { numeroTecleado } from '../volumen';
 import { CorreccionesDelCatalogo } from './CorreccionesDelCatalogo';
 import { DriversUsadosDelCalculo } from './DriversUsadosDelCalculo';
+import { ESTADO_DE_LA_PROPUESTA, VersionesPropuestasDelElemento } from './VersionesPropuestasDelElemento';
 
 function num(n: number | null | undefined, dec = 2): string {
   return n === null || n === undefined || !Number.isFinite(n)
@@ -69,7 +75,8 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
   const d = definicion.data;
   const [modo, setModo] = useState<'ml' | 'pieza'>('ml');
   const [largo, setLargo] = useState('4.00');
-  const [alto, setAlto] = useState('6.00');
+  const [alto, setAlto] = useState('4.20');
+  const [anclaje, setAnclaje] = useState('');
   const [cantidad, setCantidad] = useState('1');
   const [zonas, setZonas] = useState(false);
   const [zonaLargo, setZonaLargo] = useState('50');
@@ -84,7 +91,8 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
     if (!d) return;
     setModo(d.modo_por_defecto);
     setLargo(String(d.largo_por_defecto_m ?? 4));
-    setAlto(String(d.alto_por_defecto_m ?? 6));
+    setAlto(String(d.alto_por_defecto_m ?? 4.2));
+    setAnclaje('');
     setCentroSep(separacionDelCatalogo(d));
     setZonas(false);
     setCalculo(null);
@@ -93,6 +101,11 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
 
   const esLineal = d?.tipo === 'lineal_estructural';
   const esColumna = d?.tipo === 'columna_de_concreto';
+
+  const hayCorrecciones = (d?.correcciones_de_fabrica.length ?? 0) > 0;
+  const propuestas = usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet(clave, {
+    query: { enabled: hayCorrecciones },
+  });
 
   const peticion = useMemo<CalculoDelElementoEstructuralPeticion | null>(() => {
     if (!d) return null;
@@ -117,8 +130,14 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
       if (!(a > 0)) return null;
       base.alto_m = a;
     }
+    // El anclaje solo es de una pieza; vacío = la sugerencia (40 diámetros por extremo).
+    if ((esColumna || (esLineal && modo === 'pieza')) && anclaje.trim() !== '') {
+      const c = numeroTecleado(anclaje);
+      if (!(c >= 0) || c > 500) return null;
+      base.anclaje_cm = c;
+    }
     return base;
-  }, [d, esLineal, esColumna, modo, largo, alto, cantidad, zonas, zonaLargo, zonaSep, centroSep, obraId]);
+  }, [d, esLineal, esColumna, modo, largo, alto, anclaje, cantidad, zonas, zonaLargo, zonaSep, centroSep, obraId]);
 
   const { mutateAsync } = calcular;
   useEffect(() => {
@@ -141,6 +160,22 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
 
   if (definicion.isLoading) return <p className="text-mute text-sm">Cargando el elemento…</p>;
   if (!d) return <p className="text-sm">No se pudo cargar el elemento {clave}.</p>;
+
+  /** Las correcciones de fábrica del concepto, con el estado de la que ya se registró (la pendiente o la autorizada). */
+  const propuestasDe = (concepto: string) => d.correcciones_de_fabrica.filter((c) => c.concepto_clave === concepto);
+  const celdaPropuesta = (concepto: string, insumo: string) => {
+    const cambio = propuestasDe(concepto)
+      .flatMap((c) => c.cambios)
+      .find((x) => x.insumo === insumo);
+    if (!cambio) return '—';
+    const registrada = (propuestas.data ?? []).find((p) => p.concepto_clave === concepto && p.estado !== 'rechazada');
+    return (
+      <>
+        {num(cambio.despues, 4)}{' '}
+        <span className="text-mute text-xs">({registrada ? (ESTADO_DE_LA_PROPUESTA[registrada.estado] ?? registrada.estado).toLowerCase() : 'sin proponer'})</span>
+      </>
+    );
+  };
 
   const unidadDeCalculo = calculo?.unidad === 'ml' ? 'por metro' : 'por pieza';
   const camino = calculo?.camino_de_colado_y_cimbra ?? d.camino_de_colado_y_cimbra;
@@ -186,6 +221,19 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
           <label className="mct__campo">
             <span>Altura de la columna (m)</span>
             <input className="input" inputMode="decimal" aria-label="Altura de la columna en metros" value={alto} onChange={(e) => setAlto(e.target.value)} />
+          </label>
+        )}
+        {(esColumna || (esLineal && modo === 'pieza')) && (
+          <label className="mct__campo">
+            <span>Anclaje por extremo (cm, sugerido)</span>
+            <input
+              className="input"
+              inputMode="decimal"
+              aria-label="Anclaje de la varilla por extremo en centímetros"
+              placeholder="40 diámetros"
+              value={anclaje}
+              onChange={(e) => setAnclaje(e.target.value)}
+            />
           </label>
         )}
         <label className="mct__campo">
@@ -251,6 +299,15 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
               Sin mano de obra
             </span>
           </section>
+
+          {calculo.anclaje.aplica && (
+            <p className="text-xs" data-testid="ee-anclaje" data-cumple={String(calculo.anclaje.cumple)}>
+              <span className={calculo.anclaje.cumple === false ? 'badge badge--warn' : calculo.anclaje.cumple ? 'badge badge--ok' : 'badge badge--outline'}>
+                {calculo.anclaje.cumple === false ? 'Anclaje no cumple' : calculo.anclaje.cumple ? 'Anclaje cumple' : 'Anclaje sugerido'}
+              </span>{' '}
+              {calculo.anclaje.mensaje}
+            </p>
+          )}
 
           <section className="mct__bloque" aria-label="Insumos del elemento">
             <h3>
@@ -338,6 +395,7 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
                       <tr>
                         <th>Insumo</th>
                         <th className="n">Catálogo</th>
+                        {propuestasDe(c.concepto.clave).length > 0 && <th className="n">Versión propuesta</th>}
                         <th className="n">Elemento</th>
                         <th className="n">Diferencia</th>
                         <th />
@@ -350,6 +408,7 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
                             <span className="mono">{f.clave}</span> {f.descripcion}
                           </td>
                           <td className="n mono">{f.catalogo === null || f.catalogo === undefined ? '—' : num(f.catalogo, 4)}</td>
+                          {propuestasDe(c.concepto.clave).length > 0 && <td className="n mono">{celdaPropuesta(c.concepto.clave, f.clave)}</td>}
                           <td className="n mono">{f.elemento === null || f.elemento === undefined ? '—' : num(f.elemento, 4)}</td>
                           <td className="n mono">
                             {f.diferencia_pct === null || f.diferencia_pct === undefined ? '—' : `${f.diferencia_pct >= 0 ? '+' : ''}${num(f.diferencia_pct, 1)} %`}
@@ -407,6 +466,10 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
             {camino.mano_de_obra.nota ?? 'La mano de obra va en el concepto del catálogo.'}
           </p>
         </section>
+      )}
+
+      {hayCorrecciones && (
+        <VersionesPropuestasDelElemento clave={clave} rol={rol} deFabrica={d.correcciones_de_fabrica} lista={propuestas.data ?? []} />
       )}
 
       {mostrarCorrecciones && <CorreccionesDelCatalogo rol={rol} />}

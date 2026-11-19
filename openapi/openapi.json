@@ -24139,6 +24139,102 @@
         ],
         "title": "AlertasDePartesRespuesta"
       },
+      "AnclajeCalculado": {
+        "properties": {
+          "aplica": {
+            "type": "boolean",
+            "title": "Aplica"
+          },
+          "sugerido_diametros": {
+            "type": "number",
+            "title": "Sugerido Diametros"
+          },
+          "capturado_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capturado Cm"
+          },
+          "cumple": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cumple"
+          },
+          "grupos": {
+            "items": {
+              "$ref": "#/components/schemas/AnclajeDelGrupo"
+            },
+            "type": "array",
+            "title": "Grupos"
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplica",
+          "sugerido_diametros",
+          "capturado_cm",
+          "cumple",
+          "grupos",
+          "mensaje"
+        ],
+        "title": "AnclajeCalculado",
+        "description": "El anclaje de la varilla por extremo (D6): lo sugerido (40 diámetros) y, si se capturó uno, si cumple. Es una sugerencia."
+      },
+      "AnclajeDelGrupo": {
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "diametro_cm": {
+            "type": "number",
+            "title": "Diametro Cm"
+          },
+          "sugerido_cm": {
+            "type": "number",
+            "title": "Sugerido Cm"
+          },
+          "cumple": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cumple"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero",
+          "clave",
+          "diametro_cm",
+          "sugerido_cm",
+          "cumple"
+        ],
+        "title": "AnclajeDelGrupo"
+      },
       "AnilloDelArmado": {
         "properties": {
           "insumo": {
@@ -25811,6 +25907,14 @@
           "contraste": {
             "$ref": "#/components/schemas/ContrasteConElConcepto"
           },
+          "no_incluye": {
+            "items": {
+              "$ref": "#/components/schemas/NoIncluidoDelCimiento"
+            },
+            "type": "array",
+            "title": "No Incluye",
+            "description": "Dalas, castillos empotrados y cimientos perpendiculares de la sección 8.4: se miden aparte, no están en este muro (D12)."
+          },
           "advertencias": {
             "items": {
               "type": "string"
@@ -25829,6 +25933,7 @@
           "volumen",
           "dentellon",
           "contraste",
+          "no_incluye",
           "advertencias"
         ],
         "title": "CalculoDelCimiento",
@@ -25963,6 +26068,9 @@
             ],
             "description": "El detalle de cortes, traslapes y anillos (no aplica a la zapata)."
           },
+          "anclaje": {
+            "$ref": "#/components/schemas/AnclajeCalculado"
+          },
           "parrilla": {
             "anyOf": [
               {
@@ -26030,6 +26138,7 @@
           "acero_kg",
           "cimbra",
           "receta_acero",
+          "anclaje",
           "parrilla",
           "insumos",
           "mano_de_obra",
@@ -26077,7 +26186,21 @@
               }
             ],
             "title": "Alto M",
-            "description": "Altura de la columna C-1; 6.00 m si no se manda."
+            "description": "Altura de la columna C-1; 4.20 m (la habitual, editable) si no se manda."
+          },
+          "anclaje_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 500.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anclaje Cm",
+            "description": "Anclaje de la varilla por extremo, en cm (trabe por pieza o columna). Es una sugerencia: 40 diámetros por extremo; el resultado dice si el valor capturado cumple."
           },
           "cantidad": {
             "type": "number",
@@ -26833,6 +26956,34 @@
           "avisos"
         ],
         "title": "CambioAplicadoRespuesta"
+      },
+      "CambioDeFabrica": {
+        "properties": {
+          "insumo": {
+            "type": "string",
+            "title": "Insumo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "antes": {
+            "type": "number",
+            "title": "Antes"
+          },
+          "despues": {
+            "type": "number",
+            "title": "Despues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo",
+          "unidad",
+          "antes",
+          "despues"
+        ],
+        "title": "CambioDeFabrica"
       },
       "CambioDeLaPropuesta": {
         "properties": {
@@ -31824,6 +31975,41 @@
         "title": "ConversionPeticion",
         "description": "Cómo cuenta un trazo para su concepto (D-633). Los parámetros que no aplican al modo se ignoran."
       },
+      "CorreccionDeFabrica": {
+        "properties": {
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "cambios": {
+            "items": {
+              "$ref": "#/components/schemas/CambioDeFabrica"
+            },
+            "type": "array",
+            "title": "Cambios"
+          },
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motivos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_clave",
+          "resumen",
+          "cambios",
+          "motivos"
+        ],
+        "title": "CorreccionDeFabrica",
+        "description": "Lo que el catálogo trae mal y el elemento propone como nueva versión del concepto (D7). El catálogo vigente sigue activo."
+      },
       "CorreccionDelCatalogo": {
         "properties": {
           "concepto_clave": {
@@ -34200,6 +34386,14 @@
             },
             "type": "array",
             "title": "Pendientes"
+          },
+          "correcciones_de_fabrica": {
+            "items": {
+              "$ref": "#/components/schemas/CorreccionDeFabrica"
+            },
+            "type": "array",
+            "title": "Correcciones De Fabrica",
+            "description": "Las versiones de concepto que este elemento propone al catálogo (vacío si no tiene). Se registran con las propuestas de estructura."
           }
         },
         "type": "object",
@@ -34225,7 +34419,8 @@
           "camino_de_colado_y_cimbra",
           "usado_en",
           "usos_total",
-          "pendientes"
+          "pendientes",
+          "correcciones_de_fabrica"
         ],
         "title": "DefinicionDelElementoEstructural"
       },
@@ -44733,6 +44928,24 @@
           "descripcion"
         ],
         "title": "NivelRespuesta"
+      },
+      "NoIncluidoDelCimiento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "NoIncluidoDelCimiento"
       },
       "NodoCreadoRespuesta": {
         "properties": {

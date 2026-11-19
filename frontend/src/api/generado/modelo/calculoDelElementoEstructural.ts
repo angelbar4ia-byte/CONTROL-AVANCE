@@ -12,6 +12,7 @@ import type { SeccionCalculada } from "./seccionCalculada";
 import type { ConcretoCalculado } from "./concretoCalculado";
 import type { CimbraCalculada } from "./cimbraCalculada";
 import type { CalculoDelElementoEstructuralRecetaAcero } from "./calculoDelElementoEstructuralRecetaAcero";
+import type { AnclajeCalculado } from "./anclajeCalculado";
 import type { CalculoDelElementoEstructuralParrilla } from "./calculoDelElementoEstructuralParrilla";
 import type { InsumoCalculado } from "./insumoCalculado";
 import type { ManoDeObraDelElemento } from "./manoDeObraDelElemento";
@@ -33,6 +34,7 @@ export interface CalculoDelElementoEstructural {
   cimbra: CimbraCalculada;
   /** El detalle de cortes, traslapes y anillos (no aplica a la zapata). */
   receta_acero: CalculoDelElementoEstructuralRecetaAcero;
+  anclaje: AnclajeCalculado;
   parrilla: CalculoDelElementoEstructuralParrilla;
   insumos: InsumoCalculado[];
   mano_de_obra: ManoDeObraDelElemento;
