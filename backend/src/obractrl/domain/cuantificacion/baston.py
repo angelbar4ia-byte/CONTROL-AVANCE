@@ -13,9 +13,10 @@ Reglas (del mockup y de lo ya construido en `receta_acero`; nada se inventa):
   alcanza). Cada bastón gasta el módulo completo: un bastón de 0.80 m se corta de un módulo de 1.00 m, uno de 1.20 m de uno de 1.50 m.
   Las varillas de 12 m salen de ``ceil(bastones × piezas por bastón ÷ floor(12 ÷ módulo))``. El corte exacto del mockup
   (``floor(12 ÷ largo)`` bastones por varilla) se calcula **también** y se muestra como referencia, no es lo que se paga.
-- **Gancho** (decisión E1 del usuario, 2026-11-19: «corte ajustado a módulos con todo y gancho»): el gancho **se incluye en la longitud
-  de corte**. ``largo_cm`` es el tramo recto del bastón (el que nombra el escalón del catálogo) y el corte es
-  ``largo + puntas + ganchos × gancho``. El gancho es un parámetro explícito: ``ganchos`` por bastón (0 a 2; 2 = uno en cada punta),
+- **Gancho** (decisión del usuario, 2026-11-19, que ajusta la E1): el largo que se captura (``largo_cm``) **ya incluye los ganchos** y
+  es el **corte**: ``corte = largo capturado + puntas``. El tramo recto es ``recto = largo capturado − ganchos × longitud del gancho``
+  y es el que nombra el escalón del catálogo (un bastón capturado de 1.43 m con 2 ganchos de 11.43 cm es un bastón recto de 1.20 m).
+  Si el largo capturado no alcanza para los ganchos, el tramo recto sería cero o negativo: se avisa y no hay escalón. El gancho es un parámetro explícito: ``ganchos`` por bastón (0 a 2; 2 = uno en cada punta),
   ``gancho_diametros`` (12 por defecto) y, si se captura, ``gancho_cm`` que manda sobre los diámetros. Longitud de un gancho =
   ``gancho_cm`` si se capturó, si no ``gancho_diametros × diámetro de la varilla`` (3/8 → 11.43 cm, 1/2 → 15.24 cm, 5/8 → 19.05 cm,
   3/4 → 22.86 cm). El mockup (`spec.js`, Q28 y Q60) **no trae una tabla de ganchos por diámetro**: solo el ``gancho_cm`` fijo de los
@@ -132,7 +133,7 @@ PENDIENTES: tuple[dict[str, str], ...] = (
         "clave": "Q28",
         "texto": "¿El largo del bastón se corta exacto de la varilla o se ajusta a los módulos de corte (1, 1.5, 2, 3, 4 y 6 m)? ¿Se paga "
         "por metro de trazo, por pieza o por kg? ¿Lleva gancho o traslape? Decidido (E1): corte ajustado a módulos, pago por pieza con "
-        "avisos y CON gancho incluido en la longitud de corte (12 diámetros por punta, 2 ganchos; por confirmar con el estructurista); "
+        "avisos y largo capturado CON gancho incluido (corte = largo capturado; tramo recto = largo − 2 ganchos de 12 diámetros; por confirmar con el estructurista); "
         "el corte exacto se muestra como referencia.",
     },
     {
@@ -152,7 +153,7 @@ PENDIENTES: tuple[dict[str, str], ...] = (
     },
     {
         "clave": "E1",
-        "texto": "Hecho: el gancho entra en la longitud de corte (2 ganchos de 12 diámetros por bastón, parámetros explícitos). Por confirmar "
+        "texto": "Hecho: el largo capturado incluye los ganchos y es el corte; el escalón se nombra por el tramo recto (2 ganchos de 12 diámetros por bastón, parámetros explícitos). Por confirmar "
         "con el estructurista: cuántos ganchos lleva un bastón y cuánto mide por diámetro; el mockup no trae esa tabla.",
     },
     {
@@ -183,6 +184,11 @@ def _nombre_de_varilla(numero: int) -> str:
     return VARILLAS[numero][1]
 
 
+def _recto_cm(i: EntradaDeBaston, gancho_total_cm: float) -> float:
+    """Tramo recto del bastón: el largo capturado (que incluye los ganchos) menos los ganchos. Nunca negativo."""
+    return max(0.0, round(i.largo_cm - gancho_total_cm, 6))
+
+
 def _descripcion_de(numero: int, largo_cm: float, sep_cm: float) -> str:
     return f'Bastones var {_nombre_de_varilla(numero)}" de {largo_cm / 100:.2f} @{sep_cm:g} cm'
 
@@ -203,6 +209,7 @@ class EntradaDeBaston:
     varilla_numero: int = 3
     sep_cm: float = 25.0
     largo_cm: float = 120.0
+    """Largo capturado del bastón: INCLUYE los ganchos y es el corte (más las puntas). El tramo recto es este largo menos los ganchos."""
     puntas_cm: float = 0.0
     """Anclaje adicional que no es gancho: 0 por defecto."""
     ganchos: int = GANCHOS_POR_BASTON_POR_DEFECTO
@@ -259,7 +266,7 @@ def gancho_de(i: EntradaDeBaston) -> dict[str, Any]:
         "longitud_cm": round(cada_cm, 6),
         "total_por_baston_cm": round(total_cm, 6),
         "origen": origen,
-        "formula": "corte = largo + puntas + ganchos × longitud del gancho",
+        "formula": "recto = largo capturado − ganchos × longitud del gancho; corte = largo capturado + puntas (el largo ya incluye los ganchos)",
     }
 
 
@@ -277,7 +284,7 @@ def _plan_ajustado(i: EntradaDeBaston, n_bastones: int, peso: float, gancho_m: f
     )
     traslape_m = i.traslape_diametros * diametro_de_varilla_m(i.varilla_numero)
     try:
-        c = corte_de(i.largo_cm / 100, LARGO_DE_VARILLA_M, traslape_m, i.puntas_cm / 100 + gancho_m, d)
+        c = corte_de(i.largo_cm / 100, LARGO_DE_VARILLA_M, traslape_m, i.puntas_cm / 100, d)
     except ErrorDeRecetaAcero as e:  # pragma: no cover - los módulos siempre caben en la varilla de 12 m
         raise ErrorDeBaston(str(e)) from e
     if not c.cubre_completo:
@@ -293,6 +300,7 @@ def _plan_ajustado(i: EntradaDeBaston, n_bastones: int, peso: float, gancho_m: f
             "traslape_m": round(c.traslape_m, 6) if c.n > 1 else 0.0,
             "puntas_m": i.puntas_cm / 100,
             "gancho_m": gancho_m,
+            "recto_m": round(max(0.0, i.largo_cm / 100 - gancho_m), 6),
             "necesario_m": c.necesario_m,
             "sobrante_por_baston_m": round(max(0.0, c.total_m - c.traslapes_m - c.necesario_m), 6),
             "piezas_por_varilla": _por_varilla(c.modulo_m),
@@ -308,9 +316,9 @@ def _plan_ajustado(i: EntradaDeBaston, n_bastones: int, peso: float, gancho_m: f
 
 
 def _plan_exacto(i: EntradaDeBaston, n_bastones: int, peso: float, gancho_m: float) -> dict[str, Any]:
-    """La referencia del mockup: cada bastón se corta de su largo exacto (más las puntas y el gancho); sin módulos."""
+    """La referencia del mockup: cada bastón se corta de su largo exacto (el largo capturado, que ya incluye los ganchos, más las puntas); sin módulos."""
     traslape_m = i.traslape_diametros * diametro_de_varilla_m(i.varilla_numero)
-    necesario = i.largo_cm / 100 + i.puntas_cm / 100 + gancho_m
+    necesario = i.largo_cm / 100 + i.puntas_cm / 100  # el largo capturado ya incluye los ganchos
     if necesario <= LARGO_DE_VARILLA_M + _EPS:
         por_varilla = max(1, math.floor(LARGO_DE_VARILLA_M / necesario + _EPS))
         barras = _techo(n_bastones / por_varilla)
@@ -338,6 +346,12 @@ def escalon_para(numero: int, largo_cm: float, sep_cm: float) -> dict[str, Any]:
     """El escalón del catálogo que corresponde a un bastón: `exacto`, `mayor` (el primero más largo a la misma separación, se paga
     de más) o `sin_escalon` (hay que proponer un concepto nuevo). No toca el catálogo ni pone precio."""
     nombre = _nombre_de_varilla(numero)
+    if largo_cm <= 0:
+        return {
+            "estado": "sin_escalon",
+            "motivo": "El largo capturado no alcanza para los ganchos: no queda tramo recto que nombre un escalón del catálogo.",
+            "escalon": None,
+        }
     if numero != 3:
         return {
             "estado": "sin_escalon",
@@ -373,7 +387,7 @@ def escalon_para(numero: int, largo_cm: float, sep_cm: float) -> dict[str, Any]:
     }
 
 
-def _concepto_de(eleccion: dict[str, Any], i: EntradaDeBaston) -> dict[str, Any]:
+def _concepto_de(eleccion: dict[str, Any], i: EntradaDeBaston, recto_cm: float) -> dict[str, Any]:
     e = eleccion["escalon"]
     if eleccion["estado"] != "sin_escalon" and e is not None:
         return {
@@ -387,18 +401,18 @@ def _concepto_de(eleccion: dict[str, Any], i: EntradaDeBaston) -> dict[str, Any]
             "sep_cm": float(e[2]),
         }
     return {
-        "clave": clave_provisional(i.varilla_numero, i.largo_cm, i.sep_cm),
-        "descripcion": _descripcion_de(i.varilla_numero, i.largo_cm, i.sep_cm),
+        "clave": clave_provisional(i.varilla_numero, recto_cm, i.sep_cm),
+        "descripcion": _descripcion_de(i.varilla_numero, recto_cm, i.sep_cm),
         "unidad": "ml",
         "estado": "propuesto",
         "clave_provisional": True,
         "escalon": "sin_escalon",
-        "largo_m": i.largo_cm / 100,
+        "largo_m": recto_cm / 100,
         "sep_cm": i.sep_cm,
     }
 
 
-def _conciliacion(eleccion: dict[str, Any], i: EntradaDeBaston, por_metro: float) -> list[dict[str, Any]]:
+def _conciliacion(eleccion: dict[str, Any], i: EntradaDeBaston, por_metro: float, recto_cm: float) -> list[dict[str, Any]]:
     e = eleccion["escalon"]
     if e is None:
         return []
@@ -425,7 +439,7 @@ def _conciliacion(eleccion: dict[str, Any], i: EntradaDeBaston, por_metro: float
                     else []
                 ),
                 *(
-                    [f"El escalón {e[0]} es de {e[1]:.2f} m y el bastón es de {i.largo_cm / 100:.2f} m: se compara contra el escalón que lo cubre."]
+                    [f"El escalón {e[0]} es de {e[1]:.2f} m y el tramo recto del bastón es de {recto_cm / 100:.2f} m: se compara contra el escalón que lo cubre."]
                     if eleccion["estado"] == "mayor"
                     else []
                 ),
@@ -444,8 +458,9 @@ def calcular_baston(i: EntradaDeBaston) -> dict[str, Any]:
     gancho_m = gancho["total_por_baston_cm"] / 100
     ajustado = _plan_ajustado(i, n, peso, gancho_m)
     exacto = _plan_exacto(i, n, peso, gancho_m)
-    eleccion = escalon_para(i.varilla_numero, i.largo_cm, i.sep_cm)
-    concepto = _concepto_de(eleccion, i)
+    recto_cm = _recto_cm(i, gancho["total_por_baston_cm"])
+    eleccion = escalon_para(i.varilla_numero, recto_cm, i.sep_cm)
+    concepto = _concepto_de(eleccion, i, recto_cm)
     avisos: list[str] = []
     c = ajustado["corte"]
     if c["piezas_por_baston"] > 1:
@@ -453,10 +468,16 @@ def calcular_baston(i: EntradaDeBaston) -> dict[str, Any]:
             f"El bastón de {i.largo_cm / 100:.2f} m no cabe en un solo módulo: se corta en {c['piezas_por_baston']} piezas de "
             f"{c['modulo_m']:g} m con traslape de {c['traslape_m']:.2f} m."
         )
-    if i.ganchos > 0 and gancho["total_por_baston_cm"] > 0:
+    if gancho["total_por_baston_cm"] > 0 and i.largo_cm <= gancho["total_por_baston_cm"] + 1e-9:
         avisos.append(
-            f"Gancho incluido en el corte (E1): {i.ganchos} × {gancho['longitud_cm']:.2f} cm = {gancho['total_por_baston_cm']:.2f} cm por bastón "
-            f"({gancho['origen']}); el bastón se corta de {c['necesario_m']:.2f} m. Longitud por confirmar con el estructurista."
+            f"El largo capturado ({i.largo_cm:.2f} cm) no alcanza para los ganchos ({gancho['total_por_baston_cm']:.2f} cm): no queda "
+            "tramo recto. Captura un largo mayor o quita ganchos."
+        )
+    elif i.ganchos > 0 and gancho["total_por_baston_cm"] > 0:
+        avisos.append(
+            f"El largo capturado incluye los ganchos: corte de {c['necesario_m']:.2f} m, de los cuales {gancho['total_por_baston_cm']:.2f} cm son de "
+            f"ganchos ({i.ganchos} × {gancho['longitud_cm']:.2f} cm, {gancho['origen']}); tramo recto de {recto_cm:.2f} cm, el que nombra el "
+            "escalón del catálogo. Longitud del gancho por confirmar con el estructurista."
         )
     if c["excede_maximo"]:
         avisos.append("El corte pasa del máximo de piezas por corte: revisar el largo del bastón.")
@@ -485,6 +506,7 @@ def calcular_baston(i: EntradaDeBaston) -> dict[str, Any]:
         "parametros": {
             "sep_cm": i.sep_cm,
             "largo_cm": i.largo_cm,
+            "recto_cm": recto_cm,
             "puntas_cm": i.puntas_cm,
             "ganchos": float(i.ganchos),
             "gancho_diametros": i.gancho_diametros,
@@ -506,7 +528,7 @@ def calcular_baston(i: EntradaDeBaston) -> dict[str, Any]:
         },
         "concepto": concepto,
         "escalon": eleccion["estado"],
-        "conciliacion": _conciliacion(eleccion, i, por_metro),
+        "conciliacion": _conciliacion(eleccion, i, por_metro, recto_cm),
         "avisos": avisos,
     }
 

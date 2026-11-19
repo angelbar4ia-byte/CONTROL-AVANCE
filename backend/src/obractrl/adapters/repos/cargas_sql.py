@@ -232,7 +232,9 @@ _RESTAURAR: dict[str, str] = {
     """,
     "nivel": """
         with a as (select cast(:antes as jsonb) as j)
-        update nivel set descripcion = a.j->>'descripcion'
+        update nivel set descripcion = a.j->>'descripcion',
+               numero_de_nivel = case when jsonb_exists(a.j, 'numero_de_nivel')
+                                      then cast(a.j->>'numero_de_nivel' as smallint) else nivel.numero_de_nivel end
         from a
         where nivel.id = cast(:id as uuid)
     """,

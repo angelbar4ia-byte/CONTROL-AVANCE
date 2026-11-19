@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { NivelRespuestaImporte } from "./nivelRespuestaImporte";
+import type { NivelRespuestaNumeroDeNivel } from "./nivelRespuestaNumeroDeNivel";
 
 export interface NivelRespuesta {
   id: string;
@@ -13,4 +14,6 @@ export interface NivelRespuesta {
   descripcion: string;
   orden?: number;
   importe?: NivelRespuestaImporte;
+  /** Número de nivel explícito (PB = 1, 1 a 99; F5) con el que se eligen los conceptos del contexto. Vacío = se usa `orden` mientras no haya saltos. */
+  numero_de_nivel?: NivelRespuestaNumeroDeNivel;
 }

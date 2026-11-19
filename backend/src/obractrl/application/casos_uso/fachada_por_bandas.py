@@ -2,7 +2,7 @@
 exterior, y reparte los m² de cara exterior en la banda baja (0 a 3.00), la media («+3.00», de 3.00 a 4.20) y el resto.
 
 No usa ningún selector ni cantidad capturada aparte: si cambia el largo de un muro, su altura, su ubicación, una zona de losa o un punto de
-nivel, la fachada cambia sola. Solo lee: no cambia ningún trazo ni cantidad guardados ni cobra nada. No lee ningún driver (ni `altura_estandar`):
+nivel, la fachada cambia sola. Descuenta todos los vanos reales menos los castillos colocados (que no son huecos). Solo lee: no cambia ningún trazo ni cantidad guardados ni cobra nada. No lee ningún driver (ni `altura_estandar`):
 las bandas son las de la decisión F1 (0 a 3.00, 3.00 a 4.20, resto), constantes del dominio.
 
 De dónde sale la cara exterior de cada muro, en este orden: (1) las **partes de altura con caras** que el muro ya trae guardadas; (2) la
@@ -31,6 +31,7 @@ from obractrl.domain.cuantificacion.fachada_por_bandas import (
     franjas_exteriores,
     redondear,
     repartir_en_bandas,
+    se_descuenta_de_la_fachada,
 )
 from obractrl.domain.cuantificacion.muro_ubicacion import UBICACIONES_DE_MURO
 
@@ -107,7 +108,8 @@ class ConsultarFachadaPorBandas:
         ubic_a, ubic_b = _caras_de_ubicacion(ubicacion)
         if guardadas and all(p.cara_a is None and p.cara_b is None for p in guardadas):
             guardadas = [ParteConCaras(p.desde_m, p.hasta_m, ubic_a, ubic_b, p.suma) for p in guardadas]
-        vanos = await self._trazos.vanos_de_trazo(trazo_id)
+        # Todos los vanos menos el castillo: los castillos colocados (tipo «castillo», misma tabla) no son huecos y no se restan.
+        vanos = [v for v in await self._trazos.vanos_de_trazo(trazo_id) if se_descuenta_de_la_fachada(v.get("tipo"))]
 
         tramos: list[TramoConCaras] = []
         origen = "ubicacion"

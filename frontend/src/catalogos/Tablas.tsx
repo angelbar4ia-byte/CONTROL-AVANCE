@@ -513,7 +513,7 @@ export function TablaCuadrillas({
   );
 }
 
-const COLUMNAS_NIVELES = ['Clave', 'Descripción', 'Orden', 'Importe'] as const;
+const COLUMNAS_NIVELES = ['Clave', 'Descripción', 'Orden', 'N.º de nivel', 'Importe'] as const;
 
 export function TablaNiveles({
   resultados,
@@ -534,6 +534,9 @@ export function TablaNiveles({
           <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
           <td>{item.descripcion}</td>
           <td className="is-num tnum">{item.orden}</td>
+          <td className="is-num tnum" data-numero-de-nivel>
+            {item.numero_de_nivel ?? '—'}
+          </td>
           <td className="is-num">
             {item.importe === null || item.importe === undefined ? '—' : fmtMXN(item.importe)}
           </td>

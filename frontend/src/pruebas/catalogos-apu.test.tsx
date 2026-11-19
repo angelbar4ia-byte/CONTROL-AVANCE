@@ -280,6 +280,25 @@ describe('TablaNiveles y TablaEtapas: árbol del prototipo (§7.4)', () => {
     expect(screen.getByText(/NIV-00001/).closest('tr')).toHaveTextContent('desc');
   });
 
+  it('TablaNiveles muestra el número de nivel explícito (F5) y un guion si no lo tiene', () => {
+    render(
+      <TablaNiveles
+        resultados={buscarPorClave(
+          [
+            { id: 'niv-1', clave: 'NIV-00001', descripcion: 'Planta baja', orden: 1, numero_de_nivel: 1 },
+            { id: 'niv-2', clave: 'NIV-00002', descripcion: 'Azotea', orden: 2 },
+          ] as readonly NivelRespuesta[],
+          '',
+          (n) => n.descripcion,
+        )}
+        cargando={false}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'N.º de nivel' })).toBeInTheDocument();
+    expect(screen.getByText('NIV-00001').closest('tr')?.querySelector('[data-numero-de-nivel]')).toHaveTextContent('1');
+    expect(screen.getByText('NIV-00002').closest('tr')?.querySelector('[data-numero-de-nivel]')).toHaveTextContent('—');
+  });
+
   it('TablaEtapas resuelve la clave del nivel contra el catálogo de niveles (§7.4)', () => {
     render(
       <TablaEtapas

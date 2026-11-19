@@ -1986,8 +1986,8 @@ class AplicadorFamilias:
 
 
 class AplicadorNiveles:
-    """Catálogo base de niveles de construcción (§10.1): identidad
-    únicamente — clave y descripción."""
+    """Catálogo base de niveles de construcción (§10.1): identidad — clave y
+    descripción — más el número de nivel explícito opcional (F5, PB = 1)."""
 
     def __init__(self, *, niveles_etapas: RepositorioNivelesEtapas) -> None:
         self._niveles_etapas = niveles_etapas
@@ -2015,10 +2015,17 @@ class AplicadorNiveles:
                 clave = generar_clave_automatica("NIV", claves_conocidas)
                 claves_conocidas.append(clave)
                 claves_generadas += 1
-            entrantes[clave] = {"descripcion": fila.descripcion}
+            # Sin número en el archivo no se toca el guardado (para quitarlo está PUT /niveles/{id}/numero-de-nivel).
+            numero = (
+                fila.numero_de_nivel
+                if fila.numero_de_nivel is not None
+                else (por_clave.get(clave) or {}).get("numero_de_nivel")
+            )
+            entrantes[clave] = {"descripcion": fila.descripcion, "numero_de_nivel": numero}
 
         vigentes = {
-            clave: {"descripcion": f.get("descripcion")} for clave, f in por_clave.items()
+            clave: {"descripcion": f.get("descripcion"), "numero_de_nivel": f.get("numero_de_nivel")}
+            for clave, f in por_clave.items()
         }
         diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
 
@@ -2026,7 +2033,11 @@ class AplicadorNiveles:
         if not dry_run:
             for alta in diff.altas:
                 nuevo_id = await self._niveles_etapas.crear_nivel(
-                    {"clave": alta.clave, "descripcion": alta.despues["descripcion"]}
+                    {
+                        "clave": alta.clave,
+                        "descripcion": alta.despues["descripcion"],
+                        "numero_de_nivel": alta.despues["numero_de_nivel"],
+                    }
                 )
                 operaciones.append(
                     _operacion("nivel", nuevo_id, "insert", despues=dict(alta.despues))
@@ -2041,7 +2052,7 @@ class AplicadorNiveles:
                         "nivel",
                         fila_vigente["id"],
                         "update",
-                        antes=_recorte(fila_vigente, ("descripcion",)),
+                        antes=_recorte(fila_vigente, ("descripcion", "numero_de_nivel")),
                         despues=dict(cambio.despues),
                     )
                 )

@@ -78,7 +78,7 @@ class RepositorioNivelesEtapasSQL:
     async def listar_niveles(self) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(
-                text("select id, clave, descripcion, orden, importe from nivel order by orden, clave")
+                text("select id, clave, descripcion, orden, importe, numero_de_nivel from nivel order by orden, clave")
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
@@ -88,12 +88,12 @@ class RepositorioNivelesEtapasSQL:
             await self._sesion.execute(
                 text(
                     """
-                    insert into nivel (org_id, clave, descripcion)
-                    values (cast(current_setting('app.org_id') as uuid), :clave, :descripcion)
+                    insert into nivel (org_id, clave, descripcion, numero_de_nivel)
+                    values (cast(current_setting('app.org_id') as uuid), :clave, :descripcion, :numero)
                     returning id
                     """
                 ),
-                {"clave": datos["clave"], "descripcion": datos["descripcion"]},
+                {"clave": datos["clave"], "descripcion": datos["descripcion"], "numero": datos.get("numero_de_nivel")},
             )
         ).scalar_one()
 
@@ -101,8 +101,8 @@ class RepositorioNivelesEtapasSQL:
         if "descripcion" not in cambios:
             return
         await self._sesion.execute(
-            text("update nivel set descripcion = :descripcion where id = :id"),
-            {"id": str(nivel_id), "descripcion": cambios["descripcion"]},
+            text("update nivel set descripcion = :descripcion, numero_de_nivel = :numero where id = :id"),
+            {"id": str(nivel_id), "descripcion": cambios["descripcion"], "numero": cambios.get("numero_de_nivel")},
         )
 
     async def listar_etapas(self) -> list[dict[str, Any]]:

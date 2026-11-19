@@ -27,7 +27,7 @@ export interface CalculoDelBastonPeticion {
    */
   sep_cm?: number;
   /**
-   * Largo del bastón.
+   * Largo del bastón que se captura: INCLUYE los ganchos y es el corte (más las puntas). El tramo recto es este largo menos los ganchos.
    * @minimum 10
    * @maximum 3000
    */
@@ -39,7 +39,7 @@ export interface CalculoDelBastonPeticion {
    */
   puntas_cm?: number;
   /**
-   * Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho entra en la longitud de corte.
+   * Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho va incluido en el largo capturado.
    * @minimum 0
    * @maximum 2
    */

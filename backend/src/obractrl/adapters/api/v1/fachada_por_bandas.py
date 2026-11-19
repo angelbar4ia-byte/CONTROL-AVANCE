@@ -1,6 +1,6 @@
 """La fachada de un plano por bandas de altura (F1, 2026-11-19): los m² de cara exterior de los muros reales, en la banda baja (0 a 3.00),
 la media («+3.00») y el resto, según sus zonas de losa y puntos de nivel exterior. Solo lee (todos los roles que ven el plano); no cobra ni
-cambia nada guardado. Controladores delgados: las reglas viven en el dominio."""
+cambia nada guardado. Descuenta todos los vanos salvo los castillos. Controladores delgados: las reglas viven en el dominio."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class BandaDeFachada(BaseModel):
     desde_m: Decimal = Field(description="Altura sobre el suelo de la cara exterior donde empieza la banda.")
     hasta_m: Decimal | None = Field(description="Donde termina; `null` en «el resto».")
     bruto_m2: Decimal
-    vanos_m2: Decimal = Field(description="Lo que descuentan los vanos que caen en esta banda.")
+    vanos_m2: Decimal = Field(description="Lo que descuentan los vanos (todos menos los castillos) que caen en esta banda (los castillos colocados no se restan).")
     neto_m2: Decimal
 
 

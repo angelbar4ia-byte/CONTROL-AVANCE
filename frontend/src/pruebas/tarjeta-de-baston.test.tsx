@@ -61,11 +61,11 @@ const CALCULO = {
   unidad: 'ml de trazo',
   trazo_m: 10,
   varilla: { clave: 'ACR-00001', numero: 3, nombre: '3/8', peso_kg_m: 0.56, largo_m: 12 },
-  parametros: { sep_cm: 25, largo_cm: 120, puntas_cm: 0, ganchos: 2, gancho_diametros: 12, gancho_cm: 11.43, traslape_diametros: 40 },
-  gancho: { ganchos: 2, diametros: 12, diametro_varilla_cm: 0.9525, longitud_cm: 11.43, total_por_baston_cm: 22.86, origen: '12 diámetros × 0.9525 cm de diámetro de la varilla', formula: 'corte = largo + puntas + ganchos × longitud del gancho' },
+  parametros: { sep_cm: 25, largo_cm: 142.86, recto_cm: 120, puntas_cm: 0, ganchos: 2, gancho_diametros: 12, gancho_cm: 11.43, traslape_diametros: 40 },
+  gancho: { ganchos: 2, diametros: 12, diametro_varilla_cm: 0.9525, longitud_cm: 11.43, total_por_baston_cm: 22.86, origen: '12 diámetros × 0.9525 cm de diámetro de la varilla', formula: 'recto = largo capturado − ganchos × longitud del gancho; corte = largo capturado + puntas' },
   bastones_por_metro: 4,
   ajustado: {
-    corte: { piezas_por_baston: 1, modulo_m: 1.5, material_por_baston_m: 1.5, traslape_m: 0, puntas_m: 0, gancho_m: 0.2286, necesario_m: 1.4286, sobrante_por_baston_m: 0.3, piezas_por_varilla: 8, excede_maximo: false },
+    corte: { piezas_por_baston: 1, modulo_m: 1.5, material_por_baston_m: 1.5, traslape_m: 0, puntas_m: 0, gancho_m: 0.2286, recto_m: 1.2, necesario_m: 1.4286, sobrante_por_baston_m: 0.3, piezas_por_varilla: 8, excede_maximo: false },
     bastones: 41,
     varillas: 6,
     material_m: 61.5,
@@ -161,7 +161,8 @@ describe('TarjetaBaston', () => {
     expect(await screen.findByTestId('baston-piezas')).toHaveTextContent('41 bastones');
     expect(screen.getByTestId('baston-corte')).toHaveTextContent('1 × 1.5 m · 8 por varilla');
     expect(screen.getByTestId('baston-gancho')).toHaveTextContent('Gancho 2 × 11.43 cm = 22.86 cm por bastón');
-    expect(screen.getByTestId('baston-corte')).toHaveTextContent('Corte de 1.43 m (con gancho)');
+    expect(screen.getByTestId('baston-corte')).toHaveTextContent('Corte de 1.43 m, de los cuales 22.86 cm de ganchos');
+    expect(screen.getByTestId('baston-recto')).toHaveTextContent('Tramo recto 1.20 m');
     expect(screen.getByTestId('baston-varillas')).toHaveTextContent('6 varillas');
     expect(screen.getByTestId('baston-kg')).toHaveTextContent('34.44 kg');
     expect(screen.getByTestId('baston-varilla')).toBeInTheDocument();
@@ -184,6 +185,15 @@ describe('TarjetaBaston', () => {
     expect(within(bloque).getAllByRole('row').map((f) => f.getAttribute('data-marca'))).toEqual([null, '≠', 'solo_catalogo']);
     expect(within(bloque).getByText('+15.7 %')).toBeInTheDocument();
     expect(bloque.textContent).not.toMatch(/\$/);
+  });
+
+  it('si el largo capturado no alcanza para los ganchos pinta el aviso del servidor', async () => {
+    m.calcular.mockResolvedValue({
+      ...CALCULO,
+      avisos: ['El largo capturado (20.00 cm) no alcanza para los ganchos (22.86 cm): no queda tramo recto. Captura un largo mayor o quita ganchos.'],
+    });
+    render(<TarjetaBaston clave="BA-1" />);
+    expect(await screen.findByRole('list', { name: 'Advertencias' })).toHaveTextContent('no alcanza para los ganchos');
   });
 
   it('sin escalón avisa y Costos propone el concepto nuevo con los parámetros', async () => {

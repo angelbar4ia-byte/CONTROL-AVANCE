@@ -1170,6 +1170,66 @@ async def test_revertir_carga_de_niveles_deshace_el_alta(
     assert await _niveles(contexto_control) == {}
 
 
+def _archivo_niveles_con_numero(filas: list[list[object]]) -> bytes:
+    return _libro([["CLAVE", "DESCRIPCIÓN", "NÚMERO DE NIVEL"], *filas])
+
+
+async def test_carga_de_niveles_trae_el_numero_de_nivel_y_sin_columna_no_lo_toca(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """F5: `nivel.numero_de_nivel` viaja en el cargador. Una carga sin la columna (o con la celda vacía) no borra el que ya hay."""
+    r = await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles_con_numero([["NIV-00001", "PLANTA BAJA", 1], ["NIV-00002", "ENTREPISO", 3], ["NIV-00003", "AZOTEA", None]]),
+    )
+    assert r.resumen.insertados == 3
+    niveles = await _niveles(contexto_control)
+    assert [niveles[c]["numero_de_nivel"] for c in ("NIV-00001", "NIV-00002", "NIV-00003")] == [1, 3, None]
+
+    # Cambia el número de uno y vuelve a cargar el resto sin número: lo guardado se conserva.
+    r2 = await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles_con_numero([["NIV-00001", "PLANTA BAJA", None], ["NIV-00002", "ENTREPISO", 4], ["NIV-00003", "AZOTEA", 5]]),
+    )
+    assert r2.resumen.actualizados == 2 and r2.resumen.insertados == 0
+    niveles = await _niveles(contexto_control)
+    assert [niveles[c]["numero_de_nivel"] for c in ("NIV-00001", "NIV-00002", "NIV-00003")] == [1, 4, 5]
+
+    # Un archivo sin la columna (el de siempre) ni siquiera marca cambio.
+    r3 = await _cargar(
+        contexto_control, TipoCarga.NIVELES, _archivo_niveles([_fila_nivel_etapa("Subcapítulo", "NIV-00002", "ENTREPISO")])
+    )
+    assert r3.resumen.actualizados == 0
+    assert (await _niveles(contexto_control))["NIV-00002"]["numero_de_nivel"] == 4
+
+
+async def test_revertir_una_carga_de_niveles_restaura_el_numero_de_nivel_anterior(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(contexto_control, TipoCarga.NIVELES, _archivo_niveles_con_numero([["NIV-00001", "PLANTA BAJA", 1]]))
+    cambio = await _cargar(contexto_control, TipoCarga.NIVELES, _archivo_niveles_con_numero([["NIV-00001", "PLANTA BAJA", 7]]))
+    assert (await _niveles(contexto_control))["NIV-00001"]["numero_de_nivel"] == 7
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RevertirCarga(cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)).ejecutar(
+            cambio.carga_id, usuario_id=contexto_control.usuario_id
+        )
+    assert (await _niveles(contexto_control))["NIV-00001"]["numero_de_nivel"] == 1
+
+
+async def test_un_numero_de_nivel_fuera_de_rango_rechaza_esa_fila(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    r = await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles_con_numero([["NIV-00001", "PLANTA BAJA", 1], ["NIV-00002", "SOTANO", 150]]),
+    )
+    assert r.resumen.insertados == 1
+    assert "NIV-00002" not in await _niveles(contexto_control)
+
+
 # --- Etapas de construcción (§10.1, `CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx`)
 
 

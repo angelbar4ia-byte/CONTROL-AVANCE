@@ -76,22 +76,38 @@ def test_el_gancho_por_defecto_es_12_diametros_por_punta_y_2_ganchos(varilla: in
     assert g["total_por_baston_cm"] == pytest.approx(2 * cada_cm, abs=1e-6) and "12 diámetros" in g["origen"]
 
 
-def test_el_gancho_entra_en_la_longitud_de_corte_y_puede_cambiar_el_modulo() -> None:
-    # 100 cm rectos + 2 × 11.43 cm = 1.2286 m: ya no cabe en el módulo de 1.00 m, se corta del de 1.50 m.
-    con = _calc(largo_cm=100)
+def test_el_largo_capturado_incluye_los_ganchos_y_es_el_corte() -> None:
+    # Se captura 122.86 cm: el corte es 1.2286 m (no cabe en el módulo de 1.00 m, se corta del de 1.50 m) y el tramo recto es
+    # 122.86 − 2 × 11.43 = 100 cm.
+    con = _calc(largo_cm=122.86)
     c = con["ajustado"]["corte"]
-    assert c["gancho_m"] == pytest.approx(0.2286) and c["necesario_m"] == pytest.approx(1.2286)
+    assert c["necesario_m"] == pytest.approx(1.2286) and c["gancho_m"] == pytest.approx(0.2286) and c["recto_m"] == pytest.approx(1.0)
     assert c["modulo_m"] == 1.5 and c["piezas_por_varilla"] == 8
-    sin = _calc(largo_cm=100, ganchos=0)["ajustado"]["corte"]
-    assert sin["modulo_m"] == 1.0 and sin["gancho_m"] == 0.0
-    assert con["ajustado"]["kg"] > _calc(largo_cm=100, ganchos=0)["ajustado"]["kg"]
-    assert any("Gancho incluido en el corte" in a for a in con["avisos"])
-    assert not any("Gancho incluido" in a for a in _calc(ganchos=0)["avisos"])
+    assert con["parametros"]["recto_cm"] == pytest.approx(100.0)
+    # Sin ganchos, el corte es el largo capturado y el tramo recto es el mismo.
+    sin = _calc(largo_cm=122.86, ganchos=0)
+    assert sin["ajustado"]["corte"]["necesario_m"] == pytest.approx(1.2286) and sin["parametros"]["recto_cm"] == pytest.approx(122.86)
+    assert any("incluye los ganchos" in a and "de los cuales 22.86 cm son de ganchos" in a for a in con["avisos"])
+    assert not any("incluye los ganchos" in a for a in sin["avisos"])
 
 
-def test_el_gancho_tambien_se_suma_al_corte_exacto_de_referencia() -> None:
-    r = _calc(trazo_m=10, varilla_numero=4, sep_cm=50, largo_cm=80)
-    # 0.80 + 2 × 0.1524 = 1.1048 m exactos: floor(12 ÷ 1.1048) = 10 por varilla.
+def test_el_escalon_se_nombra_por_el_tramo_recto_no_por_el_largo_capturado() -> None:
+    # 142.86 cm capturados con 2 ganchos de 11.43 cm = recto de 120 cm: el escalón AUX-02010 (1.20 @25), exacto.
+    r = _calc(largo_cm=142.86)
+    assert r["escalon"] == "exacto" and r["concepto"]["clave"] == "AUX-02010" and r["concepto"]["largo_m"] == 1.2
+    assert r["ajustado"]["corte"]["necesario_m"] == pytest.approx(1.4286)
+
+
+def test_si_el_largo_capturado_no_alcanza_para_los_ganchos_avisa_y_no_hay_escalon() -> None:
+    r = _calc(largo_cm=20)  # 2 × 11.43 = 22.86 cm de ganchos
+    assert r["parametros"]["recto_cm"] == 0.0 and r["escalon"] == "sin_escalon"
+    assert any("no alcanza para los ganchos" in a for a in r["avisos"])
+    assert r["ajustado"]["corte"]["necesario_m"] == pytest.approx(0.2)
+
+
+def test_el_corte_exacto_de_referencia_es_el_largo_capturado() -> None:
+    r = _calc(trazo_m=10, varilla_numero=4, sep_cm=50, largo_cm=110.48)
+    # 1.1048 m capturados (ya con los ganchos): floor(12 ÷ 1.1048) = 10 por varilla.
     assert r["exacto"]["material_m"] == pytest.approx(21 * 1.1048) and r["exacto"]["varillas"] == math.ceil(21 / 10)
 
 
@@ -113,7 +129,7 @@ def test_las_piezas_son_ceil_del_trazo_entre_la_separacion_mas_uno() -> None:
 
 
 def test_el_escalon_exacto_del_catalogo_y_su_conciliacion() -> None:
-    r = _calc()  # 1.20 @25 en 3/8
+    r = _calc(largo_cm=142.86)  # 1.20 m rectos @25 en 3/8 (más 2 ganchos de 11.43 cm incluidos en lo capturado)
     assert r["escalon"] == "exacto" and r["concepto"]["clave"] == "AUX-02010" and r["concepto"]["estado"] == "catalogo"
     (bloque,) = r["conciliacion"]
     varilla = next(f for f in bloque["filas"] if f["clave"] == "ACR-00001")
@@ -125,7 +141,7 @@ def test_el_escalon_exacto_del_catalogo_y_su_conciliacion() -> None:
 
 
 def test_el_escalon_mayor_se_usa_y_avisa_y_el_concepto_nuevo_no_se_propone_solo() -> None:
-    r = _calc(largo_cm=135, sep_cm=25)
+    r = _calc(largo_cm=157.86, sep_cm=25)  # recto de 1.35 m
     assert r["escalon"] == "mayor" and r["concepto"]["clave"] == "AUX-02020" and r["concepto"]["largo_m"] == 1.5
     assert any("1.35" in a and "1.50" in a for a in r["avisos"])
     assert r["conciliacion"][0]["concepto"]["clave"] == "AUX-02020"
@@ -152,7 +168,7 @@ def test_sin_escalon_avisa_y_propone_un_concepto_nuevo_provisional(kw: dict, tex
 
 def test_un_escalon_del_catalogo_no_lleva_concepto_nuevo() -> None:
     with pytest.raises(ErrorDeBaston, match="ya trae el escalón AUX-02010"):
-        concepto_nuevo_de(EntradaDeBaston())
+        concepto_nuevo_de(EntradaDeBaston(largo_cm=142.86))
 
 
 def test_los_escalones_se_leen_del_csv_con_su_composicion() -> None:
@@ -167,7 +183,7 @@ def test_los_escalones_se_leen_del_csv_con_su_composicion() -> None:
 
 
 def test_confirmar_el_calculo_propone_una_version_con_el_antes_y_el_despues() -> None:
-    (p,) = propuestas_de_actualizacion_de_apu(_calc())
+    (p,) = propuestas_de_actualizacion_de_apu(_calc(largo_cm=142.86))
     assert p["clase"] == "version_de_concepto" and p["concepto_clave"] == "AUX-02010"
     (c,) = p["detalle"]["cambios"]
     assert c["insumo"] == "ACR-00001" and c["antes"] == 0.432 and c["despues"] == pytest.approx(0.5)

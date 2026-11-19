@@ -1330,6 +1330,7 @@ export type * from "./nivelExteriorPeticionRotulo";
 export type * from "./nivelPeticion";
 export type * from "./nivelRespuesta";
 export type * from "./nivelRespuestaImporte";
+export type * from "./nivelRespuestaNumeroDeNivel";
 export type * from "./noIncluidoDelCimiento";
 export type * from "./nodoCreadoRespuesta";
 export type * from "./nodoCuantificadoRespuesta";

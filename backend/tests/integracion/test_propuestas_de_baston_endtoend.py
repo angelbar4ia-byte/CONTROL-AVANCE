@@ -59,7 +59,7 @@ async def residente(contexto_residente: ContextoSesion) -> AsyncIterator[httpx.A
         yield c
 
 
-SIN_ESCALON = {"largo_cm": 135, "sep_cm": 30}
+SIN_ESCALON = {"largo_cm": 157.86, "sep_cm": 30}  # el largo capturado incluye 2 ganchos de 11.43 cm: tramo recto de 1.35 m
 
 
 async def test_costos_propone_el_concepto_nuevo_y_control_de_obra_lo_autoriza(costos: httpx.AsyncClient, control: httpx.AsyncClient) -> None:
@@ -84,7 +84,7 @@ async def test_proponer_dos_veces_no_duplica_y_el_escalon_del_catalogo_no_lleva_
 
 
 async def test_confirmar_el_calculo_propone_una_version_con_el_antes_y_el_despues(costos: httpx.AsyncClient, control: httpx.AsyncClient) -> None:
-    r = await costos.post(f"{RUTA}/BA-1/propuestas/actualizar-apu", json={})
+    r = await costos.post(f"{RUTA}/BA-1/propuestas/actualizar-apu", json={"largo_cm": 142.86})
     assert r.status_code == 201, r.text
     (creada,) = r.json()["creadas"]
     (p,) = (await costos.get(f"{RUTA}/BA-1/propuestas")).json()
