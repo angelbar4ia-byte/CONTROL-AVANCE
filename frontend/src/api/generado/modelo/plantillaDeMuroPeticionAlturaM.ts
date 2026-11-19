@@ -7,6 +7,6 @@
  */
 
 /**
- * `null` = la altura estándar (driver).
+ * La ALTURA BASE del artefacto: la que toman sus muros si el trazo no trae otra y no cae bajo una zona de losa. `null` = la de la herramienta de trazo (3.00 m).
  */
 export type PlantillaDeMuroPeticionAlturaM = number | string | null;

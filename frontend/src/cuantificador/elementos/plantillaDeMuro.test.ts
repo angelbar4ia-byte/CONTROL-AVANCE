@@ -143,14 +143,14 @@ describe('los drivers de la obra en la vista previa', () => {
     expect(g.castillos).toHaveLength(3); // 0, 3 y 6 m
   });
 
-  it('la altura estándar y la separación de castillos salen de los drivers de la obra', () => {
+  it('la separación de castillos sale del driver de la obra; la altura estándar del driver NO se lee (la vista previa usa la de la herramienta)', () => {
     const d = driversDeVistaDe([
       { clave: 'altura_estandar', valor_vigente: '3.5' },
       { clave: 'separacion_castillos', valor_vigente: '2' },
     ]);
-    expect(d).toEqual({ altura_m: 3.5, separacion_m: 2 });
+    expect(d).toEqual({ altura_m: 3, separacion_m: 2 });
     const g = geometriaDeVista(confinado, medidas, d);
-    expect(g.altura_m).toBe(3.5);
+    expect(g.altura_m).toBe(3);
     expect(g.castillos).toHaveLength(4); // 0, 2, 4 y 6 m
   });
 

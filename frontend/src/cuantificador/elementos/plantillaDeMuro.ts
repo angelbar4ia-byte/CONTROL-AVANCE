@@ -61,14 +61,14 @@ export interface Borrador {
   readonly porConfirmar: boolean;
 }
 
-/** La altura estándar de partida (driver `altura_estandar`): solo vale mientras la obra no responde sus drivers. */
+/** La altura con que se dibuja la vista previa de una plantilla sin altura propia: la de la herramienta de trazo (3.00 m), no un driver. */
 export const ALTURA_DE_VISTA_M = 3;
 /** El tramo de muro que dibuja la vista previa. */
 export const LARGO_DE_VISTA_M = 6;
 /** Separación de partida (driver `separacion_castillos`): solo vale mientras la obra no responde sus drivers. */
 export const SEPARACION_DE_VISTA_M = 3;
 
-/** Los drivers de la obra que lee la vista previa: la altura estándar y la separación de castillos. */
+/** Lo que lee la vista previa: la altura de partida (la de la herramienta) y la separación de castillos (ese sí es driver de la obra). */
 export interface DriversDeVista {
   readonly altura_m: number;
   readonly separacion_m: number;
@@ -88,7 +88,7 @@ export function driversDeVistaDe(drivers: readonly DriverVigente[] | null | unde
     const n = d ? Number(String(d.valor_vigente).replace(',', '.')) : NaN;
     return Number.isFinite(n) && n > 0 ? n : partida;
   };
-  return { altura_m: de('altura_estandar', ALTURA_DE_VISTA_M), separacion_m: de(DRIVER_SEPARACION_CASTILLOS, SEPARACION_DE_VISTA_M) };
+  return { altura_m: ALTURA_DE_VISTA_M, separacion_m: de(DRIVER_SEPARACION_CASTILLOS, SEPARACION_DE_VISTA_M) };
 }
 
 export function borradorVacio(): Borrador {

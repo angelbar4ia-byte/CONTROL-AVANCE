@@ -17,10 +17,10 @@ export interface ResolucionDelMuro {
   /** La altura que el trazo trae (partes o altura única); manda sobre la zona. */
   altura_explicita_m: ResolucionDelMuroAlturaExplicitaM;
   /**
-   * El driver `altura_estandar` de la obra.
+   * La altura base con que nace un muro sin la suya ni zona: la de la plantilla elegida (artefacto) o la de la herramienta (3.00 m). No es el driver.
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
-  altura_estandar_m: string;
+  altura_base_m: string;
   /** Con la que ya mide hoy su conversión guardada (no se cambia sola, Q1). */
   altura_guardada_m: ResolucionDelMuroAlturaGuardadaM;
   /** Algún lado del muro cuelga de una losa; si no, el muro se comporta como siempre. */

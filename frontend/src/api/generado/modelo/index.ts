@@ -1999,6 +1999,7 @@ export type * from "./trazoPeticionCapa";
 export type * from "./trazoPeticionForma";
 export type * from "./trazoPeticionGrosorM";
 export type * from "./trazoPeticionMedicionId";
+export type * from "./trazoPeticionMuroPlantillaId";
 export type * from "./trazoPeticionPendientePct";
 export type * from "./trazoPropiedades";
 export type * from "./trazoPropiedadesAlineacion";

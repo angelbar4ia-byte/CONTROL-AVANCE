@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import type { ActividadRespuesta, TrazoFeature } from '@/api/generado/modelo';
 import { fmtNum } from '@/lib/formato';
 
-import { ALTURA_ESTANDAR_DE_PARTIDA_M } from './alturaEstandar';
+import { ALTURA_DE_HERRAMIENTA_M } from './alturaDeHerramienta';
 import { CampoDecimal } from './CampoDecimal';
 import { tipoDeMedicion } from './tipos';
 
@@ -33,11 +33,11 @@ interface Props {
   readonly colocando: RevestimientoPorColocar | null;
   readonly onColocar: (r: RevestimientoPorColocar | null) => void;
   readonly onQuitar: (trazoId: string) => void;
-  /** La altura estándar de la obra (el driver `altura_estandar`): con la que se propone el revestimiento hasta que se teclee otra. */
+  /** La altura de la herramienta (3.00 m; no el driver `altura_estandar`): con la que se propone el revestimiento hasta que se teclee otra. */
   readonly alturaPorDefectoM?: number;
 }
 
-export function RevestimientosDelMuro({ muroId, trazos, actividades, colocando, onColocar, onQuitar, alturaPorDefectoM = ALTURA_ESTANDAR_DE_PARTIDA_M }: Props) {
+export function RevestimientosDelMuro({ muroId, trazos, actividades, colocando, onColocar, onQuitar, alturaPorDefectoM = ALTURA_DE_HERRAMIENTA_M }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [actividadId, setActividadId] = useState('');
   const [cara, setCara] = useState<CaraDeRevestimiento>('fachada');

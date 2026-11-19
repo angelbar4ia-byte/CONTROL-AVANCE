@@ -46,8 +46,13 @@ test.describe('Cuantificador · drivers conectados', () => {
     const tabla = page.locator('#area-parametrico').getByRole('table', { name: 'Drivers del Paramétrico' });
     const altura = tabla.locator('tr[data-driver="altura_estandar"]');
     await expect(altura.locator('[data-consumidor="estructura"]')).toBeVisible();
-    await expect(altura.locator('[data-consumidor="plantilla_colocar"]')).toBeVisible();
-    await expect(altura.locator('[data-consumidor="plantilla_vista_previa"]')).toBeVisible();
+    // El plano y las plantillas ya NO leen la altura estándar (solo los paramétricos de elementos): no la declaran.
+    await expect(altura.locator('[data-consumidor="plantilla_colocar"]')).toHaveCount(0);
+    await expect(altura.locator('[data-consumidor="plantilla_vista_previa"]')).toHaveCount(0);
+    await expect(altura.locator('[data-consumidor="muro_del_plano"]')).toHaveCount(0);
+    const separacion = tabla.locator('tr[data-driver="separacion_castillos"]');
+    await expect(separacion.locator('[data-consumidor="plantilla_colocar"]')).toBeVisible();
+    await expect(separacion.locator('[data-consumidor="plantilla_vista_previa"]')).toBeVisible();
     await expect(tabla.locator('tr[data-driver="traslape_varilla_diametros"] [data-consumidor="baston"]')).toBeVisible();
     await expect(tabla.locator('tr[data-driver="escarpio_minimo"] [data-consumidor="cimentacion_de_piedra"]')).toContainText('lo lee como constante');
     await expect(tabla.locator('tr[data-driver="desperdicio_mamposteria"] [data-lo-usan]')).toContainText('tabique de 14 cm');
