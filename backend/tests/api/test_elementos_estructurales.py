@@ -71,3 +71,24 @@ def test_lo_que_no_vale_da_422_o_404(cliente: TestClient) -> None:
     assert cliente.post(ruta, json={"modo": "otro"}).status_code == 422
     assert cliente.post("/biblioteca-de-elementos/estructura-lineal/Z-1/calcular", json={"modo": "ml"}).status_code == 422
     assert cliente.post("/biblioteca-de-elementos/estructura-lineal/NO/calcular", json={}).status_code == 404
+
+
+def test_c1_nace_a_4_20_m_y_el_anclaje_capturado_dice_si_cumple(cliente: TestClient) -> None:
+    """D5 y D6: la altura habitual de C-1 es 4.20 m; el anclaje es una sugerencia y la respuesta avisa si el valor capturado cumple."""
+    d = cliente.get("/biblioteca-de-elementos/estructura-lineal/C-1").json()
+    assert d["alto_por_defecto_m"] == 4.2
+    c = cliente.post("/biblioteca-de-elementos/estructura-lineal/C-1/calcular", json={"modo": "pieza"}).json()
+    assert c["longitud_m"] == 4.2
+    assert c["anclaje"]["aplica"] is True and c["anclaje"]["cumple"] is None and c["anclaje"]["sugerido_diametros"] == 40
+    corto = cliente.post(
+        "/biblioteca-de-elementos/estructura-lineal/T-1-15x25/calcular", json={"modo": "pieza", "largo_m": 4, "anclaje_cm": 20}
+    ).json()
+    assert corto["anclaje"]["cumple"] is False and corto["anclaje"]["capturado_cm"] == 20
+    assert any("NO cumple" in a for a in corto["advertencias"])
+    bien = cliente.post(
+        "/biblioteca-de-elementos/estructura-lineal/T-1-15x25/calcular", json={"modo": "pieza", "largo_m": 4, "anclaje_cm": 60}
+    ).json()
+    assert bien["anclaje"]["cumple"] is True
+    ruta = "/biblioteca-de-elementos/estructura-lineal/T-1-15x25/calcular"
+    assert cliente.post(ruta, json={"modo": "ml", "anclaje_cm": 30}).status_code == 422
+    assert cliente.post(ruta, json={"modo": "pieza", "anclaje_cm": -1}).status_code == 422

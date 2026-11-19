@@ -14,6 +14,10 @@ const m = vi.hoisted(() => ({
   definicion: { current: undefined as unknown },
   correcciones: { current: undefined as unknown },
   biblioteca: { current: undefined as unknown },
+  propuestas: { current: [] as unknown[] },
+  proponerCorrecciones: vi.fn(),
+  autorizarPropuesta: vi.fn(),
+  rechazarPropuesta: vi.fn(),
 }));
 
 vi.mock('@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos', () => ({
@@ -21,6 +25,10 @@ vi.mock('@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos', () => 
   useBibliotecaDeElementosApiV1BibliotecaDeElementosGet: () => ({ data: m.biblioteca.current }),
   useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet: () => ({ data: m.definicion.current, isLoading: false }),
   useCalcularElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveCalcularPost: () => ({ mutateAsync: m.calcular }),
+  usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet: () => ({ data: m.propuestas.current }),
+  useProponerCorreccionesApiV1BibliotecaDeElementosEstructuraClavePropuestasCorreccionesPost: () => ({ mutateAsync: m.proponerCorrecciones, isPending: false }),
+  useAutorizarPropuestaApiV1PropuestasDeEstructuraPropuestaIdAutorizarPost: () => ({ mutateAsync: m.autorizarPropuesta }),
+  useRechazarPropuestaApiV1PropuestasDeEstructuraPropuestaIdRechazarPost: () => ({ mutateAsync: m.rechazarPropuesta }),
   useCorreccionesDeCatalogoApiV1CorreccionesDeCatalogoGet: () => ({ data: m.correcciones.current }),
   useProponerCorreccionApiV1CorreccionesDeCatalogoPost: () => ({ mutateAsync: m.proponer }),
   useAutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost: () => ({ mutateAsync: m.autorizar }),
@@ -74,6 +82,7 @@ const DEFINICION = {
     { clave: 'Q51', texto: 'Sin concepto propio de colado.' },
     { clave: 'Q52', texto: 'Sin destajo por ml.' },
   ],
+  correcciones_de_fabrica: [] as unknown[],
 };
 
 const CALCULO = {
@@ -111,8 +120,16 @@ const CALCULO = {
       avisos: [],
     },
   ],
+  anclaje: { aplica: false, sugerido_diametros: 40, capturado_cm: null, cumple: null, grupos: [], mensaje: 'El anclaje es de una pieza.' },
   camino_de_colado_y_cimbra: DEFINICION.camino_de_colado_y_cimbra,
   advertencias: [],
+};
+
+const CORRECCION_DE_FABRICA = {
+  concepto_clave: 'AUX-00008',
+  resumen: 'Nueva versión de AUX-00008: ACE-00005 0.8217 → 0.7',
+  cambios: [{ insumo: 'ACE-00005', unidad: 'kg', antes: 0.8217, despues: 0.7 }],
+  motivos: ['Q56 / D7: prueba.'],
 };
 
 const CORRECCION = {
@@ -133,7 +150,11 @@ const CORRECCION = {
 };
 
 beforeEach(() => {
-  for (const f of [m.calcular, m.proponer, m.autorizar, m.rechazar]) f.mockReset();
+  for (const f of [m.calcular, m.proponer, m.autorizar, m.rechazar, m.proponerCorrecciones, m.autorizarPropuesta, m.rechazarPropuesta]) f.mockReset();
+  m.propuestas.current = [];
+  m.proponerCorrecciones.mockResolvedValue({ creadas: ['p1'], omitidas: [] });
+  m.autorizarPropuesta.mockResolvedValue({ version: 2 });
+  m.rechazarPropuesta.mockResolvedValue(undefined);
   m.calcular.mockResolvedValue(CALCULO);
   m.proponer.mockResolvedValue({ id: 'c1', estado: 'pendiente', version: null });
   m.autorizar.mockResolvedValue({ version: 1 });
@@ -192,14 +213,79 @@ describe('TarjetaElementoEstructural', () => {
       modos: ['pieza'],
       modo_por_defecto: 'pieza',
       largo_por_defecto_m: null,
-      alto_por_defecto_m: 6,
+      alto_por_defecto_m: 4.2,
       categoria: { clave: 'columnas', nombre: 'Columnas' },
     };
     render(<TarjetaElementoEstructural clave="C-1" />);
-    await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'C-1', data: { modo: 'pieza', cantidad: 1, alto_m: 6 } }));
+    await waitFor(() => expect(m.calcular).toHaveBeenCalledWith({ clave: 'C-1', data: { modo: 'pieza', cantidad: 1, alto_m: 4.2 } }));
     expect(screen.queryByLabelText('Se mide por')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Altura de la columna en metros'), { target: { value: '4.5' } });
     await waitFor(() => expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'C-1', data: { modo: 'pieza', cantidad: 1, alto_m: 4.5 } }));
+  });
+
+  it('el anclaje es una sugerencia: vacío no se manda y capturado se manda y avisa si cumple', async () => {
+    m.calcular.mockResolvedValue({
+      ...CALCULO,
+      modo: 'pieza',
+      unidad: 'pza',
+      anclaje: {
+        aplica: true,
+        sugerido_diametros: 40,
+        capturado_cm: 20,
+        cumple: false,
+        grupos: [{ numero: 3, clave: 'ACR-00001', diametro_cm: 0.9525, sugerido_cm: 38.1, cumple: false }],
+        mensaje: 'El anclaje de 20 cm por extremo NO cumple lo sugerido (40 diámetros: 38 cm en la varilla no. 3); es una sugerencia.',
+      },
+    });
+    render(<TarjetaElementoEstructural clave="T-1-15x25" rol="costos" />);
+    await screen.findByTestId('ee-concreto');
+    expect(screen.queryByLabelText('Anclaje de la varilla por extremo en centímetros')).not.toBeInTheDocument(); // por ml no aplica
+    fireEvent.change(screen.getByLabelText('Se mide por'), { target: { value: 'pieza' } });
+    await waitFor(() =>
+      expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'T-1-15x25', data: { modo: 'pieza', cantidad: 1, largo_m: 4 } }),
+    );
+    fireEvent.change(screen.getByLabelText('Anclaje de la varilla por extremo en centímetros'), { target: { value: '20' } });
+    await waitFor(() =>
+      expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'T-1-15x25', data: { modo: 'pieza', cantidad: 1, largo_m: 4, anclaje_cm: 20 } }),
+    );
+    const aviso = await screen.findByTestId('ee-anclaje');
+    expect(aviso).toHaveAttribute('data-cumple', 'false');
+    expect(aviso).toHaveTextContent('Anclaje no cumple');
+    expect(aviso).toHaveTextContent('es una sugerencia');
+  });
+
+  it('una trabe con corrección de fábrica muestra la versión propuesta junto al catálogo vigente y deja proponerla', async () => {
+    m.definicion.current = { ...DEFINICION, correcciones_de_fabrica: [CORRECCION_DE_FABRICA] };
+    render(<TarjetaElementoEstructural clave="T-1-15x25" rol="costos" />);
+    const conciliacion = await screen.findByRole('region', { name: 'Conciliación con el catálogo' });
+    expect(within(conciliacion).getByText('Versión propuesta')).toBeInTheDocument();
+    expect(within(conciliacion).getByText('0.7000')).toBeInTheDocument();
+    expect(within(conciliacion).getByText('(sin proponer)')).toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Versiones propuestas' });
+    expect(within(region).getByText(/Sin proponer/)).toBeInTheDocument();
+    fireEvent.click(within(region).getByRole('button', { name: 'Proponer las correcciones del catálogo' }));
+    await waitFor(() => expect(m.proponerCorrecciones).toHaveBeenCalledWith({ clave: 'T-1-15x25' }));
+    expect(within(region).queryByRole('button', { name: 'Autorizar' })).not.toBeInTheDocument();
+  });
+
+  it('Control de obra autoriza la propuesta pendiente de una trabe; Costos no puede', async () => {
+    m.definicion.current = { ...DEFINICION, correcciones_de_fabrica: [CORRECCION_DE_FABRICA] };
+    m.propuestas.current = [
+      {
+        id: 'p1', elemento_clave: 'T-1-15x25', concepto_clave: 'AUX-00008', clase: 'version_de_concepto', estado: 'pendiente', version: null,
+        resumen: CORRECCION_DE_FABRICA.resumen, cambios: CORRECCION_DE_FABRICA.cambios, motivos: [], destajo_por_definir: null,
+        propuso_nombre: 'Ana', propuso_rol: 'costos', propuesto_en: '2026-11-19T00:00:00Z', decidio_nombre: null, decidio_rol: null, decidido_en: null, motivo: null,
+      },
+    ];
+    const { unmount } = render(<TarjetaElementoEstructural clave="T-1-15x25" rol="control_obra" />);
+    const region = await screen.findByRole('region', { name: 'Versiones propuestas' });
+    expect(within(region).queryByRole('button', { name: 'Proponer las correcciones del catálogo' })).not.toBeInTheDocument();
+    fireEvent.click(within(region).getByRole('button', { name: 'Autorizar' }));
+    await waitFor(() => expect(m.autorizarPropuesta).toHaveBeenCalledWith({ propuestaId: 'p1' }));
+    unmount();
+    render(<TarjetaElementoEstructural clave="T-1-15x25" rol="costos" />);
+    const otra = await screen.findByRole('region', { name: 'Versiones propuestas' });
+    expect(within(otra).queryByRole('button', { name: 'Autorizar' })).not.toBeInTheDocument();
   });
 
   it('un cálculo que el servidor rechaza se muestra como error', async () => {

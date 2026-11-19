@@ -122,6 +122,22 @@ class CaminoDeColadoYCimbra(BaseModel):
     preguntas: list[str]
 
 
+class CambioDeFabrica(BaseModel):
+    insumo: str
+    unidad: str
+    antes: float
+    despues: float
+
+
+class CorreccionDeFabrica(BaseModel):
+    """Lo que el catálogo trae mal y el elemento propone como nueva versión del concepto (D7). El catálogo vigente sigue activo."""
+
+    concepto_clave: str
+    resumen: str
+    cambios: list[CambioDeFabrica]
+    motivos: list[str]
+
+
 class DefinicionDelElementoEstructural(BaseModel):
     clave: str
     nombre: str
@@ -145,6 +161,9 @@ class DefinicionDelElementoEstructural(BaseModel):
     usado_en: list[UsoEnLosa]
     usos_total: int
     pendientes: list[PendienteDelElementoEstructural]
+    correcciones_de_fabrica: list[CorreccionDeFabrica] = Field(
+        description="Las versiones de concepto que este elemento propone al catálogo (vacío si no tiene). Se registran con las propuestas de estructura."
+    )
 
 
 class ZonaDeAnilloDelElemento(BaseModel):
@@ -159,7 +178,11 @@ class CalculoDelElementoEstructuralPeticion(BaseModel):
         default="ml", description="ml = por metro de trazo; pieza = de largo conocido. La zapata y la columna son pieza."
     )
     largo_m: float | None = Field(default=None, gt=0, le=30, description="Largo de la pieza (trabe, contratrabe o nervadura por pieza); 4.00 m si no se manda.")
-    alto_m: float | None = Field(default=None, gt=0, le=30, description="Altura de la columna C-1; 6.00 m si no se manda.")
+    alto_m: float | None = Field(default=None, gt=0, le=30, description="Altura de la columna C-1; 4.20 m (la habitual, editable) si no se manda.")
+    anclaje_cm: float | None = Field(
+        default=None, ge=0, le=500,
+        description="Anclaje de la varilla por extremo, en cm (trabe por pieza o columna). Es una sugerencia: 40 diámetros por extremo; el resultado dice si el valor capturado cumple.",
+    )
     cantidad: float = Field(default=1.0, gt=0, le=1_000_000, description="Metros o piezas que se piden: da los totales a comprar.")
     zonas_de_anillo: list[ZonaDeAnilloDelElemento] = Field(default_factory=list, max_length=10)
     desperdicio_concreto_pct: float = Field(default=5.0, ge=0, le=50)
@@ -250,6 +273,25 @@ class ConciliacionConUnConcepto(BaseModel):
     avisos: list[str]
 
 
+class AnclajeDelGrupo(BaseModel):
+    numero: int
+    clave: str
+    diametro_cm: float
+    sugerido_cm: float
+    cumple: bool | None
+
+
+class AnclajeCalculado(BaseModel):
+    """El anclaje de la varilla por extremo (D6): lo sugerido (40 diámetros) y, si se capturó uno, si cumple. Es una sugerencia."""
+
+    aplica: bool
+    sugerido_diametros: float
+    capturado_cm: float | None
+    cumple: bool | None
+    grupos: list[AnclajeDelGrupo]
+    mensaje: str
+
+
 class CalculoDelElementoEstructural(BaseModel):
     clave: str
     nombre: str
@@ -263,6 +305,7 @@ class CalculoDelElementoEstructural(BaseModel):
     acero_kg: float
     cimbra: CimbraCalculada
     receta_acero: RecetaDeAceroCalculada | None = Field(description="El detalle de cortes, traslapes y anillos (no aplica a la zapata).")
+    anclaje: AnclajeCalculado
     parrilla: ParrillaCalculada | None
     insumos: list[InsumoCalculado]
     mano_de_obra: ManoDeObraDelElemento
@@ -314,6 +357,7 @@ async def calcular_elemento_estructural(
                 zonas_de_anillo=[(z.len_cm, z.sep_cm) for z in peticion.zonas_de_anillo],
                 desperdicio_concreto_pct=desperdicio_pct,
                 drivers=drivers,
+                anclaje_cm=peticion.anclaje_cm,
             )
         )
         return {**r, "drivers_usados": a_respuesta(usados)}

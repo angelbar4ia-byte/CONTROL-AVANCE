@@ -77,6 +77,8 @@ class ParametrosDelBaston(BaseModel):
     sep_cm: float
     largo_cm: float
     puntas_cm: float
+    ganchos: int
+    gancho_diametros: float
     traslape_diametros: float
     trazo_m: float
 
@@ -101,7 +103,10 @@ class CalculoDelBastonPeticion(BaseModel):
     varilla_numero: int = Field(default=3, ge=3, le=6, description="3 = 3/8, 4 = 1/2, 5 = 5/8, 6 = 3/4.")
     sep_cm: float = Field(default=25.0, ge=5, le=200, description="Cada cuánto va un bastón.")
     largo_cm: float = Field(default=120.0, ge=10, le=3000, description="Largo del bastón.")
-    puntas_cm: float = Field(default=0.0, ge=0, le=100, description="Anclaje adicional; 0 = sin gancho (Q28).")
+    puntas_cm: float = Field(default=0.0, ge=0, le=100, description="Anclaje adicional que no es gancho; 0 por defecto.")
+    ganchos: int = Field(default=2, ge=0, le=2, description="Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho entra en la longitud de corte.")
+    gancho_diametros: float = Field(default=12.0, ge=0, le=40, description="Largo de cada gancho en diámetros de la varilla (12 por defecto; por confirmar con el estructurista). Solo vale si no se manda `gancho_cm`.")
+    gancho_cm: float | None = Field(default=None, ge=0, le=100, description="Largo de cada gancho en cm; si se manda, manda sobre `gancho_diametros`.")
     traslape_diametros: float = Field(default=40.0, ge=0, le=100, description="Traslape entre las piezas de un bastón largo (Q22). Si no se manda, vale el driver `traslape_varilla_diametros` de la obra.")
     tolerancia_corte_cm: float = Field(default=0.0, ge=0, le=200, description="Falta que se acepta sin pasar al corte siguiente. Si no se manda, vale el driver `tolerancia_corte_cm` de la obra.")
     max_piezas_corte: int = Field(default=3, ge=1, le=12, description="Máximo de piezas por bastón largo. Si no se manda, vale el driver `max_piezas_corte` de la obra.")
@@ -119,12 +124,23 @@ class VarillaCalculada(BaseModel):
     largo_m: float
 
 
+class GanchoDelBaston(BaseModel):
+    ganchos: int
+    diametros: float
+    diametro_varilla_cm: float
+    longitud_cm: float = Field(description="Largo de cada gancho.")
+    total_por_baston_cm: float = Field(description="ganchos × longitud: lo que el gancho suma al corte de cada bastón.")
+    origen: str
+    formula: str
+
+
 class CorteDelBaston(BaseModel):
     piezas_por_baston: int
     modulo_m: float
     material_por_baston_m: float
     traslape_m: float
     puntas_m: float
+    gancho_m: float
     necesario_m: float
     sobrante_por_baston_m: float
     piezas_por_varilla: int
@@ -210,6 +226,7 @@ class CalculoDelBaston(BaseModel):
     varilla: VarillaCalculada
     parametros: dict[str, float]
     bastones_por_metro: float
+    gancho: GanchoDelBaston = Field(description="El gancho incluido en la longitud de corte (E1): cuántos, cuánto mide cada uno y su fórmula.")
     ajustado: PlanAjustado = Field(description="El corte ajustado a módulos: lo que se paga (Q28, lo más conservador).")
     exacto: PlanExacto = Field(description="El corte exacto del mockup, solo como referencia.")
     varillas_por_metro: float
@@ -249,6 +266,9 @@ async def _entrada(p: CalculoDelBastonPeticion, drivers_de_obra: DriversDeObraDe
         sep_cm=p.sep_cm,
         largo_cm=p.largo_cm,
         puntas_cm=p.puntas_cm,
+        ganchos=p.ganchos,
+        gancho_diametros=p.gancho_diametros,
+        gancho_cm=p.gancho_cm,
         traslape_diametros=traslape.valor,
         tolerancia_corte_cm=tolerancia.valor,
         max_piezas_corte=int(max_piezas.valor),

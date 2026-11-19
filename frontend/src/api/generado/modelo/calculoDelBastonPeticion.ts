@@ -5,6 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { CalculoDelBastonPeticionGanchoCm } from "./calculoDelBastonPeticionGanchoCm";
 import type { CalculoDelBastonPeticionObraId } from "./calculoDelBastonPeticionObraId";
 
 export interface CalculoDelBastonPeticion {
@@ -32,11 +33,25 @@ export interface CalculoDelBastonPeticion {
    */
   largo_cm?: number;
   /**
-   * Anclaje adicional; 0 = sin gancho (Q28).
+   * Anclaje adicional que no es gancho; 0 por defecto.
    * @minimum 0
    * @maximum 100
    */
   puntas_cm?: number;
+  /**
+   * Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho entra en la longitud de corte.
+   * @minimum 0
+   * @maximum 2
+   */
+  ganchos?: number;
+  /**
+   * Largo de cada gancho en diámetros de la varilla (12 por defecto; por confirmar con el estructurista). Solo vale si no se manda `gancho_cm`.
+   * @minimum 0
+   * @maximum 40
+   */
+  gancho_diametros?: number;
+  /** Largo de cada gancho en cm; si se manda, manda sobre `gancho_diametros`. */
+  gancho_cm?: CalculoDelBastonPeticionGanchoCm;
   /**
    * Traslape entre las piezas de un bastón largo (Q22). Si no se manda, vale el driver `traslape_varilla_diametros` de la obra.
    * @minimum 0

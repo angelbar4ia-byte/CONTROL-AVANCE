@@ -12,6 +12,7 @@ export interface CorteDelBaston {
   material_por_baston_m: number;
   traslape_m: number;
   puntas_m: number;
+  gancho_m: number;
   necesario_m: number;
   sobrante_por_baston_m: number;
   piezas_por_varilla: number;

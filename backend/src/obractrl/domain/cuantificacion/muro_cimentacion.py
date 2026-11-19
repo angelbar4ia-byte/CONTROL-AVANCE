@@ -13,6 +13,8 @@ Q45, Q46 y Q47):
   relleno, es vertical) o dos (simétrico). La base se redondea al centímetro, como lo hace el mockup (a 2.00 m: 40 + 133 = 173).
 - Con una cara inclinada, la cara **vista** es la inclinada y el trasdós es vertical. No lleva dren, ni filtro de grava, ni
   carpeta (así lo dice el mockup; ver `PENDIENTES`).
+- **No incluye** las dalas de concreto reforzado, los castillos empotrados ni los cimientos perpendiculares de la sección 8.4 (D12): se
+  miden aparte, cada uno con su elemento; el cálculo lo dice (`no_incluye`) y no los suma al volumen de piedra.
 - Dentellón opcional, **desde 2.00 m**: los mismos 0.21 m³ por metro del Cuadro 1.
 - Corona y base se pueden fijar a mano; si el escarpio resultante es más tendido que 1.5 : 1 no se rechaza: se avisa.
 
@@ -39,6 +41,7 @@ __all__ = [
     "CORONA_M",
     "ESCARPIO_MINIMO",
     "FUENTE_ESCARPIO",
+    "NO_INCLUYE",
     "PENDIENTES",
     "EntradaMuroDeCimentacion",
     "ErrorDeMuroDeCimentacion",
@@ -55,10 +58,27 @@ FUENTE_ESCARPIO = (
     "de la norma por confirmar."
 )
 
+NO_INCLUYE: tuple[dict[str, str], ...] = (
+    {
+        "clave": "dalas",
+        "texto": "Las dalas de concreto reforzado que pide la sección 8.4 no están en este muro: se miden aparte.",
+    },
+    {
+        "clave": "castillos_empotrados",
+        "texto": "Los castillos empotrados al menos 400 mm en el cimiento no están en este muro: se miden aparte (castillos de la biblioteca).",
+    },
+    {
+        "clave": "cimientos_perpendiculares",
+        "texto": "Los cimientos perpendiculares a las separaciones máximas de la tabla 8.1 (o la revisión de torsión de un cimiento trapecial de lindero) no están en este muro: se miden aparte.",
+    },
+)
+"""D12 (decidido por el usuario): lo que la sección 8.4 pide junto al cimiento y el elemento NO incluye. El volumen y los insumos son solo
+de la mampostería de piedra del cimiento."""
+
 PENDIENTES: tuple[dict[str, str], ...] = (
     {
         "clave": "Q42",
-        "texto": "La sección 8.4 también pide dalas de concreto reforzado, castillos empotrados al menos 400 mm y cimientos perpendiculares a separaciones máximas (tabla 8.1), o revisar la torsión en cimientos trapeciales de lindero. El elemento no los calcula: se miden aparte.",
+        "texto": "Decidido (D12): las dalas, los castillos empotrados y los cimientos perpendiculares de la sección 8.4 se miden aparte; este elemento no los incluye ni los calcula (ver «No incluye»).",
     },
     {
         "clave": "Q47",
@@ -197,5 +217,6 @@ def calcular_muro_de_cimentacion(e: EntradaMuroDeCimentacion) -> dict[str, Any]:
             "h_m": DENTELLON["h"],
         },
         "contraste": contraste_con_el_concepto(),
+        "no_incluye": [dict(x) for x in NO_INCLUYE],
         "advertencias": advertencias,
     }

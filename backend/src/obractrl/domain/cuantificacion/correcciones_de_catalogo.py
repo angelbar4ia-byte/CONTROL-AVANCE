@@ -17,9 +17,11 @@ Hay dos clases de propuesta:
 `antes` son los coeficientes netos del catálogo, tomados de `ANALISIS_DE_BASICOS_CONCEPTOS.csv` (una prueba los compara con el
 CSV cuando lo encuentra). Funciones puras, sin base de datos.
 
-**Interpretación de Q78 (para que el usuario la confirme):** «llevar los kg de anillo a lo real» se entiende como *igualar el
-catálogo al cálculo del elemento* (perímetro del núcleo más 10 cm de gancho). Los kg del catálogo son menores que el cálculo
-(0.37 contra 0.50 m en K-2), así que la corrección **sube** el anillo.
+**Q78 / D1 (decidido por el usuario el 2026-11-19):** «llevar los kg de anillo a lo real» es *igualar el catálogo al cálculo del
+elemento* (perímetro del núcleo más 10 cm de gancho). Los kg del catálogo son menores que el cálculo en la mayoría de los castillos
+(0.37 contra 0.50 m en K-2), así que ahí la corrección **sube** el anillo; en K-4 y K-8 lo baja. Esa opción queda como versión
+**propuesta**; la opción «respetar el catálogo» queda **activa** (el catálogo vigente no se toca) y la conciliación muestra la
+diferencia. Cuando se revise, Control de obra autoriza cuál de las dos queda.
 """
 
 from __future__ import annotations
@@ -32,6 +34,10 @@ from obractrl.domain.cuantificacion.comparacion_con_catalogo import (
     comparar_con_concepto,
     marca_de,
 )
+from obractrl.domain.cuantificacion.correcciones_de_trabes import (
+    correcciones_de_elemento_lineal,
+)
+from obractrl.domain.cuantificacion.elementos_lineales import elemento_estructural
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     ErrorDeElementoParametrico,
 )
@@ -91,7 +97,7 @@ _DESTAJO_POR_DEFINIR = {
 
 _MOTIVOS = {
     "Q22": "Q22: el armex de K-7 se corta con módulos de 1 a 6 m, traslape de 15 cm y puntas de 50 cm (confirmado por el usuario): el catálogo trae menos armex del que ese corte pide.",
-    "Q78": "Q78: los kg de anillo del catálogo son menores que el perímetro del núcleo más el gancho; se igualan al cálculo del elemento.",
+    "Q78": "Q78 / D1: los kg de anillo del catálogo difieren del perímetro del núcleo más el gancho; la propuesta los iguala al cálculo del elemento y el catálogo vigente sigue activo hasta que Control de obra autorice cuál queda.",
     "Q81": "Q81: el concreto del aparente se lleva a la medida de su título.",
 }
 
@@ -118,7 +124,10 @@ def _cambio(concepto: str, insumo: str, despues: float) -> dict[str, Any]:
 
 
 def correcciones_de(clave: str) -> list[dict[str, Any]]:
-    """Las propuestas que el elemento trae de fábrica: una por concepto del catálogo que se corrige y, en K-8, el concepto nuevo."""
+    """Las propuestas que el elemento trae de fábrica: una por concepto del catálogo que se corrige y, en K-8, el concepto nuevo.
+    Las trabes (T-2-12x20, T-5-12x30) las corrige `correcciones_de_trabes`."""
+    if elemento_estructural(clave) is not None:
+        return correcciones_de_elemento_lineal(clave)
     e = elemento_de_estructura(clave)
     propuestas: list[dict[str, Any]] = []
     for c in e.conceptos:

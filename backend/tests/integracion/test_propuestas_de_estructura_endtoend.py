@@ -248,3 +248,31 @@ async def test_las_propuestas_son_de_la_organizacion(control, escenario) -> None
         async with motor.begin() as c:
             await c.execute(text("delete from organizacion where id = :i"), {"i": str(otra)})
         await motor.dispose()
+
+
+async def test_las_correcciones_de_las_trabes_se_proponen_igual_que_las_de_un_castillo(control, costos, residente) -> None:
+    """D7 (Q56): T-2-12x20 (dos anillos) y T-5-12x30 (anillo 10×25 en 12×30) son versiones propuestas del concepto AUX; el catálogo no se toca."""
+    assert (await residente.post(f"{RUTA}/T-2-12x20/propuestas/correcciones")).status_code == 403
+    r = await costos.post(f"{RUTA}/T-2-12x20/propuestas/correcciones")
+    assert r.status_code == 201, r.text
+    assert len(r.json()["creadas"]) == 1
+    otra = await costos.post(f"{RUTA}/T-2-12x20/propuestas/correcciones")
+    assert otra.json()["creadas"] == [] and otra.json()["omitidas"] == ["AUX-10205"]
+    (p,) = (await costos.get(f"{RUTA}/T-2-12x20/propuestas")).json()
+    assert (p["estado"], p["version"], p["clase"], p["concepto_clave"]) == ("pendiente", None, "version_de_concepto", "AUX-10205")
+    assert {(c["insumo"], c["antes"]) for c in p["cambios"]} == {("ACE-00004", 0.71214), ("ACE-00029", 0.668316)}
+    quitado = next(c for c in p["cambios"] if c["insumo"] == "ACE-00029")
+    assert quitado["despues"] == 0
+    # Una trabe sin corrección no crea nada; una clave que no existe es 404.
+    vacia = await costos.post(f"{RUTA}/T-1-15x25/propuestas/correcciones")
+    assert vacia.status_code == 201 and vacia.json() == {"creadas": [], "omitidas": []}
+    assert (await costos.get(f"{RUTA}/T-9-99x99/propuestas")).status_code == 404
+    # Solo Control de obra autoriza: nace la versión 2 del concepto.
+    assert (await costos.post(f"{PROPUESTAS}/{p['id']}/autorizar")).status_code == 403
+    ok = await control.post(f"{PROPUESTAS}/{p['id']}/autorizar")
+    assert ok.status_code == 200 and ok.json() == {"version": 2}
+    t5 = await control.post(f"{RUTA}/T-5-12x30/propuestas/correcciones")
+    assert t5.status_code == 201
+    (q,) = (await control.get(f"{RUTA}/T-5-12x30/propuestas")).json()
+    assert (q["estado"], q["version"], q["concepto_clave"]) == ("autorizada", 2, "AUX-00060")
+    assert [(c["insumo"], c["antes"], c["despues"]) for c in q["cambios"]] == [("ACE-00006", 1.940125, 1.803175)]

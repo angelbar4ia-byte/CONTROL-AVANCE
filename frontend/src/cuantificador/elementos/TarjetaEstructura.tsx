@@ -382,8 +382,9 @@ export function TarjetaEstructura({ clave, obraId = '' }: Props) {
       <section className="mct__bloque" aria-label="Versiones propuestas">
         <h3>Versiones propuestas del catálogo</h3>
         <p className="text-mute text-xs">
-          Costos propone y solo Control de obra autoriza; cada autorización crea la versión siguiente del concepto. Los kg de anillo se igualan al
-          cálculo del elemento (perímetro del núcleo más gancho): se interpretó así «llevar los kg a lo real»; el usuario debe confirmarlo.
+          Costos propone y solo Control de obra autoriza; cada autorización crea la versión siguiente del concepto. La versión propuesta iguala los kg de
+          anillo al cálculo del elemento (perímetro del núcleo más 10 cm de gancho); el catálogo vigente sigue activo y Control de obra autoriza
+          cuál de los dos queda.
         </p>
         {lista.length === 0 && <p className="text-sm">Este elemento no tiene propuestas.</p>}
         {lista.map((p) => (

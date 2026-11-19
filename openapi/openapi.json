@@ -24467,6 +24467,102 @@
         ],
         "title": "AlertasDePartesRespuesta"
       },
+      "AnclajeCalculado": {
+        "properties": {
+          "aplica": {
+            "type": "boolean",
+            "title": "Aplica"
+          },
+          "sugerido_diametros": {
+            "type": "number",
+            "title": "Sugerido Diametros"
+          },
+          "capturado_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capturado Cm"
+          },
+          "cumple": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cumple"
+          },
+          "grupos": {
+            "items": {
+              "$ref": "#/components/schemas/AnclajeDelGrupo"
+            },
+            "type": "array",
+            "title": "Grupos"
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplica",
+          "sugerido_diametros",
+          "capturado_cm",
+          "cumple",
+          "grupos",
+          "mensaje"
+        ],
+        "title": "AnclajeCalculado",
+        "description": "El anclaje de la varilla por extremo (D6): lo sugerido (40 diámetros) y, si se capturó uno, si cumple. Es una sugerencia."
+      },
+      "AnclajeDelGrupo": {
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "diametro_cm": {
+            "type": "number",
+            "title": "Diametro Cm"
+          },
+          "sugerido_cm": {
+            "type": "number",
+            "title": "Sugerido Cm"
+          },
+          "cumple": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cumple"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero",
+          "clave",
+          "diametro_cm",
+          "sugerido_cm",
+          "cumple"
+        ],
+        "title": "AnclajeDelGrupo"
+      },
       "AnilloDelArmado": {
         "properties": {
           "insumo": {
@@ -25986,6 +26082,10 @@
             "type": "number",
             "title": "Bastones Por Metro"
           },
+          "gancho": {
+            "$ref": "#/components/schemas/GanchoDelBaston",
+            "description": "El gancho incluido en la longitud de corte (E1): cuántos, cuánto mide cada uno y su fórmula."
+          },
           "ajustado": {
             "$ref": "#/components/schemas/PlanAjustado",
             "description": "El corte ajustado a módulos: lo que se paga (Q28, lo más conservador)."
@@ -26045,6 +26145,7 @@
           "varilla",
           "parametros",
           "bastones_por_metro",
+          "gancho",
           "ajustado",
           "exacto",
           "varillas_por_metro",
@@ -26095,8 +26196,38 @@
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Puntas Cm",
-            "description": "Anclaje adicional; 0 = sin gancho (Q28).",
+            "description": "Anclaje adicional que no es gancho; 0 por defecto.",
             "default": 0.0
+          },
+          "ganchos": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Ganchos",
+            "description": "Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho entra en la longitud de corte.",
+            "default": 2
+          },
+          "gancho_diametros": {
+            "type": "number",
+            "maximum": 40.0,
+            "minimum": 0.0,
+            "title": "Gancho Diametros",
+            "description": "Largo de cada gancho en diámetros de la varilla (12 por defecto; por confirmar con el estructurista). Solo vale si no se manda `gancho_cm`.",
+            "default": 12.0
+          },
+          "gancho_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gancho Cm",
+            "description": "Largo de cada gancho en cm; si se manda, manda sobre `gancho_diametros`."
           },
           "traslape_diametros": {
             "type": "number",
@@ -26167,6 +26298,14 @@
           "contraste": {
             "$ref": "#/components/schemas/ContrasteConElConcepto"
           },
+          "no_incluye": {
+            "items": {
+              "$ref": "#/components/schemas/NoIncluidoDelCimiento"
+            },
+            "type": "array",
+            "title": "No Incluye",
+            "description": "Dalas, castillos empotrados y cimientos perpendiculares de la sección 8.4: se miden aparte, no están en este muro (D12)."
+          },
           "advertencias": {
             "items": {
               "type": "string"
@@ -26185,6 +26324,7 @@
           "volumen",
           "dentellon",
           "contraste",
+          "no_incluye",
           "advertencias"
         ],
         "title": "CalculoDelCimiento",
@@ -26319,6 +26459,9 @@
             ],
             "description": "El detalle de cortes, traslapes y anillos (no aplica a la zapata)."
           },
+          "anclaje": {
+            "$ref": "#/components/schemas/AnclajeCalculado"
+          },
           "parrilla": {
             "anyOf": [
               {
@@ -26386,6 +26529,7 @@
           "acero_kg",
           "cimbra",
           "receta_acero",
+          "anclaje",
           "parrilla",
           "insumos",
           "mano_de_obra",
@@ -26433,7 +26577,21 @@
               }
             ],
             "title": "Alto M",
-            "description": "Altura de la columna C-1; 6.00 m si no se manda."
+            "description": "Altura de la columna C-1; 4.20 m (la habitual, editable) si no se manda."
+          },
+          "anclaje_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 500.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anclaje Cm",
+            "description": "Anclaje de la varilla por extremo, en cm (trabe por pieza o columna). Es una sugerencia: 40 diámetros por extremo; el resultado dice si el valor capturado cumple."
           },
           "cantidad": {
             "type": "number",
@@ -27189,6 +27347,34 @@
           "avisos"
         ],
         "title": "CambioAplicadoRespuesta"
+      },
+      "CambioDeFabrica": {
+        "properties": {
+          "insumo": {
+            "type": "string",
+            "title": "Insumo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "antes": {
+            "type": "number",
+            "title": "Antes"
+          },
+          "despues": {
+            "type": "number",
+            "title": "Despues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo",
+          "unidad",
+          "antes",
+          "despues"
+        ],
+        "title": "CambioDeFabrica"
       },
       "CambioDeLaPropuesta": {
         "properties": {
@@ -32180,6 +32366,41 @@
         "title": "ConversionPeticion",
         "description": "Cómo cuenta un trazo para su concepto (D-633). Los parámetros que no aplican al modo se ignoran."
       },
+      "CorreccionDeFabrica": {
+        "properties": {
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "resumen": {
+            "type": "string",
+            "title": "Resumen"
+          },
+          "cambios": {
+            "items": {
+              "$ref": "#/components/schemas/CambioDeFabrica"
+            },
+            "type": "array",
+            "title": "Cambios"
+          },
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motivos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_clave",
+          "resumen",
+          "cambios",
+          "motivos"
+        ],
+        "title": "CorreccionDeFabrica",
+        "description": "Lo que el catálogo trae mal y el elemento propone como nueva versión del concepto (D7). El catálogo vigente sigue activo."
+      },
       "CorreccionDelCatalogo": {
         "properties": {
           "concepto_clave": {
@@ -32405,6 +32626,10 @@
             "type": "number",
             "title": "Puntas M"
           },
+          "gancho_m": {
+            "type": "number",
+            "title": "Gancho M"
+          },
           "necesario_m": {
             "type": "number",
             "title": "Necesario M"
@@ -32429,6 +32654,7 @@
           "material_por_baston_m",
           "traslape_m",
           "puntas_m",
+          "gancho_m",
           "necesario_m",
           "sobrante_por_baston_m",
           "piezas_por_varilla",
@@ -34551,6 +34777,14 @@
             },
             "type": "array",
             "title": "Pendientes"
+          },
+          "correcciones_de_fabrica": {
+            "items": {
+              "$ref": "#/components/schemas/CorreccionDeFabrica"
+            },
+            "type": "array",
+            "title": "Correcciones De Fabrica",
+            "description": "Las versiones de concepto que este elemento propone al catálogo (vacío si no tiene). Se registran con las propuestas de estructura."
           }
         },
         "type": "object",
@@ -34576,7 +34810,8 @@
           "camino_de_colado_y_cimbra",
           "usado_en",
           "usos_total",
-          "pendientes"
+          "pendientes",
+          "correcciones_de_fabrica"
         ],
         "title": "DefinicionDelElementoEstructural"
       },
@@ -41122,6 +41357,51 @@
         ],
         "title": "FusionarEspecialidadPeticion"
       },
+      "GanchoDelBaston": {
+        "properties": {
+          "ganchos": {
+            "type": "integer",
+            "title": "Ganchos"
+          },
+          "diametros": {
+            "type": "number",
+            "title": "Diametros"
+          },
+          "diametro_varilla_cm": {
+            "type": "number",
+            "title": "Diametro Varilla Cm"
+          },
+          "longitud_cm": {
+            "type": "number",
+            "title": "Longitud Cm",
+            "description": "Largo de cada gancho."
+          },
+          "total_por_baston_cm": {
+            "type": "number",
+            "title": "Total Por Baston Cm",
+            "description": "ganchos × longitud: lo que el gancho suma al corte de cada bastón."
+          },
+          "origen": {
+            "type": "string",
+            "title": "Origen"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ganchos",
+          "diametros",
+          "diametro_varilla_cm",
+          "longitud_cm",
+          "total_por_baston_cm",
+          "origen",
+          "formula"
+        ],
+        "title": "GanchoDelBaston"
+      },
       "GenerarDesdeEnsamblePeticion": {
         "properties": {
           "presupuesto_id": {
@@ -45280,6 +45560,24 @@
         ],
         "title": "NivelRespuesta"
       },
+      "NoIncluidoDelCimiento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "NoIncluidoDelCimiento"
+      },
       "NodoCreadoRespuesta": {
         "properties": {
           "id": {
@@ -46856,6 +47154,14 @@
             "type": "number",
             "title": "Puntas Cm"
           },
+          "ganchos": {
+            "type": "integer",
+            "title": "Ganchos"
+          },
+          "gancho_diametros": {
+            "type": "number",
+            "title": "Gancho Diametros"
+          },
           "traslape_diametros": {
             "type": "number",
             "title": "Traslape Diametros"
@@ -46871,6 +47177,8 @@
           "sep_cm",
           "largo_cm",
           "puntas_cm",
+          "ganchos",
+          "gancho_diametros",
           "traslape_diametros",
           "trazo_m"
         ],

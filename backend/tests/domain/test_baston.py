@@ -33,7 +33,7 @@ def _calc(**kw: object) -> dict:
 
 def test_el_mockup_80_cm_a_cada_50_en_varilla_de_media_pulgada() -> None:
     # La regla del mockup: piezas = ceil(trazo ÷ sep) + 1; el exacto da floor(12 ÷ 0.8) = 15 por varilla y kg = piezas × largo × peso.
-    r = _calc(trazo_m=10, varilla_numero=4, sep_cm=50, largo_cm=80)
+    r = _calc(trazo_m=10, varilla_numero=4, sep_cm=50, largo_cm=80, ganchos=0)  # sin gancho: la regla pura del mockup
     assert r["ajustado"]["bastones"] == 21 == r["pago"]["cantidad"]
     assert r["exacto"]["varillas"] == math.ceil(21 / 15) == 2
     assert r["exacto"]["kg"] == pytest.approx(21 * 0.8 * 0.994)
@@ -48,7 +48,7 @@ def test_el_mockup_80_cm_a_cada_50_en_varilla_de_media_pulgada() -> None:
     [(100, 1.0, 12), (120, 1.5, 8), (150, 1.5, 8), (170, 2.0, 6), (240, 3.0, 4), (400, 4.0, 3), (600, 6.0, 2)],
 )
 def test_el_bastón_se_corta_del_primer_módulo_que_lo_cubre(largo_cm: float, modulo: float, por_varilla: int) -> None:
-    c = _calc(largo_cm=largo_cm)["ajustado"]["corte"]
+    c = _calc(largo_cm=largo_cm, ganchos=0)["ajustado"]["corte"]
     assert c["piezas_por_baston"] == 1 and c["modulo_m"] == modulo and c["piezas_por_varilla"] == por_varilla
 
 
@@ -61,10 +61,49 @@ def test_un_baston_de_7_m_se_corta_en_dos_piezas_con_traslape_de_40_diametros() 
     assert any("2 piezas" in a for a in r["avisos"])
 
 
-def test_las_puntas_se_suman_al_largo_y_por_defecto_no_hay_gancho() -> None:
-    assert _calc(largo_cm=100)["ajustado"]["corte"]["modulo_m"] == 1.0
-    con_puntas = _calc(largo_cm=100, puntas_cm=50)["ajustado"]["corte"]
-    assert con_puntas["modulo_m"] == 1.5 and con_puntas["puntas_m"] == 0.5
+def test_las_puntas_se_suman_al_largo() -> None:
+    assert _calc(largo_cm=100, ganchos=0)["ajustado"]["corte"]["modulo_m"] == 1.0
+    con_puntas = _calc(largo_cm=100, puntas_cm=50, ganchos=0)["ajustado"]["corte"]
+    assert con_puntas["modulo_m"] == 1.5 and con_puntas["puntas_m"] == 0.5 and con_puntas["gancho_m"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("varilla", "cada_cm"), [(3, 11.43), (4, 15.24), (5, 19.05), (6, 22.86)]
+)
+def test_el_gancho_por_defecto_es_12_diametros_por_punta_y_2_ganchos(varilla: int, cada_cm: float) -> None:
+    g = _calc(varilla_numero=varilla)["gancho"]
+    assert g["ganchos"] == 2 and g["diametros"] == 12 and g["longitud_cm"] == pytest.approx(cada_cm, abs=1e-6)
+    assert g["total_por_baston_cm"] == pytest.approx(2 * cada_cm, abs=1e-6) and "12 diámetros" in g["origen"]
+
+
+def test_el_gancho_entra_en_la_longitud_de_corte_y_puede_cambiar_el_modulo() -> None:
+    # 100 cm rectos + 2 × 11.43 cm = 1.2286 m: ya no cabe en el módulo de 1.00 m, se corta del de 1.50 m.
+    con = _calc(largo_cm=100)
+    c = con["ajustado"]["corte"]
+    assert c["gancho_m"] == pytest.approx(0.2286) and c["necesario_m"] == pytest.approx(1.2286)
+    assert c["modulo_m"] == 1.5 and c["piezas_por_varilla"] == 8
+    sin = _calc(largo_cm=100, ganchos=0)["ajustado"]["corte"]
+    assert sin["modulo_m"] == 1.0 and sin["gancho_m"] == 0.0
+    assert con["ajustado"]["kg"] > _calc(largo_cm=100, ganchos=0)["ajustado"]["kg"]
+    assert any("Gancho incluido en el corte" in a for a in con["avisos"])
+    assert not any("Gancho incluido" in a for a in _calc(ganchos=0)["avisos"])
+
+
+def test_el_gancho_tambien_se_suma_al_corte_exacto_de_referencia() -> None:
+    r = _calc(trazo_m=10, varilla_numero=4, sep_cm=50, largo_cm=80)
+    # 0.80 + 2 × 0.1524 = 1.1048 m exactos: floor(12 ÷ 1.1048) = 10 por varilla.
+    assert r["exacto"]["material_m"] == pytest.approx(21 * 1.1048) and r["exacto"]["varillas"] == math.ceil(21 / 10)
+
+
+def test_gancho_cm_capturado_manda_sobre_los_diametros_y_un_gancho_es_uno() -> None:
+    g = _calc(gancho_cm=15, ganchos=1, gancho_diametros=20)["gancho"]
+    assert g["longitud_cm"] == 15 and g["total_por_baston_cm"] == 15 and g["origen"] == "gancho_cm capturado"
+    assert _calc(gancho_diametros=0)["ajustado"]["corte"]["gancho_m"] == 0.0
+
+
+def test_el_gancho_aparece_en_los_parametros_del_desglose() -> None:
+    p = _calc()["parametros"]
+    assert p["ganchos"] == 2.0 and p["gancho_diametros"] == 12.0 and p["gancho_cm"] == pytest.approx(11.43)
 
 
 def test_las_piezas_son_ceil_del_trazo_entre_la_separacion_mas_uno() -> None:
@@ -144,6 +183,9 @@ def test_confirmar_el_calculo_propone_una_version_con_el_antes_y_el_despues() ->
         ({"sep_cm": 2}, "separación"),
         ({"largo_cm": 5}, "largo del bastón"),
         ({"puntas_cm": 200}, "puntas"),
+        ({"ganchos": 3}, "ganchos por bastón"),
+        ({"gancho_diametros": 50}, "diámetros"),
+        ({"gancho_cm": 150}, "0 a 100 cm"),
         ({"traslape_diametros": -1}, "traslape"),
     ],
 )
@@ -157,6 +199,7 @@ def test_la_ficha_y_la_biblioteca() -> None:
     assert f["modulos_de_corte_m"] == [1.0, 1.5, 2.0, 3.0, 4.0, 6.0] and len(f["escalones"]) == 28
     assert {v["clave"] for v in f["varillas"]} == {"ACR-00001", "ACR-00002", "ACR-00003", "ACR-00004"}
     assert [p["clave"] for p in f["pendientes"]][:1] == ["Q28"]
+    assert f["parametros_por_defecto"]["ganchos"] == 2 and f["parametros_por_defecto"]["gancho_diametros"] == 12.0
     with pytest.raises(ElementoDeBastonNoEncontrado):
         definicion_de("BA-9")
     sub = next(s for c in BIBLIOTECA if c["clave"] == "aceros" for s in c["subcategorias"])
