@@ -7,6 +7,7 @@
  */
 import type { VarillaCalculada } from "./varillaCalculada";
 import type { CalculoDelBastonParametros } from "./calculoDelBastonParametros";
+import type { GanchoDelBaston } from "./ganchoDelBaston";
 import type { PlanAjustado } from "./planAjustado";
 import type { PlanExacto } from "./planExacto";
 import type { PagoDelBaston } from "./pagoDelBaston";
@@ -23,6 +24,8 @@ export interface CalculoDelBaston {
   varilla: VarillaCalculada;
   parametros: CalculoDelBastonParametros;
   bastones_por_metro: number;
+  /** El gancho incluido en la longitud de corte (E1): cuántos, cuánto mide cada uno y su fórmula. */
+  gancho: GanchoDelBaston;
   /** El corte ajustado a módulos: lo que se paga (Q28, lo más conservador). */
   ajustado: PlanAjustado;
   /** El corte exacto del mockup, solo como referencia. */

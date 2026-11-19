@@ -210,6 +210,15 @@ export function TarjetaMuroCimentacion({ clave }: { readonly clave: string }) {
             </p>
           </section>
 
+          <section className="mct__bloque" aria-label="No incluye" data-testid="cim-no-incluye">
+            <h3>No incluye (se miden aparte)</h3>
+            <ul>
+              {calculo.no_incluye.map((x) => (
+                <li key={x.clave}>{x.texto}</li>
+              ))}
+            </ul>
+          </section>
+
           <section className="mct__bloque" aria-label="Contraste con el catálogo">
             <h3>
               Contraste con el concepto {calculo.contraste.concepto} <span className="text-mute">(por m³ de muro)</span>

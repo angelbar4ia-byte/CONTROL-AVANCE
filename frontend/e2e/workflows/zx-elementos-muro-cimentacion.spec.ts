@@ -54,6 +54,13 @@ test.describe('Cuantificador · muro de cimentación CIM-01010', () => {
     await expect(tarjeta.getByTestId('cim-total')).toContainText('2.130 m³ por metro de trazo');
     await expect(tarjeta.getByRole('img', { name: 'Corte transversal del muro de cimentación' })).toBeVisible();
 
+    // D12: dalas, castillos empotrados y cimientos perpendiculares se miden aparte; el muro no los incluye.
+    const noIncluye = tarjeta.getByTestId('cim-no-incluye');
+    await expect(noIncluye).toContainText('dalas');
+    await expect(noIncluye).toContainText('castillos empotrados');
+    await expect(noIncluye).toContainText('cimientos perpendiculares');
+    await expect(noIncluye).toContainText('se miden aparte');
+
     // --- 3. Dentellón y dos caras --------------------------------------------------------------------------
     await tarjeta.getByLabel('Dentellón', { exact: true }).selectOption('si');
     await expect(tarjeta.getByTestId('cim-total')).toContainText('2.340 m³ por metro de trazo');
@@ -75,5 +82,6 @@ test.describe('Cuantificador · muro de cimentación CIM-01010', () => {
     await expect(trazo.getByTestId('trazo-alturas')).toContainText('de 2.00 m a 3.00 m');
     await expect(trazo.getByRole('img', { name: /Alzado del muro/ })).toBeVisible();
     await expect(tarjeta.getByRole('region', { name: 'Pendientes por confirmar' })).toContainText('Q42');
+    await expect(tarjeta.getByRole('region', { name: 'Pendientes por confirmar' })).toContainText('no los incluye');
   });
 });

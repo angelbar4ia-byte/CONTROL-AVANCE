@@ -34,9 +34,18 @@ def test_calcula_con_corte_ajustado_y_el_escalon_del_catalogo(cliente: TestClien
     r = cliente.post(f"{RUTA}/BA-1/calcular", json={"trazo_m": 10})
     assert r.status_code == 200, r.text
     c = r.json()
-    assert c["ajustado"]["bastones"] == 41 and c["ajustado"]["varillas"] == 6 and c["exacto"]["varillas"] == 5
+    assert c["ajustado"]["bastones"] == 41 and c["ajustado"]["varillas"] == 6 and c["exacto"]["varillas"] == 6
     assert c["concepto"]["clave"] == "AUX-02010" and c["escalon"] == "exacto" and c["pago"]["modo"] == "pieza"
     assert c["conciliacion"][0]["resumen"]["≠"] == 1
+
+
+def test_el_gancho_es_un_parametro_explicito_y_sale_en_el_desglose(cliente: TestClient) -> None:
+    c = cliente.post(f"{RUTA}/BA-1/calcular", json={"varilla_numero": 4, "gancho_cm": 14, "ganchos": 1}).json()
+    assert c["gancho"]["ganchos"] == 1 and c["gancho"]["longitud_cm"] == 14 and c["ajustado"]["corte"]["gancho_m"] == pytest.approx(0.14)
+    c0 = cliente.post(f"{RUTA}/BA-1/calcular", json={"ganchos": 0}).json()
+    assert c0["gancho"]["total_por_baston_cm"] == 0 and c0["ajustado"]["corte"]["modulo_m"] == 1.5
+    assert cliente.post(f"{RUTA}/BA-1/calcular", json={"ganchos": 3}).status_code == 422
+    assert cliente.get(f"{RUTA}/BA-1").json()["parametros_por_defecto"]["ganchos"] == 2
 
 
 def test_sin_escalon_propone_concepto_nuevo_provisional(cliente: TestClient) -> None:

@@ -303,3 +303,62 @@ def test_la_definicion_trae_modos_pendientes_y_conceptos_del_catalogo() -> None:
 def test_entradas_que_no_valen(clave: str, kw: dict) -> None:  # type: ignore[type-arg]
     with pytest.raises(ErrorDeElementoEstructural):
         calc(clave, **kw)
+
+
+# --- D5: altura habitual de C-1; D6: el anclaje como sugerencia --------------------------------------------------
+
+
+def test_c1_nace_con_su_altura_habitual_de_4_20_m_y_es_editable() -> None:
+    """D5: la altura habitual de C-1 es 4.20 m (no 6.00); otra altura se captura, y el escalón del catálogo sigue llegando a 6.00 m."""
+    assert definicion_del_elemento("C-1")["alto_por_defecto_m"] == 4.2  # type: ignore[index]
+    por_defecto = calc("C-1", modo="pieza")
+    assert por_defecto["longitud_m"] == pytest.approx(4.2)
+    assert por_defecto["concreto"]["m3"] == pytest.approx(0.3 * 0.3 * 4.2 * 1.05)
+    assert not any("pasa del escalón" in a for a in por_defecto["advertencias"])
+    assert calc("C-1", modo="pieza", alto_m=5.0)["longitud_m"] == 5.0
+    assert [c["concepto"]["hasta_m"] for c in por_defecto["conciliacion"]] == [6.0, 6.0]
+
+
+def test_el_anclaje_sugerido_es_de_40_diametros_por_extremo() -> None:
+    r = calc("T-1-15x25", modo="pieza", largo_m=4.0)
+    a = r["anclaje"]
+    assert a["aplica"] is True and a["sugerido_diametros"] == 40 and a["capturado_cm"] is None and a["cumple"] is None
+    g = a["grupos"][0]
+    assert g["numero"] == 3 and g["sugerido_cm"] == pytest.approx(40 * 0.9525)  # la varilla no. 3 mide 3/8" = 0.9525 cm
+    assert "Sugerido" in a["mensaje"]
+    # Sin capturar, el cálculo es el de siempre (puntas de 40 diámetros en cada extremo).
+    assert r["receta_acero"]["varillas"][0]["puntas_m"] == pytest.approx(2 * 40 * 0.009525)
+
+
+def test_el_anclaje_capturado_avisa_si_cumple_y_el_calculo_lo_usa() -> None:
+    sugerido = 40 * 0.9525
+    cumple = calc("T-1-15x25", modo="pieza", largo_m=4.0, anclaje_cm=sugerido + 5)
+    assert cumple["anclaje"]["cumple"] is True and cumple["anclaje"]["grupos"][0]["cumple"] is True
+    assert "cumple" in cumple["anclaje"]["mensaje"] and "NO cumple" not in cumple["anclaje"]["mensaje"]
+    assert cumple["receta_acero"]["varillas"][0]["puntas_m"] == pytest.approx(2 * (sugerido + 5) / 100)
+    justo = calc("T-1-15x25", modo="pieza", largo_m=4.0, anclaje_cm=sugerido)
+    assert justo["anclaje"]["cumple"] is True
+    corto = calc("T-1-15x25", modo="pieza", largo_m=4.0, anclaje_cm=20.0)
+    assert corto["anclaje"]["cumple"] is False and "NO cumple" in corto["anclaje"]["mensaje"]
+    assert corto["receta_acero"]["varillas"][0]["puntas_m"] == pytest.approx(0.4)  # no se rechaza: es una sugerencia
+    assert any("NO cumple" in a for a in corto["advertencias"])
+    assert not any("NO cumple" in a for a in cumple["advertencias"])
+
+
+def test_el_anclaje_con_varillas_de_dos_diametros_cumple_solo_si_cumple_la_mas_gruesa() -> None:
+    r = calc("T-5-12x30", modo="pieza", largo_m=4.0, anclaje_cm=40 * 0.9525 + 1)  # alcanza la no. 3 y no la no. 4
+    assert [g["cumple"] for g in r["anclaje"]["grupos"]] == [True, False]
+    assert r["anclaje"]["cumple"] is False
+
+
+def test_el_anclaje_aplica_a_la_columna_y_no_por_ml_ni_a_la_zapata() -> None:
+    c = calc("C-1", modo="pieza", anclaje_cm=60.0)
+    assert c["anclaje"]["aplica"] is True and c["anclaje"]["cumple"] is True
+    por_ml = calc("T-1-15x25", modo="ml")
+    assert por_ml["anclaje"]["aplica"] is False and por_ml["anclaje"]["cumple"] is None
+    for clave, kw in (("T-1-15x25", {"modo": "ml"}), ("Z-1", {"modo": "pieza"})):
+        with pytest.raises(ErrorDeElementoEstructural):
+            calc(clave, anclaje_cm=30.0, **kw)
+    for malo in (-1.0, 501.0, float("nan")):
+        with pytest.raises(ErrorDeElementoEstructural):
+            calc("T-1-15x25", modo="pieza", anclaje_cm=malo)

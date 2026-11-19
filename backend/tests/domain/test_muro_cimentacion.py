@@ -146,3 +146,15 @@ def test_trazo_rechaza_datos_malos() -> None:
     ):
         with pytest.raises(ErrorDeTrazo):
             calcular_trazo(_por_metro, **kw)
+
+
+def test_dice_que_dalas_castillos_empotrados_y_cimientos_perpendiculares_se_miden_aparte() -> None:
+    """D12: el muro de cimentación no incluye lo que la sección 8.4 pide junto al cimiento; el cálculo lo dice y no lo suma."""
+    r = cim(alto_m=2.0)
+    assert [x["clave"] for x in r["no_incluye"]] == ["dalas", "castillos_empotrados", "cimientos_perpendiculares"]
+    assert all("se miden aparte" in x["texto"] for x in r["no_incluye"])
+    # El volumen es solo el de la piedra del cimiento: el mismo con o sin la leyenda.
+    assert r["volumen"]["muro_m3_ml"] == pytest.approx((0.40 + 1.73) / 2 * 2.0)
+    d = elemento_de_la_biblioteca("CIM-01010")
+    q42 = next(p for p in d["pendientes"] if p["clave"] == "Q42")  # type: ignore[index]
+    assert "se miden aparte" in q42["texto"] and "no los incluye" in q42["texto"]

@@ -7,6 +7,6 @@
  */
 
 /**
- * Altura de la columna C-1; 6.00 m si no se manda.
+ * Altura de la columna C-1; 4.20 m (la habitual, editable) si no se manda.
  */
 export type CalculoDelElementoEstructuralPeticionAltoM = number | null;
