@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ColocacionDelMuroRespuestaTipo } from "./colocacionDelMuroRespuestaTipo";
+import type { ColocacionDelMuroRespuestaAreaUsada } from "./colocacionDelMuroRespuestaAreaUsada";
 import type { ColocacionDelMuroRespuestaNivel } from "./colocacionDelMuroRespuestaNivel";
 import type { ColocacionDelMuroRespuestaUbicacion } from "./colocacionDelMuroRespuestaUbicacion";
 import type { ElementoColocadoRespuesta } from "./elementoColocadoRespuesta";
@@ -24,6 +25,23 @@ export interface ColocacionDelMuroRespuesta {
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
   altura_m: string;
+  /**
+   * Largo × alto del muro.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  area_bruta_m2?: string;
+  /**
+   * m² de los vanos ya colocados (puertas, ventanas, pasos…) que se descontaron; 0 si no hay.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  vanos_m2?: string;
+  /**
+   * Bruto − vanos: el área sobre la que la regla «total» reparte los metros del prototipo.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  area_neta_m2?: string;
+  /** El muro es bruto hasta que se coloca un vano; entonces se vuelve neto. */
+  area_usada?: ColocacionDelMuroRespuestaAreaUsada;
   /** El número de nivel con que se eligen los conceptos (el orden del nivel de la partida que ya mide el muro). */
   nivel: ColocacionDelMuroRespuestaNivel;
   ubicacion: ColocacionDelMuroRespuestaUbicacion;

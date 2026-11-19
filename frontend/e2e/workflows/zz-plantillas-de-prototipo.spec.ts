@@ -27,7 +27,7 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
   test.skip(!hayRoles(...ROLES_ZZ), motivoSinRoles(...ROLES_ZZ));
   test.setTimeout(180_000);
 
-  test('Oro PB y PA nacen por confirmar con su celda, un prototipo vacío se captura con varios castillos y el muro toma sus cantidades', async ({
+  test('Oro PB capturada por confirmar con su celda, un prototipo vacío se captura con varios castillos y el muro toma sus cantidades', async ({
     page,
     request,
   }) => {
@@ -74,6 +74,19 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
       })
     ).trazo_id;
 
+    // Una plantilla de Oro PB capturada a mano (el Excel es solo referencia: no se carga como datos); antes de abrir la pantalla.
+    const nombreOro = `Oro PB ${sufijo}`;
+    const oroPb = await llamarApi<Plantilla>(request, 'control', 'POST', '/muro-plantillas', {
+      nombre: nombreOro, tipo: 'confinado', material: 'tabique_rojo', ubicacion: 'interior', prototipo: 'oro_401', planta: 'PB', por_confirmar: true,
+      notas: 'Capturada a mano; referencia: ASIGNACIÓN!K2152.', partes: [{ nombre: 'Cuerpo', desde_m: '0', hasta_m: '3', rol: 'cuerpo' }],
+      elementos: [
+        { ref: 'K-1', regla: 'total', total_m: '126', base_m2: '286', origen: 'ASIGNACIÓN!K2152' },
+        { ref: 'K-2', regla: 'total', total_m: '83', base_m2: '286' },
+        { ref: 'K-3', regla: 'total', total_m: '20', base_m2: '286' },
+        { ref: 'K-7', regla: 'total', total_m: '24', base_m2: '286' },
+        { ref: 'CE-1' },
+      ],
+    });
     await page.setViewportSize({ width: 1400, height: 1100 });
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
@@ -82,21 +95,17 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
     const area = page.getByRole('region', { name: 'Artefacto', exact: true });
     const panel = page.getByRole('navigation', { name: 'Plantillas de muro' });
 
-    // --- 1. Cargar los ejemplos: Oro PB y PA por confirmar; las que piden elementos que faltan no se inventan ---------------------
-    await panel.getByRole('button', { name: 'Cargar los ejemplos (Oro y global)' }).click();
-    const aviso = panel.getByTestId('aviso-de-ejemplos');
-    await expect(aviso).toContainText(/Se crearon \d+ plantillas de ejemplo|ya existían/);
-    await expect(aviso).toContainText(/faltan en tu catálogo K-4|faltan en tu catálogo K-8|Global/); // las globales piden K-4 y K-8 si no están
+    // --- 1. Una plantilla de Oro PB capturada (ya creada arriba: el Excel es solo referencia, no se carga como datos) ----------
+    await expect(panel.getByRole('button', { name: 'Cargar los ejemplos (Oro y global)' })).toHaveCount(0); // ya no hay ejemplos que cargar
     const oro = panel.locator('[data-prototipo="oro_401"]');
     await expect(oro.getByRole('button', { name: 'Oro 4.01 PB: abrir la plantilla' })).toBeVisible();
-    await expect(oro.getByRole('button', { name: 'Oro 4.01 PA: abrir la plantilla' })).toBeVisible();
     // Un prototipo de 1 planta solo tiene PB y uno sin capturar lo dice.
     await expect(panel.locator('[data-prototipo="rubi"]')).toContainText('PB · sin capturar');
     await expect(panel.locator('[data-prototipo="rubi"]')).not.toContainText('PA');
 
     // --- 2. Oro PB: varios castillos con su regla, la celda del Excel y «por confirmar» ---------------------------------------
-    await oro.getByRole('button', { name: 'Oro 4.01 PB: abrir la plantilla' }).click();
-    await expect(area.getByLabel('Nombre de la plantilla')).toHaveValue('Muro confinado · Oro 4.01 · PB');
+    await panel.getByRole('button', { name: new RegExp(nombreOro) }).click();
+    await expect(area.getByLabel('Nombre de la plantilla')).toHaveValue(nombreOro);
     await expect(area.getByLabel('Prototipo de la plantilla')).toHaveValue('oro_401');
     await expect(area.getByLabel('Planta de la plantilla')).toHaveValue('PB');
     await expect(area.getByLabel('Datos por confirmar')).toBeChecked();
@@ -144,7 +153,6 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
     await expect(panel.locator('[data-prototipo="rubi"]').getByRole('button', { name: 'Rubí PB: abrir la plantilla' })).toBeVisible();
 
     // --- 4. El muro elige la plantilla de Oro PB y el detalle dice cuánto lleva de cada castillo y cómo lo contó -------------
-    const oroPb = (await llamarApi<Plantilla[]>(request, 'control', 'GET', '/muro-plantillas')).find((p) => p.prototipo === 'oro_401' && p.planta === 'PB')!;
     await llamarApi(request, 'control', 'PUT', `/trazos/${muro}/muro/plantilla`, { plantilla_id: oroPb.id });
     await pestanas.getByRole('tab', { name: /^Trazos/ }).click();
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
@@ -163,6 +171,14 @@ test.describe('Cuantificador · plantillas de muro por prototipo', () => {
     const colocacion = await llamarApi<{ elementos: { ref: string; regla: string | null; piezas_estimadas: string; metros: string }[] }>(
       request, 'control', 'GET', `/trazos/${muro}/muro/plantilla/colocacion`,
     );
+    await expect(region.getByTestId('area-de-la-plantilla')).toContainText('bruta · 30.00 m²');
+    // Con un vano ya colocado el muro es neto: la regla «total» reparte sobre 30 − 2 = 28 m² (126 × 28 ÷ 286 ÷ 3.00 = 4.11 piezas).
+    await llamarApi(request, 'control', 'POST', `/trazos/${muro}/vanos`, { clave: 'P-01', tipo: 'puerta', ancho_m: '1', alto_m: '2', posicion_m: '5' });
+    const neto = await llamarApi<{ area_usada: string; area_neta_m2: string; vanos_m2: string; elementos: { ref: string; piezas_estimadas: string }[] }>(
+      request, 'control', 'GET', `/trazos/${muro}/muro/plantilla/colocacion`,
+    );
+    expect([neto.area_usada, Number(neto.vanos_m2), Number(neto.area_neta_m2)]).toEqual(['neto', 2, 28]);
+    expect(Number(neto.elementos.find((e) => e.ref === 'K-1')!.piezas_estimadas)).toBeCloseTo(4.112, 3);
     const k1 = colocacion.elementos.find((e) => e.ref === 'K-1')!;
     expect(k1.regla).toBe('total');
     expect(Number(k1.piezas_estimadas)).toBeCloseTo(4.406, 3);

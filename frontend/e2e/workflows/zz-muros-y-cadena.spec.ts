@@ -125,22 +125,35 @@ test.describe('Cuantificador · muros y cadena', () => {
     await alta.getByLabel('Castillo que se coloca (tipo K)').selectOption('K-3');
     await alta.getByRole('button', { name: 'Colocar', exact: true }).click();
     await expect.poll(async () => (await vanos()).length).toBe(2);
+    await alta.getByLabel('Castillo que se coloca (tipo K)').selectOption('K-1');
+    await alta.getByRole('button', { name: 'Colocar', exact: true }).click();
+    await expect.poll(async () => (await vanos()).length).toBe(3);
     const sembrados = await vanos();
-    expect(sembrados.map((v) => [v.tipo, v.elemento_uid]).sort()).toEqual([['castillo', 'K-2'], ['castillo', 'K-3']]);
+    expect(sembrados.map((v) => [v.tipo, v.elemento_uid]).sort()).toEqual([['castillo', 'K-1'], ['castillo', 'K-2'], ['castillo', 'K-3']]);
     for (const v of sembrados) expect(Number(v.alto_m)).toBeCloseTo(3, 3); // suben lo alto del muro (el driver)
     const conCastillos = await medida();
     expect(conCastillos).toBeLessThan(m0); // resta de los m² del muro
 
     // --- 3. De vuelta a la plantilla 1: avisa de los castillos sembrados; sin retirarlos se conservan ---------------------------
     await selector.selectOption(p1.id);
-    await expect(cambio.getByTestId('castillos-sembrados')).toContainText('2 castillos ya sembrados');
+    await expect(cambio.getByTestId('castillos-sembrados')).toContainText('3 castillos ya sembrados');
     await expect(cambio).toContainText('dos veces');
+    // K-1 estima 4 piezas y ya hay 1 sembrada: la plantilla cuenta 3 y los sembrados se conservan.
+    await expect(cambio.locator('[data-elemento="K-1"]')).toContainText(/estimados 4(\.00)?, sembrados 1(\.00)?, contados 3(\.00)?/);
+    // El cambio no pisa el acabado ya capturado: la plantilla es la guía.
+    await expect(cambio.getByTestId('acabado-se-conserva')).toHaveAttribute('data-conserva', 'si');
+    await expect(cambio.getByTestId('acabado-se-conserva')).toContainText('no pisa el acabado');
     await expect(cambio.locator('[data-elemento="K-1"]')).toHaveAttribute('data-efecto', 'nuevo');
     await cambio.getByRole('button', { name: 'Cambiar de plantilla' }).click();
     await expect.poll(async () => (await clasificacion()).plantilla_id).toBe(p1.id);
     await expect(selector).toHaveValue(p1.id);
-    expect(await vanos()).toHaveLength(2);
+    expect(await vanos()).toHaveLength(3);
     expect(await medida()).toBeCloseTo(conCastillos, 3);
+    const estimado = await llamarApi<{ elementos: { ref: string; piezas_estimadas: string; piezas_sembradas: string; piezas_contadas: string }[] }>(
+      request, 'control', 'GET', `/trazos/${muro}/muro/plantilla/colocacion`,
+    );
+    const k1 = estimado.elementos.find((e) => e.ref === 'K-1')!;
+    expect([Number(k1.piezas_estimadas), Number(k1.piezas_sembradas), Number(k1.piezas_contadas)]).toEqual([4, 1, 3]);
 
     // --- 4. Pasar otra vez a la 2 y de nuevo a la 1 retirando los sembrados: el muro recupera lo suyo ------------------------------
     await selector.selectOption(p2.id);

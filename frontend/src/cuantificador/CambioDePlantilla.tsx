@@ -4,7 +4,8 @@
  *
  * Antes de cambiar se dice qué cambia: el tipo, el material y la ubicación; los castillos estimados y las cadenas que dejan de contarse,
  * empiezan o siguen; los castillos ya sembrados; y lo que se conserva (la medición del muro y sus vanos). Los castillos sembrados solo se
- * quitan si se pide. Todo lo calcula el servidor: aquí solo se pinta.
+ * quitan si se pide y la plantilla de confinado no los cuenta dos veces. El acabado ya capturado se conserva: la plantilla es la guía, no
+ * lo pisa. Todo lo calcula el servidor: aquí solo se pinta.
  */
 
 import { useState } from 'react';
@@ -84,7 +85,11 @@ export function CambioDePlantilla({ trazoId, haciaId, onCancelar, onCambiado, on
           {d.efectos.map((e) => (
             <li key={e.uid} data-efecto={e.efecto} data-elemento={e.ref}>
               <b className="mono">{e.ref}</b> · {NOMBRE_DEL_EFECTO[e.efecto]}
-              {e.clase === 'castillo' ? ` (${fmtNum(e.piezas)} pza estimadas)` : ` (${fmtNum(e.metros)} ml)`}
+              {e.clase === 'castillo' && Number(e.piezas_sembradas) > 0
+                ? ` (estimados ${fmtNum(e.piezas_estimadas)}, sembrados ${fmtNum(e.piezas_sembradas)}, contados ${fmtNum(e.piezas)})`
+                : e.clase === 'castillo'
+                  ? ` (${fmtNum(e.piezas)} pza estimadas)`
+                  : ` (${fmtNum(e.metros)} ml)`}
             </li>
           ))}
         </ul>
@@ -99,6 +104,12 @@ export function CambioDePlantilla({ trazoId, haciaId, onCancelar, onCambiado, on
           {a}
         </p>
       ))}
+      <p className="text-xs" data-testid="acabado-se-conserva" data-conserva={d.acabado_se_conserva ? 'si' : 'no'}>
+        La plantilla es la guía (tipo, material, ubicación y elementos): no pisa el acabado.{' '}
+        {d.acabado_se_conserva
+          ? 'El acabado ya capturado de este muro se conserva.'
+          : 'Este muro aún no tiene acabado capturado: toma el de la plantilla.'}
+      </p>
       <p className="text-mute text-xs">Se conserva: {d.conserva.join(' ')}</p>
       {d.castillos_sembrados > 0 && (
         <label className="mct__manual">

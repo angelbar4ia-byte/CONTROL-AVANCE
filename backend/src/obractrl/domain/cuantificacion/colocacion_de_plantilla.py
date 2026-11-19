@@ -59,9 +59,11 @@ __all__ = [
     "colocar_plantilla",
     "conceptos_de_instancia",
     "piezas_de_castillo",
+    "piezas_en_texto",
     "piezas_exactas_de_castillo",
     "posiciones_de_castillos",
     "regla_de_castillo",
+    "sembrados_por_tipo",
 ]
 
 ALTO_MINIMO_M = Decimal("0.10")
@@ -76,6 +78,11 @@ class ErrorDeColocacion(ErrorDeCuantificacion):
 
 def _d(valor: Any) -> Decimal:
     return valor if isinstance(valor, Decimal) else Decimal(str(valor))
+
+
+def piezas_en_texto(piezas: Decimal) -> str:
+    """Las piezas sin ceros de sobra (4.000 → «4», 2.500 → «2.5»), para los avisos."""
+    return format(piezas.normalize(), "f")
 
 
 def piezas_de_castillo(largo_m: Decimal, sep_m: Decimal | None) -> int:
@@ -159,6 +166,20 @@ def piezas_exactas_de_castillo(
     raise ErrorDeColocacion(f"La regla de un castillo es una de {', '.join(REGLAS_DE_CASTILLO)} (no «{regla}»).")
 
 
+def sembrados_por_tipo(vanos: Iterable[Mapping[str, Any]], elementos: Iterable[Mapping[str, Any]]) -> dict[str, Decimal]:
+    """Las piezas de castillo ya sembradas en un muro, por tipo K (clave del elemento en mayúsculas). Un castillo sembrado es un vano
+    `castillo` con `elemento_uid`: el uso en la plantilla del muro (de ahí sale su `ref`) o la clave del K elegido a mano."""
+    refs = {str(e.get("uid") or e.get("ref") or ""): str(e.get("ref") or "") for e in elementos}
+    salida: dict[str, Decimal] = {}
+    for v in vanos:
+        uid = v.get("elemento_uid")
+        if v.get("tipo") != "castillo" or not uid:
+            continue
+        ref = (refs.get(str(uid)) or str(uid)).upper()
+        salida[ref] = salida.get(ref, Decimal(0)) + Decimal(int(v.get("piezas") or 1))
+    return salida
+
+
 @dataclass(frozen=True, slots=True)
 class Instancia:
     """Un uso de un elemento de la plantilla ya resuelto en este muro."""
@@ -183,7 +204,12 @@ class Instancia:
     regla: str | None = None
     """Castillo: cómo cuenta sus piezas (separacion, extremos, por_ml o total)."""
     piezas_exactas: Decimal = Decimal(0)
-    """Castillo: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` es esa cuenta redondeada hacia arriba, para dibujar)."""
+    """Castillo: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` es esa cuenta redondeada hacia arriba, para dibujar).
+    En un castillo estimado ya es la cuenta **neta de los sembrados**: estimados − sembrados del mismo tipo K, con mínimo 0."""
+    piezas_estimadas: Decimal = Decimal(0)
+    """Castillo estimado: lo que la regla de la plantilla estima antes de descontar los castillos ya sembrados en el muro."""
+    piezas_sembradas: Decimal = Decimal(0)
+    """Castillo estimado: las piezas de este tipo K ya sembradas en el muro que se descontaron de las estimadas (nunca más que ellas)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +228,7 @@ def colocar_plantilla(
     anchos_m: Mapping[str, Decimal],
     separacion_m: Decimal | None = None,
     area_m2: Decimal | None = None,
+    sembrados: Mapping[str, Decimal] | None = None,
 ) -> Colocacion:
     """Lo que la plantilla coloca en un muro de este largo y esta altura.
 
@@ -213,7 +240,11 @@ def colocar_plantilla(
     separación sigue siendo «extremos» (2 piezas), como antes, y sin driver (`None`) también el estimado.
 
     `area_m2` son los m² de muro con que reparte la regla «total» (sin dato, largo × alto: el muro bruto, sin descontar vanos).
+
+    `sembrados` son las piezas de castillo ya sembradas a mano en el muro, por tipo K (`ref`). Un castillo **estimado** las descuenta de lo
+    que estima (mínimo 0) para que no se cuenten dos veces; si dos líneas estiman el mismo K, el descuento se reparte en orden. Nada se borra.
     """
+    por_descontar = {k.upper(): max(_d(v), Decimal(0)) for k, v in (sembrados or {}).items()}
     if largo_m <= 0:
         raise ErrorDeColocacion("El largo del muro debe ser mayor que cero.")
     if altura_m <= 0:
@@ -234,6 +265,11 @@ def colocar_plantilla(
                 e, ubicado=ubicado, largo_m=largo_m, area_m2=area_m2 if area_m2 is not None else largo_m * altura_m,
                 alto_m=alto, separacion_m=separacion_m,
             )
+            estimadas, sembradas = exactas, Decimal(0)
+            if not ubicado and por_descontar.get(ref.upper(), Decimal(0)) > 0:
+                sembradas = min(estimadas, por_descontar[ref.upper()])
+                por_descontar[ref.upper()] -= sembradas
+                exactas = estimadas - sembradas
             n = math.ceil(exactas)
             posiciones = tuple(posiciones_de_castillos(largo_m, n, ancho)) if ubicado and ancho is not None else ()
             salida.instancias.append(
@@ -241,12 +277,15 @@ def colocar_plantilla(
                     uid=uid, ref=ref, clase="castillo", modo=str(e.get("modo") or "") or None, piezas=n, alto_m=alto, ancho_m=ancho,
                     metros=alto * exactas, posiciones_m=posiciones, z_m=z, se_coloca=ubicado,
                     descuento_m2_por_cara=(ancho or Decimal(0)) * alto * n if ubicado else Decimal(0),
-                    regla=regla, piezas_exactas=exactas,
+                    regla=regla, piezas_exactas=exactas, piezas_estimadas=estimadas, piezas_sembradas=sembradas,
                 )
             )
             if not ubicado:
                 salida.avisos.append(
                     f"Los castillos {ref} son estimados ({exactas:g} piezas): se cuentan pero no se restan de la mampostería."
+                    if sembradas == 0
+                    else f"Castillos {ref}: estimados {piezas_en_texto(estimadas)}, sembrados {piezas_en_texto(sembradas)}, contados {piezas_en_texto(exactas)}: "
+                    "los sembrados no se cuentan dos veces."
                 )
         elif clase == "cadena":
             salida.instancias.append(

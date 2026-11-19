@@ -21,6 +21,8 @@ export interface CambioDePlantillaRespuesta {
   castillos_sembrados: number;
   /** Castillos ubicados que lleva la plantilla nueva (se colocan aparte). */
   castillos_por_colocar: number;
+  /** El muro ya tiene acabado capturado: el cambio de plantilla no lo pisa. */
+  acabado_se_conserva?: boolean;
   conserva: string[];
   avisos: string[];
 }

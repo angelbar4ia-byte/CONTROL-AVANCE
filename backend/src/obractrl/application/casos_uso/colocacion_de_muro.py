@@ -28,6 +28,7 @@ from obractrl.application.casos_uso.cuantificar import (
     GestionarVanos,
     TrazoNoEncontrado,
     VanoCambiado,
+    area_de_muro,
 )
 from obractrl.application.casos_uso.parametrico import vigentes_de_obra
 from obractrl.application.casos_uso.plantillas_de_muro import PlantillaNoEncontrada
@@ -35,6 +36,8 @@ from obractrl.domain.cuantificacion.colocacion_de_plantilla import (
     Colocacion,
     ConceptoColocado,
     colocar_plantilla,
+    piezas_en_texto,
+    sembrados_por_tipo,
 )
 from obractrl.domain.cuantificacion.elementos_parametricos import normalizar_parametros
 from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado
@@ -59,6 +62,8 @@ class ColocarElementosDeMuro(GestionarVanos):
         self._parametrico = parametrico
         # Las plantillas de muro: para cambiar de una a otra.
         self._plantillas = plantillas
+        # (bruto, vanos, neto) del último muro leído por `_plan`.
+        self._area: tuple[Decimal, Decimal, Decimal] = (Decimal(0), Decimal(0), Decimal(0))
 
     async def _separacion_de_castillos(self, contexto: dict[str, Any]) -> Decimal | None:
         """El driver `separacion_castillos` vigente en la obra del muro (la separación de un castillo que la plantilla no fija)."""
@@ -67,6 +72,10 @@ class ColocarElementosDeMuro(GestionarVanos):
         vigentes = await vigentes_de_obra(self._parametrico, UUID(str(contexto["obra_id"])))
         v = vigentes.get("separacion_castillos")
         return v.valor if v is not None else None
+
+    async def _sembrados(self, trazo_id: UUID, plantilla: dict[str, Any] | None) -> dict[str, Decimal]:
+        """Las piezas de castillo ya sembradas en el muro, por tipo K: el confinado las descuenta de las que estima (no se cuentan dos veces)."""
+        return sembrados_por_tipo(await self._trazos.vanos_de_trazo(trazo_id), (plantilla["elementos"] or []) if plantilla else [])
 
     async def _plan(self, trazo_id: UUID) -> tuple[dict[str, Any], dict[str, Any], Colocacion, dict[str, dict[str, Any]]]:
         """(plantilla, contexto del trazo, lo que coloca la plantilla en este muro, los elementos por clave). Levanta 404 o 422."""
@@ -85,17 +94,22 @@ class ColocarElementosDeMuro(GestionarVanos):
             if e.get("clase") == "castillo" and el is not None:
                 p = normalizar_parametros(el["tipo"], dict(el["parametros"] or {}))
                 anchos[str(e["ref"])] = Decimal(str(p["largo"]))
+        largo, altura = await self._trazos.largo_del_eje(trazo_id), await self._altura_del_muro(trazo_id)
+        self._area = await area_de_muro(self._trazos, trazo_id, largo, altura)
         colocacion = colocar_plantilla(
             plantilla["elementos"] or [],
-            largo_m=await self._trazos.largo_del_eje(trazo_id),
-            altura_m=await self._altura_del_muro(trazo_id),
+            largo_m=largo,
+            altura_m=altura,
             anchos_m=anchos,
             separacion_m=await self._separacion_de_castillos(contexto),
+            area_m2=self._area[2],
+            sembrados=await self._sembrados(trazo_id, plantilla),
         )
         return plantilla, contexto, colocacion, catalogo
 
     async def ver_colocacion(self, trazo_id: UUID) -> dict[str, Any]:
         plantilla, contexto, colocacion, catalogo = await self._plan(trazo_id)
+        area = self._area
         puestos = [v for v in await self._trazos.vanos_de_trazo(trazo_id) if v.get("elemento_uid")]
         obra_id = UUID(str(contexto["obra_id"])) if contexto.get("obra_id") else None
         # Los castillos (estimados y ubicados) y las cadenas alimentan conceptos: la cadena cuenta el largo del muro en ml (no se coloca).
@@ -111,7 +125,7 @@ class ColocarElementosDeMuro(GestionarVanos):
                 ),
             }
             for i in colocacion.instancias
-            if i.ref in catalogo and (i.clase == "cadena" or (i.clase == "castillo" and i.alto_m is not None))
+            if i.ref in catalogo and (i.clase == "cadena" or (i.clase == "castillo" and i.alto_m is not None and i.piezas_exactas > 0))
         ]
         conceptos: dict[str, tuple[list[ConceptoColocado], list[str]]] = {}
         if obra_id is not None and grupos:
@@ -128,7 +142,8 @@ class ColocarElementosDeMuro(GestionarVanos):
             elementos.append(
                 {
                     "uid": i.uid, "ref": i.ref, "nombre": catalogo.get(i.ref, {}).get("nombre", i.ref), "clase": i.clase, "modo": i.modo,
-                    "regla": i.regla, "piezas_estimadas": i.piezas_exactas, "origen": origenes.get(i.uid),
+                    "regla": i.regla, "piezas_estimadas": i.piezas_estimadas, "piezas_sembradas": i.piezas_sembradas,
+                    "piezas_contadas": i.piezas_exactas, "origen": origenes.get(i.uid),
                     "piezas": i.piezas, "alto_m": i.alto_m, "z_m": i.z_m, "metros": i.metros,
                     "posiciones_m": list(i.posiciones_m), "se_coloca": i.se_coloca,
                     "colocados": sum(int(v["piezas"]) for v in puestos if v["elemento_uid"] == i.uid),
@@ -140,6 +155,7 @@ class ColocarElementosDeMuro(GestionarVanos):
             "trazo_id": trazo_id,
             "plantilla_id": plantilla["id"], "plantilla": plantilla["nombre"], "version": plantilla["version"], "tipo": plantilla["tipo"],
             "largo_m": colocacion.largo_m, "altura_m": colocacion.altura_m,
+            "area_bruta_m2": area[0], "vanos_m2": area[1], "area_neta_m2": area[2], "area_usada": "neto" if area[1] > 0 else "bruto",
             "nivel": nivel_para_conceptos(contexto.get("nivel_orden")), "ubicacion": contexto.get("ubicacion"),
             "elementos": elementos,
             "avisos": list(dict.fromkeys(avisos_generales)),
@@ -208,13 +224,22 @@ class ColocarElementosDeMuro(GestionarVanos):
 
     # --- Cambiar de plantilla sin perder lo medido --------------------------------------------------------------------
 
-    async def _estimado_de(self, plantilla: dict[str, Any] | None, *, largo: Decimal, altura: Decimal, separacion: Decimal | None) -> Colocacion | None:
+    async def _estimado_de(
+        self,
+        plantilla: dict[str, Any] | None,
+        *,
+        largo: Decimal,
+        altura: Decimal,
+        separacion: Decimal | None,
+        area_m2: Decimal,
+        sembrados: dict[str, Decimal],
+    ) -> Colocacion | None:
         """Lo que la plantilla cuenta en este muro sin colocarlo (castillos estimados y cadenas); `None` si la plantilla no cabe en el muro."""
         if plantilla is None:
             return None
         elementos = [e for e in plantilla["elementos"] or [] if e.get("clase") == "cadena" or (e.get("clase") == "castillo" and e.get("modo") == "estimado")]
         try:
-            return colocar_plantilla(elementos, largo_m=largo, altura_m=altura, anchos_m={}, separacion_m=separacion)
+            return colocar_plantilla(elementos, largo_m=largo, altura_m=altura, anchos_m={}, separacion_m=separacion, area_m2=area_m2, sembrados=sembrados)
         except ErrorDeCuantificacion:
             return None
 
@@ -231,6 +256,7 @@ class ColocarElementosDeMuro(GestionarVanos):
                 {
                     "uid": uid, "ref": i.ref, "clase": i.clase, "efecto": efecto, "regla": i.regla,
                     "piezas": i.piezas_exactas if i.clase == "castillo" else Decimal(0), "metros": i.metros,
+                    "piezas_estimadas": i.piezas_estimadas, "piezas_sembradas": i.piezas_sembradas,
                 }
             )
         return salida
@@ -250,11 +276,15 @@ class ColocarElementosDeMuro(GestionarVanos):
         contexto = await self._elementos.contexto_de_trazo(trazo_id) or {}
         largo, altura = await self._trazos.largo_del_eje(trazo_id), await self._altura_del_muro(trazo_id)
         separacion = await self._separacion_de_castillos(contexto)
-        efectos = self._efectos(
-            await self._estimado_de(actual, largo=largo, altura=altura, separacion=separacion),
-            await self._estimado_de(hacia, largo=largo, altura=altura, separacion=separacion),
-        )
+        neta = (await area_de_muro(self._trazos, trazo_id, largo, altura))[2]
         vanos = await self._trazos.vanos_de_trazo(trazo_id)
+        # Los castillos ya sembrados se conservan y la plantilla de confinado no los cuenta otra vez (se descuentan, por tipo K, de los que estima).
+        por_tipo = sembrados_por_tipo(vanos, (actual["elementos"] or []) if actual else [])
+        por_tipo_hacia = sembrados_por_tipo(vanos, hacia["elementos"] or [])
+        efectos = self._efectos(
+            await self._estimado_de(actual, largo=largo, altura=altura, separacion=separacion, area_m2=neta, sembrados=por_tipo),
+            await self._estimado_de(hacia, largo=largo, altura=altura, separacion=separacion, area_m2=neta, sembrados=por_tipo_hacia),
+        )
         sembrados = [v for v in vanos if v["tipo"] == "castillo" and v.get("elemento_uid")]
         otros = [v for v in vanos if not (v["tipo"] == "castillo" and v.get("elemento_uid"))]
         por_colocar = sum(
@@ -273,9 +303,17 @@ class ColocarElementosDeMuro(GestionarVanos):
         if hacia["tipo"] == "con_cadena" and any(e["clase"] == "castillo" and e["efecto"] == "deja" for e in efectos):
             avisos.append("La plantilla nueva es de «muros y cadena»: los castillos reales se siembran uno por uno en el plano, cada uno de su tipo K.")
         if hacia["tipo"] == "confinado" and sembrados:
+            for e in efectos:
+                if e["clase"] == "castillo" and e["efecto"] != "deja" and e["piezas_sembradas"] > 0:
+                    avisos.append(
+                        f"Castillos {e['ref']}: estimados {piezas_en_texto(e['piezas_estimadas'])}, sembrados {piezas_en_texto(e['piezas_sembradas'])}, "
+                        f"contados {piezas_en_texto(e['piezas'])}. "
+                        "Los sembrados se conservan y no se cuentan dos veces."
+                    )
             avisos.append(
-                f"El muro tiene {len(sembrados)} castillo{'s' if len(sembrados) != 1 else ''} sembrado{'s' if len(sembrados) != 1 else ''} y la plantilla "
-                "nueva estima los suyos: se contarían dos veces. Retira los sembrados al cambiar si ya no los quieres."
+                f"El muro tiene {len(sembrados)} castillo{'s' if len(sembrados) != 1 else ''} sembrado{'s' if len(sembrados) != 1 else ''}: "
+                "se conservan y la plantilla nueva no los cuenta otra vez (descuenta, por tipo K, los sembrados de los que estima). "
+                "Solo se retiran si tú lo pides."
             )
         if hacia["tipo"] == "con_cadena" and por_colocar:
             avisos.append("La plantilla nueva lleva castillos ubicados: colócalos con «Colocar los elementos de la plantilla».")
@@ -283,18 +321,21 @@ class ColocarElementosDeMuro(GestionarVanos):
             avisos.append("Un muro de tabique no lleva castillos ni cadenas.")
         if hacia["validacion"] != "validada":
             avisos.append("La plantilla nueva aún está por validar: es provisional.")
-        if actual is not None or clasificacion.get("tipo"):
-            avisos.append("El acabado del muro pasa al de la plantilla nueva.")
+        acabado_capturado = clasificacion.get("acabado") is not None
+        if acabado_capturado:
+            avisos.append("El acabado ya capturado se conserva: la plantilla es la guía (tipo, material, ubicación y elementos), no pisa el acabado.")
         conserva = [f"La medición del muro ({altura:g} m de alto × {largo:.2f} m de largo)."]
         if otros:
             conserva.append(f"{len(otros)} vano{'s' if len(otros) != 1 else ''} (puertas, ventanas, pasos y castillos a mano sin elemento).")
-        if sembrados and hacia["tipo"] == "con_cadena":
+        if acabado_capturado:
+            conserva.append("El acabado ya capturado (por cara y capa).")
+        if sembrados:
             conserva.append(f"{len(sembrados)} castillo{'s' if len(sembrados) != 1 else ''} sembrado{'s' if len(sembrados) != 1 else ''} con su elemento.")
         return {
             "trazo_id": trazo_id,
             "de": None if actual is None else {"id": actual["id"], "nombre": actual["nombre"], "version": actual["version"], "tipo": actual["tipo"]},
             "hacia": {"id": hacia["id"], "nombre": hacia["nombre"], "version": hacia["version"], "tipo": hacia["tipo"]},
-            "cambia": cambia, "efectos": efectos,
+            "cambia": cambia, "efectos": efectos, "acabado_se_conserva": acabado_capturado,
             "castillos_sembrados": len(sembrados), "castillos_por_colocar": por_colocar,
             "conserva": conserva, "avisos": list(dict.fromkeys(avisos)),
         }
@@ -302,9 +343,11 @@ class ColocarElementosDeMuro(GestionarVanos):
     async def cambiar_plantilla(
         self, trazo_id: UUID, hacia_id: UUID, *, retirar_castillos: bool, rol: Rol, autor_id: UUID, detectada_en: datetime
     ) -> dict[str, Any]:
-        """El muro pasa a la plantilla `hacia_id`: toma su tipo, material, ubicación y acabado y guarda la versión (Q9). La medición y los vanos
-        se conservan; los castillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman."""
+        """El muro pasa a la plantilla `hacia_id`: toma su tipo, material y ubicación y guarda la versión (Q9). El acabado ya capturado se
+        conserva (la plantilla es la guía). La medición y los vanos se conservan; los castillos sembrados solo se quitan con
+        `retirar_castillos`. Rehace lo que los conceptos toman."""
         antes = await self.ver_cambio(trazo_id, hacia_id)
+        clasificacion = await self._trazos.clasificacion_de_muro(trazo_id)
         hacia = await self._plantillas.obtener(hacia_id)
         assert hacia is not None
         retirados = 0
@@ -312,7 +355,9 @@ class ColocarElementosDeMuro(GestionarVanos):
         async def aplicar() -> UUID:
             nonlocal retirados
             await self._trazos.clasificar_muro(
-                trazo_id=trazo_id, tipo=hacia["tipo"], acabado=acabado_normalizado(hacia["acabado"]), material=hacia["material"],
+                trazo_id=trazo_id, tipo=hacia["tipo"], material=hacia["material"],
+                # La plantilla es la guía, no pisa el acabado ya capturado; sin acabado capturado toma el de la plantilla.
+                acabado=clasificacion["acabado"] if clasificacion.get("acabado") is not None else acabado_normalizado(hacia["acabado"]),
                 ubicacion=hacia["ubicacion"], plantilla_id=hacia["id"],
             )
             if retirar_castillos:

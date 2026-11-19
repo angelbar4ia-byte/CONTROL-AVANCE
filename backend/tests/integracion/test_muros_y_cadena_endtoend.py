@@ -217,12 +217,21 @@ async def test_cambiar_de_la_plantilla_1_a_la_2_y_volver_dice_que_cambia_y_no_pi
     assert v2["castillos_sembrados"] == 2
     assert {e["ref"]: e["efecto"] for e in v2["efectos"]} == {"K-1": "nuevo", "CE-1": "sigue"}
     assert any("dos veces" in a for a in v2["avisos"])
+    efecto_k1 = next(e for e in v2["efectos"] if e["ref"] == "K-1")
+    assert [Decimal(efecto_k1[k]) for k in ("piezas_estimadas", "piezas_sembradas", "piezas")] == [Decimal(4), Decimal(2), Decimal(2)]
+    assert any("estimados 4, sembrados 2, contados 2" in a for a in v2["avisos"]), v2["avisos"]
 
     # Sin retirar: los castillos sembrados y la medición se conservan (lo medido no se pierde).
     conserva = await control.post(f"{ruta}/cambio", json={"plantilla_id": p1["id"]})
     assert (conserva.json()["retirados"], conserva.json()["conservados"]) == (0, 2)
     assert len((await control.get(f"/api/v1/trazos/{muro}/vanos")).json()) == 2
     assert await _medido(control, escenario, str(escenario.actividad_id)) == pytest.approx(con_castillos)
+    # Los sembrados no se cuentan dos veces: K-1 estima 4 piezas, hay 2 sembradas → la plantilla cuenta 2 y el acero de K-1 suma 4 (2 + 2), no 6.
+    c = (await control.get(f"{ruta}/colocacion")).json()
+    k1 = next(e for e in c["elementos"] if e["ref"] == "K-1")
+    assert [Decimal(k1[k]) for k in ("piezas_estimadas", "piezas_sembradas", "piezas_contadas")] == [Decimal(4), Decimal(2), Decimal(2)]
+    assert any("estimados 4, sembrados 2, contados 2" in a for a in c["avisos"])
+    assert await _medido(control, escenario, arbol["a_acero"]) == pytest.approx(4)
     # Al retirar los sembrados, el muro recupera sus m² y el confinado vuelve a estimar los suyos.
     asi = await control.post(f"{ruta}/cambio", json={"plantilla_id": p2["id"]})
     assert asi.status_code == 200
@@ -241,3 +250,26 @@ async def test_cambiar_a_una_plantilla_que_no_existe_o_en_un_trazo_ajeno_es_404(
     assert (await control.post(ruta, json={"plantilla_id": falsa})).status_code == 404
     existente = (await control.post(PLANTILLAS, json={"nombre": "T", "tipo": "tabique", "material": "tabique_rojo", "ubicacion": "interior"})).json()
     assert (await control.get(f"/api/v1/trazos/{uuid.uuid4()}/muro/plantilla/cambio", params={"hacia": existente["id"]})).status_code == 404
+
+
+async def test_cambiar_de_plantilla_conserva_el_acabado_ya_capturado(control: httpx.AsyncClient, escenario: Escenario, arbol: dict[str, str]) -> None:
+    await _elementos_de_oro(control)
+    # El acabado de cada plantilla es el defecto (todo en Sí); el del muro lo capturó el cliente y no coincide con ninguna.
+    p1 = (await control.post(PLANTILLAS, json=_plantilla_1())).json()
+    p2 = (await control.post(PLANTILLAS, json=_plantilla_2())).json()
+    muro = await _muro(control, escenario)
+    ruta = f"/api/v1/trazos/{muro}/muro/plantilla"
+    assert (await control.put(ruta, json={"plantilla_id": p1["id"]})).status_code == 200
+    propio = {"interior": {"gris": True, "blanca": False, "pintura": False}, "fachada": {"gris": True, "blanca": True, "pintura": False}}
+    fijado = await control.put(f"/api/v1/trazos/{muro}/muro/clasificacion", json={"tipo": "confinado", "acabado": propio})
+    assert fijado.status_code == 200, fijado.text
+    v = (await control.get(f"{ruta}/cambio", params={"hacia": p2["id"]})).json()
+    assert v["acabado_se_conserva"] is True
+    assert any("acabado ya capturado se conserva" in a for a in v["avisos"]) and any("acabado ya capturado" in c for c in v["conserva"])
+    assert (await control.post(f"{ruta}/cambio", json={"plantilla_id": p2["id"]})).status_code == 200
+    despues = (await control.get(f"/api/v1/trazos/{muro}/muro/clasificacion")).json()
+    assert (despues["tipo"], despues["plantilla_id"]) == ("con_cadena", p2["id"])
+    assert despues["acabado"] == propio
+    # Y de vuelta: sigue siendo el del cliente.
+    assert (await control.post(f"{ruta}/cambio", json={"plantilla_id": p1["id"]})).status_code == 200
+    assert (await control.get(f"/api/v1/trazos/{muro}/muro/clasificacion")).json()["acabado"] == propio

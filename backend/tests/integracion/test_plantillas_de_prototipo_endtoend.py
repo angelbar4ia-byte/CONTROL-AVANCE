@@ -71,51 +71,14 @@ async def _elementos_de_oro(control: httpx.AsyncClient) -> dict[str, str]:
     return ids
 
 
-async def test_los_ejemplos_de_oro_nacen_por_confirmar_con_su_fila_y_celda_y_no_se_inventan_los_elementos_que_faltan(
-    control: httpx.AsyncClient,
-) -> None:
-    await _elementos_de_oro(control)
-    r = await control.post(f"{PLANTILLAS}/ejemplos-de-prototipo")
-    assert r.status_code == 201, r.text
-    cuerpo = r.json()
-    nombres = {p["nombre"]: p for p in cuerpo["creadas"]}
-    assert sorted(nombres) == ["Muro confinado · Oro 4.01 · PA", "Muro confinado · Oro 4.01 · PB"]
-    # Las globales usan K-4 y K-8, que esta organización no tiene: no se crean y se dice qué falta.
-    assert sorted(f["plantilla"] for f in cuerpo["faltan"]) == ["Muro confinado · Global · 1 planta", "Muro confinado · Global · 2 plantas"]
-    assert {e for f in cuerpo["faltan"] for e in f["elementos"]} == {"K-4", "K-8"}
-
-    pb = nombres["Muro confinado · Oro 4.01 · PB"]
-    assert (pb["prototipo"], pb["planta"], pb["tipo"], pb["por_confirmar"], pb["validacion"]) == ("oro_401", "PB", "confinado", True, "por_validar")
-    assert "ASIGNACIÓN!K2152" in pb["notas"] and "Paramétrico MURO PB!D3" in pb["notas"] and "POR CONFIRMAR" in pb["notas"]
-    por_ref = {e["ref"]: e for e in pb["elementos"]}
-    assert list(por_ref) == ["K-1", "K-2", "K-3", "K-7", "CE-1"]
-    k1 = por_ref["K-1"]
-    assert (k1["regla"], Decimal(k1["total_m"]), Decimal(k1["base_m2"]), k1["modo"]) == ("total", Decimal(126), Decimal(286), "estimado")
-    assert "ASIGNACIÓN!K2152" in k1["origen"]
-    assert por_ref["CE-1"]["posicion"] == "cerramiento"
-
-    pa = nombres["Muro confinado · Oro 4.01 · PA"]
-    assert [e["ref"] for e in pa["elementos"]] == ["K-1", "K-2", "K-3", "K-6", "K-7", "CE-1", "CE-2"]
-    assert Decimal(next(e for e in pa["elementos"] if e["ref"] == "K-6")["total_m"]) == Decimal("14.4")
-    assert Decimal(pa["elementos"][0]["base_m2"]) == Decimal("246.42")
-
-    # Idempotente: lo que ya tiene plantilla vigente se omite.
-    otra = (await control.post(f"{PLANTILLAS}/ejemplos-de-prototipo")).json()
-    assert otra["creadas"] == [] and sorted(otra["omitidas"]) == sorted(nombres)
-
-    # Con los elementos que faltan, las globales nacen también (por confirmar y sin planta).
-    await _castillo(control, "K-4", 10)
-    await _castillo(control, "K-8", 11)
-    ultima = (await control.post(f"{PLANTILLAS}/ejemplos-de-prototipo")).json()
-    assert ultima["faltan"] == [] and sorted(p["nombre"] for p in ultima["creadas"]) == [
-        "Muro confinado · Global · 1 planta", "Muro confinado · Global · 2 plantas",
-    ]
-    assert all(p["por_confirmar"] and p["planta"] is None for p in ultima["creadas"])
-
-
 async def test_los_prototipos_dicen_que_plantilla_tiene_cada_planta_y_cuales_siguen_vacios(control: httpx.AsyncClient) -> None:
     await _elementos_de_oro(control)
-    await control.post(f"{PLANTILLAS}/ejemplos-de-prototipo")
+    for planta in ("PB", "PA"):
+        c = await control.post(
+            PLANTILLAS,
+            json={"nombre": f"Oro {planta}", "tipo": "confinado", "material": "tabique_rojo", "ubicacion": "interior", "partes": PARTES, "prototipo": "oro_401", "planta": planta, "elementos": [{"ref": "K-1"}]},
+        )
+        assert c.status_code == 201, c.text
     r = await control.get("/api/v1/muro-artefacto/prototipos")
     assert r.status_code == 200, r.text
     por_clave = {p["clave"]: p for p in r.json()}
@@ -176,10 +139,6 @@ async def test_las_reglas_de_castillo_se_validan_y_un_muro_con_cadena_solo_admit
     # Sin regla (las plantillas de antes) se normaliza: separación propia, o extremos al colocar y la del driver al estimar.
     legado = await control.post(PLANTILLAS, json={**base, "nombre": "Legado", "elementos": [{"ref": "K-1", "sep_m": "2"}, {"ref": "K-2"}]})
     assert [(e["regla"], e["sep_m"]) for e in legado.json()["elementos"]] == [("separacion", "2"), ("separacion", None)]
-
-
-async def test_solo_costos_y_control_de_obra_cargan_los_ejemplos(residente: httpx.AsyncClient) -> None:
-    assert (await residente.post(f"{PLANTILLAS}/ejemplos-de-prototipo")).status_code == 403
 
 
 # --- Lo que la plantilla coloca y a qué conceptos alimenta ---------------------------------------------------------------------
@@ -353,3 +312,34 @@ async def test_editar_en_el_lugar_una_plantilla_por_validar_rehace_lo_que_toman_
     r = await control.put(f"{PLANTILLAS}/{plantilla['id']}", json={**cuerpo, "elementos": []})
     assert r.status_code == 200 and r.json()["version_nueva"] is False, r.text
     assert not await _medido(control, escenario, arbol["a_cadena"])
+
+
+async def test_la_regla_total_reparte_sobre_el_area_neta_con_los_vanos_ya_colocados_y_sin_vanos_es_el_bruto(
+    control: httpx.AsyncClient, escenario: Escenario, arbol: dict[str, str]
+) -> None:
+    ids = await _elementos_de_oro(control)
+    await _conceptos_de_los_elementos(control, arbol, ids)
+    plantilla = (
+        await control.post(
+            PLANTILLAS,
+            json={
+                "nombre": "Total neto", "tipo": "confinado", "material": "tabique_rojo", "ubicacion": "interior", "partes": PARTES,
+                "elementos": [{"ref": "K-1", "regla": "total", "total_m": "126", "base_m2": "286"}],
+            },
+        )
+    ).json()
+    muro = await _muro(control, escenario)
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": plantilla["id"]})).status_code == 200
+    ruta = f"/api/v1/trazos/{muro}/muro/plantilla/colocacion"
+    v = (await control.get(ruta)).json()
+    assert (v["area_usada"], Decimal(v["area_bruta_m2"]), Decimal(v["vanos_m2"]), Decimal(v["area_neta_m2"])) == ("bruto", Decimal(30), Decimal(0), Decimal(30))
+    assert Decimal(v["elementos"][0]["piezas_estimadas"]) == Decimal("4.406")  # 126 × 30 ÷ 286 ÷ 3.00
+    assert await _medido(control, escenario, arbol["a_colado"]) == pytest.approx(13.218, abs=0.01)
+
+    # Una puerta de 1 × 2 m (2 m²) hace neto al muro: 28 m² → 126 × 28 ÷ 286 = 12.336 m = 4.112 piezas; un castillo a mano no descuenta.
+    puerta = await control.post(f"/api/v1/trazos/{muro}/vanos", json={"clave": "P-01", "tipo": "puerta", "ancho_m": "1", "alto_m": "2", "posicion_m": "5"})
+    assert puerta.status_code == 201, puerta.text
+    v = (await control.get(ruta)).json()
+    assert (v["area_usada"], Decimal(v["vanos_m2"]), Decimal(v["area_neta_m2"])) == ("neto", Decimal(2), Decimal(28))
+    assert Decimal(v["elementos"][0]["piezas_estimadas"]) == Decimal("4.112")
+    assert await _medido(control, escenario, arbol["a_colado"]) == pytest.approx(12.336, abs=0.01)  # lo que toman los conceptos también es neto

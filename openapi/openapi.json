@@ -15801,36 +15801,6 @@
         ]
       }
     },
-    "/api/v1/muro-plantillas/ejemplos-de-prototipo": {
-      "post": {
-        "tags": [
-          "artefacto de muros"
-        ],
-        "summary": "Cargar las plantillas de ejemplo (Oro PB y PA, y la global de 1 y 2 plantas), por confirmar",
-        "description": "Idempotente. Cada línea trae su fila y celda del Excel en `origen`. Si el catálogo de la organización no tiene alguno de los castillos\n(K-1, K-2…) o cadenas (CE-1…) que usa un ejemplo, ese ejemplo no se crea y se dice cuáles faltan.",
-        "operationId": "cargar_ejemplos_de_prototipo_api_v1_muro_plantillas_ejemplos_de_prototipo_post",
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EjemplosCargados"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Editan Costos y Control de obra."
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/muro-plantillas": {
       "get": {
         "tags": [
@@ -16467,7 +16437,7 @@
           "artefacto de muros"
         ],
         "summary": "Cambiar el muro a otra plantilla sin perder lo medido",
-        "description": "Toma el tipo, material, ubicación y acabado de la plantilla nueva y guarda su versión (Q9). La medición y los vanos se conservan; los\ncastillos sembrados solo se quitan con `retirar_castillos`. Rehace lo que los conceptos toman.",
+        "description": "Toma el tipo, material y ubicación de la plantilla nueva y guarda su versión (Q9). El acabado ya capturado se conserva (la plantilla es\nla guía). La medición y los vanos se conservan; los castillos sembrados solo se quitan con `retirar_castillos` y la plantilla de confinado no\nlos cuenta dos veces. Rehace lo que los conceptos toman.",
         "operationId": "cambiar_de_plantilla_api_v1_trazos__trazo_id__muro_plantilla_cambio_post",
         "security": [
           {
@@ -26902,6 +26872,12 @@
             "title": "Castillos Por Colocar",
             "description": "Castillos ubicados que lleva la plantilla nueva (se colocan aparte)."
           },
+          "acabado_se_conserva": {
+            "type": "boolean",
+            "title": "Acabado Se Conserva",
+            "description": "El muro ya tiene acabado capturado: el cambio de plantilla no lo pisa.",
+            "default": false
+          },
           "conserva": {
             "items": {
               "type": "string"
@@ -28636,6 +28612,37 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Altura M",
             "description": "La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra."
+          },
+          "area_bruta_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Area Bruta M2",
+            "description": "Largo × alto del muro.",
+            "default": "0"
+          },
+          "vanos_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vanos M2",
+            "description": "m² de los vanos ya colocados (puertas, ventanas, pasos…) que se descontaron; 0 si no hay.",
+            "default": "0"
+          },
+          "area_neta_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Area Neta M2",
+            "description": "Bruto − vanos: el área sobre la que la regla «total» reparte los metros del prototipo.",
+            "default": "0"
+          },
+          "area_usada": {
+            "type": "string",
+            "enum": [
+              "bruto",
+              "neto"
+            ],
+            "title": "Area Usada",
+            "description": "El muro es bruto hasta que se coloca un vano; entonces se vuelve neto.",
+            "default": "bruto"
           },
           "nivel": {
             "anyOf": [
@@ -35697,6 +35704,20 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Metros"
+          },
+          "piezas_estimadas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Piezas Estimadas",
+            "description": "Castillos estimados: lo que estima la regla, antes de descontar los sembrados.",
+            "default": "0"
+          },
+          "piezas_sembradas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Piezas Sembradas",
+            "description": "Castillos estimados: los sembrados del mismo tipo K que se descontaron.",
+            "default": "0"
           }
         },
         "type": "object",
@@ -35729,62 +35750,6 @@
         ],
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
-      },
-      "EjemploFaltante": {
-        "properties": {
-          "plantilla": {
-            "type": "string",
-            "title": "Plantilla"
-          },
-          "elementos": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Elementos",
-            "description": "Los castillos o cadenas que faltan en el catálogo de la organización."
-          }
-        },
-        "type": "object",
-        "required": [
-          "plantilla",
-          "elementos"
-        ],
-        "title": "EjemploFaltante"
-      },
-      "EjemplosCargados": {
-        "properties": {
-          "creadas": {
-            "items": {
-              "$ref": "#/components/schemas/PlantillaDeMuro"
-            },
-            "type": "array",
-            "title": "Creadas"
-          },
-          "omitidas": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Omitidas",
-            "description": "Ya tenían plantilla vigente: no se tocan."
-          },
-          "faltan": {
-            "items": {
-              "$ref": "#/components/schemas/EjemploFaltante"
-            },
-            "type": "array",
-            "title": "Faltan",
-            "description": "No se crearon: faltan elementos en el catálogo. No se inventan."
-          }
-        },
-        "type": "object",
-        "required": [
-          "creadas",
-          "omitidas",
-          "faltan"
-        ],
-        "title": "EjemplosCargados"
       },
       "ElegirPlantillaPeticion": {
         "properties": {
@@ -36002,7 +35967,21 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Piezas Estimadas",
-            "description": "Castillos: las piezas que cuenta, con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).",
+            "description": "Castillos estimados: las piezas que estima la regla de la plantilla, antes de descontar los sembrados.",
+            "default": "0"
+          },
+          "piezas_sembradas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Piezas Sembradas",
+            "description": "Castillos estimados: las piezas de este tipo K ya sembradas en el muro que se descontaron de las estimadas.",
+            "default": "0"
+          },
+          "piezas_contadas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Piezas Contadas",
+            "description": "Castillos: las piezas que cuenta (estimadas − sembradas, mínimo 0), con fracción en «por ml» y «total» (`piezas` las redondea hacia arriba).",
             "default": "0"
           },
           "piezas": {
