@@ -31,7 +31,7 @@ def test_la_ficha_trae_modulos_escalones_y_pendientes(cliente: TestClient) -> No
 
 
 def test_calcula_con_corte_ajustado_y_el_escalon_del_catalogo(cliente: TestClient) -> None:
-    r = cliente.post(f"{RUTA}/BA-1/calcular", json={"trazo_m": 10})
+    r = cliente.post(f"{RUTA}/BA-1/calcular", json={"trazo_m": 10, "largo_cm": 142.86})  # 1.20 m recto + 2 ganchos incluidos
     assert r.status_code == 200, r.text
     c = r.json()
     assert c["ajustado"]["bastones"] == 41 and c["ajustado"]["varillas"] == 6 and c["exacto"]["varillas"] == 6
@@ -41,6 +41,7 @@ def test_calcula_con_corte_ajustado_y_el_escalon_del_catalogo(cliente: TestClien
 
 def test_el_gancho_es_un_parametro_explicito_y_sale_en_el_desglose(cliente: TestClient) -> None:
     c = cliente.post(f"{RUTA}/BA-1/calcular", json={"varilla_numero": 4, "gancho_cm": 14, "ganchos": 1}).json()
+    assert c["parametros"]["recto_cm"] == pytest.approx(120 - 14) and c["ajustado"]["corte"]["necesario_m"] == pytest.approx(1.2)
     assert c["gancho"]["ganchos"] == 1 and c["gancho"]["longitud_cm"] == 14 and c["ajustado"]["corte"]["gancho_m"] == pytest.approx(0.14)
     c0 = cliente.post(f"{RUTA}/BA-1/calcular", json={"ganchos": 0}).json()
     assert c0["gancho"]["total_por_baston_cm"] == 0 and c0["ajustado"]["corte"]["modulo_m"] == 1.5

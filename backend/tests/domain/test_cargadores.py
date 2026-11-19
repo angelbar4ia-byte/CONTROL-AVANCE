@@ -376,6 +376,33 @@ def test_nivel_sin_descripcion_es_error_de_fila() -> None:
         validar_nivel(["Subcapítulo", "NIV-00099", "", "", None, 1, None, None], _MAPA_NIVELES, 7)
 
 
+_MAPA_NIVELES_CON_NUMERO = resolver_encabezados(["CLAVE", "DESCRIPCIÓN", "NÚMERO DE NIVEL"], NIVELES)
+
+
+def test_el_numero_de_nivel_es_opcional_y_sin_columna_queda_en_none() -> None:
+    assert validar_nivel(["NIV-1", "PB"], resolver_encabezados(["CLAVE", "DESCRIPCIÓN"], NIVELES), 2).numero_de_nivel is None
+    # Con la columna pero la celda vacía: tampoco se toca el número guardado.
+    assert validar_nivel(["NIV-1", "PB", None], _MAPA_NIVELES_CON_NUMERO, 2).numero_de_nivel is None
+
+
+@pytest.mark.parametrize(("celda", "esperado"), [(1, 1), ("2", 2), (3.0, 3), (99, 99)])
+def test_el_numero_de_nivel_se_lee_como_entero(celda: object, esperado: int) -> None:
+    nivel = validar_nivel(["NIV-1", "ENTREPISO", celda], _MAPA_NIVELES_CON_NUMERO, 3)
+    assert nivel.numero_de_nivel == esperado and nivel.descripcion == "ENTREPISO"
+
+
+@pytest.mark.parametrize("celda", [0, 100, -1, "dos", 1.5])
+def test_un_numero_de_nivel_fuera_de_1_a_99_o_no_entero_es_error_de_fila(celda: object) -> None:
+    with pytest.raises(ErrorEnFila, match="numero_de_nivel"):
+        validar_nivel(["NIV-1", "PB", celda], _MAPA_NIVELES_CON_NUMERO, 4)
+
+
+@pytest.mark.parametrize("cabecera", ["numero de nivel", "No. de nivel", "NUMERO_DE_NIVEL", "Número nivel"])
+def test_el_numero_de_nivel_acepta_estos_encabezados(cabecera: str) -> None:
+    mapa = resolver_encabezados(["CLAVE", "DESCRIPCIÓN", cabecera], NIVELES)
+    assert validar_nivel(["NIV-1", "PB", 2], mapa, 2).numero_de_nivel == 2
+
+
 # --- Etapas de construcción (§10.1, `CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx`)
 
 _MAPA_ETAPAS = resolver_encabezados(

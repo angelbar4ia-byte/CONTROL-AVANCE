@@ -12,7 +12,11 @@ export interface CorteDelBaston {
   material_por_baston_m: number;
   traslape_m: number;
   puntas_m: number;
+  /** Lo que los ganchos suman del largo capturado (ya incluido en él): ganchos × longitud. */
   gancho_m: number;
+  /** Tramo recto = largo capturado − ganchos; es el que nombra el escalón del catálogo. */
+  recto_m: number;
+  /** Corte del bastón = largo capturado + puntas (el largo capturado ya incluye los ganchos). */
   necesario_m: number;
   sobrante_por_baston_m: number;
   piezas_por_varilla: number;

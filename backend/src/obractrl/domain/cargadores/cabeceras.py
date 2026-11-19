@@ -424,10 +424,17 @@ NIVELES = EspecificacionArchivo(
     archivo="CATALOGO_DE_NIVELES.xlsx",
     hoja=None,
     obligatorias=("clave", "descripcion"),
-    opcionales=(),
+    opcionales=("numero_de_nivel",),
+    alias={
+        "numero de nivel": "numero_de_nivel",
+        "numero_de_nivel": "numero_de_nivel",
+        "no. de nivel": "numero_de_nivel",
+        "no. nivel": "numero_de_nivel",
+        "numero nivel": "numero_de_nivel",
+    },
 )
-"""Catálogo base de identidad de niveles (§10.1): clave, descripción, nada
-más — orden/importe quedan en su default y se llenan a mano. El archivo
+"""Catálogo base de identidad de niveles (§10.1): clave, descripción y, opcional, el
+número de nivel (`nivel.numero_de_nivel`, PB = 1; F5) — orden/importe quedan en su default y se llenan a mano. El archivo
 real trae columnas propias de la herramienta de origen (TIPO, DESCRIPCIÓN
 CORTA, UNIDAD, CANTIDAD, PRECIO UNITARIO, TOTAL) que no tienen dónde vivir
 en este catálogo tan simple; se ignoran sin romper (§10.6, mismo criterio

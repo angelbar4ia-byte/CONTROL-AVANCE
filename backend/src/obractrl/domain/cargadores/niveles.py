@@ -18,7 +18,12 @@ from dataclasses import dataclass
 
 from obractrl.domain.cargadores.cabeceras import MapaColumnas
 from obractrl.domain.cargadores.reporte import ErrorEnFila
-from obractrl.domain.shared.normalizacion import esta_vacio, texto_limpio
+from obractrl.domain.shared.normalizacion import (
+    ValorNoConvertible,
+    a_entero,
+    esta_vacio,
+    texto_limpio,
+)
 from obractrl.domain.shared.valores import Clave
 
 __all__ = ["FilaNivel", "validar_nivel"]
@@ -30,6 +35,9 @@ class FilaNivel:
 
     clave: Clave | None
     descripcion: str
+
+    numero_de_nivel: int | None = None
+    """Número de nivel explícito (PB = 1, 1 a 99) o ``None`` si el archivo no lo trae (no se toca el guardado)."""
 
     fila: int = 0
     """Renglón del archivo. Viaja con el registro para que un pendiente
@@ -74,4 +82,18 @@ def validar_nivel(
             valor=mapa.valor(fila, "descripcion"),
         )
 
-    return FilaNivel(clave=clave, descripcion=descripcion, fila=numero)
+    celda_numero = mapa.valor(fila, "numero_de_nivel")
+    numero_de_nivel: int | None = None
+    if not esta_vacio(celda_numero):
+        try:
+            numero_de_nivel = a_entero(celda_numero, campo="numero_de_nivel")
+        except ValorNoConvertible as exc:
+            raise ErrorEnFila(str(exc), columna="numero_de_nivel", valor=celda_numero) from exc
+        if not 1 <= numero_de_nivel <= 99:
+            raise ErrorEnFila(
+                "numero_de_nivel: el número de nivel va de 1 (PB) a 99.",
+                columna="numero_de_nivel",
+                valor=celda_numero,
+            )
+
+    return FilaNivel(clave=clave, descripcion=descripcion, numero_de_nivel=numero_de_nivel, fila=numero)

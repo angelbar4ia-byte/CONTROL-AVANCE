@@ -2,7 +2,7 @@
  * La tarjeta del bastón (BA-1) — Ola 4, lane 4D. Como las demás, **no calcula nada**: cada cambio se manda al servidor
  * (`/biblioteca-de-elementos/baston/{clave}/calcular`) y se dibuja lo que responde.
  *
- * El bastón se mide por **longitud de trazo**: varilla, separación y largo del bastón. El largo se corta con los módulos de 1, 1.5, 2, 3,
+ * El bastón se mide por **longitud de trazo**: varilla, separación y largo del bastón. El largo capturado INCLUYE los ganchos y es el corte (el tramo recto es el largo menos los ganchos y nombra el escalón). Se corta con los módulos de 1, 1.5, 2, 3,
  * 4 y 6 m (corte ajustado, lo más conservador, Q28); el corte exacto se muestra solo como referencia. Muestra el escalón del catálogo que
  * lo paga (exacto, el primero más largo o ninguno), su conciliación (= ≈ ≠) y las versiones propuestas. Cuando falta el escalón avisa y
  * deja proponer un concepto nuevo con clave provisional, sin precio ni destajo; solo Control de obra autoriza.
@@ -99,7 +99,7 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
   const [sep, setSep] = useState('25');
   const [largo, setLargo] = useState('120');
   const [puntas, setPuntas] = useState('0');
-  // E1: el gancho entra en la longitud de corte. Número de ganchos y su largo en diámetros; `gancho` en cm vacío = se usan los diámetros.
+  // El largo capturado ya incluye los ganchos (decisión 2026-11-19): corte = largo; tramo recto = largo − ganchos. Número de ganchos y su largo en diámetros; `gancho` en cm vacío = se usan los diámetros.
   const [ganchos, setGanchos] = useState('2');
   const [ganchoDiam, setGanchoDiam] = useState('12');
   const [ganchoCm, setGanchoCm] = useState('');
@@ -244,7 +244,7 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
           <input className="input" inputMode="decimal" aria-label="Separación en centímetros" value={sep} onChange={(e) => setSep(e.target.value)} />
         </label>
         <label className="mct__campo">
-          <span>Largo del bastón (cm)</span>
+          <span>Largo del bastón (cm; incluye los ganchos)</span>
           <input className="input" inputMode="decimal" aria-label="Largo del bastón en centímetros" value={largo} onChange={(e) => setLargo(e.target.value)} />
         </label>
         <label className="mct__campo">
@@ -306,7 +306,10 @@ export function TarjetaBaston({ clave, obraId = '' }: Props) {
               Gancho {num(calculo.gancho.ganchos, 0)} × {num(calculo.gancho.longitud_cm, 2)} cm = {num(calculo.gancho.total_por_baston_cm, 2)} cm por bastón
             </span>
             <span className="chip" data-testid="baston-corte">
-              Corte de {num(calculo.ajustado.corte.necesario_m, 2)} m (con gancho): {num(calculo.ajustado.corte.piezas_por_baston, 0)} × {num(calculo.ajustado.corte.modulo_m, 1)} m · {num(calculo.ajustado.corte.piezas_por_varilla, 0)} por varilla
+              Corte de {num(calculo.ajustado.corte.necesario_m, 2)} m, de los cuales {num(calculo.gancho.total_por_baston_cm, 2)} cm de ganchos: {num(calculo.ajustado.corte.piezas_por_baston, 0)} × {num(calculo.ajustado.corte.modulo_m, 1)} m · {num(calculo.ajustado.corte.piezas_por_varilla, 0)} por varilla
+            </span>
+            <span className="chip" data-testid="baston-recto">
+              Tramo recto {num(calculo.ajustado.corte.recto_m, 2)} m (nombra el escalón)
             </span>
             <span className="chip" data-testid="baston-varillas">
               <b>{num(calculo.ajustado.varillas, 0)} varillas</b> de {num(calculo.varilla.largo_m, 0)} m

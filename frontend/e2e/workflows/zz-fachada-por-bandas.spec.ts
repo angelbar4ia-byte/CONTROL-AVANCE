@@ -17,6 +17,7 @@ interface Banda {
 }
 interface Fachada {
   bandas: Banda[];
+  vanos_m2: string;
   neto_m2: string;
   muros: { trazo_id: string; origen_de_caras: string }[];
   muros_sin_cara_exterior: { trazo_id: string }[];
@@ -99,14 +100,19 @@ test.describe('Cuantificador · fachada por bandas de altura', () => {
   test('sin zonas, la fachada sigue la ubicación y la altura del muro real; un muro sin caras definidas avisa y no se cuenta', async ({ page, request }) => {
     const { obra, plano, muro, fachada } = await nuevaObra(request, 'FU');
     const fachadaA = await muro('LINESTRING(0 10, 5 10)');
-    await llamarApi(request, 'control', 'PUT', `/trazos/${fachadaA.trazo_id}/muro/clasificacion`, { tipo: 'confinado', ubicacion: 'fachada_a' });
+    await llamarApi(request, 'control', 'PUT', `/trazos/${fachadaA.trazo_id}/muro/clasificacion`, { tipo: 'con_cadena', ubicacion: 'fachada_a' });
     // La altura real del muro manda: 4.50 m × 5 m de largo = 15 + 6 + 1.5.
     await llamarApi(request, 'control', 'PUT', `/trazos/${fachadaA.trazo_id}/muro`, { altura_m: '4.5', caras: 2 });
+    // Dos castillos colocados en el muro (misma tabla de vanos): NO se restan, solo las puertas y ventanas.
+    for (const [clave, posicion] of [['K-1', '1'], ['K-2', '4']] as const) {
+      await llamarApi(request, 'control', 'POST', `/trazos/${fachadaA.trazo_id}/vanos`, { clave, tipo: 'castillo', ancho_m: '0.15', alto_m: '3', posicion_m: posicion });
+    }
     const sinCaras = await muro('LINESTRING(0 14, 4 14)');
     const interior = await muro('LINESTRING(0 16, 4 16)');
     await llamarApi(request, 'control', 'PUT', `/trazos/${interior.trazo_id}/muro/clasificacion`, { tipo: 'confinado', ubicacion: 'interior' });
     const f = await fachada();
-    expect(netos(f)).toEqual({ baja: 15, media: 6, resto: 1.5 });
+    expect(netos(f)).toEqual({ baja: 15, media: 6, resto: 1.5 }); // con los castillos puestos: no restan
+    expect(Number(f.vanos_m2)).toBe(0);
     expect(f.muros_sin_cara_exterior.map((m) => m.trazo_id).sort()).toEqual([sinCaras.trazo_id, interior.trazo_id].sort());
 
     await entrarComo(page, 'costos'); // todos los roles que ven el plano leen
@@ -118,6 +124,8 @@ test.describe('Cuantificador · fachada por bandas de altura', () => {
     await expect(panel.locator('[data-fachada-banda="resto"] [data-neto]')).toHaveText('1.50');
     await expect(panel.locator('[data-fachada-total] [data-neto]')).toHaveText('22.50');
     await expect(panel).toContainText('ubicación');
+    await expect(panel.locator('[data-fachada-total] td').nth(1)).toHaveText('0.00'); // los castillos no cuentan como vanos
+    await expect(panel.locator('[data-fachada-nota-vanos]')).toContainText('solo puertas y ventanas');
     await expect(panel.locator('[data-fachada-sin-cara]')).toContainText('2 muros sin cara exterior definida no se cuentan');
   });
 });

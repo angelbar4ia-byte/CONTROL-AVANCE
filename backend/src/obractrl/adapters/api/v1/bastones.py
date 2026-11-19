@@ -102,9 +102,9 @@ class CalculoDelBastonPeticion(BaseModel):
     trazo_m: float = Field(default=1.0, gt=0, le=1_000_000, description="Longitud de trazo a cubrir, en metros.")
     varilla_numero: int = Field(default=3, ge=3, le=6, description="3 = 3/8, 4 = 1/2, 5 = 5/8, 6 = 3/4.")
     sep_cm: float = Field(default=25.0, ge=5, le=200, description="Cada cuánto va un bastón.")
-    largo_cm: float = Field(default=120.0, ge=10, le=3000, description="Largo del bastón.")
+    largo_cm: float = Field(default=120.0, ge=10, le=3000, description="Largo del bastón que se captura: INCLUYE los ganchos y es el corte (más las puntas). El tramo recto es este largo menos los ganchos.")
     puntas_cm: float = Field(default=0.0, ge=0, le=100, description="Anclaje adicional que no es gancho; 0 por defecto.")
-    ganchos: int = Field(default=2, ge=0, le=2, description="Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho entra en la longitud de corte.")
+    ganchos: int = Field(default=2, ge=0, le=2, description="Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho va incluido en el largo capturado.")
     gancho_diametros: float = Field(default=12.0, ge=0, le=40, description="Largo de cada gancho en diámetros de la varilla (12 por defecto; por confirmar con el estructurista). Solo vale si no se manda `gancho_cm`.")
     gancho_cm: float | None = Field(default=None, ge=0, le=100, description="Largo de cada gancho en cm; si se manda, manda sobre `gancho_diametros`.")
     traslape_diametros: float = Field(default=40.0, ge=0, le=100, description="Traslape entre las piezas de un bastón largo (Q22). Si no se manda, vale el driver `traslape_varilla_diametros` de la obra.")
@@ -140,8 +140,9 @@ class CorteDelBaston(BaseModel):
     material_por_baston_m: float
     traslape_m: float
     puntas_m: float
-    gancho_m: float
-    necesario_m: float
+    gancho_m: float = Field(description="Lo que los ganchos suman del largo capturado (ya incluido en él): ganchos × longitud.")
+    recto_m: float = Field(description="Tramo recto = largo capturado − ganchos; es el que nombra el escalón del catálogo.")
+    necesario_m: float = Field(description="Corte del bastón = largo capturado + puntas (el largo capturado ya incluye los ganchos).")
     sobrante_por_baston_m: float
     piezas_por_varilla: int
     excede_maximo: bool

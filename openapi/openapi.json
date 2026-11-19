@@ -25607,7 +25607,7 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Vanos M2",
-            "description": "Lo que descuentan los vanos que caen en esta banda."
+            "description": "Lo que descuentan las puertas y ventanas que caen en esta banda (los castillos colocados no se restan)."
           },
           "neto_m2": {
             "type": "string",
@@ -26233,7 +26233,7 @@
             "maximum": 3000.0,
             "minimum": 10.0,
             "title": "Largo Cm",
-            "description": "Largo del bastón.",
+            "description": "Largo del bastón que se captura: INCLUYE los ganchos y es el corte (más las puntas). El tramo recto es este largo menos los ganchos.",
             "default": 120.0
           },
           "puntas_cm": {
@@ -26249,7 +26249,7 @@
             "maximum": 2.0,
             "minimum": 0.0,
             "title": "Ganchos",
-            "description": "Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho entra en la longitud de corte.",
+            "description": "Ganchos por bastón (E1): 0 = sin gancho, 2 = uno en cada punta. El gancho va incluido en el largo capturado.",
             "default": 2
           },
           "gancho_diametros": {
@@ -32673,11 +32673,18 @@
           },
           "gancho_m": {
             "type": "number",
-            "title": "Gancho M"
+            "title": "Gancho M",
+            "description": "Lo que los ganchos suman del largo capturado (ya incluido en él): ganchos × longitud."
+          },
+          "recto_m": {
+            "type": "number",
+            "title": "Recto M",
+            "description": "Tramo recto = largo capturado − ganchos; es el que nombra el escalón del catálogo."
           },
           "necesario_m": {
             "type": "number",
-            "title": "Necesario M"
+            "title": "Necesario M",
+            "description": "Corte del bastón = largo capturado + puntas (el largo capturado ya incluye los ganchos)."
           },
           "sobrante_por_baston_m": {
             "type": "number",
@@ -32700,6 +32707,7 @@
           "traslape_m",
           "puntas_m",
           "gancho_m",
+          "recto_m",
           "necesario_m",
           "sobrante_por_baston_m",
           "piezas_por_varilla",
@@ -45615,6 +45623,18 @@
               }
             ],
             "title": "Importe"
+          },
+          "numero_de_nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero De Nivel",
+            "description": "Número de nivel explícito (PB = 1, 1 a 99; F5) con el que se eligen los conceptos del contexto. Vacío = se usa `orden` mientras no haya saltos."
           }
         },
         "type": "object",

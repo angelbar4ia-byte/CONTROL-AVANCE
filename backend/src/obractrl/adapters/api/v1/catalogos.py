@@ -601,6 +601,10 @@ class NivelRespuesta(BaseModel):
     descripcion: str
     orden: int = 0
     importe: Decimal | None = None
+    numero_de_nivel: int | None = Field(
+        default=None,
+        description="Número de nivel explícito (PB = 1, 1 a 99; F5) con el que se eligen los conceptos del contexto. Vacío = se usa `orden` mientras no haya saltos.",
+    )
 
     @classmethod
     def desde_fila(cls, fila: dict) -> NivelRespuesta:
@@ -610,6 +614,7 @@ class NivelRespuesta(BaseModel):
             descripcion=fila["descripcion"],
             orden=fila["orden"],
             importe=fila["importe"],
+            numero_de_nivel=fila.get("numero_de_nivel"),
         )
 
 
