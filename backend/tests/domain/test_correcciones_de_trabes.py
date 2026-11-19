@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from obractrl.domain.cuantificacion.correcciones_de_catalogo import correcciones_de
-from obractrl.domain.cuantificacion.correcciones_de_trabes import correcciones_de_elemento_lineal
+from obractrl.domain.cuantificacion.correcciones_de_trabes import (
+    correcciones_de_elemento_lineal,
+)
 from obractrl.domain.cuantificacion.elementos_lineales import (
     EntradaElementoEstructural,
     calcular_elemento,

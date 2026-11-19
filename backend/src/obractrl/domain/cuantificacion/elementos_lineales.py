@@ -259,7 +259,9 @@ def definicion_del_elemento(clave: str) -> dict[str, Any] | None:
     e = _POR_CLAVE.get(clave)
     if e is None:
         return None
-    from obractrl.domain.cuantificacion.correcciones_de_trabes import correcciones_de_elemento_lineal
+    from obractrl.domain.cuantificacion.correcciones_de_trabes import (
+        correcciones_de_elemento_lineal,
+    )
 
     zapata = e["tipo"] == TIPO_ZAPATA
     columna = e["tipo"] == TIPO_COLUMNA
