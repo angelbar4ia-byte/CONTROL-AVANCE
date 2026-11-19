@@ -27,6 +27,7 @@ from obractrl.domain.cuantificacion.correcciones_de_catalogo import (
     numero_de_version,
     propuesta_de_concepto_nuevo,
 )
+from obractrl.domain.cuantificacion.elementos_lineales import elemento_estructural
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     ErrorDeElementoParametrico,
 )
@@ -37,6 +38,11 @@ from obractrl.domain.cuantificacion.estructura_de_catalogo import (
 )
 
 __all__ = ["GestionarPropuestasDeEstructura"]
+
+
+def _lineal(clave: str) -> bool:
+    """Una trabe, contratrabe o nervadura (D7): propone correcciones del catálogo igual que un castillo."""
+    return elemento_estructural(clave) is not None
 
 
 def _elemento(clave: str) -> Any:
@@ -54,7 +60,8 @@ class GestionarPropuestasDeEstructura:
         self._uow = uow
 
     async def listar(self, elemento_clave: str) -> list[dict[str, Any]]:
-        _elemento(elemento_clave)
+        if not _lineal(elemento_clave):
+            _elemento(elemento_clave)
         return list(await self._propuestas.del_elemento(elemento_clave))
 
     async def pendientes(self) -> list[dict[str, Any]]:
@@ -74,11 +81,11 @@ class GestionarPropuestasDeEstructura:
     async def proponer_correcciones(self, elemento_clave: str, *, usuario_id: UUID, rol: str) -> dict[str, Any]:
         """Registra las correcciones de fábrica del elemento que aún no están propuestas ni autorizadas (idempotente)."""
         validar_que_propone(rol)
-        e = _elemento(elemento_clave)
+        clave = elemento_clave if _lineal(elemento_clave) else _elemento(elemento_clave).clave
         creadas: list[UUID] = []
         omitidas: list[str] = []
         async with self._uow:
-            for p in correcciones_de(e.clave):
+            for p in correcciones_de(clave):
                 vigentes = [
                     v for v in await self._propuestas.vigentes_del_concepto(p["concepto_clave"]) if v["clase"] == p["clase"]
                 ]

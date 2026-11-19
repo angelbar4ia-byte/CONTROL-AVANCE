@@ -11,6 +11,7 @@ import type { EscarpioDelCimiento } from "./escarpioDelCimiento";
 import type { VolumenDelMuro } from "./volumenDelMuro";
 import type { DentellonDelMuro } from "./dentellonDelMuro";
 import type { ContrasteConElConcepto } from "./contrasteConElConcepto";
+import type { NoIncluidoDelCimiento } from "./noIncluidoDelCimiento";
 
 /**
  * El resultado completo del muro de cimentación por metro lineal de trazo.
@@ -24,5 +25,7 @@ export interface CalculoDelCimiento {
   volumen: VolumenDelMuro;
   dentellon: DentellonDelMuro;
   contraste: ContrasteConElConcepto;
+  /** Dalas, castillos empotrados y cimientos perpendiculares de la sección 8.4: se miden aparte, no están en este muro (D12). */
+  no_incluye: NoIncluidoDelCimiento[];
   advertencias: string[];
 }

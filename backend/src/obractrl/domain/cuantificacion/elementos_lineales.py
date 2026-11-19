@@ -11,7 +11,7 @@ Dominio puro del mockup de elementos paramétricos (`muestra`, `muestraZap`, `co
   anillo es una pieza de largo fijo.
 - **Zapata Z-1** (EST-03020), por pieza: parrilla de varilla de 3/8 a 15 cm en los dos sentidos. **Sin dado** (Q57): el título del
   concepto lo menciona pero la categoría Dados se construye después.
-- **Columna C-1**, por pieza de altura conocida (el catálogo la paga con EST-11011 «hasta 6.00 m»).
+- **Columna C-1**, por pieza de altura conocida: habitual 4.20 m, editable (el catálogo la paga con EST-11011 «hasta 6.00 m»).
 
 **Sin mano de obra.** El catálogo no trae destajo por metro para trabes, contratrabes ni nervaduras (Q52) y su concreto y su cimbra
 se pagan dentro de la losa por m² (Q51). Esta lane **contempla pero no ejecuta** ese camino: `camino_de_colado_y_cimbra` describe
@@ -104,11 +104,11 @@ PENDIENTES: tuple[dict[str, str], ...] = (
     },
     {
         "clave": "Q56",
-        "texto": "El catálogo cuenta la varilla con 8 % de traslape y desperdicio; aquí se usa el traslape de 40 diámetros. La diferencia se muestra en la conciliación, no se corrige.",
+        "texto": "El catálogo cuenta la varilla con 8 % de traslape y desperdicio; aquí se usa el traslape de 40 diámetros. La diferencia se muestra en la conciliación, no se corrige. Lo que el catálogo trae mal en T-2-12x20 (dos anillos) y en T-5-12x30 (anillo 10×25 en una sección 12×30) se propone como nueva versión del concepto (D7), pendiente de Control de obra.",
     },
     {
         "clave": "Q60",
-        "texto": "El anclaje de la varilla en una trabe por pieza usa 40 diámetros en cada apoyo (el del castillo); falta el gancho o la patilla del estructurista.",
+        "texto": "El anclaje de la varilla en una trabe por pieza se sugiere de 40 diámetros por extremo (D6): es una sugerencia, no una regla; si se captura otro valor el elemento lo usa y avisa si cumple. Falta el gancho o la patilla del estructurista.",
     },
 )
 """Lo que el usuario dejó con valor conservador o que el catálogo no responde; la tarjeta lo muestra como pendiente."""
@@ -128,7 +128,7 @@ class EntradaElementoEstructural:
     - `modo`: `ml` (por metro de trazo) o `pieza`. Solo las trabes, contratrabes y nervaduras se miden por ml; la zapata y la
       columna siempre son pieza.
     - `largo_m`: largo de la pieza (trabe/contratrabe/nervadura por pieza); por defecto 4.00 m.
-    - `alto_m`: altura de la columna C-1; por defecto 6.00 m (el escalón del catálogo, EST-11011 «hasta 6.00 m»).
+    - `alto_m`: altura de la columna C-1; por defecto 4.20 m, la habitual (D5; editable). El escalón del catálogo, EST-11011, llega hasta 6.00 m.
     - `zonas_de_anillo`: solo por pieza; `(largo de la zona en cada extremo en cm o None, separación en cm)`. Sin ellas se usa la
       separación única del catálogo.
     - `cantidad`: cuántos ml o piezas se piden (da los totales a comprar).
@@ -142,6 +142,10 @@ class EntradaElementoEstructural:
     zonas_de_anillo: Sequence[tuple[float | None, float]] = ()
     desperdicio_concreto_pct: float = 5.0
     drivers: DriversDeReceta = field(default_factory=DriversDeReceta)
+    anclaje_cm: float | None = None
+    """Anclaje de la varilla por extremo de la pieza (cm), capturado por quien calcula. La norma lo pide como **sugerencia**: 40 diámetros
+    por extremo. Si se captura, el cálculo lo usa y el resultado dice si cumple la sugerencia (`anclaje`); sin él se usa la sugerencia.
+    Solo de una pieza (trabe por pieza o columna)."""
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -255,6 +259,8 @@ def definicion_del_elemento(clave: str) -> dict[str, Any] | None:
     e = _POR_CLAVE.get(clave)
     if e is None:
         return None
+    from obractrl.domain.cuantificacion.correcciones_de_trabes import correcciones_de_elemento_lineal
+
     zapata = e["tipo"] == TIPO_ZAPATA
     columna = e["tipo"] == TIPO_COLUMNA
     modos = ["pieza"] if (zapata or columna) else ["ml", "pieza"]
@@ -298,6 +304,15 @@ def definicion_del_elemento(clave: str) -> dict[str, Any] | None:
         "usado_en": [{"clave": k, "cantidad": q} for k, q in e.get("usado_en", ())],
         "usos_total": int(e.get("usos_total", 0)),
         "pendientes": [dict(p) for p in _pendientes_de(e)],
+        "correcciones_de_fabrica": [
+            {
+                "concepto_clave": p["concepto_clave"],
+                "resumen": p["resumen"],
+                "cambios": p["detalle"]["cambios"],
+                "motivos": p["detalle"]["motivos"],
+            }
+            for p in correcciones_de_elemento_lineal(clave)
+        ],
     }
 
 
@@ -389,6 +404,11 @@ def _validar_entrada(e: dict[str, Any], i: EntradaElementoEstructural) -> tuple[
         raise ErrorDeElementoEstructural("La cantidad debe ser mayor que cero.")
     if i.modo not in ("ml", "pieza"):
         raise ErrorDeElementoEstructural("El modo es «ml» o «pieza».")
+    if i.anclaje_cm is not None:
+        if e["tipo"] == TIPO_ZAPATA or (e["tipo"] == TIPO_LINEAL and i.modo != "pieza"):
+            raise ErrorDeElementoEstructural("El anclaje es de la varilla de una pieza (trabe por pieza o columna): por ml y en la zapata no aplica.")
+        if not (0 <= i.anclaje_cm <= 500) or not math.isfinite(i.anclaje_cm):
+            raise ErrorDeElementoEstructural("El anclaje va en centímetros por extremo, de 0 a 500.")
     if not (0 <= i.desperdicio_concreto_pct <= 50):
         raise ErrorDeElementoEstructural("El desperdicio de concreto va de 0 a 50 %.")
     if e["tipo"] == TIPO_LINEAL:
@@ -481,7 +501,55 @@ def _entrada_de_receta(e: dict[str, Any], i: EntradaElementoEstructural, forma: 
         cimbra=_cimbra_de(e),
         cantidad=i.cantidad,
         drivers=i.drivers,
+        anclaje_cm=i.anclaje_cm,
     )
+
+
+def anclaje_de(receta: dict[str, Any] | None, i: EntradaElementoEstructural, e: dict[str, Any]) -> dict[str, Any]:
+    """El anclaje de la varilla por extremo: lo **sugerido** (40 diámetros por extremo, los drivers) y, si se capturó uno, si cumple.
+
+    Es una sugerencia (D6): el elemento no rechaza un valor menor, avisa. No aplica por ml, ni a la zapata, ni al armex."""
+    sugerida_d = max(i.drivers.puntas_inferior_diametros, i.drivers.puntas_superior_diametros)
+    base: dict[str, Any] = {
+        "aplica": False,
+        "sugerido_diametros": sugerida_d,
+        "capturado_cm": i.anclaje_cm,
+        "cumple": None,
+        "grupos": [],
+        "mensaje": "El anclaje de la varilla es de una pieza (trabe por pieza o columna): por ml no aplica.",
+    }
+    if receta is None or not receta["varillas"] or (e["tipo"] == TIPO_LINEAL and i.modo != "pieza"):
+        return base
+    grupos: dict[int, dict[str, Any]] = {}
+    for v in receta["varillas"]:
+        if v["numero"] in grupos:
+            continue
+        sugerido_cm = sugerida_d * v["diametro_m"] * 100
+        grupos[v["numero"]] = {
+            "numero": v["numero"],
+            "clave": v["clave"],
+            "diametro_cm": v["diametro_m"] * 100,
+            "sugerido_cm": sugerido_cm,
+            "cumple": None if i.anclaje_cm is None else i.anclaje_cm + _EPS >= sugerido_cm,
+        }
+    lista = sorted(grupos.values(), key=lambda g: g["numero"])
+    sugeridos = ", ".join(f"{g['sugerido_cm']:.0f} cm en la varilla no. {g['numero']}" for g in lista)
+    base.update(aplica=True, grupos=lista)
+    if i.anclaje_cm is None:
+        base["mensaje"] = (
+            f"Sugerido: {sugerida_d:g} diámetros por extremo ({sugeridos}). Capture el anclaje para saber si cumple; "
+            "mientras tanto el cálculo usa lo sugerido."
+        )
+        return base
+    cumple = all(g["cumple"] for g in lista)
+    base["cumple"] = cumple
+    base["mensaje"] = (
+        f"El anclaje de {i.anclaje_cm:g} cm por extremo cumple lo sugerido ({sugerida_d:g} diámetros: {sugeridos})."
+        if cumple
+        else f"El anclaje de {i.anclaje_cm:g} cm por extremo NO cumple lo sugerido ({sugerida_d:g} diámetros: {sugeridos}); "
+        "es una sugerencia: el cálculo usa el valor capturado."
+    )
+    return base
 
 
 def _fila(parte: str, clave: str, unidad: str, por_unidad: float, cantidad: float, **extra: Any) -> dict[str, Any]:
@@ -680,6 +748,9 @@ def calcular_elemento(i: EntradaElementoEstructural) -> dict[str, Any]:
         unidad = "ml" if modo == "ml" else "pza"
         divisor = largo
     fila_concreto = next(f for f in insumos if f["parte"] == "concreto")
+    anclaje = anclaje_de(receta, i, e)
+    if anclaje["cumple"] is False:
+        advertencias.append(anclaje["mensaje"])
     alto = largo if e["tipo"] == TIPO_COLUMNA else None
     conciliacion = _conciliar(e, insumos, unidad, divisor, alto)
     for c in conciliacion:
@@ -715,6 +786,7 @@ def calcular_elemento(i: EntradaElementoEstructural) -> dict[str, Any]:
             "consumos": [{**c, "descripcion": _descripcion(c["clave"])} for c in cimbra["consumos"]],
         },
         "receta_acero": receta,
+        "anclaje": anclaje,
         "parrilla": parrilla,
         "insumos": insumos,
         "mano_de_obra": {

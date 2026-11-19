@@ -8,6 +8,7 @@
 import type { CalculoDelElementoEstructuralPeticionModo } from "./calculoDelElementoEstructuralPeticionModo";
 import type { CalculoDelElementoEstructuralPeticionLargoM } from "./calculoDelElementoEstructuralPeticionLargoM";
 import type { CalculoDelElementoEstructuralPeticionAltoM } from "./calculoDelElementoEstructuralPeticionAltoM";
+import type { CalculoDelElementoEstructuralPeticionAnclajeCm } from "./calculoDelElementoEstructuralPeticionAnclajeCm";
 import type { ZonaDeAnilloDelElemento } from "./zonaDeAnilloDelElemento";
 import type { DriversDeRecetaPeticion } from "./driversDeRecetaPeticion";
 import type { CalculoDelElementoEstructuralPeticionObraId } from "./calculoDelElementoEstructuralPeticionObraId";
@@ -17,8 +18,10 @@ export interface CalculoDelElementoEstructuralPeticion {
   modo?: CalculoDelElementoEstructuralPeticionModo;
   /** Largo de la pieza (trabe, contratrabe o nervadura por pieza); 4.00 m si no se manda. */
   largo_m?: CalculoDelElementoEstructuralPeticionLargoM;
-  /** Altura de la columna C-1; 6.00 m si no se manda. */
+  /** Altura de la columna C-1; 4.20 m (la habitual, editable) si no se manda. */
   alto_m?: CalculoDelElementoEstructuralPeticionAltoM;
+  /** Anclaje de la varilla por extremo, en cm (trabe por pieza o columna). Es una sugerencia: 40 diámetros por extremo; el resultado dice si el valor capturado cumple. */
+  anclaje_cm?: CalculoDelElementoEstructuralPeticionAnclajeCm;
   /**
    * Metros o piezas que se piden: da los totales a comprar.
    * @maximum 1000000

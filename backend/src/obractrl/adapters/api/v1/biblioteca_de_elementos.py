@@ -316,6 +316,11 @@ class ContrasteConElConcepto(BaseModel):
     version_propuesta: VersionPropuestaDelConcepto
 
 
+class NoIncluidoDelCimiento(BaseModel):
+    clave: str
+    texto: str
+
+
 class CalculoDelCimiento(BaseModel):
     """El resultado completo del muro de cimentación por metro lineal de trazo."""
 
@@ -327,6 +332,9 @@ class CalculoDelCimiento(BaseModel):
     volumen: VolumenDelMuro
     dentellon: DentellonDelMuro
     contraste: ContrasteConElConcepto
+    no_incluye: list[NoIncluidoDelCimiento] = Field(
+        description="Dalas, castillos empotrados y cimientos perpendiculares de la sección 8.4: se miden aparte, no están en este muro (D12)."
+    )
     advertencias: list[str]
 
 
