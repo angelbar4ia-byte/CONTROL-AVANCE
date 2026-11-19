@@ -261,6 +261,28 @@ class ColocarElementosDeMuro(GestionarVanos):
             )
         return salida
 
+    async def version_vigente(self, trazo_id: UUID) -> dict[str, Any]:
+        """La plantilla del muro frente a la versión vigente de la misma plantilla (C4). Un muro ya medido conserva la versión que eligió (Q9);
+        si hay una más nueva se ofrece «actualizar a la versión vigente», que pasa por `ver_cambio` (qué cambia) y `cambiar_plantilla`. No cambia nada."""
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if not await self._trazos.es_linea(trazo_id):
+            raise ErrorDeCuantificacion("La plantilla se consulta sobre una línea (un muro).")
+        actual = await self._trazos.plantilla_de_muro(trazo_id)
+        if actual is None or self._plantillas is None:
+            return {"trazo_id": trazo_id, "actual": None, "vigente": None, "hay_version_nueva": False}
+        vigente = next((v for v in await self._plantillas.versiones(actual["raiz_id"]) if v["vigente"]), None)
+
+        def ficha(p: dict[str, Any]) -> dict[str, Any]:
+            return {"id": p["id"], "nombre": p["nombre"], "version": p["version"], "tipo": p["tipo"]}
+
+        return {
+            "trazo_id": trazo_id,
+            "actual": ficha(actual),
+            "vigente": ficha(vigente) if vigente is not None else None,
+            "hay_version_nueva": vigente is not None and vigente["id"] != actual["id"],
+        }
+
     async def ver_cambio(self, trazo_id: UUID, hacia_id: UUID) -> dict[str, Any]:
         """Qué cambia si el muro pasa a la plantilla `hacia_id`: el tipo, el material y la ubicación; los castillos estimados y las cadenas
         que dejan de contarse, empiezan o siguen; los castillos ya sembrados; y lo que se conserva. No cambia nada."""

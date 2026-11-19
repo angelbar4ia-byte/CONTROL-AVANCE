@@ -16378,6 +16378,51 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/muro/plantilla/vigente": {
+      "get": {
+        "tags": [
+          "artefacto de muros"
+        ],
+        "summary": "¿El muro usa la versión vigente de su plantilla? (no cambia nada)",
+        "description": "Un muro ya medido conserva la versión de la plantilla que eligió (Q9). Si la plantilla cambió después, aquí se ve que hay una versión\nnueva: para actualizarla, `GET …/cambio?hacia=<vigente>` dice qué cambia y `POST …/cambio` lo aplica; la otra salida es eliminar el trazo.",
+        "operationId": "version_vigente_de_la_plantilla_api_v1_trazos__trazo_id__muro_plantilla_vigente_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionVigenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es una línea."
+          }
+        }
+      }
+    },
     "/api/v1/trazos/{trazo_id}/muro/plantilla/cambio": {
       "get": {
         "tags": [
@@ -28283,7 +28328,7 @@
               }
             ],
             "title": "Material",
-            "description": "tabique_rojo, block_hueco o sillar_amarillo (0133)."
+            "description": "tabique_rojo, block_hueco, sillar_amarillo o cantera_rosa (0133)."
           },
           "ubicacion": {
             "anyOf": [
@@ -36623,6 +36668,14 @@
             "title": "Estado Autorizacion",
             "description": "El de Control de obra nace autorizado (versión 1); el de Costos, pendiente.",
             "default": "autorizado"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos",
+            "description": "Regla F7: un elemento nuevo debe traer su concepto en los catálogos (como una matriz). Mientras no lo tenga, avisa; no se inventa el concepto."
           }
         },
         "type": "object",
@@ -43525,6 +43578,18 @@
             ],
             "title": "Elemento",
             "description": "El elemento de la biblioteca que lo paga (tabique rojo → EST-02010)."
+          },
+          "concepto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto",
+            "description": "El concepto del catálogo que cubre el material (tabique rojo → EST-02010, sillar amarillo → BAP-01010). `null` = no hay concepto, por capturar (block hueco, cantera rosa): una plantilla con ese material no se puede validar."
           }
         },
         "type": "object",
@@ -48761,7 +48826,7 @@
           "material": {
             "type": "string",
             "title": "Material",
-            "description": "tabique_rojo, block_hueco o sillar_amarillo."
+            "description": "tabique_rojo, block_hueco, sillar_amarillo (19 cm) o cantera_rosa; independiente de la ubicación (F2)."
           },
           "ubicacion": {
             "type": "string",
@@ -55822,7 +55887,7 @@
               }
             ],
             "title": "Muro Material",
-            "description": "Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo (0133)."
+            "description": "Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo, cantera_rosa (0133)."
           },
           "muro_ubicacion": {
             "anyOf": [
@@ -58384,6 +58449,50 @@
         ],
         "title": "VersionSoportadaRespuesta",
         "description": "Lo que la app necesita para decidir entre bloquear, sugerir o callarse."
+      },
+      "VersionVigenteRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "actual": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlantillaDelCambio"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La versión de la plantilla que eligió el muro; `null` si no tiene plantilla."
+          },
+          "vigente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlantillaDelCambio"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La versión vigente de esa misma plantilla."
+          },
+          "hay_version_nueva": {
+            "type": "boolean",
+            "title": "Hay Version Nueva",
+            "description": "`true` si el muro usa una versión anterior: se ofrece actualizarla a la vigente (C4) o eliminar el trazo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "actual",
+          "vigente",
+          "hay_version_nueva"
+        ],
+        "title": "VersionVigenteRespuesta"
       },
       "VistaPeticion": {
         "properties": {

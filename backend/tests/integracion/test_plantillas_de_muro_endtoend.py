@@ -169,40 +169,87 @@ async def test_una_plantilla_nace_por_validar_y_costos_edita_pero_no_valida(
 async def test_control_de_obra_valida_contra_la_matriz_y_acepta_las_alertas(control: httpx.AsyncClient, elementos: None) -> None:
     p = (await control.post(PLANTILLAS, json=_plantilla())).json()
     rev = (await control.get(f"{PLANTILLAS}/{p['id']}/revision")).json()
-    # Los elementos de ejemplo no tienen conceptos: «sin concepto» por cada parte y la mampostería implícita (tabique rojo → EST-02010).
+    # Los elementos de ejemplo no tienen conceptos: «sin concepto» por cada parte (C3: BLOQUEA) y la mampostería implícita (tabique rojo → EST-02010).
     codigos = {(a["ref"], a["codigo"]) for a in rev["alertas"]}
     assert ("K-1", "sin_concepto") in codigos and ("CE-1", "sin_concepto") in codigos
     assert any(a["ref"] == "EST-02010" for a in rev["alertas"])
-    assert rev["bloquea"] is False and rev["validable"] is True
-    # Con alertas por revisar hay que aceptarlas expresamente.
-    r = await control.post(f"{PLANTILLAS}/{p['id']}/validar", json={})
-    assert r.status_code == 422 and "alertas" in r.text
+    assert all(a["nivel"] == "bloquea" for a in rev["alertas"] if a["codigo"] == "sin_concepto")
+    assert rev["bloquea"] is True and rev["validable"] is False
+    # Aceptar las alertas no desbloquea una parte sin concepto del catálogo.
     r = await control.post(f"{PLANTILLAS}/{p['id']}/validar", json={"aceptar_alertas": True})
+    assert r.status_code == 422 and "No se puede validar" in r.text and "ningún concepto" in r.text
+    assert (await control.get(f"{PLANTILLAS}/{p['id']}")).json()["validacion"] == "por_validar"
+
+    # Un muro de tabique sin elementos propios solo trae avisos (la mampostería EST-02010 sin matriz en la base): se aceptan con casilla.
+    t = (await control.post(PLANTILLAS, json=_plantilla(nombre="Tabique", tipo="tabique", elementos=[]))).json()
+    rev = (await control.get(f"{PLANTILLAS}/{t['id']}/revision")).json()
+    assert rev["alertas"] and rev["bloquea"] is False and rev["validable"] is True
+    r = await control.post(f"{PLANTILLAS}/{t['id']}/validar", json={})
+    assert r.status_code == 422 and "alertas" in r.text
+    r = await control.post(f"{PLANTILLAS}/{t['id']}/validar", json={"aceptar_alertas": True})
     assert r.status_code == 200, r.text
     v = r.json()["plantilla"]
     assert v["validacion"] == "validada" and v["validada_por_nombre"] is not None and v["validada_en"] is not None
+
+
+@pytest.mark.parametrize(
+    ("material", "codigo", "nivel"),
+    [("block_hueco", "material_sin_concepto", "bloquea"), ("cantera_rosa", "material_sin_concepto", "bloquea"), ("sillar_amarillo", "material_sin_elemento", "alerta")],
+)
+async def test_un_material_sin_concepto_en_el_catalogo_bloquea_y_el_sillar_solo_avisa(
+    control: httpx.AsyncClient, material: str, codigo: str, nivel: str
+) -> None:
+    """C2/C3/F2: el material es un parámetro de la plantilla (independiente de la ubicación). Block hueco y cantera rosa no tienen concepto
+    en el catálogo (por capturar): bloquean. El sillar amarillo (19 cm, BAP-01010) tiene concepto pero aún no es un elemento: avisa."""
+    p = await control.post(PLANTILLAS, json=_plantilla(nombre=f"Barda {material}", tipo="tabique", material=material, ubicacion="barda", elementos=[]))
+    assert p.status_code == 201, p.text
+    assert (p.json()["material"], p.json()["ubicacion"]) == (material, "barda")
+    rev = (await control.get(f"{PLANTILLAS}/{p.json()['id']}/revision")).json()
+    mat = [a for a in rev["alertas"] if a["codigo"] == codigo]
+    assert [a["nivel"] for a in mat] == [nivel]
+    assert rev["bloquea"] is (nivel == "bloquea")
+    r = await control.post(f"{PLANTILLAS}/{p.json()['id']}/validar", json={"aceptar_alertas": True})
+    assert (r.status_code == 422) is (nivel == "bloquea")
+
+
+async def test_el_material_de_la_barda_es_independiente_de_la_ubicacion_y_del_tipo(control: httpx.AsyncClient) -> None:
+    """F2: pretil, barda e interior se combinan con cualquier material y cualquier tipo de muro; el catálogo del artefacto lo dice."""
+    cat = (await control.get("/api/v1/muro-artefacto/catalogo")).json()
+    materiales = {m["clave"]: m for m in cat["materiales"]}
+    assert set(materiales) == {"tabique_rojo", "block_hueco", "sillar_amarillo", "cantera_rosa"}
+    assert (materiales["sillar_amarillo"]["espesor_cm"], materiales["sillar_amarillo"]["concepto"]) == (19, "BAP-01010")
+    assert (materiales["block_hueco"]["espesor_cm"], materiales["block_hueco"]["concepto"]) == (None, None)  # por capturar: no se inventa
+    assert (materiales["cantera_rosa"]["elemento"], materiales["cantera_rosa"]["concepto"]) == (None, None)
+    for i, (material, ubicacion, tipo) in enumerate(
+        (m, u, t) for m in materiales for u in ("pretil", "barda", "interior") for t in ("tabique", "confinado")
+    ):
+        r = await control.post(PLANTILLAS, json=_plantilla(nombre=f"c{i}", tipo=tipo, material=material, ubicacion=ubicacion, elementos=[]))
+        assert r.status_code == 201, r.text
+        assert (r.json()["material"], r.json()["ubicacion"], r.json()["tipo"]) == (material, ubicacion, tipo)
+    assert (await control.post(PLANTILLAS, json=_plantilla(nombre="x", material="adobe", elementos=[]))).status_code == 422
 
 
 async def test_cambiar_una_plantilla_validada_crea_version_y_los_trazos_medidos_conservan_la_anterior(
     control: httpx.AsyncClient, costos: httpx.AsyncClient, escenario: Escenario, elementos: None
 ) -> None:
     """Q9: versión nueva al cambiar una validada; el trazo ya medido sigue apuntando a la versión que eligió."""
-    v1 = (await control.post(PLANTILLAS, json=_plantilla())).json()
+    base = {"tipo": "tabique", "elementos": []}  # sin partes sin concepto: una plantilla con elementos sin concepto no se valida (C3)
+    v1 = (await control.post(PLANTILLAS, json=_plantilla(**base))).json()
     # Mientras está por validar se edita en el lugar: sigue siendo la versión 1.
-    r = await control.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(altura_m="2.8"))
+    r = await control.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(altura_m="2.8", **base))
     assert r.status_code == 200 and r.json()["version_nueva"] is False and r.json()["id"] == v1["id"]
     assert (await control.post(f"{PLANTILLAS}/{v1['id']}/validar", json={"aceptar_alertas": True})).status_code == 200
 
     _, muro = await _muro(control, escenario)
     elegido = await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": v1["id"]})
     assert elegido.status_code == 200, elegido.text
-    assert elegido.json()["plantilla_id"] == v1["id"] and elegido.json()["tipo"] == "con_cadena"
+    assert elegido.json()["plantilla_id"] == v1["id"] and elegido.json()["tipo"] == "tabique"
     assert (elegido.json()["material"], elegido.json()["ubicacion"]) == ("tabique_rojo", "fachada_a")
 
     # Un cambio sin diferencias no crea nada; uno real crea la versión 2 por validar y deja la 1 para los trazos medidos.
-    igual = (await costos.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(altura_m="2.8"))).json()
+    igual = (await costos.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(altura_m="2.8", **base))).json()
     assert igual["version_nueva"] is False and igual["version"] == 1
-    r = await costos.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(altura_m="3", elementos=[{"ref": "K-1"}]))
+    r = await costos.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(altura_m="3", **base))
     assert r.status_code == 200, r.text
     v2 = r.json()
     assert v2["version_nueva"] is True and v2["version"] == 2 and v2["validacion"] == "por_validar" and v2["raiz_id"] == v1["raiz_id"]
@@ -211,10 +258,29 @@ async def test_cambiar_una_plantilla_validada_crea_version_y_los_trazos_medidos_
     assert [(x["version"], x["vigente"], x["validacion"], x["trazos"]) for x in versiones] == [(2, True, "por_validar", 0), (1, False, "validada", 1)]
     assert (await control.get(f"/api/v1/trazos/{muro}/muro/clasificacion")).json()["plantilla_id"] == v1["id"]
     # La versión anterior ya no se edita, y una plantilla con trazos no se borra.
-    assert (await control.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla())).status_code == 422
+    assert (await control.put(f"{PLANTILLAS}/{v1['id']}", json=_plantilla(**base))).status_code == 422
     assert (await control.delete(f"{PLANTILLAS}/{v2['id']}")).status_code == 409
-    # Desligar el trazo y escoger la 2.
+    # C4: el trazo medido ve que su plantilla tiene una versión más nueva; se ofrece actualizarla (con aviso de qué cambia) o eliminar el trazo.
+    vigente = (await control.get(f"/api/v1/trazos/{muro}/muro/plantilla/vigente")).json()
+    assert vigente["hay_version_nueva"] is True
+    assert (vigente["actual"]["id"], vigente["actual"]["version"]) == (v1["id"], 1)
+    assert (vigente["vigente"]["id"], vigente["vigente"]["version"]) == (v2["id"], 2)
+    previo = (await control.get(f"/api/v1/trazos/{muro}/muro/plantilla/cambio", params={"hacia": vigente["vigente"]["id"]})).json()
+    assert previo["de"]["version"] == 1 and previo["hacia"]["version"] == 2 and "conserva" in previo
+    actualizado = await control.post(f"/api/v1/trazos/{muro}/muro/plantilla/cambio", json={"plantilla_id": vigente["vigente"]["id"]})
+    assert actualizado.status_code == 200, actualizado.text
+    despues = (await control.get(f"/api/v1/trazos/{muro}/muro/plantilla/vigente")).json()
+    assert despues["hay_version_nueva"] is False and despues["actual"]["id"] == v2["id"]
+    # Un muro sin plantilla no tiene versión que actualizar.
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": None})).json()["plantilla_id"] is None
+    sin = (await control.get(f"/api/v1/trazos/{muro}/muro/plantilla/vigente")).json()
+    assert (sin["actual"], sin["vigente"], sin["hay_version_nueva"]) == (None, None, False)
+    assert (await control.get(f"/api/v1/trazos/{uuid.uuid4()}/muro/plantilla/vigente")).status_code == 404
+    # Escoger de nuevo la 2.
     assert (await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": v2["id"]})).json()["plantilla_id"] == v2["id"]
+    # La otra salida de esa ventana: eliminar el trazo (la API de siempre).
+    assert (await control.delete(f"/api/v1/trazos/{muro}")).status_code in (200, 204)
+    assert (await control.get(f"/api/v1/trazos/{muro}/muro/plantilla/vigente")).status_code == 404
 
 
 async def test_el_castillo_depende_de_la_plantilla_y_no_del_tipo_con_cadena(

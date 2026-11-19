@@ -11,4 +11,6 @@ export interface ElementoParametricoCreado {
   id: string;
   /** El de Control de obra nace autorizado (versión 1); el de Costos, pendiente. */
   estado_autorizacion?: ElementoParametricoCreadoEstadoAutorizacion;
+  /** Regla F7: un elemento nuevo debe traer su concepto en los catálogos (como una matriz). Mientras no lo tenga, avisa; no se inventa el concepto. */
+  avisos?: string[];
 }

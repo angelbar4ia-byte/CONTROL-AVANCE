@@ -366,6 +366,7 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
                 {(catalogo.data?.materiales ?? []).map((m) => (
                   <option key={m.clave} value={m.clave}>
                     {m.nombre}
+                    {m.concepto == null ? ' · sin concepto en el catálogo' : ''}
                   </option>
                 ))}
               </select>

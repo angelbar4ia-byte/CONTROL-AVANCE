@@ -13,6 +13,22 @@ Dos formas de leer un driver:
   igual al valor de partida del driver (`escarpio_minimo`, `corona_cimiento_cm` en el muro de cimentación de piedra).
 
 No hay precios ni destajos aquí. Datos puros.
+
+Cómo se conecta `desperdicio_mamposteria` (F6, decidido y **sin ejecutar**)
+---------------------------------------------------------------------------
+El usuario decidió que el driver se conecta **cuando el sillar y el block sean elementos** de la biblioteca (hoy el sillar amarillo, 19 cm,
+solo existe como concepto BAP-01010 y el block hueco no existe ni como concepto: ver `muro_ubicacion.MATERIALES_DE_MURO` y la regla F7 en
+`conceptos_de_elemento`). Cuando exista el elemento de cada material, los pasos son, en este orden:
+
+1. Crear el elemento con su concepto (regla F7, versión propuesta que autoriza Control de obra; sin precios) y ponerlo en
+   `MATERIALES_DE_MURO[material]["elemento"]`: así la plantilla lo toma como mampostería implícita igual que EST-02010.
+2. Que el cálculo del elemento lea `desperdicio_mamposteria` por `drivers_de_elementos` (valor vigente de la obra: petición > obra > defecto),
+   **sin** tocar el tabique de 14 cm, cuyo desperdicio sigue en el elemento (M-105).
+3. Registrar aquí un `Consumidor` (p. ej. `mamposteria_no_tabique`, `claves=("desperdicio_mamposteria",)`) y **quitar** el driver de
+   `SIN_CONSUMIDOR_POR_AHORA`: `tests/api/test_drivers_conectados.py` falla a propósito si un driver gana consumidor sin salir de esa lista.
+4. Que el cambio del valor del driver lo autorice Control de obra (F3), con su bitácora.
+
+Mientras tanto no se aplica ningún desperdicio nuevo a la mampostería: no se inventan porcentajes.
 """
 
 from __future__ import annotations
@@ -88,7 +104,8 @@ SIN_CONSUMIDOR_POR_AHORA: dict[str, str] = {
     "desperdicio_mamposteria": (
         "Se aplica a la mampostería de los materiales que no son el tabique de 14 cm (sillar, block…), que todavía no son elementos "
         "de la biblioteca. NO se aplica al tabique de 14 cm (EST-02010) ni a sus aparejos: su desperdicio va en el elemento "
-        "(12 % de pieza y 5 % de mezcla, M-105)."
+        "(12 % de pieza y 5 % de mezcla, M-105). F6 (decidido, aún sin ejecutar): se conecta cuando el sillar y el block sean elementos; "
+        "ver «Cómo se conecta desperdicio_mamposteria (F6)» arriba."
     ),
 }
 """Drivers vigentes del catálogo que ningún cálculo lee todavía, con el motivo. La prueba falla si uno de ellos gana un consumidor

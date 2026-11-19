@@ -273,3 +273,36 @@ async def test_cambiar_de_plantilla_conserva_el_acabado_ya_capturado(control: ht
     # Y de vuelta: sigue siendo el del cliente.
     assert (await control.post(f"{ruta}/cambio", json={"plantilla_id": p1["id"]})).status_code == 200
     assert (await control.get(f"/api/v1/trazos/{muro}/muro/clasificacion")).json()["acabado"] == propio
+
+
+async def test_lo_que_toman_las_cadenas_se_rehace_al_sincronizar_las_tomas_de_la_obra(
+    control: httpx.AsyncClient, escenario: Escenario, arbol: dict[str, str]
+) -> None:
+    """B7: lo que toman las cadenas (y los castillos estimados) de la plantilla de un muro lo rehace la sincronización de las tomas de la obra,
+    como el resto de las tomas; no cada edición del trazo. Con la toma desfasada (como la deja un trazo editado sin sincronizar), nada la corrige
+    sola al leer; `POST /obras/{id}/tomas/sincronizar` la rehace desde las plantillas."""
+    ids = await _elementos_de_oro(control)
+    await _conceptos_de_los_elementos(control, arbol, ids)
+    p2 = (await control.post(PLANTILLAS, json=_plantilla_2())).json()
+    muro = await _muro(control, escenario)
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": p2["id"]})).status_code == 200
+    assert await _medido(control, escenario, arbol["a_cadena"]) == pytest.approx(10)  # la toma nace al elegir la plantilla
+
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(
+                text("update actividad_matriz set cantidad_medida = 3 where actividad_id = :a and origen = 'elemento'"),
+                {"a": arbol["a_cadena"]},
+            )
+        async with motor.connect() as c:
+            fila = (await c.execute(text("select cantidad_medida from actividad_matriz where actividad_id = :a"), {"a": arbol["a_cadena"]})).all()
+        assert [float(f[0]) for f in fila] == [3.0], "leer o consultar no rehace la toma"
+    finally:
+        await motor.dispose()
+
+    assert (await control.post(f"/api/v1/obras/{escenario.obra_id}/tomas/sincronizar")).status_code == 204
+    assert await _medido(control, escenario, arbol["a_cadena"]) == pytest.approx(10)
+    # Sincronizar de nuevo no cambia nada (idempotente).
+    assert (await control.post(f"/api/v1/obras/{escenario.obra_id}/tomas/sincronizar")).status_code == 204
+    assert await _medido(control, escenario, arbol["a_cadena"]) == pytest.approx(10)

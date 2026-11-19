@@ -145,9 +145,12 @@ def test_solo_costos_y_control_de_obra_enlazan() -> None:
 
 def test_las_ranuras_de_plantilla_no_inventan_conceptos() -> None:
     ranuras = ranuras_de_plantilla()
-    assert [r.ranura for r in ranuras][:3] == ["mamposteria:tabique_rojo", "mamposteria:block_hueco", "mamposteria:sillar_amarillo"]
-    assert len(ranuras) == 3 + 6
-    # Solo el tabique rojo trae un concepto sugerido (EST-02010, verificado en el catálogo); los EJ-* del mockup eran de ejemplo.
-    assert {r.ranura: r.sugerido_clave for r in ranuras if r.sugerido_clave} == {"mamposteria:tabique_rojo": "EST-02010"}
+    assert [r.ranura for r in ranuras][:4] == ["mamposteria:tabique_rojo", "mamposteria:block_hueco", "mamposteria:sillar_amarillo", "mamposteria:cantera_rosa"]
+    assert len(ranuras) == 4 + 6
+    # El tabique rojo (EST-02010) y el sillar amarillo de 19 cm (BAP-01010) traen concepto sugerido, verificado en el catálogo; block hueco
+    # y cantera rosa no tienen concepto (por capturar, C2/F7); los EJ-* del mockup eran de ejemplo.
+    assert {r.ranura: r.sugerido_clave for r in ranuras if r.sugerido_clave} == {
+        "mamposteria:tabique_rojo": "EST-02010", "mamposteria:sillar_amarillo": "BAP-01010",
+    }
     for r in ranuras:
         validar_ranura(r.ranura)

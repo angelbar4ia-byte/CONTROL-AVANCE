@@ -9,6 +9,7 @@ import pytest
 from obractrl.domain.cuantificacion.conceptos_de_elemento import (
     ConceptoDeElemento,
     Contexto,
+    aviso_de_concepto_pendiente,
     avisos_de_altura,
     describir_contexto,
     normalizar_clave_propuesta,
@@ -143,3 +144,8 @@ def test_la_clave_de_un_concepto_nuevo() -> None:
     for mala in ("a", "EJ 410", "-EJ", ""):
         with pytest.raises(ErrorDeElementoParametrico):
             normalizar_clave_propuesta(mala)
+
+
+def test_un_elemento_nuevo_avisa_que_necesita_su_concepto_f7() -> None:
+    aviso = aviso_de_concepto_pendiente("K-9")
+    assert "K-9" in aviso and "concepto" in aviso and "no se podrán validar" in aviso

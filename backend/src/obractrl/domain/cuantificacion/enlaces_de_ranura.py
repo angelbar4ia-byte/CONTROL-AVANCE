@@ -3,7 +3,7 @@
 Una **ranura** es un concepto que un elemento o una plantilla de muro necesita:
 
 - `elemento:{clave}:{acero|colado|completo}`: lo que se paga de un elemento (el acero, el colado y la cimbra, o todo junto);
-- `mamposteria:{material}`: el muro de ese material (`tabique_rojo`, `block_hueco`, `sillar_amarillo`);
+- `mamposteria:{material}`: el muro de ese material (`tabique_rojo`, `block_hueco`, `sillar_amarillo`, `cantera_rosa`);
 - `acabado:{capa}:{ubicacion}`: un acabado (`gris`, `blanca`, `pintura`) en cara `exterior` o `interior`.
 
 El Paramétrico **no inventa conceptos**: enlaza cada ranura, **en una obra**, con un concepto del Presupuesto. El enlace tiene una
@@ -47,7 +47,7 @@ __all__ = [
 ROLES_QUE_ENLAZAN = ("costos", "control_obra")
 UBICACIONES: tuple[str, ...] = ("interior", "fachada_a", "fachada_b", "pretil", "barda")
 """Las ubicaciones de un muro (`trazo.muro_ubicacion` del mockup); `personalizada` no es una capa donde enlazar."""
-MATERIALES_DE_MURO: tuple[str, ...] = ("tabique_rojo", "block_hueco", "sillar_amarillo")
+MATERIALES_DE_MURO: tuple[str, ...] = ("tabique_rojo", "block_hueco", "sillar_amarillo", "cantera_rosa")
 CAPAS_DE_ACABADO: tuple[str, ...] = ("gris", "blanca", "pintura")
 UBICACIONES_DE_ACABADO: tuple[str, ...] = ("exterior", "interior")
 
@@ -122,15 +122,18 @@ class RanuraConocida:
     """Un concepto del catálogo que la especificación propone para la ranura (verificado contra el catálogo); nunca se aplica solo."""
 
 
+_CONCEPTO_SUGERIDO = {"tabique_rojo": "EST-02010", "sillar_amarillo": "BAP-01010"}
+
+
 def ranuras_de_plantilla() -> list[RanuraConocida]:
     """Las ranuras de una plantilla de muro: la mampostería por material y los acabados por capa y cara."""
-    nombres = {"tabique_rojo": "Tabique rojo", "block_hueco": "Block hueco", "sillar_amarillo": "Sillar amarillo"}
+    nombres = {"tabique_rojo": "Tabique rojo", "block_hueco": "Block hueco", "sillar_amarillo": "Sillar amarillo", "cantera_rosa": "Cantera rosa"}
     salida = [
         RanuraConocida(
             f"mamposteria:{m}", f"Mampostería · {nombres[m]}", "mamposteria",
-            # Verificado contra CATALOGO_DE_PRESUPUESTO.csv: EST-02010 es el muro de tabique de 14 cm. Los demás materiales
-            # no tienen concepto propuesto: los conceptos EJ-* del mockup son de ejemplo y no existen en el catálogo.
-            "EST-02010" if m == "tabique_rojo" else None,
+            # Verificado contra CATALOGO_DE_PRESUPUESTO.csv: EST-02010 es el muro de tabique de 14 cm y BAP-01010 el de sillar amarillo de
+            # 19 cm. Block hueco y cantera rosa no tienen concepto en el catálogo (por capturar): los conceptos EJ-* del mockup son de ejemplo.
+            _CONCEPTO_SUGERIDO.get(m),
         )
         for m in MATERIALES_DE_MURO
     ]

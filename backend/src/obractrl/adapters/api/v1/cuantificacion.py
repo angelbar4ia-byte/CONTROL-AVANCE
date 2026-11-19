@@ -966,7 +966,7 @@ class TrazoPropiedades(BaseModel):
         description="Cómo se construye el muro: confinado, con_cadena o tabique (0124; desde la 0133 pretil y barda son ubicación "
         "y el sillar es material); `null` = sin clasificar.",
     )
-    muro_material: str | None = Field(default=None, description="Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo (0133).")
+    muro_material: str | None = Field(default=None, description="Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo, cantera_rosa (0133).")
     muro_ubicacion: str | None = Field(
         default=None, description="Dónde está el muro: interior, fachada_a, fachada_b, pretil, barda o personalizada (0133)."
     )
@@ -1596,7 +1596,7 @@ class ClasificacionDeMuroPeticion(BaseModel):
         description="`null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos "
         "(restan de los m²); tabique: sin cadenas ni castillos. Pretil y barda son ubicación y el sillar es material (0133)."
     )
-    material: str | None = Field(default=None, description="tabique_rojo, block_hueco o sillar_amarillo (0133).")
+    material: str | None = Field(default=None, description="tabique_rojo, block_hueco, sillar_amarillo o cantera_rosa (0133).")
     ubicacion: UbicacionDeMuro | None = Field(default=None, description="Define las caras A y B de las partes de altura (0133).")
     acabado: dict[str, dict[str, bool]] | None = Field(
         default=None,

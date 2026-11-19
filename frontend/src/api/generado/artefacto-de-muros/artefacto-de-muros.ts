@@ -45,6 +45,7 @@ import type {
   RevisionDePlantilla,
   ValidarPeticion,
   VerCambioDePlantillaApiV1TrazosTrazoIdMuroPlantillaCambioGetParams,
+  VersionVigenteRespuesta,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -3971,6 +3972,518 @@ export const useRetirarPlantillaDelMuroApiV1TrazosTrazoIdMuroPlantillaColocarDel
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Un muro ya medido conserva la versión de la plantilla que eligió (Q9). Si la plantilla cambió después, aquí se ve que hay una versión
+nueva: para actualizarla, `GET …/cambio?hacia=<vigente>` dice qué cambia y `POST …/cambio` lo aplica; la otra salida es eliminar el trazo.
+ * @summary ¿El muro usa la versión vigente de su plantilla? (no cambia nada)
+ */
+export const versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet =
+  (
+    trazoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionVigenteRespuesta>(
+      {
+        url: `/api/v1/trazos/${trazoId}/muro/plantilla/vigente`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfiniteQueryKey =
+  (trazoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/trazos/${trazoId}/muro/plantilla/vigente`,
+    ] as const;
+  };
+
+export const getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryKey =
+  (trazoId?: string) => {
+    return [`/api/v1/trazos/${trazoId}/muro/plantilla/vigente`] as const;
+  };
+
+export const getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+        >
+      >
+    >,
+    TError = void,
+  >(
+    trazoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfiniteQueryKey(
+        trazoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+        >
+      >
+    > = ({ signal }) =>
+      versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet(
+        trazoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >
+  >;
+export type VersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfiniteQueryError =
+  void;
+
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary ¿El muro usa la versión vigente de su plantilla? (no cambia nada)
+ */
+
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetInfiniteQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >,
+    TError = void,
+  >(
+    trazoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryKey(
+        trazoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+        >
+      >
+    > = ({ signal }) =>
+      versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet(
+        trazoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!trazoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type VersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+      >
+    >
+  >;
+export type VersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryError =
+  void;
+
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet<
+  TData = Awaited<
+    ReturnType<
+      typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet<
+  TData = Awaited<
+    ReturnType<
+      typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet<
+  TData = Awaited<
+    ReturnType<
+      typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary ¿El muro usa la versión vigente de su plantilla? (no cambia nada)
+ */
+
+export function useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet<
+  TData = Awaited<
+    ReturnType<
+      typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+    >
+  >,
+  TError = void,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof versionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * De la plantilla 1 (muro confinado: propone los castillos) a la 2 («muros y cadena»: se siembran uno por uno) y viceversa. Dice qué se
 deja de estimar, qué empieza a estimarse, cuántos castillos hay sembrados y qué se conserva. La medición del muro y sus vanos no se pierden.

@@ -7,6 +7,6 @@
  */
 
 /**
- * tabique_rojo, block_hueco o sillar_amarillo (0133).
+ * tabique_rojo, block_hueco, sillar_amarillo o cantera_rosa (0133).
  */
 export type ClasificacionDeMuroPeticionMaterial = string | null;
