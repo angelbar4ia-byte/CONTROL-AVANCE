@@ -144,13 +144,35 @@ const SUPABASE_URL = process.env.E2E_SUPABASE_URL ?? process.env.VITE_SUPABASE_U
 const SUPABASE_ANON_KEY =
   process.env.E2E_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? '';
 
+// Un login por llamada saturaba el GoTrue de pruebas bajo carga (ECONNRESET
+// intermitente en CI). Se reutiliza el token de cada rol mientras vive y, si el
+// login falla por conexión, se reintenta con espera corta.
+const TOKENS = new Map<string, { token: string; vence: number }>();
+const VIDA_DEL_TOKEN_MS = 20 * 60 * 1000;
+
 export async function tokenDe(request: APIRequestContext, rol: Rol): Promise<string> {
-  const respuesta = await request.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-    headers: { apikey: SUPABASE_ANON_KEY },
-    data: { email: ROLES[rol], password: PASSWORD },
-  });
-  expect(respuesta.ok(), `login de ${rol} en el proveedor de auth`).toBeTruthy();
-  return (await respuesta.json()).access_token as string;
+  const guardado = TOKENS.get(rol);
+  if (guardado && guardado.vence > Date.now()) return guardado.token;
+  let ultimoError: unknown;
+  for (let intento = 0; intento < 4; intento += 1) {
+    try {
+      const respuesta = await request.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        headers: { apikey: SUPABASE_ANON_KEY },
+        data: { email: ROLES[rol], password: PASSWORD },
+      });
+      expect(respuesta.ok(), `login de ${rol} en el proveedor de auth`).toBeTruthy();
+      const token = (await respuesta.json()).access_token as string;
+      TOKENS.set(rol, { token, vence: Date.now() + VIDA_DEL_TOKEN_MS });
+      return token;
+    } catch (error) {
+      ultimoError = error;
+      const texto = String(error);
+      // Solo se reintenta un corte de conexión; un login rechazado falla de inmediato.
+      if (!/ECONNRESET|ECONNREFUSED|socket hang up|ETIMEDOUT/.test(texto)) throw error;
+      await new Promise((r) => setTimeout(r, 300 * (intento + 1)));
+    }
+  }
+  throw ultimoError;
 }
 
 /** Llama a la API como un rol y devuelve la respuesta cruda, sea cual sea su estatus. */
