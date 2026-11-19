@@ -49,7 +49,7 @@ export interface TrazoPropiedades {
   pendiente_pct?: TrazoPropiedadesPendientePct;
   /** Cómo se construye el muro: confinado, con_cadena o tabique (0124; desde la 0133 pretil y barda son ubicación y el sillar es material); `null` = sin clasificar. */
   muro_tipo?: TrazoPropiedadesMuroTipo;
-  /** Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo (0133). */
+  /** Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo, cantera_rosa (0133). */
   muro_material?: TrazoPropiedadesMuroMaterial;
   /** Dónde está el muro: interior, fachada_a, fachada_b, pretil, barda o personalizada (0133). */
   muro_ubicacion?: TrazoPropiedadesMuroUbicacion;

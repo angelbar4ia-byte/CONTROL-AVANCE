@@ -39,6 +39,8 @@ async def test_se_define_un_castillo_y_su_receta_sale_del_servidor(control: http
     )
     assert r.status_code == 201, r.text
     elemento = r.json()["id"]
+    # Regla F7: un elemento nuevo trae su concepto en los catálogos; mientras no lo tenga, avisa (y no inventa el concepto).
+    assert len(r.json()["avisos"]) == 1 and "K-1" in r.json()["avisos"][0] and "concepto" in r.json()["avisos"][0]
 
     lista = (await control.get("/api/v1/elementos-parametricos")).json()
     k1 = next(e for e in lista if e["id"] == elemento)

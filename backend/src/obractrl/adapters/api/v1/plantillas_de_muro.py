@@ -86,7 +86,7 @@ class ElementoDePlantilla(BaseModel):
 class PlantillaDeMuroPeticion(BaseModel):
     nombre: str = Field(min_length=1, max_length=80)
     tipo: TipoDeMuro
-    material: str = Field(description="tabique_rojo, block_hueco o sillar_amarillo.")
+    material: str = Field(description="tabique_rojo, block_hueco, sillar_amarillo (19 cm) o cantera_rosa; independiente de la ubicación (F2).")
     ubicacion: Ubicacion
     altura_m: Decimal | None = Field(default=None, gt=0, description="La ALTURA BASE del artefacto: la que toman sus muros si el trazo no trae otra y no cae bajo una zona de losa. `null` = la de la herramienta de trazo (3.00 m).")
     partes: list[ParteDeAlturaDePlantilla] = Field(default_factory=list, max_length=20)
@@ -177,6 +177,11 @@ class MaterialDeMuro(BaseModel):
     nombre: str
     espesor_cm: float | None = Field(description="`null` = por confirmar con el usuario (Q4).")
     elemento: str | None = Field(description="El elemento de la biblioteca que lo paga (tabique rojo → EST-02010).")
+    concepto: str | None = Field(
+        default=None,
+        description="El concepto del catálogo que cubre el material (tabique rojo → EST-02010, sillar amarillo → BAP-01010). `null` = no hay concepto, "
+        "por capturar (block hueco, cantera rosa): una plantilla con ese material no se puede validar.",
+    )
 
 
 class UbicacionDeMuroFicha(BaseModel):
@@ -275,7 +280,7 @@ async def catalogo_del_artefacto() -> CatalogoDelArtefacto:
             TipoDeMuroFicha(clave=t, nombre=_NOMBRES_DE_TIPO[t], castillo_modo=CASTILLO_MODO_POR_TIPO[t], descripcion=_DESCRIPCIONES_DE_TIPO[t])  # type: ignore[arg-type]
             for t in TIPOS_DE_MURO
         ],
-        materiales=[MaterialDeMuro(clave=k, nombre=v["nombre"], espesor_cm=v["espesor_cm"], elemento=v["elemento"]) for k, v in MATERIALES_DE_MURO.items()],
+        materiales=[MaterialDeMuro(clave=k, nombre=v["nombre"], espesor_cm=v["espesor_cm"], elemento=v["elemento"], concepto=v["concepto"]) for k, v in MATERIALES_DE_MURO.items()],
         ubicaciones=[
             UbicacionDeMuroFicha(
                 clave=k,  # type: ignore[arg-type]
@@ -620,6 +625,27 @@ class CambioAplicadoRespuesta(BaseModel):
     retirados: int
     conservados: int = Field(description="Castillos sembrados que se conservan.")
     avisos: list[str]
+
+
+class VersionVigenteRespuesta(BaseModel):
+    trazo_id: UUID
+    actual: PlantillaDelCambio | None = Field(description="La versión de la plantilla que eligió el muro; `null` si no tiene plantilla.")
+    vigente: PlantillaDelCambio | None = Field(description="La versión vigente de esa misma plantilla.")
+    hay_version_nueva: bool = Field(
+        description="`true` si el muro usa una versión anterior: se ofrece actualizarla a la vigente (C4) o eliminar el trazo."
+    )
+
+
+@router.get(
+    "/trazos/{trazo_id}/muro/plantilla/vigente",
+    response_model=VersionVigenteRespuesta,
+    summary="¿El muro usa la versión vigente de su plantilla? (no cambia nada)",
+    responses={404: {"description": "El trazo no existe o está fuera de tu alcance."}, 422: {"description": "El trazo no es una línea."}},
+)
+async def version_vigente_de_la_plantilla(trazo_id: UUID, caso_uso: ColocarElementosDeMuroDep) -> VersionVigenteRespuesta:
+    """Un muro ya medido conserva la versión de la plantilla que eligió (Q9). Si la plantilla cambió después, aquí se ve que hay una versión
+    nueva: para actualizarla, `GET …/cambio?hacia=<vigente>` dice qué cambia y `POST …/cambio` lo aplica; la otra salida es eliminar el trazo."""
+    return VersionVigenteRespuesta.model_validate(await caso_uso.version_vigente(trazo_id))
 
 
 @router.get(

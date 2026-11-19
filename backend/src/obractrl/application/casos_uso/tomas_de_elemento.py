@@ -153,7 +153,11 @@ class SincronizarTomas:
         del muro, en ml) y los castillos estimados del muro confinado (sus piezas por la regla de la plantilla). Los castillos ubicados salen
         de lo colocado (`_tomas_de_castillos_colocados`), así que no se cuentan dos veces. Si el concepto no cuenta (propuesto, sin partida
         en el árbol, unidad no admitida) avisa en el reporte de lo colocado y no suma. Un muro cuya plantilla no cabe se omite aquí; el
-        reporte de su colocación dice por qué."""
+        reporte de su colocación dice por qué.
+
+        B7: esta toma **no se rehace en cada edición del trazo**: la rehace la sincronización de las tomas de la obra (`de_la_obra`, igual que el
+        resto de las tomas), que se dispara al elegir o cambiar la plantilla, al colocar o quitar sus castillos y al pedirla
+        (`POST /obras/{id}/tomas/sincronizar`)."""
         if self._parametrico is None or self._trazos is None:
             return []
         filas = await self._elementos.trazos_con_plantilla_de_la_obra(obra_id)

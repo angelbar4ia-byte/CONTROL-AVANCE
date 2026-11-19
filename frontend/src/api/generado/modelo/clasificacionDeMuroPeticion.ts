@@ -17,7 +17,7 @@ no cambia lo que mide.
 export interface ClasificacionDeMuroPeticion {
   /** `null` quita la clasificación. confinado: castillos aún sin ubicar; con_cadena: castillos conocidos (restan de los m²); tabique: sin cadenas ni castillos. Pretil y barda son ubicación y el sillar es material (0133). */
   tipo: ClasificacionDeMuroPeticionTipo;
-  /** tabique_rojo, block_hueco o sillar_amarillo (0133). */
+  /** tabique_rojo, block_hueco, sillar_amarillo o cantera_rosa (0133). */
   material?: ClasificacionDeMuroPeticionMaterial;
   /** Define las caras A y B de las partes de altura (0133). */
   ubicacion?: ClasificacionDeMuroPeticionUbicacion;

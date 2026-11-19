@@ -2652,6 +2652,7 @@ export function EspacioDeTrazo({
                   invalidarTrazos();
                 }}
                 onError={(m) => setAviso(m)}
+                onEliminarTrazo={() => setPorBorrar(seleccionado.id as string)}
               />
             )}
             {seleccionado.geometry.type === 'LineString' && seleccionado.properties.grosor_m != null && (

@@ -216,7 +216,9 @@ def test_parte_sin_concepto_parte_doble_y_parte_fuera_de_la_matriz() -> None:
     assert [(a.codigo, a.parte) for a in doble] == [("parte_doble", "acero")]
     fuera = validar_contra_matriz([_elemento([_c("A", {"concreto", "acero", "cimbra"}, {"MEZ-01020"})])])
     assert [(a.codigo, a.parte, a.concepto) for a in fuera] == [("parte_fuera_de_matriz", "acero", "A")]
-    assert all(a.nivel == "alerta" for a in (*sin, *doble, *fuera)) and puede_validar([*sin, *doble, *fuera])
+    # C3: una parte sin concepto del catálogo BLOQUEA; la parte doble y la que no está en la matriz son avisos que se aceptan con casilla.
+    assert all(a.nivel == "bloquea" for a in sin) and not puede_validar(sin)
+    assert all(a.nivel == "alerta" for a in (*doble, *fuera)) and puede_validar([*doble, *fuera])
 
 
 def test_escalones_de_altura_distinta_no_son_parte_doble() -> None:

@@ -103,10 +103,26 @@ test.describe('Cuantificador · Artefacto de muros', () => {
     const creada = (await llamarApi<(Plantilla & { nombre: string })[]>(request, 'control', 'GET', '/muro-plantillas')).find((p) => p.nombre === nombre)!;
     expect([creada.version, creada.validacion]).toEqual([1, 'por_validar']);
 
-    // --- 3. Control de obra la valida contra la matriz (los elementos no tienen conceptos: alertas por revisar) ------------
+    // --- 3. Control de obra la valida contra la matriz ---------------------------------------------------------------------
+    // C3: una parte sin concepto del catálogo BLOQUEA (aceptar alertas no basta): los elementos aún no tienen ningún concepto.
     const validacion = area.getByRole('group', { name: 'Validación contra la matriz' });
     await expect(validacion.getByRole('list', { name: 'Alertas de la plantilla' })).toBeVisible();
-    await expect(validacion.locator(`[data-codigo="sin_concepto"]`).first()).toBeVisible();
+    await expect(validacion.locator('[data-codigo="sin_concepto"][data-nivel="bloquea"]').first()).toBeVisible();
+    await expect(validacion.getByRole('button', { name: 'Validar la plantilla' })).toBeDisabled();
+    await expect(validacion.getByLabel('Acepto las alertas por revisar')).toHaveCount(0);
+
+    // Con un concepto propuesto (sin precio) que toma cada parte, ya no hay partes sin concepto: quedan avisos por revisar, que se aceptan con casilla.
+    const elementos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/elementos-parametricos');
+    for (const [clave, unidad, propuesto] of [[castillo, 'pza', `EJK${sufijo}`], [cadena, 'ml', `EJC${sufijo}`]] as const) {
+      await llamarApi(request, 'control', 'POST', `/elementos-parametricos/${elementos.find((e) => e.clave === clave)!.id}/conceptos-por-contexto`, {
+        clave_propuesta: propuesto.slice(0, 20), descripcion: `Concepto de ${clave}`, unidad, toma: { concreto: true, acero: true, cimbra: true },
+      });
+    }
+    await page.reload();
+    await pestanas.getByRole('tab', { name: /^Artefacto/ }).click();
+    await page.getByRole('navigation', { name: 'Plantillas de muro' }).getByRole('button', { name: new RegExp(nombre) }).click();
+    await expect(validacion.locator('[data-codigo="sin_concepto"]')).toHaveCount(0);
+    await expect(validacion.locator('[data-codigo="concepto_propuesto"]').first()).toBeVisible();
     const validar = validacion.getByRole('button', { name: 'Validar la plantilla' });
     await expect(validar).toBeDisabled(); // hay alertas por revisar: hay que aceptarlas
     await validacion.getByLabel('Acepto las alertas por revisar').check();

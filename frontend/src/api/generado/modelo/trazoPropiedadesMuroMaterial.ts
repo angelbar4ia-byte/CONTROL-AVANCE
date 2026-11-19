@@ -7,6 +7,6 @@
  */
 
 /**
- * Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo (0133).
+ * Material de la mampostería: tabique_rojo, block_hueco, sillar_amarillo, cantera_rosa (0133).
  */
 export type TrazoPropiedadesMuroMaterial = string | null;

@@ -22,7 +22,7 @@ export interface PlantillaDeMuroPeticion {
    */
   nombre: string;
   tipo: PlantillaDeMuroPeticionTipo;
-  /** tabique_rojo, block_hueco o sillar_amarillo. */
+  /** tabique_rojo, block_hueco, sillar_amarillo (19 cm) o cantera_rosa; independiente de la ubicación (F2). */
   material: string;
   ubicacion: PlantillaDeMuroPeticionUbicacion;
   /** La ALTURA BASE del artefacto: la que toman sus muros si el trazo no trae otra y no cae bajo una zona de losa. `null` = la de la herramienta de trazo (3.00 m). */

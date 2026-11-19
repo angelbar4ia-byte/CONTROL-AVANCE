@@ -6,8 +6,9 @@ enlazada a los conceptos del elemento. El Cuantificador solo elige la plantilla 
 
 - **Por validar → validada** (M-19): toda plantilla nace «por validar» y cualquier cambio la deja así. Control de obra la valida
   contra la matriz de los conceptos de sus elementos (`validar_contra_matriz`): cada parte que toma un concepto debe existir en su
-  matriz, no puede quedar una parte sin concepto ni tomada dos veces. Lo que no cuadra se avisa como *alerta por revisar*; lo que
-  impide validar (un elemento que ya no existe, una posición imposible) *bloquea*.
+  matriz y no puede quedar tomada dos veces. Lo que no cuadra se avisa como *alerta por revisar* y se acepta con casilla; lo que
+  impide validar *bloquea*: un elemento que ya no existe, una parte **sin concepto del catálogo** (C3) o un material de mampostería sin
+  concepto (block hueco, cantera rosa: por capturar, no se inventa uno).
 - **Versiones** (Q9): al cambiar una plantilla **ya validada** nace una versión nueva y los trazos ya medidos conservan la anterior
   (apuntan a su fila). Una plantilla aún por validar se edita en el lugar.
 - **El castillo depende de la plantilla** y no del tipo «con cadena»: un castillo se coloca en el plano si la plantilla del muro
@@ -40,6 +41,7 @@ from obractrl.domain.cuantificacion.muro_tipo import (
     tipo_valido,
 )
 from obractrl.domain.cuantificacion.muro_ubicacion import (
+    MATERIALES_DE_MURO,
     caras_de_ubicacion,
     material_valido,
     ubicacion_resultante,
@@ -63,6 +65,7 @@ __all__ = [
     "InfoDeElemento",
     "admite_castillos_a_mano",
     "admite_castillos_ubicados",
+    "alertas_del_material",
     "cambia_la_plantilla",
     "clase_de_elemento",
     "normalizar_plantilla",
@@ -369,7 +372,7 @@ _ETIQUETAS = {"concreto": "el concreto", "acero": "el acero", "estribos": "los e
 def validar_contra_matriz(elementos: Iterable[ElementoParaValidar]) -> list[Alerta]:
     """Lo que no cuadra entre los elementos de la plantilla y la matriz de sus conceptos (M-19). Nunca corrige: avisa.
 
-    - ``sin_concepto``: una parte de la receta no la toma ningún concepto (o el elemento no tiene conceptos).
+    - ``sin_concepto`` (**bloquea**, C3): una parte de la receta no la toma ningún concepto (o el elemento no tiene conceptos).
     - ``parte_doble``: dos conceptos toman la misma parte en el mismo contexto (sin ser escalones de una escalera).
     - ``parte_fuera_de_matriz``: el concepto toma una parte cuyo insumo no está en su matriz del catálogo (por revisar).
     - ``concepto_propuesto`` y ``elemento_provisional``: aún no los autoriza Control de obra, así que no hay matriz firme.
@@ -389,13 +392,13 @@ def validar_contra_matriz(elementos: Iterable[ElementoParaValidar]) -> list[Aler
                     Alerta("alerta", "concepto_sin_matriz", concepto=c.clave, mensaje=f"El concepto {c.clave} de {e.nombre} no tiene composición (matriz) en la base: no se puede revisar.", **base)
                 )
         if not e.conceptos:
-            alertas.append(Alerta("alerta", "sin_concepto", mensaje=f"{e.nombre} no tiene ningún concepto que lo pague.", **base))
+            alertas.append(Alerta("bloquea", "sin_concepto", mensaje=f"{e.nombre} no tiene ningún concepto que lo pague.", **base))
             continue
         for parte, insumos in e.partes.items():
             toman = [c for c in e.conceptos if parte in c.toma]
             etiqueta = _ETIQUETAS.get(parte, parte)
             if not toman:
-                alertas.append(Alerta("alerta", "sin_concepto", parte=parte, mensaje=f"{etiqueta.capitalize()} de {e.nombre} no lo toma ningún concepto.", **base))
+                alertas.append(Alerta("bloquea", "sin_concepto", parte=parte, mensaje=f"{etiqueta.capitalize()} de {e.nombre} no lo toma ningún concepto.", **base))
                 continue
             por_contexto: dict[tuple[Any, ...], list[str]] = {}
             for c in toman:
@@ -417,6 +420,38 @@ def validar_contra_matriz(elementos: Iterable[ElementoParaValidar]) -> list[Aler
                         )
                     )
     return alertas
+
+
+def alertas_del_material(material: str, *, lleva_muro_propio: bool) -> list[Alerta]:
+    """La mampostería de la plantilla (su material) también es una parte que necesita concepto (C3, F7).
+
+    - El material con elemento de la biblioteca (tabique rojo → EST-02010) se revisa como cualquier elemento: aquí no avisa.
+    - ``material_sin_concepto`` (**bloquea**): el catálogo no tiene concepto para ese material (block hueco, cantera rosa): queda por
+      capturar y no se inventa uno; la plantilla no se valida hasta que haya concepto (o el muro se coloque con un elemento de la biblioteca).
+    - ``material_sin_elemento`` (alerta): el catálogo sí tiene concepto (sillar amarillo, BAP-01010, 19 cm) pero el material aún no es un
+      elemento (regla F7: si se crea el elemento se crea también su concepto); se acepta con casilla.
+    Si la plantilla ya lleva un elemento de muro propio, el material no necesita uno."""
+    if lleva_muro_propio:
+        return []
+    datos = MATERIALES_DE_MURO[material_valido(material)]
+    if datos["elemento"]:
+        return []
+    base = {"uid": f"material:{material}", "ref": material}
+    if datos["concepto"] is None:
+        return [
+            Alerta(
+                "bloquea", "material_sin_concepto",
+                mensaje=f"{datos['nombre']} no tiene concepto en el catálogo (por capturar): la mampostería queda sin concepto y no se puede validar.",
+                **base,
+            )
+        ]
+    return [
+        Alerta(
+            "alerta", "material_sin_elemento", concepto=str(datos["concepto"]),
+            mensaje=f"{datos['nombre']} tiene el concepto {datos['concepto']} en el catálogo, pero aún no es un elemento de la biblioteca: no hay matriz que revisar.",
+            **base,
+        )
+    ]
 
 
 def puede_validar(alertas: Iterable[Alerta]) -> bool:

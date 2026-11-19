@@ -228,7 +228,9 @@ async def test_el_listado_trae_las_capas_del_arbol_y_las_ranuras_de_plantilla(co
     assert [c["clave"] for c in j["conceptos_del_arbol"]] == ["EST-02010", "EST-02011", "EST-10010"]
     assert {n["clave"] for n in j["niveles"]} == {"NIV-1", "NIV-3"} and {e["clave"] for e in j["etapas"]} == {"ECO-1", "ECO-2"}
     assert j["ranuras_de_plantilla"][0]["ranura"] == "mamposteria:tabique_rojo"
-    assert {x["ranura"]: x["sugerido_clave"] for x in j["ranuras_de_plantilla"] if x["sugerido_clave"]} == {"mamposteria:tabique_rojo": "EST-02010"}
+    assert {x["ranura"]: x["sugerido_clave"] for x in j["ranuras_de_plantilla"] if x["sugerido_clave"]} == {
+        "mamposteria:tabique_rojo": "EST-02010", "mamposteria:sillar_amarillo": "BAP-01010",  # block hueco y cantera rosa: sin concepto (por capturar)
+    }
 
 
 async def test_enlazar_con_la_partida_en_el_arbol_cuenta(costos: httpx.AsyncClient, residente: httpx.AsyncClient, escenario: Escenario, arbol: dict[str, Any]) -> None:

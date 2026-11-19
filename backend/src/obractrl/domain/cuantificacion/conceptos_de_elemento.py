@@ -38,6 +38,7 @@ __all__ = [
     "ConceptoDeElemento",
     "Contexto",
     "ResolucionDeContexto",
+    "aviso_de_concepto_pendiente",
     "avisos_de_altura",
     "describir_contexto",
     "normalizar_clave_propuesta",
@@ -297,3 +298,11 @@ def avisos_de_altura(conceptos: Sequence[ConceptoDeElemento], alto_m: Decimal) -
                 f"Un alto de {alto_m:g} m no tiene escalón ({describir_contexto(ctx).lower()}): el último llega a {ultimo.alto_hasta_m:g} m ({ultimo.clave}). Falta un concepto nuevo para ese alto."
             )
     return list(dict.fromkeys(avisos))
+
+
+def aviso_de_concepto_pendiente(clave: str) -> str:
+    """Regla F7: el aviso al crear un elemento, que aún no tiene concepto en los catálogos."""
+    return (
+        f"El elemento {clave} aún no tiene concepto en el catálogo: crea o enlaza el suyo (como una matriz) en «conceptos por contexto». "
+        "Mientras no lo tenga, las plantillas de muro que lo usen no se podrán validar."
+    )

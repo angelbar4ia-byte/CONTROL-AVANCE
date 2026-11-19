@@ -10,8 +10,10 @@ Reglas (``reglas_de_ubicacion`` del mockup):
 3. Si el usuario cambia la cara de cualquier parte, la ubicación pasa a ``personalizada``.
 4. Losa más baja que el muro: las partes con ``desde`` ≥ altura de losa se **sugieren** exterior; se aplican solo al confirmar.
 
-Los materiales son los del mockup y son de **ejemplo** salvo el tabique rojo recocido (EST-02010, 14 cm): el sillar amarillo del
-catálogo es de 19 cm (BAP-01010) y no hay block hueco de concreto de 15 cm; el espesor de esos dos se confirma con el usuario (Q4).
+El **material** de la mampostería es un parámetro de la plantilla, independiente de la **ubicación** (interior, pretil, barda…) y del
+tipo de muro (F2): una barda puede ser de tabique rojo, de sillar amarillo o de cantera rosa. Hechos del catálogo (C2, F7): el tabique
+rojo recocido es EST-02010 (14 cm); el sillar amarillo es de **19 cm** (BAP-01010, que existe como concepto pero aún no como elemento); no hay
+concepto de block hueco ni de cantera rosa (por capturar: no se inventa ninguno).
 Funciones puras, sin base de datos.
 """
 
@@ -51,11 +53,14 @@ UBICACIONES_DE_MURO: dict[str, dict[str, Any]] = {
 """Las ubicaciones del mockup. Los elementos sugeridos son una pista de la interfaz: no se colocan solos."""
 
 MATERIALES_DE_MURO: dict[str, dict[str, Any]] = {
-    "tabique_rojo": {"nombre": "Tabique rojo recocido 14 cm", "espesor_cm": 14, "elemento": "EST-02010"},
-    "block_hueco": {"nombre": "Block hueco de concreto", "espesor_cm": None, "elemento": None},
-    "sillar_amarillo": {"nombre": "Sillar amarillo", "espesor_cm": None, "elemento": None},
+    "tabique_rojo": {"nombre": "Tabique rojo recocido 14 cm", "espesor_cm": 14, "elemento": "EST-02010", "concepto": "EST-02010"},
+    "block_hueco": {"nombre": "Block hueco de concreto", "espesor_cm": None, "elemento": None, "concepto": None},
+    "sillar_amarillo": {"nombre": "Sillar amarillo 19 cm", "espesor_cm": 19, "elemento": None, "concepto": "BAP-01010"},
+    "cantera_rosa": {"nombre": "Cantera rosa", "espesor_cm": None, "elemento": None, "concepto": None},
 }
-"""Los materiales de la mampostería. Solo el tabique rojo apunta a un elemento (EST-02010); el espesor de los otros se confirma (Q4)."""
+"""Los materiales de la mampostería. `elemento` es el elemento de la biblioteca que lo paga (solo el tabique rojo, EST-02010); `concepto` es
+el concepto del catálogo de presupuesto que lo cubre: `None` = no hay concepto, por capturar (block hueco y cantera rosa), y una plantilla
+con ese material **no se puede validar** (C3). El sillar amarillo tiene concepto (BAP-01010, 19 cm) pero aún no es un elemento (F7)."""
 
 
 def ubicacion_valida(ubicacion: str) -> str:

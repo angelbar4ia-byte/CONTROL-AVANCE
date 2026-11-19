@@ -17,7 +17,9 @@ import type { ClasificacionDeMuroPeticion } from '@/api/generado/modelo';
 import {
   useCatalogoDelArtefactoApiV1MuroArtefactoCatalogoGet,
   useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut,
+  getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryKey,
   useListarPlantillasApiV1MuroPlantillasGet,
+  useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet,
 } from '@/api/generado/artefacto-de-muros/artefacto-de-muros';
 import {
   getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryKey,
@@ -153,14 +155,19 @@ export function ClasificacionDelMuro({
   trazoId,
   onCambio,
   onError,
+  onEliminarTrazo,
 }: {
   readonly trazoId: string;
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
+  /** La otra salida de «hay una versión nueva» (C4): borrar el trazo (pide confirmar y se puede deshacer). */
+  readonly onEliminarTrazo?: () => void;
 }) {
   const consulta = useVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGet(trazoId);
   const catalogo = useCatalogoDelArtefactoApiV1MuroArtefactoCatalogoGet();
   const plantillas = useListarPlantillasApiV1MuroPlantillasGet();
+  // C4: el muro ya medido conserva la versión que eligió; si la plantilla cambió después, se ofrece pasarlo a la vigente.
+  const vigente = useVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGet(trazoId);
   const fijar = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
   const elegir = useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut<ErrorApi>();
   // Cambiar una plantilla por otra pide ver antes qué cambia (la elección inicial y desligarla siguen siendo inmediatas).
@@ -176,7 +183,12 @@ export function ClasificacionDelMuro({
     void queryClient.invalidateQueries({
       queryKey: getVerClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionGetQueryKey(trazoId),
     });
+    void queryClient.invalidateQueries({
+      queryKey: getVersionVigenteDeLaPlantillaApiV1TrazosTrazoIdMuroPlantillaVigenteGetQueryKey(trazoId),
+    });
   }
+
+  const versionNueva = vigente.data?.hay_version_nueva === true ? vigente.data : null;
 
   async function guardar(cambios: { tipo?: TipoDeMuro | null; material?: string; ubicacion?: string; acabado?: Acabado }, aviso: string) {
     const nuevoTipo = cambios.tipo === undefined ? tipo : cambios.tipo;
@@ -242,6 +254,7 @@ export function ClasificacionDelMuro({
               {(catalogo.data?.materiales ?? []).map((m) => (
                 <option key={m.clave} value={m.clave}>
                   {m.nombre}
+                  {m.concepto == null ? ' · sin concepto en el catálogo' : ''}
                 </option>
               ))}
             </select>
@@ -284,6 +297,29 @@ export function ClasificacionDelMuro({
           </label>
           {plantilla && plantilla.validacion !== 'validada' && (
             <p className="text-xs mct__aviso">La plantilla aún está por validar: es provisional.</p>
+          )}
+          {versionNueva?.actual && versionNueva.vigente && (
+            <div className="colocacion-plantilla" role="region" aria-label="Hay una versión nueva de la plantilla" data-testid="version-nueva-de-plantilla">
+              <p className="text-xs mct__aviso" role="status">
+                Este muro usa la versión {versionNueva.actual.version} de «{versionNueva.actual.nombre}»; la vigente es la versión{' '}
+                {versionNueva.vigente.version}. Conserva la que eligió hasta que la actualices.
+              </p>
+              <div className="opciones__fila">
+                <button
+                  type="button"
+                  className="btn btn--sm btn--primary"
+                  disabled={ocupado}
+                  onClick={() => setHaciaId((versionNueva.vigente as { id: string }).id)}
+                >
+                  Actualizar a la versión vigente
+                </button>
+                {onEliminarTrazo && (
+                  <button type="button" className="btn btn--ghost btn--sm" disabled={ocupado} onClick={onEliminarTrazo}>
+                    Eliminar el trazo
+                  </button>
+                )}
+              </div>
+            </div>
           )}
           {haciaId && (
             <CambioDePlantilla

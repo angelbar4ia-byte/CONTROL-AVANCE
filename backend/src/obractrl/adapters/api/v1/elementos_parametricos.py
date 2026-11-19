@@ -21,6 +21,9 @@ from obractrl.application.casos_uso.elementos_parametricos import (
     ComandoCrearElementoParametrico,
 )
 from obractrl.domain.cuantificacion.clasificacion_de_elementos import CATEGORIAS
+from obractrl.domain.cuantificacion.conceptos_de_elemento import (
+    aviso_de_concepto_pendiente,
+)
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     PARAMETROS_POR_TIPO,
     UNIDAD_DE_CALCULO,
@@ -115,6 +118,11 @@ class ElementoParametricoCreado(BaseModel):
     id: UUID
     estado_autorizacion: Literal["autorizado", "pendiente"] = Field(
         default="autorizado", description="El de Control de obra nace autorizado (versión 1); el de Costos, pendiente."
+    )
+    avisos: list[str] = Field(
+        default_factory=list,
+        description="Regla F7: un elemento nuevo debe traer su concepto en los catálogos (como una matriz). Mientras no lo tenga, avisa; "
+        "no se inventa el concepto.",
     )
 
 
@@ -250,7 +258,11 @@ async def crear_elemento_parametrico(
             rol=ctx.rol,
         )
     )
-    return ElementoParametricoCreado(id=nuevo, estado_autorizacion="autorizado" if ctx.rol == "control_obra" else "pendiente")
+    return ElementoParametricoCreado(
+        id=nuevo,
+        estado_autorizacion="autorizado" if ctx.rol == "control_obra" else "pendiente",
+        avisos=[aviso_de_concepto_pendiente(peticion.clave.strip().upper())],
+    )
 
 
 @router.patch(

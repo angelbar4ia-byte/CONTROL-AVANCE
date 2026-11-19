@@ -7,6 +7,7 @@
  */
 import type { MaterialDeMuroEspesorCm } from "./materialDeMuroEspesorCm";
 import type { MaterialDeMuroElemento } from "./materialDeMuroElemento";
+import type { MaterialDeMuroConcepto } from "./materialDeMuroConcepto";
 
 export interface MaterialDeMuro {
   clave: string;
@@ -15,4 +16,6 @@ export interface MaterialDeMuro {
   espesor_cm: MaterialDeMuroEspesorCm;
   /** El elemento de la biblioteca que lo paga (tabique rojo → EST-02010). */
   elemento: MaterialDeMuroElemento;
+  /** El concepto del catálogo que cubre el material (tabique rojo → EST-02010, sillar amarillo → BAP-01010). `null` = no hay concepto, por capturar (block hueco, cantera rosa): una plantilla con ese material no se puede validar. */
+  concepto?: MaterialDeMuroConcepto;
 }

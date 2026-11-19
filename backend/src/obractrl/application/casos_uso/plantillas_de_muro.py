@@ -27,6 +27,7 @@ from obractrl.domain.cuantificacion.muro_plantilla import (
     ElementoParaValidar,
     ErrorDePlantillaDeMuro,
     InfoDeElemento,
+    alertas_del_material,
     cambia_la_plantilla,
     clase_de_elemento,
     normalizar_plantilla,
@@ -221,6 +222,7 @@ class GestionarPlantillasDeMuro:
                 alertas.append(Alerta("bloquea", "elemento_inexistente", uid, ref, f"El elemento {ref} ya no está en el catálogo."))
                 continue
             para_validar.append(await self._del_catalogo(uid, el, i["clase"]))
+        alertas += alertas_del_material(str(p["material"]), lleva_muro_propio=any(i.get("clase") == "muro" and not i.get("implicito") for i in instancias))
         return [*alertas, *validar_contra_matriz(para_validar)]
 
     async def _matriz(self, concepto_id: UUID | None, clave: str) -> frozenset[str] | None:
