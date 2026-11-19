@@ -51,6 +51,9 @@ const num = (t: unknown) => Number(String(t ?? '').replace(',', '.'));
 /** El borrador listo para mandar al servidor (los números ya como números). */
 export function aPeticion(b: BorradorDeConversion): ConversionPeticion {
   const p: Record<string, unknown> = { modo: b.modo, mide: b.mide, cara: b.cara, lado: b.lado, partes: b.partes };
+  // Los tramos de un muro que cruza zonas de losa (0138) viajan tal cual: editar otra cosa no los pierde en silencio.
+  const tramos = b.tramos as unknown[] | undefined;
+  if (Array.isArray(tramos) && tramos.length > 0) p.tramos = tramos;
   for (const k of NUMEROS) {
     const v = b[k];
     if (v !== undefined && v !== null && String(v).trim() !== '' && Number.isFinite(num(v))) p[k] = num(v);
@@ -124,6 +127,7 @@ export function ConversionDelEnlace({ enlaceId, nombreDelConcepto, grosorM, alin
   const cambiar = (c: Partial<BorradorDeConversion>) => setBorrador({ ...borrador, ...c });
   const partes = borrador.partes;
   const mide = borrador.mide;
+  const tramos = Array.isArray(borrador.tramos) ? (borrador.tramos as { desde_m: number; hasta_m: number; alt?: number }[]) : [];
 
   async function ponerAplicar() {
     if (!borrador) return;
@@ -226,6 +230,16 @@ export function ConversionDelEnlace({ enlaceId, nombreDelConcepto, grosorM, alin
         </>
       )}
 
+      {esMuro && tramos.length > 0 && (
+        <div className="text-xs" data-testid="muro-por-tramos">
+          Este muro cuenta por <strong>{tramos.length} tramos</strong> de zona de losa:{' '}
+          {tramos.map((t) => `${t.desde_m.toFixed(2)}–${t.hasta_m.toFixed(2)} m${t.alt != null ? ` a ${t.alt} m` : ''}`).join(' · ')}. Cambiar la altura
+          de abajo no los mueve.{' '}
+          <button type="button" className="btn btn--sm" onClick={() => cambiar({ tramos: [] })}>
+            Contar con una sola altura
+          </button>
+        </div>
+      )}
       {esMuro && ['area', 'vol'].includes(borrador.modo) && (
         <>
           <AlturaPorPartes partes={partes} alturaUnica={String(borrador.alt ?? '')} onPartes={(nuevas) => cambiar({ partes: nuevas })} />

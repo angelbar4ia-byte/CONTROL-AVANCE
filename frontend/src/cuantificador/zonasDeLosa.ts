@@ -24,6 +24,8 @@ export const NOMBRE_DE_ORIGEN_DE_ALTURA: Record<string, string> = {
   driver: 'altura estándar de la obra',
 };
 
+export const NOMBRE_DE_CARA: Record<string, string> = { interior: 'interior', exterior: 'exterior' };
+
 export const NOMBRE_DE_ORIGEN_DE_LADO: Record<string, string> = {
   losa: 'bajo losa',
   punto_de_nivel: 'punto de nivel exterior',

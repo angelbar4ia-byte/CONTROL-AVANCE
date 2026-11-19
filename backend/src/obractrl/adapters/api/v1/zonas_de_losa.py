@@ -12,7 +12,7 @@ Controladores delgados: las reglas viven en el dominio.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
@@ -20,7 +20,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.casos_uso import GestionarZonasDeLosaDep
+from obractrl.adapters.api.casos_uso import AplicarZonaAlMuroDep, GestionarZonasDeLosaDep
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.domain.cuantificacion.zonas_de_losa import LadoDeMuro, ResolucionDeMuro
 from obractrl.domain.shared.diccionario import Rol
@@ -156,6 +156,13 @@ class TramoDelMuro(BaseModel):
     sugerencias: list[SugerenciaDeCaras] = Field(description="Lo que la losa más baja SUGIERE para el enrase; nunca se aplica solo.")
 
 
+class VanoDelTramo(BaseModel):
+    vano_id: UUID
+    clave: str
+    tipo: str
+    posicion_m: Decimal | None
+
+
 class ResolucionDelMuro(BaseModel):
     trazo_id: UUID
     escala_definida: bool
@@ -167,6 +174,15 @@ class ResolucionDelMuro(BaseModel):
     aplicada: bool = Field(description="Siempre `false`: esto es lo que se sugiere, no algo aplicado.")
     advertencias: list[str]
     tramos: list[TramoDelMuro]
+    vanos_por_tramo: list[list[VanoDelTramo]] = Field(description="Los vanos del muro repartidos por tramo: cada uno cae donde está su centro.")
+    tramos_de_conversion: list[dict[str, Any]] = Field(description="Los tramos lógicos con los que contaría el muro si se aplican (`conversion.tramos`).")
+
+
+class ZonaAplicadaAlMuro(BaseModel):
+    trazo_id: UUID
+    tramos: list[dict[str, Any]]
+    enlaces_aplicados: int = Field(description="Cuántos enlaces del muro (en m² o m³) pasaron a contar con la zona.")
+    enlaces_sin_conversion: int = Field(description="Enlaces antiguos de factor fijo: no se tocan (Q1).")
 
 
 def _lado(lado: LadoDeMuro) -> LadoDelTramo:
@@ -185,6 +201,8 @@ def _resolucion(datos: dict[str, Any]) -> ResolucionDelMuro:
         parte_el_muro=r.parte_el_muro,
         aplicada=r.aplicada,
         advertencias=list(r.advertencias),
+        vanos_por_tramo=[[VanoDelTramo(**v) for v in tramo] for tramo in datos["vanos_por_tramo"]],
+        tramos_de_conversion=datos["tramos_de_conversion"],
         tramos=[
             TramoDelMuro(
                 desde_m=t.desde_m, hasta_m=t.hasta_m, longitud_m=t.longitud_m, lado_a=_lado(t.lado_a), lado_b=_lado(t.lado_b),
@@ -275,6 +293,21 @@ async def fijar_nivel_exterior(trazo_id: UUID, peticion: NivelExteriorPeticion, 
 )
 async def resolver_muro(trazo_id: UUID, caso_uso: GestionarZonasDeLosaDep) -> ResolucionDelMuro:
     return _resolucion(await caso_uso.resolver_muro(trazo_id))
+
+
+@router.post(
+    "/trazos/{trazo_id}/zonas-de-losa/aplicar",
+    response_model=ZonaAplicadaAlMuro,
+    summary="Aplicar al muro la altura, las partes por cara o los tramos de sus zonas de losa",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_LEEN))],
+    responses={422: {"description": "El muro no cae bajo ninguna zona, o trae su altura (manda sobre la de la zona)."}},
+)
+async def aplicar_zona_al_muro(trazo_id: UUID, ctx: ContextoActual, caso_uso: AplicarZonaAlMuroDep) -> ZonaAplicadaAlMuro:
+    """Un acto explícito: reemplaza el enlace del muro con la conversión de su zona (el anterior queda como evidencia) y recalcula lo que
+    alimenta. Un muro que cruza zonas cuenta por tramos lógicos dentro del mismo trazo; los demás trazos no cambian."""
+    return ZonaAplicadaAlMuro.model_validate(
+        await caso_uso.ejecutar(trazo_id, rol=Rol(ctx.rol), usuario_id=ctx.usuario_id, detectada_en=datetime.now(UTC))
+    )
 
 
 async def _con_losas(caso_uso: Any, z: dict[str, Any]) -> ZonaDeLosa:

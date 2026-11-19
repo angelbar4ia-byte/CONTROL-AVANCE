@@ -18,6 +18,7 @@ import type { ConversionPeticionMide } from "./conversionPeticionMide";
 import type { ConversionPeticionCara } from "./conversionPeticionCara";
 import type { ConversionPeticionLado } from "./conversionPeticionLado";
 import type { ParteDeAlturaEnConversion } from "./parteDeAlturaEnConversion";
+import type { TramoDeConversion } from "./tramoDeConversion";
 
 /**
  * Cómo cuenta un trazo para su concepto (D-633). Los parámetros que no aplican al modo se ignoran.
@@ -46,4 +47,6 @@ export interface ConversionPeticion {
   lado?: ConversionPeticionLado;
   /** Altura por partes. */
   partes?: ParteDeAlturaEnConversion[];
+  /** Un muro que cruza zonas de losa: sus tramos a lo largo del eje, cada uno con su altura o partes (0138). Vacío = un solo tramo. */
+  tramos?: TramoDeConversion[];
 }

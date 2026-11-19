@@ -49,7 +49,7 @@ valida ANTES de escribir nada y lo nombra con un error de dominio claro.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -642,6 +642,7 @@ class RegistrarTrazoConEnlaces:
         eventos: PublicadorEventos | None = None,
         matrices: RepositorioMatrices | None = None,
         mediciones: RepositorioMediciones | None = None,
+        tramos_de_zona: Callable[[UUID], Awaitable[list[dict[str, Any]] | None]] | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -652,15 +653,26 @@ class RegistrarTrazoConEnlaces:
         self._eventos = eventos
         self._matrices = matrices
         self._mediciones = mediciones
+        self._tramos_de_zona = tramos_de_zona
 
     async def _con_altura_estandar(self, trazo_id: UUID, tipo: str, conversion: dict[str, Any]) -> dict[str, Any]:
-        """Una conversión NUEVA de una línea que mide por altura y no trae la suya (ni partes) nace con la altura estándar de la obra
-        (el driver `altura_estandar`), no con los 2.6 m de antes. Solo vale para lo que nace aquí: lo ya guardado conserva la
-        suya (Q1) y `app.cantidad_conversion` sigue respaldando con 2.6 m las conversiones viejas sin `alt`."""
+        """Una conversión NUEVA de una línea que mide por altura y no trae la suya (ni partes) nace con la altura de la zona de losa
+        bajo la que cae (zonas de losa 1.1); si cruza varias zonas, con sus tramos lógicos (`conversion.tramos`); sin zona, con la
+        altura estándar de la obra (el driver `altura_estandar`), no con los 2.6 m de antes. Solo vale para lo que nace aquí: lo ya
+        guardado conserva la suya (Q1) y `app.cantidad_conversion` sigue respaldando con 2.6 m las conversiones viejas sin `alt`."""
         if tipo not in ("muro", "linea") or conversion.get("modo") not in ("area", "vol"):
             return conversion
-        if conversion.get("partes") or conversion.get("alt") not in (None, ""):
+        if conversion.get("partes") or conversion.get("alt") not in (None, "") or conversion.get("tramos"):
             return conversion
+        tramos = await self._tramos_de_zona(trazo_id) if self._tramos_de_zona is not None else None
+        if tramos:
+            if len(tramos) == 1:
+                t = tramos[0]
+                return {**conversion, "partes": t["partes"]} if "partes" in t else {**conversion, "alt": t["alt"]}
+            altura = max(
+                (sum(p["hasta_m"] - p["desde_m"] for p in t["partes"] if p["suma"]) if "partes" in t else t["alt"]) for t in tramos
+            )
+            return {**conversion, "alt": altura, "tramos": tramos}
         return {**conversion, "alt": float(await self._enlaces.altura_estandar_de_trazo(trazo_id))}
 
     async def ejecutar(

@@ -32,6 +32,7 @@ import type {
   NivelExteriorFijado,
   NivelExteriorPeticion,
   ResolucionDelMuro,
+  ZonaAplicadaAlMuro,
   ZonaDeLosa,
   ZonaDeLosaPeticion,
   ZonasDelPlano,
@@ -1337,3 +1338,125 @@ export function useResolverMuroApiV1TrazosTrazoIdZonasDeLosaGet<
 
   return query;
 }
+
+/**
+ * Un acto explícito: reemplaza el enlace del muro con la conversión de su zona (el anterior queda como evidencia) y recalcula lo que
+alimenta. Un muro que cruza zonas cuenta por tramos lógicos dentro del mismo trazo; los demás trazos no cambian.
+ * @summary Aplicar al muro la altura, las partes por cara o los tramos de sus zonas de losa
+ */
+export const aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ZonaAplicadaAlMuro>(
+    {
+      url: `/api/v1/trazos/${trazoId}/zonas-de-losa/aplicar`,
+      method: "POST",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost
+        >
+      >,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost
+      >
+    >,
+    TError,
+    { trazoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost
+        >
+      >,
+      { trazoId: string }
+    > = (props) => {
+      const { trazoId } = props ?? {};
+
+      return aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost(
+        trazoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost
+      >
+    >
+  >;
+
+export type AplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPostMutationError =
+  void;
+
+/**
+ * @summary Aplicar al muro la altura, las partes por cara o los tramos de sus zonas de losa
+ */
+export const useAplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost
+        >
+      >,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof aplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPost>
+  >,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getAplicarZonaAlMuroApiV1TrazosTrazoIdZonasDeLosaAplicarPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};

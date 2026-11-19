@@ -44,7 +44,8 @@ test.describe('Cuantificador · altura del driver en el plano', () => {
     // El panel de opciones de la línea tapa la izquierda del lienzo: los clics van a la derecha.
     await clic(0.68, 0.85);
     await clic(0.9, 0.85);
-    await expect(page.getByRole('status')).toContainText('2.8 m de altura');
+    // Sin teclear la altura, el muro nace con la de su zona de losa; este plano no tiene zonas: cae a la estándar de la obra (2.8 m).
+    await expect(page.getByRole('status')).toContainText('(o 2.8 m si no cae bajo ninguna)');
 
     type Trazos = { features: { geometry: { type: string }; properties: { enlaces: { enlace_id: string; cantidad: string; vigente: boolean }[] } }[] };
     const leer = async () => {

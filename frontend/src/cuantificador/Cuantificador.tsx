@@ -1838,7 +1838,7 @@ export function EspacioDeTrazo({
         factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida, alturaEstandar);
         // Una línea sobre un concepto en m² nace con la conversión elegida en el panel (Eje / 1 cara / 2 caras × altura).
         if (tipoDelConcepto === 'area' && tipo === 'linea' && medida === 'longitud') {
-          conversionDeLaLinea = conversionDeMuro(opcionesMuro, alturaEstandar);
+          conversionDeLaLinea = conversionDeMuro(opcionesMuro, alturaEstandar, cambiosDeMuro.alt !== undefined);
           factor = '1';
         }
         data = trazoPeticion({
@@ -1864,7 +1864,7 @@ export function EspacioDeTrazo({
         if (conversionDeLaLinea) {
           // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
           setAviso(
-            `Línea medida como área: ${textoDeMuro(opcionesMuro, alturaEstandar)}. ` +
+            `Línea medida como área: ${textoDeMuro(opcionesMuro, alturaEstandar, cambiosDeMuro.alt !== undefined)}. ` +
               `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. Se cambia en el detalle del trazo.`,
           );
         }

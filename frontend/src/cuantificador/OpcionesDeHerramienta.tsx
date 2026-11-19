@@ -198,7 +198,10 @@ export function OpcionesDeHerramienta({
               </label>
             )}
             <AlturaPorPartes partes={muro.partes} alturaUnica={muro.alt} onPartes={(partes) => onMuro({ partes })} />
-            <p className="text-mute text-xs">m²: largo del eje o de las caras × altura. Se afina después en el detalle del trazo.</p>
+            <p className="text-mute text-xs" data-testid="ayuda-de-altura">
+              m²: largo del eje o de las caras × altura. Se afina después en el detalle del trazo. Si no la cambias, el muro nace con la altura de la zona de
+              losa bajo la que cae (con varias zonas, por tramos) y, sin zona, con esta de {muro.alt || '3.00'} m: confírmala o corrígela aquí.
+            </p>
           </>
         )}
         <div className="opciones__titulo">Grosor</div>

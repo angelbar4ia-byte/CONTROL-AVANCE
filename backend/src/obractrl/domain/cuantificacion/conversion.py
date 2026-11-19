@@ -101,6 +101,44 @@ def conversion_por_defecto(
     return {**base, "modo": "pza"}
 
 
+def _parte_limpia(p: dict[str, Any], desde: float, hasta: float) -> dict[str, Any]:
+    """Una parte de altura. Las caras (A izquierda, B derecha) y el rol solo informan: no cambian lo que suma."""
+    parte: dict[str, Any] = {"nombre": str(p.get("nombre", ""))[:40], "desde_m": desde, "hasta_m": hasta, "suma": bool(p.get("suma", True))}
+    if p.get("rol") in ("cuerpo", "enrase", "pretil", "cadena"):
+        parte["rol"] = p["rol"]
+    for cara in ("cara_a", "cara_b"):
+        if p.get(cara) in ("interior", "exterior"):
+            parte[cara] = p[cara]
+    return parte
+
+
+def _tramos_limpios(tramos: Any) -> list[dict[str, Any]]:
+    """Los tramos lógicos de un muro que cruza zonas de losa (0138): cada uno con su altura o sus partes, sobre el eje, contiguos
+    desde 0. Un muro sin tramos cuenta como siempre."""
+    limpios: list[dict[str, Any]] = []
+    previo = 0.0
+    for t in tramos or []:
+        d, h = _numero(t.get("desde_m"), "«desde» del tramo"), _numero(t.get("hasta_m"), "«hasta» del tramo")
+        if d < 0 or h <= d:
+            raise ErrorDeCuantificacion("Un tramo debe ir de un «desde» a un «hasta» mayor.")
+        if abs(d - previo) > 0.002:
+            raise ErrorDeCuantificacion("Los tramos del muro deben ser contiguos y empezar en 0.")
+        tramo: dict[str, Any] = {"desde_m": d, "hasta_m": h}
+        partes = [_parte_limpia(p, _numero(p.get("desde_m"), "«desde»"), _numero(p.get("hasta_m"), "«hasta»")) for p in t.get("partes") or []]
+        if partes:
+            if any(p["hasta_m"] <= p["desde_m"] for p in partes):
+                raise ErrorDeCuantificacion("Las partes de un tramo van de un «desde» a un «hasta» mayor.")
+            tramo["partes"] = partes
+        else:
+            alt = _numero(t.get("alt"), "La altura del tramo")
+            if alt <= 0:
+                raise ErrorDeCuantificacion("La altura de un tramo debe ser mayor que cero.")
+            tramo["alt"] = alt
+        limpios.append(tramo)
+        previo = h
+    return limpios
+
+
 def normalizar_conversion(tipo: str, conversion: dict[str, Any]) -> dict[str, Any]:
     """Valida la conversión contra el tipo de trazo y la deja con tipos limpios. Levanta `ErrorDeCuantificacion`."""
     modos = dict(MODOS_POR_TIPO.get(tipo, ()))
@@ -135,8 +173,11 @@ def normalizar_conversion(tipo: str, conversion: dict[str, Any]) -> dict[str, An
         d, h = _numero(p.get("desde_m"), "«desde»"), _numero(p.get("hasta_m"), "«hasta»")
         if d < 0 or h <= d:
             raise ErrorDeCuantificacion(f"La parte «{p.get('nombre', '')}» debe ir de un «desde» a un «hasta» mayor.")
-        partes.append({"nombre": str(p.get("nombre", ""))[:40], "desde_m": d, "hasta_m": h, "suma": bool(p.get("suma", True))})
+        partes.append(_parte_limpia(p, d, h))
     limpia["partes"] = partes
+    tramos = _tramos_limpios(conversion.get("tramos"))
+    if tramos:
+        limpia["tramos"] = tramos
     if modo == "area" and tipo in ("muro", "linea"):
         altura = sum(p["hasta_m"] - p["desde_m"] for p in partes if p["suma"]) if partes else limpia.get("alt", ALTURA_ANTERIOR_M)
         if altura <= 0:

@@ -8,7 +8,9 @@ trazo, enlace ni cantidad guardados.
 
 from __future__ import annotations
 
+import math
 from decimal import Decimal
+from itertools import pairwise
 from typing import Any
 from uuid import UUID
 
@@ -27,6 +29,7 @@ from obractrl.domain.cuantificacion.zonas_de_losa import (
     PuntoDeNivelExterior,
     ZonaDeLosa,
     resolver_muro,
+    tramos_para_conversion,
     validar_zona,
 )
 
@@ -223,6 +226,15 @@ class GestionarZonasDeLosa:
             linea, zonas=zonas, losas=losas, puntos_de_nivel=puntos, altura_explicita_m=explicita, altura_estandar_m=estandar,
             grosor_m=float(trazo["grosor_m"]) if trazo["grosor_m"] is not None else None,
         )
+        # Cada vano cae en el tramo donde está su centro (`posicion_m`, sobre el eje); sin posición, en el primero.
+        largo = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in pairwise(linea))
+        vanos_por_tramo: list[list[dict[str, Any]]] = [[] for _ in r.tramos]
+        for v in await self._trazos.vanos_de_trazo(trazo_id):
+            pos = min(max(float(v["posicion_m"] or 0), 0.0), max(largo - 1e-6, 0.0))
+            for i, t in enumerate(r.tramos):
+                if float(t.desde_m) - 1e-6 <= pos < float(t.hasta_m) - 1e-6:
+                    vanos_por_tramo[i].append({"vano_id": v["id"], "clave": v["clave"], "tipo": v["tipo"], "posicion_m": v["posicion_m"]})
+                    break
         return {
             "trazo_id": trazo_id,
             "escala_definida": escala_definida,
@@ -230,4 +242,16 @@ class GestionarZonasDeLosa:
             "altura_estandar_m": estandar,
             "altura_guardada_m": guardada,
             "resolucion": r,
+            "vanos_por_tramo": vanos_por_tramo,
+            "tramos_de_conversion": tramos_para_conversion(r) if r.con_zona else [],
         }
+
+    async def tramos_del_muro_nuevo(self, trazo_id: UUID) -> list[dict[str, Any]] | None:
+        """Los tramos lógicos con los que nace un muro NUEVO que cae bajo alguna zona de losa; `None` si el trazo no es una línea o no
+        toca ninguna zona (entonces nace con la altura estándar). La altura explícita del trazo no cuenta: aún no tiene."""
+        trazo = await self._zonas.trazo(trazo_id)
+        if trazo is None or trazo["tipo"] != "LINESTRING" or not await self._zonas.zonas(trazo["plano_id"]):
+            return None
+        datos = await self.resolver_muro(trazo_id)
+        r = datos["resolucion"]
+        return tramos_para_conversion(r) if r.con_zona else None

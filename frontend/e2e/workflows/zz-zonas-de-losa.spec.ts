@@ -83,7 +83,8 @@ test.describe('Cuantificador · zonas de losa', () => {
     await expect(detalle.getByTestId('tramo-de-zona').nth(0)).toContainText('3.00 m');
     await expect(detalle.getByTestId('tramo-de-zona').nth(1)).toContainText('4.20 m');
     await expect(detalle.getByTestId('muro-por-partir')).toBeVisible();
-    await expect(detalle.getByRole('button', { name: 'Aplicar al muro' })).toHaveCount(0);
+    // Un muro que cruza zonas cuenta por tramos dentro del mismo trazo: se puede aplicar (no se parte el trazo).
+    await expect(detalle.getByRole('button', { name: 'Aplicar al muro' })).toBeVisible();
 
     // Un muro sobre el límite (a lo largo del lado compartido): enrase de 3.00 a 4.20 y una altura por cara, vía API.
     const rectas = (await trazos()).filter((t) => t.properties.losa_zona_id);
@@ -149,6 +150,107 @@ test.describe('Cuantificador · zonas de losa', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Altura de la zona aplicada' })).toBeVisible();
     const m = await llamarApi<{ altura_m: string | null }>(request, 'control', 'GET', `/trazos/${muro.trazo_id}/muro`);
     expect(Number(m.altura_m)).toBe(3);
+  });
+
+  /** Una obra con un plano, dos zonas (3.00 y 4.20) y una losa por zona: 3.00 de x 0 a 6 y 4.20 de x 6 a 12 (y de -4 a 0). */
+  async function dosCuartos(request: Parameters<typeof llamarApi>[0], prefijo: string) {
+    const sufijo = Date.now().toString(36).toUpperCase();
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      clave: `${prefijo}-${sufijo}`,
+    });
+    const actividades = await llamarApi<{ id: string; unidad?: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
+    const actividad = actividades.find((a) => (a.unidad ?? '').toLowerCase().replace('²', '2') === 'm2') ?? actividades[0]!;
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, { nombre: 'PB', archivo_url: `planos/${prefijo}.dwg` });
+    for (const [nombre, altura, espesor, wkt] of [
+      ['Entrepiso 3.00', '3.00', '0.12', 'POLYGON((0 -4, 6 -4, 6 0, 0 0, 0 -4))'],
+      ['Entrepiso 4.20', '4.20', '0.20', 'POLYGON((6 -4, 12 -4, 12 0, 6 0, 6 -4))'],
+    ] as const) {
+      const z = await llamarApi<{ id: string }>(request, 'control', 'POST', `/planos/${plano.id}/zonas-de-losa`, { nombre, altura_libre_m: altura, espesor_m: espesor });
+      const losa = await llamarApi<{ trazo_id: string }>(request, 'control', 'POST', `/planos/${plano.id}/trazos`, { version_plano: 1, fuente: 'pdf', geometria_wkt: wkt, enlaces: [] });
+      await llamarApi(request, 'control', 'PUT', `/trazos/${losa.trazo_id}/losa`, { zona_id: z.id });
+    }
+    const muro = (wkt: string, conversion: Record<string, unknown>) =>
+      llamarApi<{ trazo_id: string }>(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
+        version_plano: 1, fuente: 'pdf', geometria_wkt: wkt, grosor_m: '0.15', alineacion: 'centro',
+        enlaces: [{ medida: 'longitud', factor: '1', actividad_id: actividad.id, conversion }],
+      });
+    const cantidad = async () => {
+      const nodos = await llamarApi<{ nodo_id: string; cantidad_medida: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/cuantificacion`);
+      return Number(nodos.find((n) => n.nodo_id === actividad.id)?.cantidad_medida ?? 0);
+    };
+    return { obra, plano, actividad, muro, cantidad };
+  }
+
+  test('un muro en el límite 3.00/4.20, trazado una vez a 4.20, se aplica desde la pantalla con altura por cara y enrase', async ({ page, request }) => {
+    const { obra, plano, muro, cantidad } = await dosCuartos(request, 'ZB');
+    // Dibujado hacia arriba sobre el límite (x = 6): la cara A (izquierda) mira a la losa de 3.00, la B a la de 4.20.
+    const limite = await muro('LINESTRING(6 0, 6 -4)', { modo: 'area', mide: 'cara2', cara: 'int', lado: 'der', alt: 4.2 });
+    expect(await cantidad()).toBeCloseTo(33.6, 2);
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    await page.getByRole('tab', { name: /Trazos/ }).click();
+    await page.getByRole('list', { name: 'Todos los trazos del plano' }).getByRole('listitem').filter({ hasText: /Muro/ }).click();
+    const detalle = page.getByTestId('zona-del-muro');
+    await expect(detalle.getByTestId('tramo-de-zona')).toHaveCount(1);
+    // La vista previa: el cuerpo es interior por las dos caras; el enrase es exterior del lado de la losa baja e interior del de la alta.
+    const partes = detalle.getByTestId('parte-por-cara');
+    await expect(partes).toHaveCount(2);
+    await expect(partes.nth(0)).toContainText('Cuerpo 0.00 m–3.00 m · A interior · B interior');
+    await expect(partes.nth(1)).toContainText('Enrase 3.00 m–4.20 m · A exterior · B interior');
+    await expect(detalle.getByTestId('muro-por-partir')).toHaveCount(0);
+    await detalle.getByRole('button', { name: 'Aplicar al muro' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'con enrase y altura por cara' })).toBeVisible();
+
+    const m = await llamarApi<{ partes: { rol: string; desde_m: string; hasta_m: string; cara_a: string; cara_b: string }[] }>(request, 'control', 'GET', `/trazos/${limite.trazo_id}/muro`);
+    expect(m.partes.map((p) => [p.rol, Number(p.desde_m), Number(p.hasta_m), p.cara_a, p.cara_b])).toEqual([
+      ['cuerpo', 0, 3, 'interior', 'interior'],
+      ['enrase', 3, 4.2, 'exterior', 'interior'],
+    ]);
+    // La superficie no cambia (4 m × 4.20 × 2 caras): la altura por cara solo reparte interior y exterior.
+    expect(await cantidad()).toBeCloseTo(33.6, 2);
+    // Con la altura ya fijada en el muro, la zona ya no tiene qué aplicar.
+    await expect(detalle.getByRole('button', { name: 'Aplicar al muro' })).toHaveCount(0);
+  });
+
+  test('un muro que cruza de una zona a otra cuenta por dos tramos dentro de un solo trazo y cada vano va a su tramo', async ({ page, request }) => {
+    const { obra, plano, muro, cantidad } = await dosCuartos(request, 'ZX');
+    // Nace sin altura: la toma de las zonas que cruza, por tramos (4 m a 3.00 y 4 m a 4.20, dos caras).
+    const cruza = await muro('LINESTRING(2 -2, 10 -2)', { modo: 'area', mide: 'cara2', cara: 'int', lado: 'der' });
+    expect(await cantidad()).toBeCloseTo(57.6, 2);
+    const trazos = await llamarApi<{ features: { geometry: { type: string } }[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`);
+    expect(trazos.features.filter((f) => f.geometry.type === 'LineString')).toHaveLength(1); // un solo trazo: no se partió
+    for (const posicion of ['1', '6']) {
+      await llamarApi(request, 'control', 'POST', `/trazos/${cruza.trazo_id}/vanos`, { clave: `P-${posicion}`, tipo: 'puerta', ancho_m: '0.9', alto_m: '2.1', posicion_m: posicion });
+    }
+    // Cada puerta descuenta 0.9 × 2.1 × 2 caras = 3.78: 57.60 − 7.56.
+    await expect.poll(cantidad).toBeCloseTo(50.04, 2);
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    await page.getByRole('tab', { name: /Trazos/ }).click();
+    await page.getByRole('list', { name: 'Todos los trazos del plano' }).getByRole('listitem').filter({ hasText: /Muro/ }).click();
+    const detalle = page.getByTestId('zona-del-muro');
+    await expect(detalle.getByTestId('tramo-de-zona')).toHaveCount(2);
+    await expect(detalle.getByTestId('tramo-de-zona').nth(0)).toContainText('3.00 m');
+    await expect(detalle.getByTestId('tramo-de-zona').nth(1)).toContainText('4.20 m');
+    await expect(detalle.getByTestId('muro-por-partir')).toContainText('2 tramos dentro del mismo trazo');
+    await expect(detalle.getByTestId('vanos-del-tramo').nth(0)).toContainText('P-1');
+    await expect(detalle.getByTestId('vanos-del-tramo').nth(1)).toContainText('P-6');
+    await detalle.getByRole('button', { name: 'Aplicar al muro' }).click();
+    await expect(page.getByRole('status').filter({ hasText: '2 tramos dentro del mismo trazo' })).toBeVisible();
+
+    // Un solo enlace vigente, con sus dos tramos, y lo mismo de antes (los vanos siguen en su tramo).
+    const feats = await llamarApi<{ features: { properties: { trazo_id: string; enlaces: { enlace_id: string; vigente: boolean }[] } }[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`);
+    const vigentes = feats.features.find((f) => f.properties.trazo_id === cruza.trazo_id)!.properties.enlaces.filter((e) => e.vigente);
+    expect(vigentes).toHaveLength(1);
+    const conv = await llamarApi<{ conversion: { tramos: { desde_m: number; hasta_m: number; alt: number }[] } }>(request, 'control', 'GET', `/enlaces/${vigentes[0]!.enlace_id}/conversion`);
+    expect(conv.conversion.tramos.map((t) => [t.desde_m, t.hasta_m, t.alt])).toEqual([[0, 4, 3], [4, 8, 4.2]]);
+    await expect.poll(cantidad).toBeCloseTo(50.04, 2);
   });
 
   test('Costos ve las zonas pero no las edita', async ({ page, request }) => {

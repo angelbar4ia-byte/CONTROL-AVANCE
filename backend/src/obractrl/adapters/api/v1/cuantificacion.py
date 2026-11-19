@@ -1671,6 +1671,18 @@ class ParteDeAlturaEnConversion(BaseModel):
     desde_m: float = Field(ge=0)
     hasta_m: float = Field(gt=0)
     suma: bool = True
+    rol: Literal["cuerpo", "enrase", "pretil", "cadena"] | None = Field(default=None, description="Solo informa (0138).")
+    cara_a: Literal["exterior", "interior"] | None = Field(default=None, description="Cara A (izquierda del sentido de dibujo); solo informa.")
+    cara_b: Literal["exterior", "interior"] | None = Field(default=None, description="Cara B (derecha); solo informa.")
+
+
+class TramoDeConversion(BaseModel):
+    """Un tramo lógico del muro a lo largo de su eje (0138): su altura única o sus partes de altura."""
+
+    desde_m: float = Field(ge=0, description="Distancia al inicio del trazo, sobre el eje (m).")
+    hasta_m: float = Field(gt=0)
+    alt: float | None = Field(default=None, gt=0, description="Altura del tramo (m); si hay partes, suman ellas.")
+    partes: list[ParteDeAlturaEnConversion] = Field(default_factory=list)
 
 
 class ConversionPeticion(BaseModel):
@@ -1689,6 +1701,10 @@ class ConversionPeticion(BaseModel):
     cara: Literal["int", "ext"] = "int"
     lado: Literal["izq", "der"] = Field(default="der", description="De qué lado del sentido de dibujo queda el interior.")
     partes: list[ParteDeAlturaEnConversion] = Field(default_factory=list, description="Altura por partes.")
+    tramos: list[TramoDeConversion] = Field(
+        default_factory=list,
+        description="Un muro que cruza zonas de losa: sus tramos a lo largo del eje, cada uno con su altura o partes (0138). Vacío = un solo tramo.",
+    )
 
 
 class ModoRespuesta(BaseModel):
