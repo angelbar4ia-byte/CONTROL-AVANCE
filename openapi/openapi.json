@@ -25607,7 +25607,7 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Vanos M2",
-            "description": "Lo que descuentan las puertas y ventanas que caen en esta banda (los castillos colocados no se restan)."
+            "description": "Lo que descuentan los vanos (todos menos los castillos) que caen en esta banda (los castillos colocados no se restan)."
           },
           "neto_m2": {
             "type": "string",

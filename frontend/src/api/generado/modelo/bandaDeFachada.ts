@@ -21,7 +21,7 @@ export interface BandaDeFachada {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   bruto_m2: string;
   /**
-   * Lo que descuentan las puertas y ventanas que caen en esta banda (los castillos colocados no se restan).
+   * Lo que descuentan los vanos (todos menos los castillos) que caen en esta banda (los castillos colocados no se restan).
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
   vanos_m2: string;

@@ -175,7 +175,7 @@ async def test_los_vanos_se_descuentan_en_la_banda_donde_caen(escenario: Escenar
     assert (D(j["bruto_m2"]), D(j["vanos_m2"]), D(j["neto_m2"])) == (D("25.2"), D("3"), D("22.2"))
 
 
-async def test_los_castillos_colocados_no_se_restan_como_vanos_solo_puertas_y_ventanas(escenario: Escenario, control: httpx.AsyncClient) -> None:
+async def test_los_castillos_colocados_no_se_restan_como_vanos_los_demas_vanos_si(escenario: Escenario, control: httpx.AsyncClient) -> None:
     plano = await _plano(control, escenario)
     muro = await _muro(control, plano, "LINESTRING(6 -4, 12 -4)")
     # Los castillos se colocan en un muro «con cadena»; conserva la ubicación para que siga contando su cara exterior.
@@ -191,6 +191,12 @@ async def test_los_castillos_colocados_no_se_restan_como_vanos_solo_puertas_y_ve
     assert p.status_code == 201, p.text
     j = await _fachada(control, plano)
     assert D(j["vanos_m2"]) == D("2.1") and D(j["neto_m2"]) == D(j["bruto_m2"]) - D("2.1")
+    # cancel, arco y paso también son vanos reales y restan (1 × 1 m cada uno).
+    for clave, tipo, pos in (("C-1", "cancel", "1"), ("A-1", "arco", "5"), ("PS-1", "paso", "5.5")):
+        v = await control.post(f"/api/v1/trazos/{muro}/vanos", json={"clave": clave, "tipo": tipo, "ancho_m": "0.3", "alto_m": "1", "posicion_m": pos})
+        assert v.status_code == 201, v.text
+    j = await _fachada(control, plano)
+    assert D(j["vanos_m2"]) == D("3.0")  # 2.1 de la puerta + 3 × 0.3
 
 
 async def test_un_muro_sin_caras_definidas_no_se_cuenta_y_avisa(escenario: Escenario, control: httpx.AsyncClient) -> None:

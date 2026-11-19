@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 
 from obractrl.domain.cuantificacion.fachada_por_bandas import (
-    TIPOS_DE_VANO_QUE_SE_DESCUENTAN,
+    TIPOS_DE_VANO_QUE_NO_SE_DESCUENTAN,
     ErrorDeFachada,
     FranjaExterior,
     ParteConCaras,
@@ -117,8 +117,8 @@ def test_los_vanos_del_tramo_viajan_a_su_franja_con_el_suelo_de_esa_cara() -> No
     assert f.vanos == ((1, D("1.5"), D("2.5")),)
 
 
-@pytest.mark.parametrize(("tipo", "resta"), [("puerta", True), ("ventana", True), ("castillo", False), ("arco", False), ("paso", False), ("cancel", False), (None, False)])
-def test_solo_las_puertas_y_las_ventanas_se_descuentan_de_la_fachada(tipo: str | None, resta: bool) -> None:
+@pytest.mark.parametrize(("tipo", "resta"), [("puerta", True), ("ventana", True), ("castillo", False), ("arco", True), ("paso", True), ("cancel", True)])
+def test_todos_los_vanos_se_descuentan_de_la_fachada_menos_el_castillo(tipo: str | None, resta: bool) -> None:
     """Decisión del usuario (2026-11-19): los castillos colocados comparten la tabla de vanos pero no son huecos de la fachada."""
     assert se_descuenta_de_la_fachada(tipo) is resta
-    assert {"puerta", "ventana"} == TIPOS_DE_VANO_QUE_SE_DESCUENTAN
+    assert {"castillo"} == TIPOS_DE_VANO_QUE_NO_SE_DESCUENTAN

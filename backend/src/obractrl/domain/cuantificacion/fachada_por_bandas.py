@@ -11,7 +11,7 @@ El Excel de paramétricos arrastraba tres defectos: la cantidad de «+3.00» se 
 La altura se mide desde el **suelo de la cara exterior**: el punto de nivel exterior de ese lado si existe (la «altura de la cara exterior»,
 regla A4) y, si no, el arranque del muro (el piso terminado de su zona de losa más baja; 0 = piso terminado de PB). Una cara exterior sale
 de las partes de altura del muro (cara A = izquierda del sentido de dibujo, B = derecha; solo las partes que suman) o de la zona de losa; los
-vanos se descuentan en la banda donde caen. **Solo se descuentan los vanos reales: puertas y ventanas** (decisión del usuario, 2026-11-19);
+vanos se descuentan en la banda donde caen. **Se descuentan todos los vanos reales (puerta, ventana, cancel, arco, paso) menos los castillos** (decisión del usuario, 2026-11-19);
 los castillos colocados en el muro viven en la misma tabla de vanos pero NO son huecos de la fachada y no se restan. Los límites (3.00 y 4.20 m) son constantes de la decisión F1, no drivers.
 
 Esto NO cobra nada y no pone precios: reparte metros cuadrados. Funciones puras, sin base de datos.
@@ -28,7 +28,7 @@ from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 __all__ = [
     "LIMITE_ALTO_POR_DEFECTO_M",
     "LIMITE_BAJO_POR_DEFECTO_M",
-    "TIPOS_DE_VANO_QUE_SE_DESCUENTAN",
+    "TIPOS_DE_VANO_QUE_NO_SE_DESCUENTAN",
     "Banda",
     "ErrorDeFachada",
     "FranjaExterior",
@@ -87,13 +87,12 @@ class ParteConCaras:
     suma: bool = True
 
 
-TIPOS_DE_VANO_QUE_SE_DESCUENTAN: frozenset[str] = frozenset({"puerta", "ventana"})
-"""Los únicos tipos de vano que restan m² a la fachada: puertas y ventanas (vanos reales). El castillo colocado (`tipo = 'castillo'`) no
-es un hueco, así que no se resta; cancel, arco y paso tampoco entran por esta regla (decisión del usuario, 2026-11-19)."""
+TIPOS_DE_VANO_QUE_NO_SE_DESCUENTAN: frozenset[str] = frozenset({"castillo"})
+"""Tipos de vano que NO restan m² a la fachada: solo el castillo colocado (no es un hueco). Puertas, ventanas, cancel, arco y paso son vanos reales y sí restan (decisión del usuario, 2026-11-19)."""
 
 
 def se_descuenta_de_la_fachada(tipo: str | None) -> bool:
-    return (tipo or "") in TIPOS_DE_VANO_QUE_SE_DESCUENTAN
+    return (tipo or "") not in TIPOS_DE_VANO_QUE_NO_SE_DESCUENTAN
 
 
 @dataclass(frozen=True, slots=True)

@@ -103,7 +103,7 @@ test.describe('Cuantificador · fachada por bandas de altura', () => {
     await llamarApi(request, 'control', 'PUT', `/trazos/${fachadaA.trazo_id}/muro/clasificacion`, { tipo: 'con_cadena', ubicacion: 'fachada_a' });
     // La altura real del muro manda: 4.50 m × 5 m de largo = 15 + 6 + 1.5.
     await llamarApi(request, 'control', 'PUT', `/trazos/${fachadaA.trazo_id}/muro`, { altura_m: '4.5', caras: 2 });
-    // Dos castillos colocados en el muro (misma tabla de vanos): NO se restan, solo las puertas y ventanas.
+    // Dos castillos colocados en el muro (misma tabla de vanos): NO se restan, los demás vanos sí.
     for (const [clave, posicion] of [['K-1', '1'], ['K-2', '4']] as const) {
       await llamarApi(request, 'control', 'POST', `/trazos/${fachadaA.trazo_id}/vanos`, { clave, tipo: 'castillo', ancho_m: '0.15', alto_m: '3', posicion_m: posicion });
     }
@@ -125,7 +125,7 @@ test.describe('Cuantificador · fachada por bandas de altura', () => {
     await expect(panel.locator('[data-fachada-total] [data-neto]')).toHaveText('22.50');
     await expect(panel).toContainText('ubicación');
     await expect(panel.locator('[data-fachada-total] td').nth(1)).toHaveText('0.00'); // los castillos no cuentan como vanos
-    await expect(panel.locator('[data-fachada-nota-vanos]')).toContainText('solo puertas y ventanas');
+    await expect(panel.locator('[data-fachada-nota-vanos]')).toContainText('se restan todos menos los castillos');
     await expect(panel.locator('[data-fachada-sin-cara]')).toContainText('2 muros sin cara exterior definida no se cuentan');
   });
 });

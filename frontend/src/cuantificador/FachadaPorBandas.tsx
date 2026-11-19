@@ -1,7 +1,7 @@
 /**
  * La fachada del plano por BANDAS de altura (F1): los m² de cara exterior de los muros REALES, en la banda baja (0 a 3.00), la media («+3.00»,
  * de 3.00 a 4.20) y el resto. Cada m² cae en una sola banda. Sale de las zonas de losa, los puntos de nivel exterior, las partes con caras, la
- * ubicación y las puertas y ventanas de cada muro (los castillos colocados NO se restan como vanos): no hay selector ni cantidad capturada aparte. Solo muestra lo que calcula el servidor; no cobra nada.
+ * ubicación y los vanos de cada muro (los castillos colocados NO se restan como vanos): no hay selector ni cantidad capturada aparte. Solo muestra lo que calcula el servidor; no cobra nada.
  */
 
 import { useEffect } from 'react';
@@ -64,7 +64,7 @@ export function PanelDeFachadaPorBandas({ planoId, huella }: { readonly planoId:
       )}
       {f && f.muros.length > 0 && (
         <p className="text-mute text-xs" data-fachada-nota-vanos>
-          Vanos: solo puertas y ventanas; los castillos colocados no se restan.
+          Vanos: se restan todos menos los castillos.
         </p>
       )}
       {f && f.muros.length > 0 && (
