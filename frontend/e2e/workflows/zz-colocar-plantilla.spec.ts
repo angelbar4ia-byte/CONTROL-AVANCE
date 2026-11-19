@@ -1,8 +1,8 @@
 import { altoPropio, cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
- * Ola 4C · trazar un muro con plantilla coloca sus castillos: toman la altura del driver de la obra (no 2.6 m), restan de los m² del muro y
- * se pueden retirar y volver a colocar desde el detalle del trazo. Lo colocado ya no se mueve si el driver cambia (Q1).
+ * Ola 4C · trazar un muro con plantilla coloca sus castillos: toman la altura base de la plantilla (no el driver ni 2.6 m), restan de los m² del muro y
+ * se pueden retirar y volver a colocar desde el detalle del trazo. Lo colocado ya no se mueve si el driver cambia (que el plano ya no lee) (Q1).
  */
 
 const ROLES_Z = ['control'] as const;
@@ -11,7 +11,7 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
   test.skip(!hayRoles(...ROLES_Z), motivoSinRoles(...ROLES_Z));
   test.setTimeout(120_000);
 
-  test('un muro trazado con plantilla nace con sus castillos a la altura del driver', async ({ page, request }) => {
+  test('un muro trazado con plantilla nace con sus castillos a la altura base de la plantilla', async ({ page, request }) => {
     const sufijo = Date.now().toString(36).toUpperCase();
     const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
     const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
