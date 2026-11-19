@@ -79,6 +79,8 @@ async def test_una_obra_inexistente_o_ajena_es_404_y_el_calculo_sin_obra_no_la_n
 
 async def test_get_drivers_dice_quien_usa_cada_uno(control: httpx.AsyncClient, escenario: Escenario) -> None:
     filas = {f["clave"]: f for f in (await control.get(f"/api/v1/obras/{escenario.obra_id}/drivers")).json()}
-    assert {c["id"] for c in filas["altura_estandar"]["lo_usan"]} >= {"estructura", "plantilla_colocar", "plantilla_vista_previa", "muro_del_plano"}
+    # El plano y las plantillas ya NO leen la altura estándar: solo los paramétricos de elementos.
+    assert {c["id"] for c in filas["altura_estandar"]["lo_usan"]} == {"estructura"}
+    assert {c["id"] for c in filas["separacion_castillos"]["lo_usan"]} >= {"plantilla_colocar", "plantilla_vista_previa"}
     assert {c["id"]: c["lectura"] for c in filas["escarpio_minimo"]["lo_usan"]} == {"cimentacion_de_piedra": "constante"}
     assert filas["desperdicio_mamposteria"]["lo_usan"] == [] and "tabique de 14 cm" in filas["desperdicio_mamposteria"]["sin_consumidor"]

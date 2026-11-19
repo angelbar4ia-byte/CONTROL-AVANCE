@@ -168,11 +168,11 @@ async def test_lo_con_avance_se_bloquea_y_los_roles_se_respetan(
     assert (await control.get(f"/api/v1/cambios-de-unidad/{cambio['id']}")).json()["estado"] == "rechazado"
 
 
-async def test_una_linea_que_pasa_a_m2_mide_su_largo_por_la_altura_estandar_de_la_obra(
+async def test_una_linea_que_pasa_a_m2_mide_su_largo_por_su_altura_base_y_no_por_el_driver(
     escenario: Escenario, losa: dict, control: httpx.AsyncClient
 ) -> None:
-    """Ola 4C: el factor del enlace rehecho ya no es 5.2 fijo (2.6 m × 2): es la altura estándar de la obra × 2 caras. Con el
-    driver de la obra en 2.5 m, una línea sin grosor de 10 m pasa a medir 50 m² (largo × 5.0)."""
+    """Ola 4C: el factor del enlace rehecho ya no es 5.2 fijo (2.6 m × 2): es su altura base × 2 caras. La del plano es la de la
+    herramienta (3.00 m): aunque el driver `altura_estandar` de la obra diga 2.5 m, una línea sin grosor de 10 m pasa a medir 60 m² (largo × 6.0)."""
     plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
     r = await control.post(
         f"/api/v1/planos/{plano}/trazos",
@@ -183,11 +183,11 @@ async def test_una_linea_que_pasa_a_m2_mide_su_largo_por_la_altura_estandar_de_l
     )
     assert r.status_code == 201, r.text
     trazo = r.json()["trazo_id"]
-    # El ajuste de ESTA obra para el driver `altura_estandar` (control de obra lo puede escribir).
+    # El ajuste de ESTA obra para el driver `altura_estandar` (control de obra lo puede escribir): el plano no lo lee.
     ajuste = await control.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.5"})
     assert ajuste.status_code == 200, ajuste.text
     cambio = (await control.post(f"/api/v1/conceptos/{losa['losa']}/cambio-de-unidad", json={"unidad_id": str(losa["m2"]), "equivalencia": "48"})).json()
     assert (await control.post(f"/api/v1/cambios-de-unidad/{cambio['id']}/aprobar")).status_code == 200
     f = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == trazo)
     vigente = next(e for e in f["properties"]["enlaces"] if e["vigente"])
-    assert (vigente["medida"], Decimal(str(vigente["factor"]))) == ("longitud", Decimal("5.0"))
+    assert (vigente["medida"], Decimal(str(vigente["factor"]))) == ("longitud", Decimal("6.0"))

@@ -245,6 +245,13 @@ class TrazoPeticion(BaseModel):
             "real es la de la planta × √(1 + p²). Solo de una línea."
         ),
     )
+    muro_plantilla_id: UUID | None = Field(
+        default=None,
+        description=(
+            "La plantilla de muro (el ARTEFACTO) con que se traza la línea. Se guarda al nacer para que su altura base cuente: un muro sin "
+            "altura propia y sin zona de losa nace con la `altura_m` de la plantilla y, sin ella, con la de la herramienta (3.00 m). Solo de una línea."
+        ),
+    )
 
     @model_validator(mode="after")
     def _grosor_y_alineacion_juntos(self) -> TrazoPeticion:
@@ -436,6 +443,7 @@ async def registrar_trazo(
             alineacion=peticion.alineacion,
             forma=peticion.forma.model_dump(mode="json") if peticion.forma else None,
             pendiente_pct=peticion.pendiente_pct,
+            muro_plantilla_id=peticion.muro_plantilla_id,
             medicion_id=peticion.medicion_id,
             enlaces=tuple(
                 IntencionEnlace(
@@ -1526,7 +1534,7 @@ def _muro_respuesta(m: dict) -> MuroDelTrazoRespuesta:
         )
         for p in (m["partes"] or [])
     ]
-    altura = altura_efectiva(m["altura_m"], partes or None, m.get("altura_estandar_m"))
+    altura = altura_efectiva(m["altura_m"], partes or None, m.get("altura_base_m"))
     return MuroDelTrazoRespuesta(
         altura_m=m["altura_m"],
         caras=m["caras"],

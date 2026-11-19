@@ -40,12 +40,12 @@ def divisor_de_cantidades(tipo_anterior: str | None, tipo_nuevo: str, equivalenc
 
 
 def medida_para(
-    tipo_nuevo: str, geometria: str, con_grosor: bool, altura_estandar: Decimal = ALTURA_POR_DEFECTO_M
+    tipo_nuevo: str, geometria: str, con_grosor: bool, altura_base: Decimal = ALTURA_POR_DEFECTO_M
 ) -> tuple[str, Decimal] | None:
     """La medida y el factor con que un trazo mide un concepto del tipo nuevo, o `None` si no cabe (un punto en m²).
 
-    `geometria`: `punto`, `linea` o `area`. Una línea sin grosor sobre un concepto en m² mide su largo × la altura estándar
-    de la obra (el driver `altura_estandar`, 3.00 m de partida) × las caras por defecto, como en la pantalla. Antes el factor
+    `geometria`: `punto`, `linea` o `area`. Una línea sin grosor sobre un concepto en m² mide su largo × su altura base
+    (la del artefacto o la de la herramienta, 3.00 m de partida; no el driver) × las caras por defecto, como en la pantalla. Antes el factor
     era 5.2 fijo (2.6 m × 2); la altura de un enlace que ya existe no se toca aquí (`ya_mide_lo_que_corresponde`, Q1).
     """
     if tipo_nuevo == "conteo":
@@ -54,7 +54,7 @@ def medida_para(
         if geometria == "area":
             return ("area", Decimal(1))
         if geometria == "linea":
-            return ("area", Decimal(1)) if con_grosor else ("longitud", altura_estandar * CARAS_POR_DEFECTO)
+            return ("area", Decimal(1)) if con_grosor else ("longitud", altura_base * CARAS_POR_DEFECTO)
         return None
     if tipo_nuevo == "lineal":
         if geometria == "area":

@@ -236,6 +236,8 @@ class ComandoRegistrarTrazo:
     """La medición a la que entra el trazo (0088): hereda los enlaces de su medición y de las que la contienen."""
     pendiente_pct: Decimal | None = None
     """Pendiente en % de una **línea** inclinada: su longitud real es la de la planta × √(1 + p²) (0087)."""
+    muro_plantilla_id: UUID | None = None
+    """La plantilla de muro (artefacto) con que se traza la línea: su altura base cuenta desde que el muro nace."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -656,10 +658,10 @@ class RegistrarTrazoConEnlaces:
         self._mediciones = mediciones
         self._tramos_de_zona = tramos_de_zona
 
-    async def _con_altura_estandar(self, trazo_id: UUID, tipo: str, conversion: dict[str, Any]) -> dict[str, Any]:
+    async def _con_altura_base(self, trazo_id: UUID, tipo: str, conversion: dict[str, Any]) -> dict[str, Any]:
         """Una conversión NUEVA de una línea que mide por altura y no trae la suya (ni partes) nace con la altura de la zona de losa
         bajo la que cae (zonas de losa 1.1); si cruza varias zonas, con sus tramos lógicos (`conversion.tramos`); sin zona, con la
-        altura estándar de la obra (el driver `altura_estandar`), no con los 2.6 m de antes. Solo vale para lo que nace aquí: lo ya
+        altura base (la de la plantilla de su trazo y, sin ella, la de la herramienta, 3.00 m; NUNCA el driver `altura_estandar`), no con los 2.6 m de antes. Solo vale para lo que nace aquí: lo ya
         guardado conserva la suya (Q1) y `app.cantidad_conversion` sigue respaldando con 2.6 m las conversiones viejas sin `alt`."""
         if tipo not in ("muro", "linea") or conversion.get("modo") not in ("area", "vol"):
             return conversion
@@ -674,7 +676,7 @@ class RegistrarTrazoConEnlaces:
                 (sum(p["hasta_m"] - p["desde_m"] for p in t["partes"] if p["suma"]) if "partes" in t else t["alt"]) for t in tramos
             )
             return {**conversion, "alt": altura, "tramos": tramos}
-        return {**conversion, "alt": float(await self._enlaces.altura_estandar_de_trazo(trazo_id))}
+        return {**conversion, "alt": float(await self._enlaces.altura_base_de_trazo(trazo_id))}
 
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
@@ -701,6 +703,8 @@ class RegistrarTrazoConEnlaces:
                 raise ErrorDeCuantificacion("La pendiente es de una línea (un tramo inclinado).")
             if cmd.pendiente_pct <= 0:
                 raise ErrorDeCuantificacion("La pendiente debe ser mayor que cero.")
+        if cmd.muro_plantilla_id is not None and tipo != "ST_LineString":
+            raise ErrorDeCuantificacion("La plantilla de muro es de una línea (un muro).")
         if cmd.medicion_id is not None:
             if self._mediciones is None:
                 raise ErrorDeCuantificacion("Las mediciones no están disponibles.")
@@ -726,6 +730,9 @@ class RegistrarTrazoConEnlaces:
                 forma=cmd.forma,
                 pendiente_pct=cmd.pendiente_pct,
             )
+            if cmd.muro_plantilla_id is not None:
+                # La altura base del artefacto cuenta desde que el muro nace (cadena: trazo > zona > artefacto > herramienta).
+                await self._trazos.fijar_plantilla_del_trazo(trazo_id, cmd.muro_plantilla_id)
 
             enlace_ids: list[UUID] = []
             nodos_tocados: dict[
@@ -768,7 +775,7 @@ class RegistrarTrazoConEnlaces:
                         raise ErrorDeCuantificacion("La conversión se fija sobre el enlace a un concepto.")
                     tipo = str((await self._enlaces.calcular_conversion(trazo_id, {"modo": "largo"}))["tipo"])
                     conversion = normalizar_conversion(
-                        tipo, await self._con_altura_estandar(trazo_id, tipo, intencion.conversion)
+                        tipo, await self._con_altura_base(trazo_id, tipo, intencion.conversion)
                     )
                     medida_guardada, factor_guardado = medida_natural(tipo), Decimal(1)
                 enlace_id = await self._enlaces.crear(
@@ -1334,9 +1341,9 @@ class AgregarHuecoATrazo:
 
 async def altura_sin_propia(trazos: Any, trazo_id: UUID) -> Decimal:
     """La altura de un muro que no trae la suya: la que ya usa su conversión guardada (Q1: lo guardado la conserva) o, si nace sin ella, la
-    altura estándar de la obra (el driver `altura_estandar`)."""
+    altura base (la del artefacto o la de la herramienta; no el driver)."""
     de_la_conversion = await trazos.altura_de_la_conversion(trazo_id)
-    return de_la_conversion if de_la_conversion is not None else await trazos.altura_estandar_de_trazo(trazo_id)
+    return de_la_conversion if de_la_conversion is not None else await trazos.altura_base_de_trazo(trazo_id)
 
 
 async def area_de_muro(trazos: Any, trazo_id: UUID, largo_m: Decimal, altura_m: Decimal) -> tuple[Decimal, Decimal, Decimal]:
@@ -1353,8 +1360,7 @@ async def area_de_muro(trazos: Any, trazo_id: UUID, largo_m: Decimal, altura_m: 
 
 
 async def altura_del_muro(trazos: Any, trazo_id: UUID) -> Decimal:
-    """Lo alto del muro: el tope de sus partes o su altura única; sin ninguna, la altura estándar de la obra (el driver `altura_estandar`,
-    3.00 m de partida). Lo que sube un castillo. Un muro que ya trae su altura la conserva (Q1)."""
+    """Lo alto del muro: el tope de sus partes o su altura única; sin ninguna, la altura base (la del artefacto o la de la herramienta, 3.00 m; no el driver). Lo que sube un castillo. Un muro que ya trae su altura la conserva (Q1)."""
     muro = await trazos.muro_de_trazo(trazo_id)
     partes = muro.get("partes")
     if partes:
@@ -1568,7 +1574,7 @@ class GestionarVanos(AgregarHuecoATrazo):
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         return {
             **await self._trazos.muro_de_trazo(trazo_id),
-            "altura_estandar_m": await self._altura_sin_propia(trazo_id),
+            "altura_base_m": await self._altura_sin_propia(trazo_id),
         }
 
     async def uniones(self, trazo_id: UUID) -> dict[str, Any]:
@@ -1658,11 +1664,11 @@ class GestionarVanos(AgregarHuecoATrazo):
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         if not await self._trazos.es_linea(trazo_id):
             raise ErrorDeCuantificacion("Cómo cuenta el muro se fija sobre una línea.")
-        # Un muro sin altura propia nace con la altura estándar de la obra y la GUARDA (Q1): cambiar el driver después no mueve
+        # Un muro sin altura propia nace con su altura base (artefacto o herramienta) y la GUARDA (Q1): cambiar la plantilla después no mueve
         # un muro ya fijado.
-        estandar = await self._altura_sin_propia(trazo_id)
-        altura_propia = altura_m if altura_m is not None or partes else estandar
-        factor = factor_de_muro(altura_efectiva(altura_propia, partes, estandar), caras)
+        base = await self._altura_sin_propia(trazo_id)
+        altura_propia = altura_m if altura_m is not None or partes else base
+        factor = factor_de_muro(altura_efectiva(altura_propia, partes, base), caras)
         guardar_partes = (
             validar_partes_con_caras(
                 [
@@ -2446,7 +2452,7 @@ class ConversionDelEnlace:
         unidad = await self._enlaces.unidad_del_concepto(e)
         tipo = await self._tipo(e)
         actual = e.get("conversion") or conversion_por_defecto(
-            tipo, unidad, float(await self._enlaces.altura_estandar_de_trazo(e["trazo_id"]))
+            tipo, unidad, float(await self._enlaces.altura_base_de_trazo(e["trazo_id"]))
         )
         con_modos = tipo in MODOS_POR_TIPO
         return {

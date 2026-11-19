@@ -219,11 +219,12 @@ class GestionarZonasDeLosa:
             explicita = Decimal(str(muro["altura_m"]))
         else:
             explicita = None
-        estandar = await self._trazos.altura_estandar_de_trazo(trazo_id)
+        base, origen_de_base = await self._trazos.altura_base_con_origen(trazo_id)
         guardada = await self._trazos.altura_de_la_conversion(trazo_id)
 
         r = resolver_muro(
-            linea, zonas=zonas, losas=losas, puntos_de_nivel=puntos, altura_explicita_m=explicita, altura_estandar_m=estandar,
+            linea, zonas=zonas, losas=losas, puntos_de_nivel=puntos, altura_explicita_m=explicita, altura_base_m=base,
+            origen_de_base=origen_de_base,
             grosor_m=float(trazo["grosor_m"]) if trazo["grosor_m"] is not None else None,
         )
         # Cada vano cae en el tramo donde está su centro (`posicion_m`, sobre el eje); sin posición, en el primero.
@@ -239,7 +240,7 @@ class GestionarZonasDeLosa:
             "trazo_id": trazo_id,
             "escala_definida": escala_definida,
             "altura_explicita_m": explicita,
-            "altura_estandar_m": estandar,
+            "altura_base_m": base,
             "altura_guardada_m": guardada,
             "resolucion": r,
             "vanos_por_tramo": vanos_por_tramo,

@@ -76,13 +76,12 @@ CONSUMIDORES: tuple[Consumidor, ...] = (
         constantes=("escarpio_minimo", "corona_cimiento_cm"),
     ),
     Consumidor(
-        "plantilla_colocar", "artefacto", "Colocar la plantilla de muro en el plano (alto de los castillos y reparto de los estimados)", ("altura_estandar", "separacion_castillos"),
+        "plantilla_colocar", "artefacto", "Colocar la plantilla de muro en el plano (reparto de los castillos estimados; el alto lo da el muro)", ("separacion_castillos",),
     ),
     Consumidor(
-        "plantilla_vista_previa", "artefacto", "Vista previa de la plantilla de muro", ("altura_estandar", "separacion_castillos"),
+        "plantilla_vista_previa", "artefacto", "Vista previa de la plantilla de muro (el alto es el de la plantilla)", ("separacion_castillos",),
         verificado_en="frontend",
     ),
-    Consumidor("muro_del_plano", "plano", "Trazos de muro nuevos del plano (su altura)", ("altura_estandar",)),
 )
 
 SIN_CONSUMIDOR_POR_AHORA: dict[str, str] = {

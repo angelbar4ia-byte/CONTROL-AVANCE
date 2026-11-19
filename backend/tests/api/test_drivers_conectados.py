@@ -276,14 +276,14 @@ def test_cada_consumidor_lee_exactamente_los_drivers_que_el_registro_dice(consum
         )
 
 
-def test_la_colocacion_de_la_plantilla_lee_la_altura_y_la_separacion() -> None:
+def test_la_colocacion_de_la_plantilla_lee_la_separacion_y_no_la_altura_estandar() -> None:
     registrado = next(c for c in CONSUMIDORES if c.id == "plantilla_colocar")
     elementos = [{"uid": "K-1", "ref": "K-1", "clase": "castillo", "modo": "estimado", "z_m": "0"}]
 
     def correr(vigentes: dict[str, str]) -> Any:
         d = {x.clave: Decimal(vigentes.get(x.clave, x.inicial)) for x in CATALOGO_DE_DRIVERS}
         c = colocar_plantilla(
-            elementos, largo_m=Decimal("10"), altura_m=d["altura_estandar"], anchos_m={"K-1": Decimal("0.15")},
+            elementos, largo_m=Decimal("10"), altura_m=Decimal("3"), anchos_m={"K-1": Decimal("0.15")},
             separacion_m=d["separacion_castillos"],
         )
         return [(i.piezas, i.alto_m, i.metros) for i in c.instancias]
@@ -295,10 +295,13 @@ def test_la_colocacion_de_la_plantilla_lee_la_altura_y_la_separacion() -> None:
         assert (correr({d.clave: _PERTURBADOS[d.clave]}) != base) == (d.clave in registrado.claves), d.clave
 
 
-def test_el_muro_del_plano_lee_la_altura_estandar() -> None:
-    registrado = next(c for c in CONSUMIDORES if c.id == "muro_del_plano")
-    assert registrado.claves == ("altura_estandar",)
-    assert conversion_por_defecto("muro", "m2", 3.5)["alt"] == 3.5 != conversion_por_defecto("muro", "m2", None)["alt"]
+def test_el_plano_y_las_plantillas_ya_no_leen_la_altura_estandar() -> None:
+    """Desacople: el driver `altura_estandar` es solo de los paramétricos de elementos; el plano, colocar y la vista previa no lo declaran."""
+    assert {c.id for c in consumidores_de("altura_estandar")} == {"estructura"}
+    assert not [c for c in CONSUMIDORES if c.tipo == "plano"]
+    # La conversión por defecto toma la altura base que se le pasa (artefacto) o la de la herramienta (3.00 m).
+    assert conversion_por_defecto("muro", "m2", 3.5)["alt"] == 3.5
+    assert conversion_por_defecto("muro", "m2", None)["alt"] == 3.0
 
 
 def test_todo_driver_tiene_consumidor_o_su_motivo_y_el_registro_no_nombra_drivers_que_no_existen() -> None:
@@ -321,8 +324,8 @@ def test_todo_driver_tiene_consumidor_o_su_motivo_y_el_registro_no_nombra_driver
 
 def test_los_consumidores_de_vista_previa_y_colocar_leen_los_mismos_drivers() -> None:
     por_id = {c.id: c for c in CONSUMIDORES}
-    assert por_id["plantilla_vista_previa"].claves == por_id["plantilla_colocar"].claves == ("altura_estandar", "separacion_castillos")
+    assert por_id["plantilla_vista_previa"].claves == por_id["plantilla_colocar"].claves == ("separacion_castillos",)
     assert por_id["plantilla_vista_previa"].verificado_en == "frontend"
     assert {c.id for c in CONSUMIDORES if c.verificado_en == "backend" and c.claves} <= (
-        set(_BASES_DE_PRUEBA) | {"plantilla_colocar", "muro_del_plano"}
+        set(_BASES_DE_PRUEBA) | {"plantilla_colocar"}
     )

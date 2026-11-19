@@ -177,8 +177,8 @@ class CambioDeUnidad:
                 movidas += 1
                 nodos.append(p["id"])
                 for e in await self._cambios.enlaces_a_rehacer(p["id"]):
-                    # La altura de un trazo que NACE sin la suya es la del driver `altura_estandar` de su obra.
-                    altura = await self._enlaces.altura_estandar_de_trazo(e["trazo_id"])
+                    # La altura de un trazo que NACE sin la suya es su altura base (artefacto o herramienta), no el driver.
+                    altura = await self._enlaces.altura_base_de_trazo(e["trazo_id"])
                     medida = medida_para(cambio["tipo_nuevo"], e["geometria"], e["con_grosor"], altura)
                     if ya_mide_lo_que_corresponde(medida, e["medida"], Decimal(str(e["factor"]))):
                         continue  # ya mide lo que corresponde (o conserva la altura con que se trazó, Q1)

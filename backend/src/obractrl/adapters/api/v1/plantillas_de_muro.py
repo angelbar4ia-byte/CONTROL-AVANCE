@@ -88,7 +88,7 @@ class PlantillaDeMuroPeticion(BaseModel):
     tipo: TipoDeMuro
     material: str = Field(description="tabique_rojo, block_hueco o sillar_amarillo.")
     ubicacion: Ubicacion
-    altura_m: Decimal | None = Field(default=None, gt=0, description="`null` = la altura estándar (driver).")
+    altura_m: Decimal | None = Field(default=None, gt=0, description="La ALTURA BASE del artefacto: la que toman sus muros si el trazo no trae otra y no cae bajo una zona de losa. `null` = la de la herramienta de trazo (3.00 m).")
     partes: list[ParteDeAlturaDePlantilla] = Field(default_factory=list, max_length=20)
     elementos: list[ElementoDePlantilla] = Field(default_factory=list, max_length=40)
     acabado: dict[str, dict[str, bool]] | None = Field(default=None, description="Sí/No por capa y cara; lo que falta toma el defecto.")
@@ -499,7 +499,7 @@ class ColocacionDelMuroRespuesta(BaseModel):
     version: int
     tipo: TipoDeMuro = Field(description="El tipo de la plantilla: confinado estima los castillos; con_cadena («muros y cadena») los siembra a mano.")
     largo_m: Decimal
-    altura_m: Decimal = Field(description="La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra.")
+    altura_m: Decimal = Field(description="La altura del muro: la suya o, si no tiene, la base de su plantilla o la de la herramienta (3.00 m).")
     area_bruta_m2: Decimal = Field(default=Decimal(0), description="Largo × alto del muro.")
     vanos_m2: Decimal = Field(default=Decimal(0), description="m² de los vanos ya colocados (puertas, ventanas, pasos…) que se descontaron; 0 si no hay.")
     area_neta_m2: Decimal = Field(default=Decimal(0), description="Bruto − vanos: el área sobre la que la regla «total» reparte los metros del prototipo.")

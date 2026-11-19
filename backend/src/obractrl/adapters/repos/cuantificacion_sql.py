@@ -352,21 +352,25 @@ class RepositorioPlanosSQL:
         return [dict(fila) for fila in filas]
 
 
-async def _altura_estandar_de_trazo(sesion: AsyncSession, trazo_id: UUID) -> Decimal:
-    """El driver `altura_estandar` vigente en la obra del trazo (Paramétrico, 0134): el de la obra si es ajustable y la obra lo
-    cambió; si no, el global; si no, el de partida (3.00 m). Solo lo que nace sin altura lo usa: lo guardado conserva la suya (Q1)."""
+async def _altura_base_con_origen(sesion: AsyncSession, trazo_id: UUID) -> tuple[Decimal, str]:
+    """La altura BASE de un trazo de muro que nace sin la suya, y de dónde sale: la del ARTEFACTO (la `altura_m` de la plantilla de muro
+    que eligió el trazo; ``artefacto``) o, sin plantilla o sin altura en ella, la de la HERRAMIENTA de trazo (3.00 m; ``herramienta``).
+    NO lee el driver `altura_estandar`: el plano no depende de él. Solo lo que nace sin altura la usa: lo guardado conserva la suya (Q1)."""
     valor = (
         await sesion.execute(
             text(
                 """
-                select app.driver_numerico(pl.obra_id, 'altura_estandar', cast(:d as numeric))
-                  from trazo t join plano pl on pl.id = t.plano_id where t.id = :t
+                select mp.altura_m
+                  from trazo t join muro_plantilla mp on mp.id = t.muro_plantilla_id
+                 where t.id = :t
                 """
             ),
-            {"t": str(trazo_id), "d": str(ALTURA_POR_DEFECTO_M)},
+            {"t": str(trazo_id)},
         )
     ).scalar_one_or_none()
-    return Decimal(str(valor)) if valor is not None else ALTURA_POR_DEFECTO_M
+    if valor is not None and Decimal(str(valor)) > 0:
+        return Decimal(str(valor)), "artefacto"
+    return ALTURA_POR_DEFECTO_M, "herramienta"
 
 
 class RepositorioTrazosSQL:
@@ -729,8 +733,24 @@ class RepositorioTrazosSQL:
     async def quitar_vano(self, vano_id: UUID) -> None:
         await self._sesion.execute(text("delete from vano where id = :id"), {"id": str(vano_id)})
 
-    async def altura_estandar_de_trazo(self, trazo_id: UUID) -> Decimal:
-        return await _altura_estandar_de_trazo(self._sesion, trazo_id)
+    async def altura_base_de_trazo(self, trazo_id: UUID) -> Decimal:
+        return (await _altura_base_con_origen(self._sesion, trazo_id))[0]
+
+    async def altura_base_con_origen(self, trazo_id: UUID) -> tuple[Decimal, str]:
+        return await _altura_base_con_origen(self._sesion, trazo_id)
+
+    async def fijar_plantilla_del_trazo(self, trazo_id: UUID, plantilla_id: UUID) -> None:
+        """Deja la plantilla (la versión) elegida en el trazo al nacer, sin tocar su tipo ni su acabado (0133)."""
+        if not await _hay_columna(self._sesion, "trazo", "muro_plantilla_id"):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0133 (plantillas de muro) en esta base.")
+        hay = (
+            await self._sesion.execute(text("select 1 from muro_plantilla where id = :p"), {"p": str(plantilla_id)})
+        ).scalar_one_or_none()
+        if hay is None:
+            raise ErrorDeCuantificacion("La plantilla de muro no existe o está fuera de tu alcance.")
+        await self._sesion.execute(
+            text("update trazo set muro_plantilla_id = :p where id = :t"), {"p": str(plantilla_id), "t": str(trazo_id)}
+        )
 
     async def altura_de_la_conversion(self, trazo_id: UUID) -> Decimal | None:
         """La altura con que ya se mide el trazo: el `alt` de la conversión vigente de un enlace en m² o m³ (sin partes). Lo
@@ -1474,8 +1494,8 @@ class RepositorioEnlacesCuantificacionSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
-    async def altura_estandar_de_trazo(self, trazo_id: UUID) -> Decimal:
-        return await _altura_estandar_de_trazo(self._sesion, trazo_id)
+    async def altura_base_de_trazo(self, trazo_id: UUID) -> Decimal:
+        return (await _altura_base_con_origen(self._sesion, trazo_id))[0]
 
     async def calcular_conversion(self, trazo_id: UUID, conversion: dict[str, Any]) -> dict[str, Any]:
         """La cantidad de un trazo con una conversión, calculada por la base (`app.cantidad_conversion`, 0114): la

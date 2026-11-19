@@ -23,8 +23,8 @@ __all__ = [
 ]
 
 ALTURA_POR_DEFECTO_M = Decimal("3.00")
-"""El valor de partida del driver `altura_estandar` (M-9). Con una obra se lee el driver vigente de esa obra (Paramétrico, 0134);
-esta constante solo vale donde no hay obra a la mano."""
+"""La altura de la HERRAMIENTA de trazo (3.00 m, decisión M-9): la constante con que nace un muro sin altura propia, sin zona de losa y sin
+plantilla (la altura base del artefacto manda sobre ella). El plano NO lee el driver `altura_estandar` (solo lo leen los paramétricos)."""
 ALTURA_ANTERIOR_M = Decimal("2.6")
 """La altura que contaba por defecto todo lo guardado antes del driver. Q1: lo ya guardado la CONSERVA; solo lo que nace sin
 altura sigue al driver. La conversión de un enlace guardado sin `alt` la sigue usando (`app.cantidad_conversion`, 0115)."""
@@ -46,10 +46,10 @@ class ParteDeAltura:
 
 
 def altura_efectiva(
-    altura_m: Decimal | None, partes: Sequence[ParteDeAltura] | None, estandar_m: Decimal | None = None
+    altura_m: Decimal | None, partes: Sequence[ParteDeAltura] | None, base_m: Decimal | None = None
 ) -> Decimal:
-    """La altura que suma a la cantidad: la de las partes que suman, o la altura única; sin ninguna, la altura estándar de la
-    obra (el driver `altura_estandar`; 3.00 m si no se da)."""
+    """La altura que suma a la cantidad: la de las partes que suman, o la altura única; sin ninguna, la altura base (la del
+    artefacto o la de la herramienta; 3.00 m si no se da)."""
     if partes:
         for p in partes:
             if p.desde_m < 0 or p.hasta_m <= p.desde_m:
@@ -57,7 +57,7 @@ def altura_efectiva(
         return sum((p.hasta_m - p.desde_m for p in partes if p.suma), Decimal(0))
     if altura_m is not None:
         return altura_m
-    return estandar_m if estandar_m is not None else ALTURA_POR_DEFECTO_M
+    return base_m if base_m is not None else ALTURA_POR_DEFECTO_M
 
 
 def factor_de_muro(altura: Decimal, caras: int) -> Decimal:
