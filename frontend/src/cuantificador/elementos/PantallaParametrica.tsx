@@ -12,8 +12,11 @@ interface Props {
   readonly rol?: string | null;
 }
 
-/** Q3: Costos y Control de obra editan los drivers y los enlaces; el servidor lo vuelve a exigir. */
+/** Q3: Costos y Control de obra editan (proponen) los drivers y los enlaces; el servidor lo vuelve a exigir. */
 export const puedeEditarElParametrico = (rol: string | null | undefined) => rol === 'costos' || rol === 'control_obra';
+
+/** F3: solo Control de obra autoriza un cambio de driver. */
+export const puedeAutorizarDrivers = (rol: string | null | undefined) => rol === 'control_obra';
 
 export function PantallaParametrica({ obraId, obraClave, rol }: Props) {
   const puedeEditar = puedeEditarElParametrico(rol);
@@ -36,7 +39,7 @@ export function PantallaParametrica({ obraId, obraClave, rol }: Props) {
             </div>
           ) : (
             <>
-              <TablaDeDrivers obraId={obraId} obraClave={obraClave} puedeEditar={puedeEditar} />
+              <TablaDeDrivers obraId={obraId} obraClave={obraClave} puedeEditar={puedeEditar} puedeAutorizar={puedeAutorizarDrivers(rol)} />
               <EnlacesDeRanuras obraId={obraId} puedeEditar={puedeEditar} />
             </>
           )}

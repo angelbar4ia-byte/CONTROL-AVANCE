@@ -253,6 +253,23 @@ class TrazoPeticion(BaseModel):
         ),
     )
 
+    revestimiento_muro_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Si la línea es un REVESTIMIENTO de un muro (D-645), el muro al que pertenece. Se liga en la MISMA transacción que el trazo y sus "
+            "enlaces: o nace ligado o no nace (antes eran dos llamadas, el trazo y luego `PUT /trazos/{id}/revestimiento`). Va con `revestimiento_cara`."
+        ),
+    )
+    revestimiento_cara: Literal["interior", "fachada"] | None = Field(
+        default=None, description="La cara del muro que lleva el revestimiento. Va con `revestimiento_muro_id`."
+    )
+
+    @model_validator(mode="after")
+    def _revestimiento_muro_y_cara_juntos(self) -> TrazoPeticion:
+        if (self.revestimiento_muro_id is None) != (self.revestimiento_cara is None):
+            raise ValueError("`revestimiento_muro_id` y `revestimiento_cara` van juntos o no va ninguno.")
+        return self
+
     @model_validator(mode="after")
     def _grosor_y_alineacion_juntos(self) -> TrazoPeticion:
         if (self.grosor_m is None) != (self.alineacion is None):
@@ -444,6 +461,8 @@ async def registrar_trazo(
             forma=peticion.forma.model_dump(mode="json") if peticion.forma else None,
             pendiente_pct=peticion.pendiente_pct,
             muro_plantilla_id=peticion.muro_plantilla_id,
+            revestimiento_muro_id=peticion.revestimiento_muro_id,
+            revestimiento_cara=peticion.revestimiento_cara,
             medicion_id=peticion.medicion_id,
             enlaces=tuple(
                 IntencionEnlace(

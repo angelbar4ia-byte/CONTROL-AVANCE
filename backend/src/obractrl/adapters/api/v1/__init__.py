@@ -61,6 +61,9 @@ from obractrl.adapters.api.v1.evaluaciones import router as router_evaluaciones
 from obractrl.adapters.api.v1.eventos import router as router_eventos
 from obractrl.adapters.api.v1.evidencias import router as router_evidencias
 from obractrl.adapters.api.v1.expediente import router as router_expediente
+from obractrl.adapters.api.v1.fachada_por_bandas import (
+    router as router_fachada_por_bandas,
+)
 from obractrl.adapters.api.v1.identidad import router as router_identidad
 from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.insumos import router as router_insumos
@@ -137,6 +140,7 @@ api_v1.include_router(router_muros_de_tabique)
 api_v1.include_router(router_bastones)
 api_v1.include_router(router_plantillas_de_muro)
 api_v1.include_router(router_zonas_de_losa)
+api_v1.include_router(router_fachada_por_bandas)
 api_v1.include_router(router_correcciones_de_catalogo)
 api_v1.include_router(router_parametrico)
 api_v1.include_router(router_biblioteca_de_elementos)

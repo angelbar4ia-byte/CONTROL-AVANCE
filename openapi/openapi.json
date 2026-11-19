@@ -16913,6 +16913,50 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/fachada-por-bandas": {
+      "get": {
+        "tags": [
+          "fachada"
+        ],
+        "summary": "Los m² de fachada del plano por banda de altura (0 a 3.00, «+3.00» de 3.00 a 4.20, resto)",
+        "operationId": "fachada_por_bandas_api_v1_planos__plano_id__fachada_por_bandas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FachadaPorBandasRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Los límites de las bandas no valen."
+          }
+        }
+      }
+    },
     "/api/v1/correcciones-de-catalogo": {
       "get": {
         "tags": [
@@ -17121,7 +17165,7 @@
         "tags": [
           "parametrico"
         ],
-        "summary": "Cambiar el valor y/o el modo (fijo, ajustable) del driver global",
+        "summary": "Proponer el valor y/o el modo (fijo, ajustable) del driver global (lo autoriza Control de obra)",
         "operationId": "fijar_driver_global_api_v1_drivers__clave__put",
         "security": [
           {
@@ -17160,8 +17204,11 @@
               }
             }
           },
+          "202": {
+            "description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."
+          },
           "403": {
-            "description": "Lo editan Costos y Control de obra."
+            "description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."
           },
           "404": {
             "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
@@ -17232,7 +17279,7 @@
         "tags": [
           "parametrico"
         ],
-        "summary": "El valor propio de una obra para un driver ajustable",
+        "summary": "Proponer el valor propio de una obra para un driver ajustable (lo autoriza Control de obra)",
         "operationId": "fijar_driver_de_obra_api_v1_obras__obra_id__drivers__clave__put",
         "security": [
           {
@@ -17281,8 +17328,11 @@
               }
             }
           },
+          "202": {
+            "description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."
+          },
           "403": {
-            "description": "Lo editan Costos y Control de obra."
+            "description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."
           },
           "404": {
             "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
@@ -17296,7 +17346,7 @@
         "tags": [
           "parametrico"
         ],
-        "summary": "Quitar el ajuste de la obra: vuelve al valor global",
+        "summary": "Proponer quitar el ajuste de la obra: vuelve al valor global (lo autoriza Control de obra)",
         "operationId": "quitar_driver_de_obra_api_v1_obras__obra_id__drivers__clave__delete",
         "security": [
           {
@@ -17335,8 +17385,220 @@
               }
             }
           },
+          "202": {
+            "description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."
+          },
           "403": {
-            "description": "Lo editan Costos y Control de obra."
+            "description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/drivers-propuestas": {
+      "get": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Las propuestas de cambio de drivers: quién propuso, quién decidió y cuándo (la bitácora)",
+        "operationId": "propuestas_de_drivers_api_v1_drivers_propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pendiente",
+                    "autorizada",
+                    "rechazada"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo las que están en este estado.",
+              "title": "Estado"
+            },
+            "description": "Solo las que están en este estado."
+          },
+          {
+            "name": "obra_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Las globales y las de esta obra.",
+              "title": "Obra Id"
+            },
+            "description": "Las globales y las de esta obra."
+          },
+          {
+            "name": "clave",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo las de este driver.",
+              "title": "Clave"
+            },
+            "description": "Solo las de este driver."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeDriver"
+                  },
+                  "title": "Response Propuestas De Drivers Api V1 Drivers Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drivers-propuestas/{propuesta_id}/autorizar": {
+      "post": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Autorizar un cambio de driver (solo Control de obra): se aplica y queda quién y cuándo",
+        "operationId": "autorizar_propuesta_de_driver_api_v1_drivers_propuestas__propuesta_id__autorizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "propuesta_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Propuesta Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/drivers-propuestas/{propuesta_id}/rechazar": {
+      "post": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Rechazar un cambio de driver (solo Control de obra)",
+        "operationId": "rechazar_propuesta_de_driver_api_v1_drivers_propuestas__propuesta_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "propuesta_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Propuesta Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazoDePropuesta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra decide."
           },
           "404": {
             "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
@@ -17441,8 +17703,11 @@
               }
             }
           },
+          "202": {
+            "description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."
+          },
           "403": {
-            "description": "Lo editan Costos y Control de obra."
+            "description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."
           },
           "404": {
             "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
@@ -17597,8 +17862,71 @@
           "204": {
             "description": "Successful Response"
           },
+          "202": {
+            "description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."
+          },
           "403": {
-            "description": "Lo editan Costos y Control de obra."
+            "description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."
+          },
+          "404": {
+            "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El valor no vale, el driver es fijo, o el concepto no existe en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/niveles/{nivel_id}/numero-de-nivel": {
+      "put": {
+        "tags": [
+          "parametrico"
+        ],
+        "summary": "Fijar el número de nivel explícito del contexto (PB = 1); con saltos de nivel ya no se usa el orden",
+        "operationId": "fijar_numero_de_nivel_api_v1_niveles__nivel_id__numero_de_nivel_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nivel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Nivel Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NumeroDeNivelPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NivelDelArbol"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Costos propuso el cambio: queda pendiente y el driver no cambia hasta que Control de obra lo autorice."
+          },
+          "403": {
+            "description": "Lo proponen Costos y Control de obra; solo Control de obra autoriza."
           },
           "404": {
             "description": "El driver, la obra o el enlace no existen o están fuera de tu alcance."
@@ -25235,6 +25563,69 @@
           "cant_excedente"
         ],
         "title": "AvanceRespuesta"
+      },
+      "BandaDeFachada": {
+        "properties": {
+          "banda": {
+            "type": "string",
+            "enum": [
+              "baja",
+              "media",
+              "resto"
+            ],
+            "title": "Banda"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "desde_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desde M",
+            "description": "Altura sobre el suelo de la cara exterior donde empieza la banda."
+          },
+          "hasta_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta M",
+            "description": "Donde termina; `null` en «el resto»."
+          },
+          "bruto_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Bruto M2"
+          },
+          "vanos_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vanos M2",
+            "description": "Lo que descuentan los vanos que caen en esta banda."
+          },
+          "neto_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Neto M2"
+          }
+        },
+        "type": "object",
+        "required": [
+          "banda",
+          "nombre",
+          "desde_m",
+          "hasta_m",
+          "bruto_m2",
+          "vanos_m2",
+          "neto_m2"
+        ],
+        "title": "BandaDeFachada"
       },
       "Body_subir_carga_api_v1_cargas_post": {
         "properties": {
@@ -35585,6 +35976,31 @@
             ],
             "title": "Sin Consumidor",
             "description": "Si ningún cálculo lo lee todavía: el motivo."
+          },
+          "inmutable": {
+            "type": "boolean",
+            "title": "Inmutable",
+            "description": "F4: no se cambia ni se propone (el cálculo lo lee como constante del dominio).",
+            "default": false
+          },
+          "propuestas_pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PropuestaDeDriver"
+            },
+            "type": "array",
+            "title": "Propuestas Pendientes",
+            "description": "Los cambios propuestos a este driver que Control de obra aún no decide (el global y, con obra, los de esa obra)."
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDeDriver"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo al proponer, autorizar o rechazar: la propuesta de la que sale esta respuesta."
           }
         },
         "type": "object",
@@ -37598,7 +38014,7 @@
           },
           "niveles": {
             "items": {
-              "$ref": "#/components/schemas/CapaDelArbol"
+              "$ref": "#/components/schemas/NivelDelArbol"
             },
             "type": "array",
             "title": "Niveles",
@@ -39293,6 +39709,142 @@
         ],
         "title": "ExtraRespuesta",
         "description": "Lo que quedó dado de alta (§11.2)."
+      },
+      "FachadaDeMuro": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "origen_de_caras": {
+            "type": "string",
+            "enum": [
+              "partes_del_muro",
+              "zona_de_losa",
+              "ubicacion"
+            ],
+            "title": "Origen De Caras",
+            "description": "De dónde salió cuál cara es exterior: las partes con caras del muro, su zona de losa o su ubicación."
+          },
+          "ubicacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion"
+          },
+          "bandas": {
+            "items": {
+              "$ref": "#/components/schemas/BandaDeFachada"
+            },
+            "type": "array",
+            "title": "Bandas"
+          },
+          "neto_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Neto M2"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "origen_de_caras",
+          "ubicacion",
+          "bandas",
+          "neto_m2"
+        ],
+        "title": "FachadaDeMuro"
+      },
+      "FachadaPorBandasRespuesta": {
+        "properties": {
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id"
+          },
+          "limite_bajo_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Limite Bajo M",
+            "description": "Donde termina la banda baja (3.00 m, decisión F1)."
+          },
+          "limite_alto_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Limite Alto M",
+            "description": "Donde termina la franja «+3.00» (4.20 m, decisión F1)."
+          },
+          "bandas": {
+            "items": {
+              "$ref": "#/components/schemas/BandaDeFachada"
+            },
+            "type": "array",
+            "title": "Bandas",
+            "description": "El total del plano: cada m² cae en una sola banda."
+          },
+          "bruto_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Bruto M2"
+          },
+          "vanos_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Vanos M2"
+          },
+          "neto_m2": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Neto M2"
+          },
+          "muros": {
+            "items": {
+              "$ref": "#/components/schemas/FachadaDeMuro"
+            },
+            "type": "array",
+            "title": "Muros"
+          },
+          "muros_sin_cara_exterior": {
+            "items": {
+              "$ref": "#/components/schemas/MuroSinCaraExterior"
+            },
+            "type": "array",
+            "title": "Muros Sin Cara Exterior",
+            "description": "Muros que no se cuentan porque no dicen cuál cara es exterior."
+          }
+        },
+        "type": "object",
+        "required": [
+          "plano_id",
+          "obra_id",
+          "limite_bajo_m",
+          "limite_alto_m",
+          "bandas",
+          "bruto_m2",
+          "vanos_m2",
+          "neto_m2",
+          "muros",
+          "muros_sin_cara_exterior"
+        ],
+        "title": "FachadaPorBandasRespuesta"
       },
       "FamiliaDeInsumo": {
         "properties": {
@@ -44825,6 +45377,25 @@
         ],
         "title": "MuroRetiradoRespuesta"
       },
+      "MuroSinCaraExterior": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "motivo"
+        ],
+        "title": "MuroSinCaraExterior"
+      },
       "NivelDeLaEtapaPeticion": {
         "properties": {
           "nivel_id": {
@@ -44843,6 +45414,66 @@
         "type": "object",
         "title": "NivelDeLaEtapaPeticion",
         "description": "A qué nivel pertenece la etapa (§7.4).\n\n`null` lo quita: corregir uno mal puesto es tan válido como ponerlo."
+      },
+      "NivelDelArbol": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden",
+            "description": "El orden del nivel en el árbol (puede tener saltos)."
+          },
+          "numero_de_nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero De Nivel",
+            "description": "F5: el número de nivel explícito del contexto (PB = 1) con el que se eligen los conceptos de un elemento."
+          },
+          "numero_efectivo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero Efectivo",
+            "description": "El que se usa: el explícito; sin él, el orden si los niveles son consecutivos; con saltos y sin número, `null` (no descarta conceptos)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "descripcion"
+        ],
+        "title": "NivelDelArbol"
       },
       "NivelEvaluacion": {
         "type": "string",
@@ -45789,6 +46420,29 @@
         ],
         "title": "NuevoEnlacePeticion",
         "description": "El reemplazo, cuando se crea en la misma llamada — hereda el nodo\ndel enlace que reemplaza (ver `NuevoEnlace` en el caso de uso)."
+      },
+      "NumeroDeNivelPeticion": {
+        "properties": {
+          "numero_de_nivel": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero De Nivel",
+            "description": "PB = 1. `null` quita el número explícito."
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero_de_nivel"
+        ],
+        "title": "NumeroDeNivelPeticion"
       },
       "ObraCandidataRespuesta": {
         "properties": {
@@ -50261,6 +50915,225 @@
         "title": "PropuestaDeCambio",
         "description": "El cambio de Costos sobre un elemento autorizado: no se aplica hasta que Control de obra lo autorice."
       },
+      "PropuestaDeDriver": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "alcance": {
+            "type": "string",
+            "enum": [
+              "global",
+              "obra"
+            ],
+            "title": "Alcance"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id"
+          },
+          "accion": {
+            "type": "string",
+            "enum": [
+              "fijar",
+              "quitar"
+            ],
+            "title": "Accion"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor",
+            "description": "El valor propuesto (`null` si solo cambia el modo o se quita el ajuste de la obra)."
+          },
+          "modo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fijo",
+                  "ajustable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modo"
+          },
+          "valor_anterior": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Anterior",
+            "description": "Lo que valía cuando se propuso."
+          },
+          "modo_anterior": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fijo",
+                  "ajustable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modo Anterior"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "autorizada",
+              "rechazada"
+            ],
+            "title": "Estado"
+          },
+          "propuso_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Id"
+          },
+          "propuso_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuso Nombre"
+          },
+          "propuso_rol": {
+            "type": "string",
+            "title": "Propuso Rol"
+          },
+          "propuesto_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Propuesto En"
+          },
+          "decidio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Id"
+          },
+          "decidio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Nombre"
+          },
+          "decidio_rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidio Rol"
+          },
+          "decidido_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidido En"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo",
+            "description": "Por qué se rechazó."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "alcance",
+          "obra_id",
+          "accion",
+          "valor",
+          "modo",
+          "valor_anterior",
+          "modo_anterior",
+          "estado",
+          "propuso_id",
+          "propuso_nombre",
+          "propuso_rol",
+          "propuesto_en",
+          "decidio_id",
+          "decidio_nombre",
+          "decidio_rol",
+          "decidido_en",
+          "motivo"
+        ],
+        "title": "PropuestaDeDriver"
+      },
       "PropuestaDeEstructura": {
         "properties": {
           "id": {
@@ -51428,6 +52301,25 @@
         },
         "type": "object",
         "title": "RechazoDeLaPropuesta"
+      },
+      "RechazoDePropuesta": {
+        "properties": {
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo",
+            "description": "Por qué se rechaza (opcional)."
+          }
+        },
+        "type": "object",
+        "title": "RechazoDePropuesta"
       },
       "RechazoPeticion": {
         "properties": {
@@ -56053,6 +56945,35 @@
             ],
             "title": "Muro Plantilla Id",
             "description": "La plantilla de muro (el ARTEFACTO) con que se traza la línea. Se guarda al nacer para que su altura base cuente: un muro sin altura propia y sin zona de losa nace con la `altura_m` de la plantilla y, sin ella, con la de la herramienta (3.00 m). Solo de una línea."
+          },
+          "revestimiento_muro_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revestimiento Muro Id",
+            "description": "Si la línea es un REVESTIMIENTO de un muro (D-645), el muro al que pertenece. Se liga en la MISMA transacción que el trazo y sus enlaces: o nace ligado o no nace (antes eran dos llamadas, el trazo y luego `PUT /trazos/{id}/revestimiento`). Va con `revestimiento_cara`."
+          },
+          "revestimiento_cara": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "interior",
+                  "fachada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revestimiento Cara",
+            "description": "La cara del muro que lleva el revestimiento. Va con `revestimiento_muro_id`."
           }
         },
         "type": "object",

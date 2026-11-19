@@ -2,7 +2,8 @@
 -- ObraCtrl · Paramétrico: drivers y enlace de ranuras (migración 0134, Ola 4B)
 --
 -- Lo que se prueba:
---   1. Costos y Control de obra escriben drivers (globales y de obra) y enlaces; el residente los ve (los de SU obra) y no escribe.
+--   1. Control de obra escribe drivers (globales y de obra); Costos solo los PROPONE (0141: no escribe `driver_valor`) y enlaza ranuras; el
+--      residente los ve (los de SU obra) y no escribe.
 --   2. Un residente no ve los ajustes ni los enlaces de la obra de otro; otra organización no ve nada ni escribe a nombre de la primera.
 --   3. Un solo global por driver, un solo ajuste por obra y driver, y la forma de cada nivel (global con modo, obra sin modo).
 --   4. `app.driver_numerico`: fijo ignora el ajuste de obra; ajustable lo usa; sin fila vale el valor de partida.
@@ -67,12 +68,20 @@ $$;
 
 set local role obractrl_api;
 
--- 1 · Costos cambia el global y Control de obra ajusta la obra F1
+-- 1 · Costos ya no escribe el valor de un driver (lo propone, 0141); Control de obra lo escribe: el global y el ajuste de la obra F1
 select pg_temp.como('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000003', 'costos');
+do $$
+begin
+  insert into driver_valor (org_id, clave, nivel, valor, modo) values
+    ('11111111-1111-1111-1111-111111111111', 'altura_estandar', 'global', 3.2, 'ajustable');
+  raise exception 'FALLA [Costos escribió un driver sin autorización]';
+exception when insufficient_privilege then
+  raise notice 'OK  [Costos no escribe drivers: los propone]';
+end $$;
+select pg_temp.como('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
 insert into driver_valor (org_id, clave, nivel, valor, modo) values
   ('11111111-1111-1111-1111-111111111111', 'altura_estandar', 'global', 3.2, 'ajustable'),
   ('11111111-1111-1111-1111-111111111111', 'escarpio_minimo', 'global', 1.5, 'fijo');
-select pg_temp.como('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
 insert into driver_valor (org_id, clave, nivel, obra_id, valor) values
   ('11111111-1111-1111-1111-111111111111', 'altura_estandar', 'obra', 'a3000000-0000-0000-0000-000000000001', 2.8),
   ('11111111-1111-1111-1111-111111111111', 'altura_estandar', 'obra', 'a3000000-0000-0000-0000-000000000003', 2.5),

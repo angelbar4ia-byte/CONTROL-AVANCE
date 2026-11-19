@@ -1,8 +1,10 @@
 """El Paramétrico: drivers (global, por obra, mixto) y enlace de ranuras con el árbol de la obra (Ola 4B; migración 0134).
 
-**Drivers.** Costos y Control de obra editan el valor y el modo (`fijo` / `ajustable`) del driver global y, en un driver
-`ajustable`, el valor propio de una obra (Q3). Cambiar un driver **no recalcula nada guardado** (Q1): el driver solo da la altura
-de lo que nace sin ella.
+**Drivers.** Costos y Control de obra PROPONEN el valor y el modo (`fijo` / `ajustable`) del driver global y, en un driver
+`ajustable`, el valor propio de una obra (Q3); solo **Control de obra autoriza** (F3, 2026-11-19): lo que propone Control de obra
+nace autorizado y se aplica; lo de Costos queda pendiente y no cambia nada hasta que Control de obra lo autorice. Cada propuesta guarda
+quién, cuándo y el valor anterior (`propuesta_de_driver`, 0141). Los drivers inmutables (`escarpio_minimo`, `corona_cimiento_cm`, F4) no
+se proponen. Cambiar un driver **no recalcula nada guardado** (Q1): el driver solo da la altura de lo que nace sin ella.
 
 **Enlace de ranuras.** Cada ranura (un concepto que un elemento o una plantilla necesita) se enlaza, en una obra y por capa, con
 un concepto del Presupuesto. Si el árbol de la obra no trae la partida, la ranura avisa y no cuenta. Aquí no se inventa ningún
@@ -18,6 +20,13 @@ from uuid import UUID
 from obractrl.application.casos_uso.cuantificar import MedicionNoEncontrada
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
+from obractrl.domain.cuantificacion.autorizacion_de_drivers import (
+    PropuestaValidada,
+    armar_propuesta,
+    estado_de_alta,
+    validar_que_autoriza,
+    validar_que_propone,
+)
 from obractrl.domain.cuantificacion.consumidores_de_drivers import (
     SIN_CONSUMIDOR_POR_AHORA,
     consumidores_de,
@@ -29,9 +38,7 @@ from obractrl.domain.cuantificacion.drivers import (
     ValorVigente,
     definicion_de,
     resolver,
-    validar_modo,
     validar_que_edita,
-    validar_valor,
 )
 from obractrl.domain.cuantificacion.enlaces_de_ranura import (
     Capa,
@@ -53,6 +60,9 @@ __all__ = [
     "EnlaceNoEncontrado",
     "GestionarDrivers",
     "GestionarEnlacesDeRanura",
+    "GestionarNumeroDeNivel",
+    "NivelNoEncontrado",
+    "PropuestaDeDriverNoEncontrada",
     "resueltos_de",
     "vigentes_de_obra",
 ]
@@ -60,6 +70,14 @@ __all__ = [
 
 class DriverNoEncontrado(MedicionNoEncontrada):
     """Esa clave no es un driver del Paramétrico."""
+
+
+class PropuestaDeDriverNoEncontrada(MedicionNoEncontrada):
+    """La propuesta de cambio de un driver no existe o está fuera del alcance."""
+
+
+class NivelNoEncontrado(MedicionNoEncontrada):
+    """El nivel no existe o está fuera del alcance."""
 
 
 class EnlaceNoEncontrado(MedicionNoEncontrada):
@@ -78,7 +96,14 @@ def _limpio(n: Decimal | None) -> Decimal | None:
     return None if n is None else Decimal(format(n.normalize(), "f"))
 
 
-def _fila(d: DefinicionDeDriver, v: ValorVigente, *, editado: bool) -> dict[str, Any]:
+def _propuesta(p: dict[str, Any] | None) -> dict[str, Any] | None:
+    """La propuesta con sus números como se teclean (10, no 10.000000)."""
+    if p is None:
+        return None
+    return {**p, "valor": _limpio(p["valor"]), "valor_anterior": _limpio(p["valor_anterior"])}
+
+
+def _fila(d: DefinicionDeDriver, v: ValorVigente, *, editado: bool, pendientes: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     return {
         "clave": d.clave, "nombre": d.nombre, "unidad": d.unidad, "nota": d.nota, "por_confirmar": d.por_confirmar,
         "valor_inicial": _limpio(d.inicial), "modo_inicial": d.modo_inicial,
@@ -89,6 +114,8 @@ def _fila(d: DefinicionDeDriver, v: ValorVigente, *, editado: bool) -> dict[str,
             for c in consumidores_de(d.clave)
         ],
         "sin_consumidor": SIN_CONSUMIDOR_POR_AHORA.get(d.clave),
+        "inmutable": d.inmutable,
+        "propuestas_pendientes": [_propuesta(p) for p in (pendientes or []) if p["clave"] == d.clave],
     }
 
 
@@ -131,8 +158,12 @@ class GestionarDrivers:
         return await resueltos_de(self._p, obra_id)
 
     async def listar(self, obra_id: UUID | None = None) -> list[dict[str, Any]]:
-        """Los drivers con su valor vigente: el de la organización o, con obra, el de esa obra."""
-        return [_fila(d, v, editado=editado) for d, v, editado in await self._resueltos(obra_id)]
+        """Los drivers con su valor vigente: el de la organización o, con obra, el de esa obra; cada uno con sus propuestas pendientes."""
+        resueltos = await self._resueltos(obra_id)
+        pendientes = await self._p.propuestas_de_driver(estado="pendiente", obra_id=obra_id)
+        if obra_id is None:
+            pendientes = [p for p in pendientes if p["alcance"] == "global"]
+        return [_fila(d, v, editado=editado, pendientes=pendientes) for d, v, editado in resueltos]
 
     async def valores(self, obra_id: UUID | None) -> dict[str, ValorVigente] | None:
         """Los valores vigentes con su origen, para los cálculos de elementos. Sin obra: `None` (el cálculo vale lo de siempre).
@@ -149,46 +180,127 @@ class GestionarDrivers:
     async def _uno(self, clave: str, obra_id: UUID | None) -> dict[str, Any]:
         return next(f for f in await self.listar(obra_id) if f["clave"] == clave)
 
+    # --- propuestas (F3) ------------------------------------------------------------------------------------------------------
+
+    async def _antes(self, d: DefinicionDeDriver, alcance: str, obra_id: UUID | None) -> tuple[Decimal | None, str | None]:
+        """El valor y el modo que hoy tiene lo que la propuesta cambia (para guardar el «antes»)."""
+        if alcance == "global":
+            g = (await self._p.globales()).get(d.clave)
+            return (g["valor"] if g else d.inicial), (g["modo"] if g else d.modo_inicial)
+        assert obra_id is not None
+        o = (await self._p.de_obra(obra_id)).get(d.clave)
+        return (o["valor"] if o else None), None
+
+    async def _modo_global(self, d: DefinicionDeDriver) -> str:
+        g = (await self._p.globales()).get(d.clave)
+        return g["modo"] if g else d.modo_inicial
+
+    async def _aplicar(self, d: DefinicionDeDriver, p: PropuestaValidada, obra_id: UUID | None, usuario_id: UUID) -> None:
+        """Escribe el valor (solo lo ejecuta una propuesta autorizada o de Control de obra: RLS lo exige)."""
+        if p.alcance == "global":
+            actual = (await self._p.globales()).get(d.clave)
+            valor = p.valor if p.valor is not None else (actual["valor"] if actual else d.inicial)
+            modo = p.modo if p.modo is not None else (actual["modo"] if actual else d.modo_inicial)
+            await self._p.guardar_global(d.clave, valor, modo, usuario_id)
+        elif p.accion == "quitar":
+            assert obra_id is not None
+            await self._p.quitar_de_obra(obra_id, d.clave)
+        else:
+            assert obra_id is not None and p.valor is not None
+            await self._p.guardar_de_obra(obra_id, d.clave, p.valor, usuario_id)
+
+    async def _proponer(
+        self, d: DefinicionDeDriver, p: PropuestaValidada, obra_id: UUID | None, *, usuario_id: UUID, rol: str
+    ) -> dict[str, Any]:
+        """Registra la propuesta: con Control de obra nace autorizada y se aplica; con Costos queda pendiente y no cambia nada."""
+        pendientes = await self._p.propuestas_de_driver(estado="pendiente", obra_id=obra_id, clave=d.clave)
+        if any(x["alcance"] == p.alcance and x["obra_id"] == obra_id for x in pendientes):
+            raise ErrorDeDriver(f"«{d.nombre}» ya tiene un cambio propuesto pendiente: Control de obra lo decide primero.")
+        estado = estado_de_alta(rol)
+        antes_valor, antes_modo = await self._antes(d, p.alcance, obra_id)
+        async with self._uow:
+            ident = await self._p.registrar_propuesta_de_driver(
+                clave=d.clave, alcance=p.alcance, obra_id=obra_id, accion=p.accion, valor=p.valor, modo=p.modo,
+                valor_anterior=antes_valor, modo_anterior=antes_modo, estado=estado, propuso_id=usuario_id, propuso_rol=rol,
+                decidio_id=usuario_id if estado == "autorizada" else None, decidio_rol=rol if estado == "autorizada" else None,
+            )
+            if estado == "autorizada":
+                await self._aplicar(d, p, obra_id, usuario_id)
+            await self._uow.commit()
+        fila = await self._uno(d.clave, obra_id)
+        return {**fila, "propuesta": _propuesta(await self._p.obtener_propuesta_de_driver(ident))}
+
     async def fijar_global(
         self, clave: str, *, valor: object | None, modo: str | None, usuario_id: UUID, rol: str
     ) -> dict[str, Any]:
-        """Cambia el valor y/o el modo del driver global. Lo no enviado se conserva."""
+        """Propone cambiar el valor y/o el modo del driver global (lo no enviado se conserva). Con Control de obra se aplica al instante;
+        con Costos queda pendiente de su autorización. Devuelve el driver tal como queda y la propuesta."""
         validar_que_edita(rol)
+        validar_que_propone(rol)
         d = _definicion(clave)
-        if valor is None and modo is None:
-            raise ErrorDeDriver("Indica el valor o el modo del driver.")
-        actual = (await self._p.globales()).get(clave)
-        nuevo_valor = validar_valor(d, valor) if valor is not None else (actual["valor"] if actual else d.inicial)
-        nuevo_modo = validar_modo(modo) if modo is not None else (actual["modo"] if actual else d.modo_inicial)
-        async with self._uow:
-            await self._p.guardar_global(clave, nuevo_valor, nuevo_modo, usuario_id)
-            await self._uow.commit()
-        return await self._uno(clave, None)
+        p = armar_propuesta(d, alcance="global", valor=valor, modo=modo)
+        return await self._proponer(d, p, None, usuario_id=usuario_id, rol=rol)
 
     async def fijar_de_obra(self, obra_id: UUID, clave: str, *, valor: object, usuario_id: UUID, rol: str) -> dict[str, Any]:
-        """El valor propio de una obra para un driver ajustable (Q3: Costos y Control de obra)."""
+        """Propone el valor propio de una obra para un driver ajustable (Q3, F3)."""
         validar_que_edita(rol)
+        validar_que_propone(rol)
         d = _definicion(clave)
         await self._obra(obra_id)
-        g = (await self._p.globales()).get(clave)
-        modo = g["modo"] if g else d.modo_inicial
-        if modo != "ajustable":
-            raise ErrorDeDriver(f"«{d.nombre}» es fijo: la obra no lo ajusta. Primero se cambia a ajustable en los drivers globales.")
-        limpio = validar_valor(d, valor)
-        async with self._uow:
-            await self._p.guardar_de_obra(obra_id, clave, limpio, usuario_id)
-            await self._uow.commit()
-        return await self._uno(clave, obra_id)
+        p = armar_propuesta(d, alcance="obra", valor=valor, modo_global_actual=await self._modo_global(d))  # type: ignore[arg-type]
+        return await self._proponer(d, p, obra_id, usuario_id=usuario_id, rol=rol)
 
-    async def quitar_de_obra(self, obra_id: UUID, clave: str, *, rol: str) -> dict[str, Any]:
-        """La obra vuelve al valor global."""
+    async def quitar_de_obra(self, obra_id: UUID, clave: str, *, usuario_id: UUID, rol: str) -> dict[str, Any]:
+        """Propone que la obra vuelva al valor global (se aplica al autorizarse)."""
         validar_que_edita(rol)
-        _definicion(clave)
+        validar_que_propone(rol)
+        d = _definicion(clave)
         await self._obra(obra_id)
+        p = armar_propuesta(d, alcance="obra", accion="quitar")
+        return await self._proponer(d, p, obra_id, usuario_id=usuario_id, rol=rol)
+
+    async def propuestas(
+        self, *, estado: str | None = None, obra_id: UUID | None = None, clave: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Las propuestas con quién propuso, quién decidió y cuándo (la bitácora de los drivers)."""
+        if obra_id is not None:
+            await self._obra(obra_id)
+        if clave is not None:
+            _definicion(clave)
+        return [_propuesta(p) or p for p in await self._p.propuestas_de_driver(estado=estado, obra_id=obra_id, clave=clave)]
+
+    async def _pendiente(self, propuesta_id: UUID) -> dict[str, Any]:
+        p = await self._p.obtener_propuesta_de_driver(propuesta_id)
+        if p is None:
+            raise PropuestaDeDriverNoEncontrada(f"La propuesta {propuesta_id} no existe o está fuera de tu alcance.")
+        if p["estado"] != "pendiente":
+            raise ErrorDeDriver("Esta propuesta ya fue decidida.")
+        return p  # type: ignore[no-any-return]
+
+    async def autorizar(self, propuesta_id: UUID, *, usuario_id: UUID, rol: str) -> dict[str, Any]:
+        """Solo Control de obra: aplica el cambio propuesto (revisado otra vez contra lo que vale hoy) y deja quién y cuándo."""
+        validar_que_autoriza(rol)
+        prop = await self._pendiente(propuesta_id)
+        d = _definicion(prop["clave"])
+        obra_id = prop["obra_id"]
+        p = armar_propuesta(
+            d, alcance=prop["alcance"], accion=prop["accion"], valor=prop["valor"], modo=prop["modo"],
+            modo_global_actual=await self._modo_global(d),  # type: ignore[arg-type]
+        )
         async with self._uow:
-            await self._p.quitar_de_obra(obra_id, clave)
+            await self._aplicar(d, p, obra_id, usuario_id)
+            await self._p.decidir_propuesta_de_driver(propuesta_id, estado="autorizada", decidio_id=usuario_id, decidio_rol=rol, motivo=None)
             await self._uow.commit()
-        return await self._uno(clave, obra_id)
+        return {**await self._uno(d.clave, obra_id), "propuesta": _propuesta(await self._p.obtener_propuesta_de_driver(propuesta_id))}
+
+    async def rechazar(self, propuesta_id: UUID, *, usuario_id: UUID, rol: str, motivo: str | None) -> dict[str, Any]:
+        validar_que_autoriza(rol)
+        prop = await self._pendiente(propuesta_id)
+        limpio = " ".join((motivo or "").split())[:300] or None
+        async with self._uow:
+            await self._p.decidir_propuesta_de_driver(propuesta_id, estado="rechazada", decidio_id=usuario_id, decidio_rol=rol, motivo=limpio)
+            await self._uow.commit()
+        return {**await self._uno(prop["clave"], prop["obra_id"]), "propuesta": _propuesta(await self._p.obtener_propuesta_de_driver(propuesta_id))}
 
 
 def _a_enlace(f: dict[str, Any]) -> EnlaceDeRanura:
@@ -299,3 +411,23 @@ class GestionarEnlacesDeRanura:
             if not await self._p.quitar_enlace(obra_id, enlace_id):
                 raise EnlaceNoEncontrado(f"El enlace {enlace_id} no existe o está fuera de tu alcance.")
             await self._uow.commit()
+
+
+class GestionarNumeroDeNivel:
+    """F5 (2026-11-19): el nivel del contexto es un campo EXPLÍCITO (`nivel.numero_de_nivel`, PB = 1), no `nivel.orden`, cuando hay saltos de nivel
+    (un entrepiso de 3.00 y otro de 4.20 en la misma planta, un sótano). Con él se eligen los conceptos de un elemento; sin él, `orden` solo
+    mientras los niveles sean consecutivos; con saltos y sin número, no se descarta ningún concepto."""
+
+    def __init__(self, *, parametrico: Any, uow: UnidadDeTrabajo) -> None:
+        self._p = parametrico
+        self._uow = uow
+
+    async def fijar(self, nivel_id: UUID, numero: int | None) -> dict[str, Any]:
+        if numero is not None and not 1 <= numero <= 99:
+            raise ErrorDeEnlaceDeRanura("El número de nivel va de 1 (PB) a 99.")
+        async with self._uow:
+            fila = await self._p.fijar_numero_de_nivel(nivel_id, numero)
+            if fila is None:
+                raise NivelNoEncontrado(f"El nivel {nivel_id} no existe o está fuera de tu alcance.")
+            await self._uow.commit()
+        return fila

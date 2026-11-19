@@ -191,7 +191,7 @@ class SincronizarTomas:
                     continue
                 grupos.append(
                     {
-                        "elemento_id": el["id"], "ref": i.ref, "uid": i.uid, "clase": i.clase, "nivel_orden": f.get("nivel_orden"),
+                        "elemento_id": el["id"], "ref": i.ref, "uid": i.uid, "clase": i.clase, "numero_de_nivel": f.get("numero_de_nivel"),
                         "nivel_id": f.get("nivel_id"), "etapa_id": f.get("etapa_id"), "ubicacion": f.get("ubicacion"),
                         **({"alto_m": i.alto_m, "piezas": i.piezas_exactas} if i.clase == "castillo" else {"alto_m": None, "piezas": 1, "metros": i.metros}),
                     }

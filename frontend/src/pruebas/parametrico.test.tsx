@@ -12,6 +12,9 @@ const m = vi.hoisted(() => ({
   quitarDeObra: vi.fn(),
   enlazar: vi.fn(),
   quitarEnlace: vi.fn(),
+  autorizar: vi.fn(),
+  rechazar: vi.fn(),
+  bitacora: { current: [] as unknown[] },
   drivers: { current: [] as unknown[] },
   enlaces: { current: undefined as unknown },
 }));
@@ -23,6 +26,10 @@ vi.mock('@/api/generado/parametrico/parametrico', () => ({
   useFijarDriverGlobalApiV1DriversClavePut: () => ({ mutateAsync: m.fijarGlobal }),
   useFijarDriverDeObraApiV1ObrasObraIdDriversClavePut: () => ({ mutateAsync: m.fijarDeObra }),
   useQuitarDriverDeObraApiV1ObrasObraIdDriversClaveDelete: () => ({ mutateAsync: m.quitarDeObra }),
+  getPropuestasDeDriversApiV1DriversPropuestasGetQueryKey: (p: unknown) => ['propuestas', p],
+  usePropuestasDeDriversApiV1DriversPropuestasGet: () => ({ data: m.bitacora.current }),
+  useAutorizarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdAutorizarPost: () => ({ mutateAsync: m.autorizar }),
+  useRechazarPropuestaDeDriverApiV1DriversPropuestasPropuestaIdRechazarPost: () => ({ mutateAsync: m.rechazar }),
   useEnlacesDeRanuraApiV1ObrasObraIdEnlacesDeRanuraGet: () => ({ data: m.enlaces.current, isLoading: false }),
   useEnlazarRanuraApiV1ObrasObraIdEnlacesDeRanuraPut: () => ({ mutateAsync: m.enlazar, isPending: false }),
   useQuitarEnlaceApiV1ObrasObraIdEnlacesDeRanuraEnlaceIdDelete: () => ({ mutateAsync: m.quitarEnlace }),
@@ -44,7 +51,7 @@ const driver = (o: Record<string, unknown>) => ({
 
 const DRIVERS = [
   driver({}),
-  driver({ clave: 'escarpio_minimo', nombre: 'Escarpio del muro de cimentación de piedra', unidad: 'V:H', valor_inicial: '1.5', modo_inicial: 'fijo', valor_global: '1.5', modo: 'fijo', valor_vigente: '1.5', por_confirmar: true }),
+  driver({ clave: 'escarpio_minimo', nombre: 'Escarpio del muro de cimentación de piedra', unidad: 'V:H', valor_inicial: '1.5', modo_inicial: 'fijo', valor_global: '1.5', modo: 'fijo', valor_vigente: '1.5', por_confirmar: true, inmutable: true }),
   driver({ clave: 'desperdicio_concreto', nombre: 'Desperdicio de concreto', unidad: '%', valor_inicial: '5', valor_global: '5', valor_vigente: '2.5', valor_obra: '2.5', origen: 'obra' }),
 ];
 
@@ -80,6 +87,9 @@ function pintar(rol: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   m.drivers.current = DRIVERS;
+  m.bitacora.current = [];
+  m.autorizar.mockResolvedValue({});
+  m.rechazar.mockResolvedValue({});
   m.enlaces.current = ENLACES;
   m.fijarGlobal.mockResolvedValue({});
   m.fijarDeObra.mockResolvedValue({});
@@ -109,6 +119,57 @@ describe('Paramétrico · drivers', () => {
     expect(within(fijo).getByLabelText('Valor de la obra para Escarpio del muro de cimentación de piedra')).toBeDisabled();
     expect(within(fijo).getByLabelText('Modo de Escarpio del muro de cimentación de piedra')).toHaveValue('fijo');
     expect(within(fijo).getByText('por confirmar')).toBeInTheDocument();
+  });
+
+  it('F4: el escarpio y la corona siguen fijos: ni valor ni modo se pueden cambiar, ni para Control de obra', () => {
+    pintar('control_obra');
+    const fijo = screen.getByText('Escarpio del muro de cimentación de piedra').closest('tr') as HTMLElement;
+    expect(within(fijo).getByText('fijo: no se cambia')).toBeInTheDocument();
+    expect(within(fijo).getByLabelText('Valor global de Escarpio del muro de cimentación de piedra')).toBeDisabled();
+    expect(within(fijo).getByLabelText('Modo de Escarpio del muro de cimentación de piedra')).toBeDisabled();
+    const normal = screen.getByText('Desperdicio de concreto').closest('tr') as HTMLElement;
+    expect(within(normal).queryByText('fijo: no se cambia')).not.toBeInTheDocument();
+  });
+
+  it('F3: lo que propone Costos queda pendiente y se dice; Control de obra autoriza y Costos no ve el botón', async () => {
+    const propuesta = {
+      id: 'p1', clave: 'altura_estandar', alcance: 'global', obra_id: null, accion: 'fijar', valor: '2.8', modo: null, valor_anterior: '3',
+      modo_anterior: null, estado: 'pendiente', propuso_id: 'u1', propuso_nombre: 'Costos', propuso_rol: 'costos', propuesto_en: '2026-11-19T10:00:00Z',
+      decidio_id: null, decidio_nombre: null, decidio_rol: null, decidido_en: null, motivo: null,
+    };
+    m.drivers.current = [driver({ propuestas_pendientes: [propuesta] }), ...DRIVERS.slice(1)];
+    m.fijarGlobal.mockResolvedValue({ propuesta });
+    const { unmount } = pintar('costos');
+    const fila = screen.getByText('Altura estándar del muro').closest('tr') as HTMLElement;
+    expect(within(fila).getByText(/valor 2\.8 \(antes 3\)/)).toBeInTheDocument();
+    expect(within(fila).queryByRole('button', { name: /Autorizar el cambio/ })).not.toBeInTheDocument();
+    const global = screen.getByLabelText('Valor global de Altura estándar del muro');
+    fireEvent.change(global, { target: { value: '2.9' } });
+    fireEvent.blur(global);
+    expect(await screen.findByText(/queda pendiente hasta que Control de obra lo autorice/)).toBeInTheDocument();
+    unmount();
+    pintar('control_obra');
+    fireEvent.click(screen.getByRole('button', { name: 'Autorizar el cambio de Altura estándar del muro' }));
+    await waitFor(() => expect(m.autorizar).toHaveBeenCalledWith({ propuestaId: 'p1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rechazar el cambio de Altura estándar del muro' }));
+    await waitFor(() => expect(m.rechazar).toHaveBeenCalledWith({ propuestaId: 'p1', data: {} }));
+  });
+
+  it('F3: la bitácora dice quién propuso, quién decidió y cuándo', () => {
+    m.bitacora.current = [
+      {
+        id: 'p9', clave: 'desperdicio_concreto', alcance: 'global', obra_id: null, accion: 'fijar', valor: '8', modo: null, valor_anterior: '5',
+        modo_anterior: null, estado: 'autorizada', propuso_id: 'u1', propuso_nombre: 'Costos', propuso_rol: 'costos', propuesto_en: '2026-11-19T10:00:00Z',
+        decidio_id: 'u2', decidio_nombre: 'Control', decidio_rol: 'control_obra', decidido_en: '2026-11-19T11:00:00Z', motivo: null,
+      },
+    ];
+    pintar('residente');
+    const tabla = screen.getByRole('table', { name: 'Bitácora de cambios de drivers', hidden: true });
+    const fila = tabla.querySelector('[data-bitacora-propuesta="p9"]') as HTMLElement;
+    expect(fila.textContent).toContain('desperdicio_concreto');
+    expect(fila.textContent).toContain('autorizada');
+    expect(fila.textContent).toContain('Costos');
+    expect(fila.textContent).toContain('Control');
   });
 
   it('Costos cambia el global, el modo y el ajuste de la obra, y lo manda tal cual (con punto decimal)', async () => {

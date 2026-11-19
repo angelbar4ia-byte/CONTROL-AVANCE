@@ -7,6 +7,7 @@
  */
 import type { EnlaceDeRanuraRespuesta } from "./enlaceDeRanuraRespuesta";
 import type { RanuraDePlantilla } from "./ranuraDePlantilla";
+import type { NivelDelArbol } from "./nivelDelArbol";
 import type { CapaDelArbol } from "./capaDelArbol";
 import type { ConceptoDelArbol } from "./conceptoDelArbol";
 
@@ -14,7 +15,7 @@ export interface EnlacesDeRanuraRespuesta {
   enlaces: EnlaceDeRanuraRespuesta[];
   ranuras_de_plantilla: RanuraDePlantilla[];
   /** Los niveles que usa el árbol de la obra. */
-  niveles: CapaDelArbol[];
+  niveles: NivelDelArbol[];
   /** Las etapas que usa el árbol de la obra. */
   etapas: CapaDelArbol[];
   /** Cuántos conceptos tiene el árbol de la obra. */

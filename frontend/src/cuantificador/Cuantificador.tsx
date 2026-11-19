@@ -32,7 +32,6 @@ import {
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
   useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
   useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut,
-  useLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPut,
   useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete,
   useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost,
   useTraerTrazoApiV1TrazosTrazoIdTraerPost,
@@ -202,6 +201,7 @@ import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { PantallaDeArtefacto } from './elementos/PantallaDeArtefacto';
+import { PanelDeFachadaPorBandas } from './FachadaPorBandas';
 import { PanelDeZonasDeLosa, ZonaDeLosaDelTrazo, type PorColocar } from './ZonasDeLosa';
 import { etiquetasDeZonas } from './zonasDeLosa';
 import { useFijarLosaApiV1TrazosTrazoIdLosaPut, useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut, useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet } from '@/api/generado/zonas-de-losa/zonas-de-losa';
@@ -465,7 +465,6 @@ export function EspacioDeTrazo({
   const clasificarMuro = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
   /** Un revestimiento (un concepto del catálogo) que espera su largo sobre un muro: la siguiente línea que se dibuje (D-645). */
   const [revestimientoPorColocar, setRevestimientoPorColocar] = useState<RevestimientoPorColocar | null>(null);
-  const ligarRevestimiento = useLigarRevestimientoApiV1TrazosTrazoIdRevestimientoPut<ErrorApi>();
   const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
@@ -1042,6 +1041,8 @@ export function EspacioDeTrazo({
     void queryClient.invalidateQueries({
       queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
     });
+    // La fachada por bandas sigue a los muros reales: cualquier trazo, vano o zona la recalcula.
+    void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('fachada-por-bandas') });
   }
   /** Vuelve a registrar un trazo con el mismo cuerpo; el viejo `id` pasa a apuntar al nuevo. */
   async function recrear(original: string, planoId: string, data: TrazoPeticion) {
@@ -1748,29 +1749,30 @@ export function EspacioDeTrazo({
       // El largo de un revestimiento: una línea que mide largo × altura en m² para su concepto, ligada al muro y a su cara.
       const r = revestimientoPorColocar;
       const planoId = plano.id;
-      const cuerpo = trazoPeticion({
-        ...base,
-        grosorM: null,
-        alineacion: null,
-        enlaces: [
-          {
-            actividadId: r.actividadId,
-            medida: 'longitud',
-            factor: '1',
-            conversion: conversionDeMuro({ ...opcionesDeMuroIniciales(), mide: 'eje', alt: String(r.alturaM), partes: [] }, ALTURA_DE_HERRAMIENTA_M),
-          },
-        ],
-      });
+      // Atómico (F1): el revestimiento nace ligado a su muro y a su cara en la MISMA llamada que el trazo y su enlace (antes: POST y luego
+      // PUT; si el segundo fallaba quedaba una línea suelta que medía sin pertenecer a ningún muro).
+      const cuerpo: TrazoPeticion = {
+        ...trazoPeticion({
+          ...base,
+          grosorM: null,
+          alineacion: null,
+          enlaces: [
+            {
+              actividadId: r.actividadId,
+              medida: 'longitud',
+              factor: '1',
+              conversion: conversionDeMuro({ ...opcionesDeMuroIniciales(), mide: 'eje', alt: String(r.alturaM), partes: [] }, ALTURA_DE_HERRAMIENTA_M),
+            },
+          ],
+        }),
+        revestimiento_muro_id: r.muroId,
+        revestimiento_cara: r.cara,
+      };
       registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
-        async (creado) => {
+        (creado) => {
           alGuardar(creado, { planoId, data: cuerpo });
-          try {
-            await ligarRevestimiento.mutateAsync({ trazoId: creado.trazo_id, data: { muro_id: r.muroId, cara: r.cara } });
-            invalidarTrazos();
-            setAviso(`Revestimiento ${r.clave} en el muro (${r.cara}): ${fmtNum(creado.recalculos[0]?.cantidad_total)} m² medidos del concepto.`);
-          } catch (err) {
-            setAviso(`Línea guardada, pero no se pudo ligar al muro: ${err instanceof Error ? err.message : 'error'}`);
-          }
+          invalidarTrazos();
+          setAviso(`Revestimiento ${r.clave} en el muro (${r.cara}): ${fmtNum(creado.recalculos[0]?.cantidad_total)} m² medidos del concepto.`);
           setRevestimientoPorColocar(null);
         },
         (err: unknown) => setAviso(`No se pudo guardar el revestimiento: ${err instanceof Error ? err.message : 'error'}`),
@@ -2964,6 +2966,7 @@ export function EspacioDeTrazo({
             }}
             onError={(m) => setAviso(m)}
           />
+          <PanelDeFachadaPorBandas planoId={planoElegido} huella={`${trazosConsulta.dataUpdatedAt}:${vanosConsulta.dataUpdatedAt}`} />
           <PanelDeParametricos
             planoId={planoElegido}
             puedeDefinir={puedePonerPeso}

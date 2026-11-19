@@ -75,13 +75,19 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await alta.getByRole('button', { name: 'Dibujar el largo' }).click();
     await expect(revestimientos.getByRole('status')).toContainText('Dibuja el largo');
 
+    // F1: el revestimiento nace ligado en UNA sola llamada (el trazo ya trae su muro y su cara); no hay un PUT aparte de `/revestimiento`.
+    const llamadas: { metodo: string; url: string; cuerpo: string }[] = [];
+    page.on('request', (r) => {
+      if (r.url().includes('/api/v1/') && ['POST', 'PUT'].includes(r.method())) llamadas.push({ metodo: r.method(), url: r.url(), cuerpo: r.postData() ?? '' });
+    });
+
     // Se dibuja el largo sobre el muro: dos clics sobre su recorrido (en la parte que el panel de opciones no tapa).
     await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.62 });
     await pulsarMarca(page, page.locator('.visor__trazo').first(), { fx: 0.9 });
     await expect.poll(async () => (await trazos()).length).toBe(2);
 
-    // El plano crea la línea y DESPUÉS la liga a su muro (dos llamadas): que ya haya dos trazos no quiere decir que el hijo ya
-    // diga de quién es. Se espera el estado real del servidor: el trazo cuyo `revestimiento_de` es el muro.
+    // El plano crea la línea YA ligada a su muro y a su cara (una sola llamada, atómica). Se espera el estado real del servidor: el trazo
+    // cuyo `revestimiento_de` es el muro.
     type Trazo = { id: string; geometry: { coordinates: number[][] }; properties: Record<string, unknown> };
     const hijoDelServidor = async () =>
       (await llamarApi<{ features: Trazo[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features.find(
@@ -90,6 +96,10 @@ test.describe('Cuantificador · paramétrico de muro', () => {
     await expect.poll(async () => (await hijoDelServidor())?.id ?? null).not.toBeNull();
     const hijo = (await hijoDelServidor())!;
     expect(hijo.properties.revestimiento_cara).toBe('fachada');
+    expect(llamadas.filter((l) => l.url.includes('/revestimiento'))).toEqual([]); // ya no hay PUT /trazos/{id}/revestimiento
+    const alta_del_trazo = llamadas.filter((l) => l.metodo === 'POST' && /\/planos\/[^/]+\/trazos$/.test(l.url));
+    expect(alta_del_trazo).toHaveLength(1);
+    expect(JSON.parse(alta_del_trazo[0]!.cuerpo)).toMatchObject({ revestimiento_muro_id: muroId, revestimiento_cara: 'fachada' });
     const largo = Math.hypot(hijo.geometry.coordinates[1]![0]! - hijo.geometry.coordinates[0]![0]!, hijo.geometry.coordinates[1]![1]! - hijo.geometry.coordinates[0]![1]!);
     const enlace = (hijo.properties.enlaces as { cantidad: string }[])[0]!;
     expect(Number(enlace.cantidad)).toBeCloseTo(largo * 2.1, 2); // largo × altura, en m²

@@ -14,6 +14,8 @@ import type { TrazoPeticionForma } from "./trazoPeticionForma";
 import type { TrazoPeticionMedicionId } from "./trazoPeticionMedicionId";
 import type { TrazoPeticionPendientePct } from "./trazoPeticionPendientePct";
 import type { TrazoPeticionMuroPlantillaId } from "./trazoPeticionMuroPlantillaId";
+import type { TrazoPeticionRevestimientoMuroId } from "./trazoPeticionRevestimientoMuroId";
+import type { TrazoPeticionRevestimientoCara } from "./trazoPeticionRevestimientoCara";
 
 /**
  * Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:
@@ -42,4 +44,8 @@ export interface TrazoPeticion {
   pendiente_pct?: TrazoPeticionPendientePct;
   /** La plantilla de muro (el ARTEFACTO) con que se traza la línea. Se guarda al nacer para que su altura base cuente: un muro sin altura propia y sin zona de losa nace con la `altura_m` de la plantilla y, sin ella, con la de la herramienta (3.00 m). Solo de una línea. */
   muro_plantilla_id?: TrazoPeticionMuroPlantillaId;
+  /** Si la línea es un REVESTIMIENTO de un muro (D-645), el muro al que pertenece. Se liga en la MISMA transacción que el trazo y sus enlaces: o nace ligado o no nace (antes eran dos llamadas, el trazo y luego `PUT /trazos/{id}/revestimiento`). Va con `revestimiento_cara`. */
+  revestimiento_muro_id?: TrazoPeticionRevestimientoMuroId;
+  /** La cara del muro que lleva el revestimiento. Va con `revestimiento_muro_id`. */
+  revestimiento_cara?: TrazoPeticionRevestimientoCara;
 }

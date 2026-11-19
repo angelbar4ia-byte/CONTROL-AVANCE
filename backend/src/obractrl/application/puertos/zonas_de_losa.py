@@ -12,7 +12,11 @@ __all__ = ["RepositorioZonasDeLosa"]
 @runtime_checkable
 class RepositorioZonasDeLosa(Protocol):
     async def plano(self, plano_id: UUID) -> dict[str, Any] | None:
-        """`{id, escala_m_por_unidad}`; `None` si no existe o no es visible."""
+        """`{id, obra_id, escala_m_por_unidad}`; `None` si no existe o no es visible."""
+        ...
+
+    async def muros(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Los muros del plano (líneas con grosor, sin huecos, propuestas ni revestimientos): `{id, ubicacion, tipo}`."""
         ...
 
     async def zonas(self, plano_id: UUID) -> list[dict[str, Any]]: ...

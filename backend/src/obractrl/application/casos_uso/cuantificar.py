@@ -238,6 +238,9 @@ class ComandoRegistrarTrazo:
     """Pendiente en % de una **línea** inclinada: su longitud real es la de la planta × √(1 + p²) (0087)."""
     muro_plantilla_id: UUID | None = None
     """La plantilla de muro (artefacto) con que se traza la línea: su altura base cuenta desde que el muro nace."""
+    revestimiento_muro_id: UUID | None = None
+    revestimiento_cara: str | None = None
+    """Un revestimiento (D-645) nace ligado a su muro y a su cara en la MISMA transacción del trazo y sus enlaces (antes: POST y luego PUT)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -678,6 +681,25 @@ class RegistrarTrazoConEnlaces:
             return {**conversion, "alt": altura, "tramos": tramos}
         return {**conversion, "alt": float(await self._enlaces.altura_base_de_trazo(trazo_id))}
 
+    async def _exigir_muro_del_revestimiento(self, cmd: ComandoRegistrarTrazo, tipo: str) -> None:
+        """Las mismas reglas de `ligar_revestimiento`, ANTES de abrir la transacción: el revestimiento es una línea, su muro es otra línea del
+        mismo plano y no es, a su vez, un revestimiento. Si algo no vale, el trazo no nace."""
+        if cmd.revestimiento_cara not in ("interior", "fachada"):
+            raise ErrorDeCuantificacion("La cara del revestimiento es interior o fachada.")
+        if tipo != "ST_LineString":
+            raise ErrorDeCuantificacion("El revestimiento y su muro son líneas.")
+        muro_id = cmd.revestimiento_muro_id
+        assert muro_id is not None
+        muro = await self._trazos.revestimiento_de_trazo(muro_id)
+        if muro["plano_id"] is None or await self._trazos.obtener(muro_id) is None:
+            raise TrazoNoEncontrado(f"El muro {muro_id} no existe o no está en tu alcance.")
+        if muro["plano_id"] != cmd.plano_id:
+            raise ErrorDeCuantificacion("El revestimiento y su muro deben estar en el mismo plano.")
+        if not await self._trazos.es_linea(muro_id):
+            raise ErrorDeCuantificacion("El revestimiento y su muro son líneas.")
+        if muro["muro_id"] is not None:
+            raise ErrorDeCuantificacion("Un revestimiento no puede ser el muro de otro revestimiento.")
+
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
     ) -> TrazoRegistrado:
@@ -705,6 +727,8 @@ class RegistrarTrazoConEnlaces:
                 raise ErrorDeCuantificacion("La pendiente debe ser mayor que cero.")
         if cmd.muro_plantilla_id is not None and tipo != "ST_LineString":
             raise ErrorDeCuantificacion("La plantilla de muro es de una línea (un muro).")
+        if cmd.revestimiento_muro_id is not None:
+            await self._exigir_muro_del_revestimiento(cmd, tipo)
         if cmd.medicion_id is not None:
             if self._mediciones is None:
                 raise ErrorDeCuantificacion("Las mediciones no están disponibles.")
@@ -733,6 +757,8 @@ class RegistrarTrazoConEnlaces:
             if cmd.muro_plantilla_id is not None:
                 # La altura base del artefacto cuenta desde que el muro nace (cadena: trazo > zona > artefacto > herramienta).
                 await self._trazos.fijar_plantilla_del_trazo(trazo_id, cmd.muro_plantilla_id)
+            if cmd.revestimiento_muro_id is not None:
+                await self._trazos.ligar_revestimiento(trazo_id=trazo_id, muro_id=cmd.revestimiento_muro_id, cara=cmd.revestimiento_cara)
 
             enlace_ids: list[UUID] = []
             nodos_tocados: dict[

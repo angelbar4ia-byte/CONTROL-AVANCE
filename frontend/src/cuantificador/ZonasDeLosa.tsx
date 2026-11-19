@@ -81,6 +81,7 @@ export function PanelDeZonasDeLosa({ planoId, puedeEditar, colocando, onColocar,
     void queryClient.invalidateQueries({ queryKey: getZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGetQueryKey(planoId) });
     void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/trazos') });
     void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
+    void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('fachada-por-bandas') });
   }
 
   async function guardar() {

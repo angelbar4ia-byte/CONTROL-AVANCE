@@ -25,10 +25,28 @@ class RepositorioZonasDeLosaSQL:
     async def plano(self, plano_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
-                text("select id, escala_m_por_unidad from plano where id = :p"), {"p": str(plano_id)}
+                text("select id, obra_id, escala_m_por_unidad from plano where id = :p"), {"p": str(plano_id)}
             )
         ).mappings().one_or_none()
         return dict(fila) if fila else None
+
+    async def muros(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Los muros del plano: líneas con grosor (no huecos, no propuestas ni revestimientos), con su ubicación (0133) y su tipo."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.id, t.muro_ubicacion as ubicacion, t.muro_tipo as tipo
+                      from trazo t
+                     where t.plano_id = :p and geometrytype(t.geometria) = 'LINESTRING' and t.grosor_m is not null
+                       and t.hueco_de is null and not t.propuesta and t.revestimiento_de is null
+                     order by t.created_at, t.id
+                    """
+                ),
+                {"p": str(plano_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
 
     async def zonas(self, plano_id: UUID) -> list[dict[str, Any]]:
         filas = (

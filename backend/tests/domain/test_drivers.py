@@ -124,3 +124,9 @@ def test_los_demas_roles_solo_leen(rol: str) -> None:
     assert not puede_editar_drivers(rol)
     with pytest.raises(ErrorDeDriver):
         validar_que_edita(rol)
+
+
+def test_f4_solo_el_escarpio_y_la_corona_son_inmutables() -> None:
+    """Siguen fijos (no ajustables): no basta con nacer «fijo» (el global fijo se podía editar y volver ajustable)."""
+    assert {d.clave for d in CATALOGO_DE_DRIVERS if d.inmutable} == {"escarpio_minimo", "corona_cimiento_cm"}
+    assert all(d.modo_inicial == "fijo" for d in CATALOGO_DE_DRIVERS if d.inmutable)
