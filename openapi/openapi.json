@@ -28611,7 +28611,7 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Altura M",
-            "description": "La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra."
+            "description": "La altura del muro: la suya o, si no tiene, la base de su plantilla o la de la herramienta (3.00 m)."
           },
           "area_bruta_m2": {
             "type": "string",
@@ -48790,7 +48790,7 @@
               }
             ],
             "title": "Altura M",
-            "description": "`null` = la altura estándar (driver)."
+            "description": "La ALTURA BASE del artefacto: la que toman sus muros si el trazo no trae otra y no cae bajo una zona de losa. `null` = la de la herramienta de trazo (3.00 m)."
           },
           "partes": {
             "items": {
@@ -52790,11 +52790,11 @@
             "title": "Altura Explicita M",
             "description": "La altura que el trazo trae (partes o altura única); manda sobre la zona."
           },
-          "altura_estandar_m": {
+          "altura_base_m": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Altura Estandar M",
-            "description": "El driver `altura_estandar` de la obra."
+            "title": "Altura Base M",
+            "description": "La altura base con que nace un muro sin la suya ni zona: la de la plantilla elegida (artefacto) o la de la herramienta (3.00 m). No es el driver."
           },
           "altura_guardada_m": {
             "anyOf": [
@@ -52864,7 +52864,7 @@
           "trazo_id",
           "escala_definida",
           "altura_explicita_m",
-          "altura_estandar_m",
+          "altura_base_m",
           "altura_guardada_m",
           "con_zona",
           "parte_el_muro",
@@ -55131,10 +55131,11 @@
             "enum": [
               "trazo",
               "zona",
-              "driver"
+              "artefacto",
+              "herramienta"
             ],
             "title": "Origen De Altura",
-            "description": "De dónde sale: la altura explícita del trazo, la zona de losa o el driver `altura_estandar`."
+            "description": "De dónde sale: la altura explícita del trazo, la zona de losa, la altura base del artefacto (plantilla) o la de la herramienta de trazo."
           },
           "enrase": {
             "anyOf": [
@@ -55666,6 +55667,19 @@
             ],
             "title": "Pendiente Pct",
             "description": "Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud real es la de la planta × √(1 + p²). Solo de una línea."
+          },
+          "muro_plantilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muro Plantilla Id",
+            "description": "La plantilla de muro (el ARTEFACTO) con que se traza la línea. Se guarda al nacer para que su altura base cuente: un muro sin altura propia y sin zona de losa nace con la `altura_m` de la plantilla y, sin ella, con la de la herramienta (3.00 m). Solo de una línea."
           }
         },
         "type": "object",

@@ -64,7 +64,6 @@ test.describe('Cuantificador · muros y cadena', () => {
       nombre: 'Muros y cadena',
       archivo_url: 'planos/muros-y-cadena.dwg',
     });
-    await llamarApi(request, 'control', 'PUT', `/obras/${obra.id}/drivers/altura_estandar`, { valor: '3' });
     const muro = (
       await llamarApi<{ trazo_id: string }>(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
         version_plano: 1, fuente: 'pdf', geometria_wkt: 'LINESTRING(0 0, 10 0)', grosor_m: '0.15', alineacion: 'centro',

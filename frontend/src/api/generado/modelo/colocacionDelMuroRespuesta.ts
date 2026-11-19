@@ -21,7 +21,7 @@ export interface ColocacionDelMuroRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   largo_m: string;
   /**
-   * La altura del muro: la suya o, si no tiene, el driver `altura_estandar` de la obra.
+   * La altura del muro: la suya o, si no tiene, la base de su plantilla o la de la herramienta (3.00 m).
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
   altura_m: string;

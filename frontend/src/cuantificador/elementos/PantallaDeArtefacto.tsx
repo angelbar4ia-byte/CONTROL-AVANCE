@@ -69,7 +69,7 @@ interface Props {
   /** La plantilla que se edita, `PLANTILLA_NUEVA` para una nueva o `null` si no se ha elegido. */
   readonly plantillaId: string | null;
   readonly onElegir: (id: string | null) => void;
-  /** La obra actual: de sus drivers salen la altura estándar y la separación de castillos de la vista previa. */
+  /** La obra actual: de sus drivers sale la separación de castillos de la vista previa. */
   readonly obraId?: string;
 }
 
@@ -387,12 +387,12 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
               </select>
             </label>
             <label className="mct__campo">
-              Altura (m)
+              Altura base (m)
               <input
                 className="input"
                 inputMode="decimal"
                 aria-label="Altura de la plantilla (m)"
-                placeholder="la estándar"
+                placeholder="la de la herramienta (3.00)"
                 value={borrador.altura}
                 disabled={!editable}
                 onChange={(e) => /^[0-9]*[.,]?[0-9]*$/.test(e.target.value) && cambiarCampo({ altura: e.target.value })}
@@ -712,9 +712,9 @@ export function PantallaDeArtefacto({ plantillaId, onElegir, obraId = '' }: Prop
           <h3>Vista previa</h3>
           <VistaPreviaDePlantilla g={geometria} aparente />
           <p className="text-mute text-xs">
-            Tramo de muestra de 6 m. Un castillo «por ml» o «total» cuenta piezas con fracción (una estimación); aquí se dibujan redondeadas hacia arriba. Sin altura propia se dibuja con la altura estándar de la obra ({driversDeVista.altura_m} m); un castillo
+            Tramo de muestra de 6 m. Un castillo «por ml» o «total» cuenta piezas con fracción (una estimación); aquí se dibujan redondeadas hacia arriba. Sin altura propia se dibuja con la de la herramienta de trazo ({driversDeVista.altura_m} m); un castillo
             estimado sin separación propia se reparte con la separación de castillos de la obra ({driversDeVista.separacion_m} m), y uno
-            ubicado va en los extremos. Los dos valores son drivers del Paramétrico{obraId === '' ? ' (sin obra elegida: valores de partida)' : ''}.
+            ubicado va en los extremos. La separación es un driver del Paramétrico{obraId === '' ? ' (sin obra elegida: valores de partida)' : ''}.
           </p>
         </div>
 

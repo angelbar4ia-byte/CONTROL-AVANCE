@@ -1,9 +1,10 @@
-"""La altura estándar como driver y Q1: lo ya guardado CONSERVA su altura (Paramétrico, migración 0134; Ola 4B).
+"""La altura BASE de un muro del plano y Q1: lo ya guardado CONSERVA su altura (desacople del plano del driver `altura_estandar`).
 
-Lo que nace sin altura (un castillo sobre un muro sin altura, el panel de conversión de un enlace nuevo) toma el driver
-`altura_estandar` de SU obra: 3.00 m de partida, o el global, o el ajuste de la obra. Lo que ya trae su altura (un muro fijado,
-una conversión guardada con `alt`, un vano ya colocado) no se mueve cuando el driver cambia; los trazos viejos sin altura
-guardada contaban 2.6 m y la migración se los fija.
+La altura de un muro trazado sale, en este orden: la explícita del trazo (partes o `muro_altura_m`) > la zona de losa > la altura base de
+su ARTEFACTO (la `altura_m` de la plantilla de muro que eligió) > la de la HERRAMIENTA de trazo (3.00 m). El driver `altura_estandar`
+de Paramétrico NO interviene: cambiarlo (global o por obra) no mueve nada del plano. Lo que ya trae su altura (un muro fijado, una
+conversión guardada con `alt`, un vano ya colocado) no se mueve; los trazos viejos sin altura guardada contaban 2.6 m y la
+migración 0134 se los fija.
 """
 
 from __future__ import annotations
@@ -93,48 +94,79 @@ async def _castillo_alto(control: httpx.AsyncClient, trazo: str) -> Decimal:
     return Decimal(str(v["alto_m"]))
 
 
-async def test_un_muro_sin_altura_toma_el_driver_de_su_obra(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+async def _plantilla(control: httpx.AsyncClient, altura: str | None) -> str:
+    r = await control.post(
+        "/api/v1/muro-plantillas",
+        json={"nombre": f"Base {uuid.uuid4().hex[:6]}", "tipo": "con_cadena", "material": "tabique_rojo", "ubicacion": "interior", "altura_m": altura},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+async def test_el_driver_altura_estandar_no_mueve_la_altura_de_un_muro_del_plano(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
     _, muro = await _muro(control, escenario)
     m = (await control.get(f"/api/v1/trazos/{muro}/muro")).json()
-    assert m["altura_m"] is None and Decimal(m["altura_efectiva_m"]) == Decimal("3")  # el estándar ya no es 2.6
-    # El ajuste de la obra manda sobre el global; el castillo sube lo alto que da el driver.
+    assert m["altura_m"] is None and Decimal(m["altura_efectiva_m"]) == Decimal("3")  # la herramienta: 3.00 m
+    # Ni el global ni el ajuste de la obra la tocan; tampoco lo alto de un castillo.
     await costos.put("/api/v1/drivers/altura_estandar", json={"valor": "2.9"})
-    assert Decimal((await control.get(f"/api/v1/trazos/{muro}/muro")).json()["altura_efectiva_m"]) == Decimal("2.9")
     await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.5"})
-    assert Decimal((await control.get(f"/api/v1/trazos/{muro}/muro")).json()["altura_efectiva_m"]) == Decimal("2.5")
-    assert await _castillo_alto(control, muro) == Decimal("2.5")
+    assert Decimal((await control.get(f"/api/v1/trazos/{muro}/muro")).json()["altura_efectiva_m"]) == Decimal("3")
+    assert await _castillo_alto(control, muro) == Decimal("3")
 
 
-async def test_un_muro_ya_fijado_conserva_su_altura_aunque_cambie_el_driver(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+async def test_la_altura_base_del_artefacto_manda_sobre_la_de_la_herramienta(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+    plano, muro = await _muro(control, escenario)
+    plantilla = await _plantilla(control, "2.8")
+    assert (await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": plantilla})).status_code == 200
+    ruta = f"/api/v1/trazos/{muro}/muro"
+    assert Decimal((await control.get(ruta)).json()["altura_efectiva_m"]) == Decimal("2.8")
+    # Colocar la plantilla en el plano usa esa misma altura.
+    assert Decimal((await control.get(f"/api/v1/trazos/{muro}/muro/plantilla/colocacion")).json()["altura_m"]) == Decimal("2.8")
+    # Sin altura en la plantilla vuelve la de la herramienta; el driver sigue sin intervenir.
+    _, otro = await _muro(control, escenario, plano)
+    sin_altura = await _plantilla(control, None)
+    await control.put(f"/api/v1/trazos/{otro}/muro/plantilla", json={"plantilla_id": sin_altura})
+    await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.2"})
+    assert Decimal((await control.get(f"/api/v1/trazos/{otro}/muro")).json()["altura_efectiva_m"]) == Decimal("3")
+    # La explícita del trazo manda sobre la del artefacto.
+    await control.put(ruta, json={"altura_m": "2.4", "caras": 2})
+    assert Decimal((await control.get(ruta)).json()["altura_efectiva_m"]) == Decimal("2.4")
+
+
+async def test_un_muro_ya_fijado_conserva_su_altura_aunque_cambie_la_plantilla_o_el_driver(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
     plano, fijado = await _muro(control, escenario)
     ruta = f"/api/v1/trazos/{fijado}/muro"
-    # Se fija sin altura: nace con la estándar del momento (3 m) y la GUARDA.
+    # Se fija sin altura: nace con la base del momento (3 m) y la GUARDA.
     r = await control.put(ruta, json={"caras": 2})
     assert r.status_code == 200, r.text
     assert Decimal((await control.get(ruta)).json()["altura_m"]) == Decimal("3")
     # Otro muro se fija con su altura propia.
     _, propio = await _muro(control, escenario, plano)
     await control.put(f"/api/v1/trazos/{propio}/muro", json={"altura_m": "2.6", "caras": 2})
-    # Cambia el driver (global y de la obra): ninguno de los dos se mueve.
+    # Cambia el driver (global y de la obra) y luego la plantilla: ninguno de los dos se mueve.
     await costos.put("/api/v1/drivers/altura_estandar", json={"valor": "3.5"})
     await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "4"})
+    plantilla = await _plantilla(control, "3.3")
+    await control.put(f"/api/v1/trazos/{fijado}/muro/plantilla", json={"plantilla_id": plantilla})
     assert Decimal((await control.get(ruta)).json()["altura_efectiva_m"]) == Decimal("3")
     assert Decimal((await control.get(f"/api/v1/trazos/{propio}/muro")).json()["altura_efectiva_m"]) == Decimal("2.6")
-    # Los castillos que ya se colocaron tampoco cambian: un castillo nuevo sí toma lo alto del muro.
     assert await _castillo_alto(control, fijado) == Decimal("3")
     assert await _castillo_alto(control, propio) == Decimal("2.6")
 
 
-async def test_la_conversion_nueva_propone_el_driver_y_la_guardada_sin_altura_cuenta_2_6(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+async def test_la_conversion_nueva_propone_la_base_y_la_guardada_sin_altura_cuenta_2_6(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
     plano, muro = await _muro(control, escenario)
     f = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == muro)
     enlace = next(e["enlace_id"] for e in f["properties"]["enlaces"] if e["vigente"])
     ruta = f"/api/v1/enlaces/{enlace}/conversion"
-    # Lo que se propone al abrir el panel: la altura estándar de la obra.
+    # Lo que se propone al abrir el panel: la altura de la herramienta; el driver de la obra no la cambia.
     assert (await control.get(ruta)).json()["conversion"]["alt"] == 3
     r = await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.8"})
     assert r.status_code == 200, r.text
-    assert (await control.get(ruta)).json()["conversion"]["alt"] == 2.8
+    assert (await control.get(ruta)).json()["conversion"]["alt"] == 3
+    # Con plantilla de altura base 2.7, lo que se propone es esa.
+    await control.put(f"/api/v1/trazos/{muro}/muro/plantilla", json={"plantilla_id": await _plantilla(control, "2.7")})
+    assert (await control.get(ruta)).json()["conversion"]["alt"] == 2.7
     # La cuenta de la base con la altura dicha es esa altura; una conversión guardada antes del driver, sin `alt`, sigue en 2.6.
     con = await control.post(f"{ruta}/calcular", json={"modo": "area", "mide": "eje", "alt": 3})
     assert con.json()["valor"] == pytest.approx(30)
@@ -168,23 +200,25 @@ async def test_la_migracion_fija_2_6_a_las_lineas_viejas_sin_altura(escenario: E
 
 async def test_un_muro_medido_con_su_conversion_conserva_esa_altura_para_el_castillo(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
     """Q1: la conversión guardada (alt 2.6, la del plano) es la altura con que ya se mide el muro; el castillo y el muro la
-    conservan aunque el driver diga 3.00 m. Un muro sin conversión con altura sí sigue al driver."""
+    conservan aunque la plantilla diga 3.2 m. Un muro sin conversión con altura sí sigue a su artefacto."""
     plano, medido = await _muro(control, escenario)
     _, nuevo = await _muro(control, escenario, plano)
     f = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == medido)
     enlace = next(e["enlace_id"] for e in f["properties"]["enlaces"] if e["vigente"])
     r = await control.post(f"/api/v1/enlaces/{enlace}/conversion", json={"conversion": {"modo": "area", "mide": "cara2", "alt": 2.6}, "a_todos": False})
     assert r.status_code == 200, r.text
-    await costos.put("/api/v1/drivers/altura_estandar", json={"valor": "3.2"})
+    plantilla = await _plantilla(control, "3.2")
+    for t in (medido, nuevo):
+        await control.put(f"/api/v1/trazos/{t}/muro/plantilla", json={"plantilla_id": plantilla})
+    await costos.put("/api/v1/drivers/altura_estandar", json={"valor": "2.1"})
     assert Decimal((await control.get(f"/api/v1/trazos/{medido}/muro")).json()["altura_efectiva_m"]) == Decimal("2.6")
     assert Decimal((await control.get(f"/api/v1/trazos/{nuevo}/muro")).json()["altura_efectiva_m"]) == Decimal("3.2")
     assert await _castillo_alto(control, medido) == Decimal("2.6")
-    assert await _castillo_alto(control, nuevo) == Decimal("3.2")
 
 
-async def test_una_conversion_nueva_sin_altura_nace_con_el_driver_y_despues_no_se_mueve(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
-    """Ola 4C: un trazo que nace con su conversión pero sin `alt` toma la altura estándar de su obra (ya no los 2.6 m de antes) y la
-    GUARDA; con `alt` o con partes se respeta lo dicho; y cambiar el driver después no mueve lo ya guardado (Q1)."""
+async def test_una_conversion_nueva_sin_altura_nace_con_la_base_y_despues_no_se_mueve(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+    """Un trazo que nace con su conversión pero sin `alt` toma la altura de la herramienta (3.00 m; el driver de la obra ya no cuenta) y la
+    GUARDA; con `alt` o con partes se respeta lo dicho."""
     await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.5"})
     plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
 
@@ -203,14 +237,47 @@ async def test_una_conversion_nueva_sin_altura_nace_con_el_driver_y_despues_no_s
         f = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == trazo)
         return float(next(e["cantidad"] for e in f["properties"]["enlaces"] if e["vigente"]))
 
-    sin_alt = await trazar({"modo": "area", "mide": "eje"})  # 10 m × 2.5 m del driver de la obra
+    sin_alt = await trazar({"modo": "area", "mide": "eje"})  # 10 m × 3.00 m de la herramienta, no los 2.5 m del driver
     con_alt = await trazar({"modo": "area", "mide": "eje", "alt": 2.0})
     con_partes = await trazar({"modo": "area", "mide": "eje", "partes": [{"nombre": "Muro", "desde_m": 0, "hasta_m": 1.5, "suma": True}]})
-    assert await cantidad(sin_alt) == pytest.approx(25)
+    assert await cantidad(sin_alt) == pytest.approx(30)
     assert await cantidad(con_alt) == pytest.approx(20)
     assert await cantidad(con_partes) == pytest.approx(15)
-    # Cambia el driver: lo ya guardado conserva su altura; un trazo nuevo sin altura toma la nueva.
     await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "3.4"})
-    assert await cantidad(sin_alt) == pytest.approx(25)
-    nuevo = await trazar({"modo": "area", "mide": "eje"})
-    assert await cantidad(nuevo) == pytest.approx(34)
+    assert await cantidad(sin_alt) == pytest.approx(30)
+    assert await cantidad(await trazar({"modo": "area", "mide": "eje"})) == pytest.approx(30)
+
+
+async def test_un_muro_trazado_con_plantilla_nace_con_su_altura_base_y_la_guarda(escenario: Escenario, control: httpx.AsyncClient, costos: httpx.AsyncClient) -> None:
+    """El trazo manda `muro_plantilla_id` al nacer: su conversión sin `alt` toma la altura base del artefacto (no la de la herramienta ni el
+    driver) y la GUARDA; con `alt` o con partes manda lo dicho; una plantilla sin altura cae a la herramienta; una ajena es 422."""
+    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+    plantilla = await _plantilla(control, "2.8")
+    sin_altura = await _plantilla(control, None)
+    await costos.put(f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar", json={"valor": "2.2"})
+
+    async def trazar(conversion: dict, plantilla_id: str | None) -> httpx.Response:
+        return await control.post(
+            f"/api/v1/planos/{plano}/trazos",
+            json={
+                "version_plano": 1, "fuente": "pdf", "geometria_wkt": MURO, "muro_plantilla_id": plantilla_id,
+                "enlaces": [{"medida": "longitud", "factor": "1", "actividad_id": str(escenario.actividad_id), "conversion": conversion}],
+            },
+        )
+
+    async def cantidad(trazo: str) -> float:
+        f = next(x for x in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] if x["id"] == trazo)
+        return float(next(e["cantidad"] for e in f["properties"]["enlaces"] if e["vigente"]))
+
+    base = {"modo": "area", "mide": "eje"}
+    con_artefacto = (await trazar(base, plantilla)).json()["trazo_id"]
+    assert await cantidad(con_artefacto) == pytest.approx(28)  # 10 m × 2.8 m del artefacto
+    assert Decimal((await control.get(f"/api/v1/trazos/{con_artefacto}/muro")).json()["altura_efectiva_m"]) == Decimal("2.8")
+    assert await cantidad((await trazar({**base, "alt": 2.0}, plantilla)).json()["trazo_id"]) == pytest.approx(20)
+    assert await cantidad((await trazar(base, sin_altura)).json()["trazo_id"]) == pytest.approx(30)
+    # Cambiar la altura base de la plantilla después no mueve lo ya guardado (Q1).
+    nueva = (await control.put(f"/api/v1/muro-plantillas/{plantilla}", json={"nombre": "Base cambiada", "tipo": "con_cadena", "material": "tabique_rojo", "ubicacion": "interior", "altura_m": "3.6"}))
+    assert nueva.status_code in (200, 201), nueva.text
+    assert await cantidad(con_artefacto) == pytest.approx(28)
+    r = await trazar(base, str(uuid.uuid4()))
+    assert r.status_code == 422, r.text

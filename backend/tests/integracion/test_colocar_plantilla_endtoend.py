@@ -131,7 +131,7 @@ async def _muro(control: httpx.AsyncClient, escenario: Escenario, plantilla: str
         f"/api/v1/planos/{plano}/trazos",
         json={
             "version_plano": 1, "fuente": "pdf", "geometria_wkt": "LINESTRING(0 0, 10 0)", "grosor_m": "0.15", "alineacion": "centro",
-            # Sin `alt`: nace con la altura estándar de la obra (3.00 m).
+            # Sin `alt`: nace con la altura base (la de la herramienta, 3.00 m).
             "enlaces": [{"medida": "longitud", "factor": "1", "actividad_id": str(escenario.actividad_id), "conversion": {"modo": "area", "mide": "eje"}}],
         },
     )
@@ -168,7 +168,7 @@ async def test_la_plantilla_coloca_sus_castillos_con_la_altura_del_driver_y_alim
     assert (por_ranura["colado"]["clave"], por_ranura["colado"]["unidad"], Decimal(por_ranura["colado"]["cantidad"])) == ("COL-1", "ml", Decimal(6))
     assert await _medido(control, escenario, arbol["a_acero"]) is None  # aún no hay nada colocado
     antes = await _medido(control, escenario, escenario.actividad_id)
-    assert antes == pytest.approx(30)  # por el eje: 10 m × 3.00 m (la altura del driver, no 2.6)
+    assert antes == pytest.approx(30)  # por el eje: 10 m × 3.00 m (la de la herramienta, no 2.6)
 
     r = await control.post(f"{ruta}/colocar")
     assert r.status_code == 200, r.text
@@ -186,7 +186,7 @@ async def test_la_plantilla_coloca_sus_castillos_con_la_altura_del_driver_y_alim
     assert len((await control.get(f"/api/v1/trazos/{muro}/vanos")).json()) == 2
     assert await _medido(control, escenario, arbol["a_acero"]) == pytest.approx(2)
 
-    # El driver cambia después: lo ya colocado conserva su alto; el reporte de un castillo nuevo seguiría al muro.
+    # El driver `altura_estandar` cambia después: el plano no lo lee, así que nada se mueve (ni lo colocado ni el muro).
     costos_ruta = f"/api/v1/obras/{escenario.obra_id}/drivers/altura_estandar"
     assert (await control.put(costos_ruta, json={"valor": "2.5"})).status_code == 200
     assert Decimal((await control.get(f"/api/v1/trazos/{muro}/vanos")).json()[0]["alto_m"]) == Decimal(3)
@@ -232,7 +232,7 @@ async def test_un_castillo_a_mano_en_un_muro_con_plantilla_es_una_instancia_y_si
     r = await control.post(f"/api/v1/trazos/{con}/vanos", json={"clave": "K-01", "tipo": "castillo", "ancho_m": "0.15", "alto_m": "1", "posicion_m": "3"})
     assert r.status_code == 201, r.text
     (v,) = (await control.get(f"/api/v1/trazos/{con}/vanos")).json()
-    assert (v["elemento_uid"], Decimal(v["alto_m"])) == ("K-1", Decimal(3))  # sube lo alto del muro (el driver), no lo que se mandó
+    assert (v["elemento_uid"], Decimal(v["alto_m"])) == ("K-1", Decimal(3))  # sube lo alto del muro (3.00 m de la herramienta), no lo que se mandó
     assert await _medido(control, escenario, arbol["a_acero"]) == pytest.approx(1)
 
     # Sin plantilla: la regla de siempre (solo un muro «con cadena»), sin elemento.

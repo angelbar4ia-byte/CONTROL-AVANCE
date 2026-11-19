@@ -83,7 +83,7 @@ describe('Muro · medir por (D-638)', () => {
     expect(textoDeMuro(eje)).toBe('largo del eje × 3.2 m de altura');
     // Una altura que no vale cae en la de defecto.
     expect(conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, alt: 'x' })).toMatchObject({ alt: 3 });
-    // …que es la altura estándar de la obra cuando el plano la conoce.
+    // …que es la altura base (la de la plantilla elegida) cuando el plano la conoce.
     expect(conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, alt: 'x' }, 2.8)).toMatchObject({ alt: 2.8 });
     expect(opcionesDeMuroIniciales(2.8).alt).toBe('2.8');
   });

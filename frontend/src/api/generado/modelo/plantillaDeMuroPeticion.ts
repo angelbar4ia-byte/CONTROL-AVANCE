@@ -25,7 +25,7 @@ export interface PlantillaDeMuroPeticion {
   /** tabique_rojo, block_hueco o sillar_amarillo. */
   material: string;
   ubicacion: PlantillaDeMuroPeticionUbicacion;
-  /** `null` = la altura estándar (driver). */
+  /** La ALTURA BASE del artefacto: la que toman sus muros si el trazo no trae otra y no cae bajo una zona de losa. `null` = la de la herramienta de trazo (3.00 m). */
   altura_m?: PlantillaDeMuroPeticionAlturaM;
   /** @maxItems 20 */
   partes?: ParteDeAlturaDePlantillaInput[];

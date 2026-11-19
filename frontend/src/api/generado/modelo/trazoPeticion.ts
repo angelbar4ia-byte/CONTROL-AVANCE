@@ -13,6 +13,7 @@ import type { TrazoPeticionAlineacion } from "./trazoPeticionAlineacion";
 import type { TrazoPeticionForma } from "./trazoPeticionForma";
 import type { TrazoPeticionMedicionId } from "./trazoPeticionMedicionId";
 import type { TrazoPeticionPendientePct } from "./trazoPeticionPendientePct";
+import type { TrazoPeticionMuroPlantillaId } from "./trazoPeticionMuroPlantillaId";
 
 /**
  * Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:
@@ -39,4 +40,6 @@ export interface TrazoPeticion {
   medicion_id?: TrazoPeticionMedicionId;
   /** Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud real es la de la planta × √(1 + p²). Solo de una línea. */
   pendiente_pct?: TrazoPeticionPendientePct;
+  /** La plantilla de muro (el ARTEFACTO) con que se traza la línea. Se guarda al nacer para que su altura base cuente: un muro sin altura propia y sin zona de losa nace con la `altura_m` de la plantilla y, sin ella, con la de la herramienta (3.00 m). Solo de una línea. */
+  muro_plantilla_id?: TrazoPeticionMuroPlantillaId;
 }

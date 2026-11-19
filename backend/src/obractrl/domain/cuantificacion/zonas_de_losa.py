@@ -9,8 +9,8 @@ losas y una losa puede traer un espesor estructural propio (subzona). Las cotas 
 
 Reglas (``reglas_de_ubicacion`` del mockup y aclaraciones del usuario del 2026-11-16):
 
-1. **Altura del muro** (por tramo): la altura explícita del trazo > la altura libre de la losa bajo la que cae > el driver
-   ``altura_estandar`` de la obra. Un muro sin zona se comporta exactamente como hasta hoy.
+1. **Altura del muro** (por tramo): la altura explícita del trazo > la altura libre de la losa bajo la que cae > la altura
+   base del artefacto o de la herramienta (no el driver). Un muro sin zona se comporta exactamente como hasta hoy.
 2. **Partir**: un muro que cruza el límite entre zonas se parte en **tramos** (a lo largo), cada uno con su altura y sus partes de
    altura (la estructura de partes con cara A/B de la 4A: ``muro_ubicacion``).
 3. **Enrase**: en el límite entre una zona baja (3.00) y una alta (4.20) cada cara lleva su altura; el cuerpo llega a la losa baja y el
@@ -203,15 +203,16 @@ def validar_zona(
 
 
 def elegir_altura(
-    *, explicita_m: Decimal | None, de_zona_m: Decimal | None, estandar_m: Decimal
+    *, explicita_m: Decimal | None, de_zona_m: Decimal | None, base_m: Decimal, origen_de_base: str = "herramienta"
 ) -> tuple[Decimal, str]:
-    """Regla 1: la altura explícita del trazo, si no la de la zona de losa, si no el driver ``altura_estandar``. Devuelve la altura y
-    de dónde salió: ``trazo``, ``zona`` o ``driver``."""
+    """Regla 1: la altura explícita del trazo, si no la de la zona de losa, si no la altura base del artefacto (la plantilla de muro
+    elegida) y, sin plantilla, la de la herramienta de trazo (3.00 m). NO se lee el driver ``altura_estandar``. Devuelve la altura y de
+    dónde salió: ``trazo``, ``zona``, ``artefacto`` o ``herramienta``."""
     if explicita_m is not None:
         return explicita_m, "trazo"
     if de_zona_m is not None:
         return de_zona_m, "zona"
-    return estandar_m, "driver"
+    return base_m, origen_de_base
 
 
 # ── Geometría plana ────────────────────────────────────────────────────────────────────────────────────
@@ -375,7 +376,8 @@ def _tramo(
     b: LadoDeMuro,
     *,
     altura_explicita_m: Decimal | None,
-    altura_estandar_m: Decimal,
+    altura_base_m: Decimal,
+    origen_de_base: str,
     cotas_de_piso: dict[str, Decimal],
 ) -> TramoDeMuro:
     cubiertos = [x for x in (a, b) if x.origen == "losa"]
@@ -384,7 +386,7 @@ def _tramo(
     sugerencias: list[dict[str, Any]] = []
     if not cubiertos:
         altura, origen = elegir_altura(
-            explicita_m=altura_explicita_m, de_zona_m=None, estandar_m=altura_estandar_m
+            explicita_m=altura_explicita_m, de_zona_m=None, base_m=altura_base_m, origen_de_base=origen_de_base
         )
     else:
         base = min(cotas_de_piso[x.zona_id or ""] for x in cubiertos)
@@ -395,7 +397,8 @@ def _tramo(
         altura, origen = elegir_altura(
             explicita_m=altura_explicita_m,
             de_zona_m=de_zona,
-            estandar_m=altura_estandar_m,
+            base_m=altura_base_m,
+            origen_de_base=origen_de_base,
         )
         if origen == "zona":
             if inferiores[0] != inferiores[-1]:
@@ -469,13 +472,14 @@ def resolver_muro(
     losas: Sequence[LosaEnPlano],
     puntos_de_nivel: Sequence[PuntoDeNivelExterior] = (),
     altura_explicita_m: Decimal | None = None,
-    altura_estandar_m: Decimal,
+    altura_base_m: Decimal,
+    origen_de_base: str = "herramienta",
     grosor_m: float | None = None,
 ) -> ResolucionDeMuro:
     """Parte el muro (una polilínea en metros) en tramos por los límites de las losas y resuelve cada uno: de qué zona cuelga cada
     lado, su cara interior o exterior, su altura (y de dónde salió), el enrase y las partes de altura.
 
-    Sin ninguna zona alcanzada, devuelve un solo tramo ``origen_de_altura`` ``trazo`` o ``driver`` sin caras: el muro se comporta
+    Sin ninguna zona alcanzada, devuelve un solo tramo ``origen_de_altura`` ``trazo``, ``artefacto`` o ``herramienta`` sin caras: el muro se comporta
     como hasta hoy. No cambia nada: ``aplicada`` es siempre falso.
     """
     if len(linea) < 2:
@@ -520,7 +524,8 @@ def resolver_muro(
                         lado_a,
                         lado_b,
                         altura_explicita_m=altura_explicita_m,
-                        altura_estandar_m=altura_estandar_m,
+                        altura_base_m=altura_base_m,
+                        origen_de_base=origen_de_base,
                         cotas_de_piso=cotas_de_piso,
                     ),
                 )

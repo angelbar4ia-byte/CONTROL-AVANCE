@@ -3,7 +3,7 @@
  * descuento real lo calcula el servidor al medir: aquí solo se muestra.
  */
 
-import { ALTURA_ESTANDAR_DE_PARTIDA_M } from './alturaEstandar';
+import { ALTURA_DE_HERRAMIENTA_M } from './alturaDeHerramienta';
 
 /** Lo que se va a colocar: el tipo y sus medidas, sin la clave (esa la da el consecutivo al colocarlo). */
 export interface DatosDeVano {
@@ -14,7 +14,7 @@ export interface DatosDeVano {
   readonly piezas: number;
 }
 
-/** Los datos de un tipo con sus medidas por defecto. El castillo sube lo alto del muro: con `alturaM` (la estándar de la obra)
+/** Los datos de un tipo con sus medidas por defecto. El castillo sube lo alto del muro: con `alturaM` (la del muro)
  *  lo propone con ese alto; el servidor lo fija con la altura real del muro al colocarlo. */
 export function vanoPorDefecto(tipo: TipoDeVano, alturaM?: number): DatosDeVano {
   const d = TIPOS_DE_VANO[tipo];
@@ -41,8 +41,8 @@ export const TIPOS_DE_VANO: Readonly<Record<TipoDeVano, DatosDeTipoDeVano>> = {
   arco: { nombre: 'Arco', prefijo: 'A', ancho: 1, alto: 2.1, antepecho: 0, llegaAlPiso: true },
   paso: { nombre: 'Paso', prefijo: 'PS', ancho: 0.9, alto: 2.1, antepecho: 0, llegaAlPiso: true },
   // En un muro «con cadena» o con una plantilla que lleve castillos ubicados: sube lo alto del muro y resta de sus m² (D-645).
-  // El alto de partida es la altura estándar del driver (3.00 m); el servidor lo fija con la altura real del muro.
-  castillo: { nombre: 'Castillo', prefijo: 'K', ancho: 0.15, alto: ALTURA_ESTANDAR_DE_PARTIDA_M, antepecho: 0, llegaAlPiso: true },
+  // El alto de partida es la altura de la herramienta (3.00 m); el servidor lo fija con la altura real del muro.
+  castillo: { nombre: 'Castillo', prefijo: 'K', ancho: 0.15, alto: ALTURA_DE_HERRAMIENTA_M, antepecho: 0, llegaAlPiso: true },
 };
 
 /** La clave que sigue para un tipo: P-01, P-02… la primera que no usan las `existentes`. */

@@ -37,7 +37,7 @@ ESTANDAR = D("3.00")
 def _r(linea, **kw):  # noqa: ANN001, ANN202
     kw.setdefault("zonas", [Z300, Z420])
     kw.setdefault("losas", LOSAS)
-    kw.setdefault("altura_estandar_m", ESTANDAR)
+    kw.setdefault("altura_base_m", ESTANDAR)
     return resolver_muro(linea, **kw)
 
 
@@ -113,9 +113,10 @@ def test_un_punto_de_nivel_exterior_confirma_la_cara_exterior_y_fija_la_altura_d
 
 
 def test_prioridad_de_la_altura_explicita_zona_y_driver() -> None:
-    assert elegir_altura(explicita_m=D("2.4"), de_zona_m=D("3"), estandar_m=D("2.6")) == (D("2.4"), "trazo")
-    assert elegir_altura(explicita_m=None, de_zona_m=D("3"), estandar_m=D("2.6")) == (D("3"), "zona")
-    assert elegir_altura(explicita_m=None, de_zona_m=None, estandar_m=D("2.6")) == (D("2.6"), "driver")
+    assert elegir_altura(explicita_m=D("2.4"), de_zona_m=D("3"), base_m=D("2.6")) == (D("2.4"), "trazo")
+    assert elegir_altura(explicita_m=None, de_zona_m=D("3"), base_m=D("2.6")) == (D("3"), "zona")
+    assert elegir_altura(explicita_m=None, de_zona_m=None, base_m=D("2.6")) == (D("2.6"), "herramienta")
+    assert elegir_altura(explicita_m=None, de_zona_m=None, base_m=D("2.8"), origen_de_base="artefacto") == (D("2.8"), "artefacto")
     r = _r([(1, -2), (5, -2)], altura_explicita_m=D("2.50"))
     assert r.tramos[0].altura_m == D("2.500") and r.tramos[0].origen_de_altura == "trazo"
     assert r.tramos[0].partes == () and any("manda" in a for a in r.advertencias)
@@ -125,10 +126,10 @@ def test_un_muro_sin_zona_se_comporta_como_hoy() -> None:
     r = _r([(20, 20), (25, 20)])
     t = r.tramos[0]
     assert not r.con_zona and not r.parte_el_muro
-    assert (t.altura_m, t.origen_de_altura, t.lado_a.cara, t.lado_b.cara) == (D("3.000"), "driver", None, None)
+    assert (t.altura_m, t.origen_de_altura, t.lado_a.cara, t.lado_b.cara) == (D("3.000"), "herramienta", None, None)
     assert t.partes == () and t.enrase is None
-    sin_zonas = _r([(1, -2), (5, -2)], zonas=[], losas=[], altura_estandar_m=D("2.60"))
-    assert (sin_zonas.tramos[0].altura_m, sin_zonas.tramos[0].origen_de_altura) == (D("2.600"), "driver")
+    sin_zonas = _r([(1, -2), (5, -2)], zonas=[], losas=[], altura_base_m=D("2.60"))
+    assert (sin_zonas.tramos[0].altura_m, sin_zonas.tramos[0].origen_de_altura) == (D("2.600"), "herramienta")
     assert _r([(20, 20), (25, 20)], altura_explicita_m=D("2.2")).tramos[0].origen_de_altura == "trazo"
 
 
@@ -146,7 +147,7 @@ def test_una_subzona_trae_su_espesor_estructural_y_varias_losas_comparten_la_zon
 def test_las_cotas_se_miden_desde_el_piso_terminado_de_cada_zona() -> None:
     alta = ZonaDeLosa(id="zp", nombre="Planta alta", altura_libre_m=D("2.60"), espesor_m=D("0.12"), cota_piso_m=D("3.12"))
     t = resolver_muro(
-        [(1, -2), (5, -2)], zonas=[alta], losas=[_losa("l", "zp", 0, -4, 6, 0)], altura_estandar_m=ESTANDAR
+        [(1, -2), (5, -2)], zonas=[alta], losas=[_losa("l", "zp", 0, -4, 6, 0)], altura_base_m=ESTANDAR
     ).tramos[0]
     assert t.altura_m == D("2.600")
     assert (t.lado_a.cota_inferior_m, t.lado_a.cota_superior_m) == (D("5.720"), D("5.840"))

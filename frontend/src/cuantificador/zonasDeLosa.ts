@@ -21,7 +21,8 @@ export function textoDeMetros(valor: string | number): string {
 export const NOMBRE_DE_ORIGEN_DE_ALTURA: Record<string, string> = {
   trazo: 'altura del trazo',
   zona: 'zona de losa',
-  driver: 'altura estándar de la obra',
+  artefacto: 'altura base de la plantilla',
+  herramienta: 'altura de la herramienta (3.00 m)',
 };
 
 export const NOMBRE_DE_CARA: Record<string, string> = { interior: 'interior', exterior: 'exterior' };

@@ -148,8 +148,8 @@ class TramoDelMuro(BaseModel):
     lado_a: LadoDelTramo
     lado_b: LadoDelTramo
     altura_m: Decimal = Field(description="Lo alto del cuerpo del muro en este tramo.")
-    origen_de_altura: Literal["trazo", "zona", "driver"] = Field(
-        description="De dónde sale: la altura explícita del trazo, la zona de losa o el driver `altura_estandar`."
+    origen_de_altura: Literal["trazo", "zona", "artefacto", "herramienta"] = Field(
+        description="De dónde sale: la altura explícita del trazo, la zona de losa, la altura base del artefacto (plantilla) o la de la herramienta de trazo."
     )
     enrase: EnraseDelTramo | None = Field(description="Entre la losa baja y la alta, si los dos lados cuelgan de losas a distinta cota.")
     partes: list[ParteDelTramo] = Field(description="Partes de altura (la estructura de la 4A) que aplicarían a este tramo.")
@@ -167,7 +167,9 @@ class ResolucionDelMuro(BaseModel):
     trazo_id: UUID
     escala_definida: bool
     altura_explicita_m: Decimal | None = Field(description="La altura que el trazo trae (partes o altura única); manda sobre la zona.")
-    altura_estandar_m: Decimal = Field(description="El driver `altura_estandar` de la obra.")
+    altura_base_m: Decimal = Field(
+        description="La altura base con que nace un muro sin la suya ni zona: la de la plantilla elegida (artefacto) o la de la herramienta (3.00 m). No es el driver."
+    )
     altura_guardada_m: Decimal | None = Field(description="Con la que ya mide hoy su conversión guardada (no se cambia sola, Q1).")
     con_zona: bool = Field(description="Algún lado del muro cuelga de una losa; si no, el muro se comporta como siempre.")
     parte_el_muro: bool = Field(description="Los tramos tienen alturas distintas: habría que partir el muro en el límite de zona.")
@@ -195,7 +197,7 @@ def _resolucion(datos: dict[str, Any]) -> ResolucionDelMuro:
         trazo_id=datos["trazo_id"],
         escala_definida=datos["escala_definida"],
         altura_explicita_m=datos["altura_explicita_m"],
-        altura_estandar_m=datos["altura_estandar_m"],
+        altura_base_m=datos["altura_base_m"],
         altura_guardada_m=datos["altura_guardada_m"],
         con_zona=r.con_zona,
         parte_el_muro=r.parte_el_muro,

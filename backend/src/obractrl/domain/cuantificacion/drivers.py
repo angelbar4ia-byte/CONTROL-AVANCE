@@ -14,8 +14,9 @@ de un driver que luego pasó a `fijo` no se borra, pero deja de valer (`ajuste_i
 Q3: Costos y Control de obra editan los drivers (globales y ajustes de obra). Residente, supervisor y el resto solo leen.
 
 Q1: cambiar un driver **no recalcula** lo ya guardado. La altura que un trazo trae (`muro_altura_m`, las partes o el `alt` de
-su conversión) es suya; el driver solo da la altura de los trazos nuevos que no la traen. Por eso `altura_estandar` pasa de 2.6
-a 3.00 m sin mover un solo trazo viejo (la migración 0134 les fija los 2.6 m que ya contaban).
+su conversión) es suya. Desde el desacople del plano, `altura_estandar` YA NO la lee el plano (la altura de un trazo nuevo sale de
+su zona de losa, de la altura base de su artefacto o de la herramienta de trazo): el driver queda para los paramétricos de elementos.
+`altura_estandar` pasó de 2.6 a 3.00 m sin mover un solo trazo viejo (la migración 0134 les fija los 2.6 m que ya contaban).
 
 Los valores de partida son los de la especificación (`spec.js`, `drivers`); donde ella dice «por confirmar» o «supuesto» el driver
 lo marca (`por_confirmar`). Nada aquí inventa un precio ni un destajo. Funciones puras, sin base de datos.
@@ -86,7 +87,7 @@ def _d(valor: str) -> Decimal:
 CATALOGO_DE_DRIVERS: tuple[DefinicionDeDriver, ...] = (
     DefinicionDeDriver(
         "altura_estandar", "Altura estándar del muro", "m", _d("3.00"), "ajustable",
-        "Decisión M-9: 3.00 m. Antes el backend usaba 2.6 m por defecto; los trazos ya guardados conservan su altura (Q1).",
+        "Alto con que se calculan los elementos paramétricos que no traen el suyo (castillos…). El plano NO lo lee: la altura de un muro trazado la fijan el trazo, la zona de losa, el artefacto (plantilla) o la herramienta.",
         _d("0"), _d("30"), minimo_exclusivo=True,
     ),
     DefinicionDeDriver(

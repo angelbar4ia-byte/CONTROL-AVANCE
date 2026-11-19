@@ -1,8 +1,8 @@
 import { altoPropio, cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, pulsarMarca, test } from '../infraestructura';
 
 /**
- * Ola 4C · trazar un muro con plantilla coloca sus castillos: toman la altura del driver de la obra (no 2.6 m), restan de los m² del muro y
- * se pueden retirar y volver a colocar desde el detalle del trazo. Lo colocado ya no se mueve si el driver cambia (Q1).
+ * Ola 4C · trazar un muro con plantilla coloca sus castillos: toman la altura base de la plantilla (no el driver ni 2.6 m), restan de los m² del muro y
+ * se pueden retirar y volver a colocar desde el detalle del trazo. Lo colocado ya no se mueve si el driver cambia (que el plano ya no lee) (Q1).
  */
 
 const ROLES_Z = ['control'] as const;
@@ -11,7 +11,7 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
   test.skip(!hayRoles(...ROLES_Z), motivoSinRoles(...ROLES_Z));
   test.setTimeout(120_000);
 
-  test('un muro trazado con plantilla nace con sus castillos a la altura del driver', async ({ page, request }) => {
+  test('un muro trazado con plantilla nace con sus castillos a la altura base de la plantilla', async ({ page, request }) => {
     const sufijo = Date.now().toString(36).toUpperCase();
     const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
     const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
@@ -25,8 +25,8 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
       nombre: 'Muro con plantilla',
       archivo_url: 'planos/plantilla.dwg',
     });
-    // La altura estándar de ESTA obra: los castillos suben lo alto del muro, que nace con ella.
-    await llamarApi(request, 'control', 'PUT', `/obras/${obra.id}/drivers/altura_estandar`, { valor: '2.8' });
+    // El driver altura_estandar de ESTA obra NO cuenta para el plano: la altura la fija la plantilla (su altura base, 2.8 m).
+    await llamarApi(request, 'control', 'PUT', `/obras/${obra.id}/drivers/altura_estandar`, { valor: '3.9' });
 
     // Una plantilla con un castillo ubicado (los crea Control de obra: el elemento ya está autorizado).
     const clave = `K${sufijo}`;
@@ -44,6 +44,7 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
       tipo: 'con_cadena',
       material: 'tabique_rojo',
       ubicacion: 'interior',
+      altura_m: '2.8',
       partes: [{ nombre: 'Cuerpo', desde_m: '0', hasta_m: '2.8', rol: 'cuerpo' }],
       elementos: [{ ref: clave }],
     });
@@ -65,14 +66,15 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
     await page.getByRole('button', { name: '0.15 m' }).click();
     await page.getByRole('group', { name: 'Tipo de muro' }).getByRole('button', { name: 'Con cadena' }).click();
-    await expect(page.getByLabel('Altura (m)')).toHaveValue('2.8'); // el panel propone la altura del driver
+    await expect(page.getByLabel('Altura (m)')).toHaveValue('3'); // sin plantilla: la de la herramienta, no la del driver (3.9)
     await page.getByLabel('Plantilla del muro nuevo').selectOption({ label: `${nombre} · v1 (por validar)` });
+    await expect(page.getByLabel('Altura (m)')).toHaveValue('2.8'); // con plantilla: su altura base
     await page.mouse.click(c.x + c.width * 0.55, c.y + c.height * 0.6);
     await page.mouse.click(c.x + c.width * 0.9, c.y + c.height * 0.6);
     await expect.poll(async () => (await trazos()).length).toBe(1);
     const muroId = (await trazos())[0]!.id;
 
-    // Sus dos castillos (distribución «extremos») quedaron colocados: instancias de la plantilla, con la altura del driver.
+    // Sus dos castillos (distribución «extremos») quedaron colocados: instancias de la plantilla, con la altura base de la plantilla.
     await expect.poll(async () => (await vanos(muroId)).length).toBe(2);
     const puestos = await vanos(muroId);
     expect(puestos.map((v) => v.tipo)).toEqual(['castillo', 'castillo']);
@@ -97,7 +99,7 @@ test.describe('Cuantificador · colocar la plantilla de un muro', () => {
     await expect.poll(async () => (await vanos(muroId)).length).toBe(2);
     expect(await medida()).toBeCloseTo(conCastillos, 4);
 
-    // Q1: el driver cambia después y lo ya colocado conserva su altura.
+    // El driver cambia después: el plano no lo lee y lo ya colocado conserva su altura (Q1).
     await llamarApi(request, 'control', 'PUT', `/obras/${obra.id}/drivers/altura_estandar`, { valor: '3.5' });
     for (const v of await vanos(muroId)) expect(Number(v.alto_m)).toBeCloseTo(2.8, 3);
     expect(await medida()).toBeCloseTo(conCastillos, 4);

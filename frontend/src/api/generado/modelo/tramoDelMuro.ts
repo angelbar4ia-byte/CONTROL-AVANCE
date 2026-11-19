@@ -28,7 +28,7 @@ export interface TramoDelMuro {
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
   altura_m: string;
-  /** De dónde sale: la altura explícita del trazo, la zona de losa o el driver `altura_estandar`. */
+  /** De dónde sale: la altura explícita del trazo, la zona de losa, la altura base del artefacto (plantilla) o la de la herramienta de trazo. */
   origen_de_altura: TramoDelMuroOrigenDeAltura;
   /** Entre la losa baja y la alta, si los dos lados cuelgan de losas a distinta cota. */
   enrase: TramoDelMuroEnrase;

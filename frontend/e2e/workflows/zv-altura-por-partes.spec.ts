@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { cajaEstable, entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
 /**
  * Altura por partes del muro en el panel de la herramienta Línea: nombre, desde, hasta, «suma», quitar y «+ Parte».
@@ -30,6 +30,8 @@ test.describe('Cuantificador · altura por partes', () => {
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
+    // La app redirige dos veces al cargar y remonta el cuantificador: sin esperar a que el lienzo se asiente, el clic en «Línea» podía perderse.
+    await cajaEstable(page, page.getByRole('img', { name: 'Plano con sus trazos' }));
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
     const cabeza = page.locator('.opciones__cabeza[aria-expanded="false"]');
     if ((await cabeza.count()) > 0) await cabeza.first().click();

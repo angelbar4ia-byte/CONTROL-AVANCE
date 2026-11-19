@@ -147,7 +147,7 @@ async def test_un_muro_que_cruza_el_limite_se_parte_en_tramos_con_su_altura(esce
         (D(0), D(4), D(3), "zona"), (D(4), D(8), D("4.2"), "zona"),
     ]
     assert [t["lado_a"]["zona"] for t in r["tramos"]] == ["Entrepiso 3.00", "Entrepiso 4.20"]
-    assert D(r["altura_estandar_m"]) == D("3.00")  # el driver de la obra, intacto
+    assert D(r["altura_base_m"]) == D("3.00")  # el driver de la obra, intacto
 
 
 async def test_un_muro_en_el_limite_lleva_enrase_y_una_altura_por_cara(escenario: Escenario, control: httpx.AsyncClient) -> None:
@@ -180,7 +180,7 @@ async def test_sin_zona_el_muro_se_comporta_como_siempre_y_nada_guardado_cambia(
     antes = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()
     r = (await control.get(f"/api/v1/trazos/{muro}/zonas-de-losa")).json()
     assert not r["con_zona"] and not r["parte_el_muro"]
-    assert (r["tramos"][0]["origen_de_altura"], D(r["tramos"][0]["altura_m"]), r["tramos"][0]["lado_a"]["cara"]) == ("driver", D(3), None)
+    assert (r["tramos"][0]["origen_de_altura"], D(r["tramos"][0]["altura_m"]), r["tramos"][0]["lado_a"]["cara"]) == ("herramienta", D(3), None)
     # Con zonas dibujadas en otro lado del plano, el muro lejano sigue igual y resolver no escribe nada.
     await _zona(control, plano, "Z", "4.2")
     assert (await control.get(f"/api/v1/planos/{plano}/trazos")).json() == antes

@@ -7,7 +7,7 @@
  */
 
 /**
- * De dónde sale: la altura explícita del trazo, la zona de losa o el driver `altura_estandar`.
+ * De dónde sale: la altura explícita del trazo, la zona de losa, la altura base del artefacto (plantilla) o la de la herramienta de trazo.
  */
 export type TramoDelMuroOrigenDeAltura =
   (typeof TramoDelMuroOrigenDeAltura)[keyof typeof TramoDelMuroOrigenDeAltura];
@@ -16,5 +16,6 @@ export type TramoDelMuroOrigenDeAltura =
 export const TramoDelMuroOrigenDeAltura = {
   trazo: "trazo",
   zona: "zona",
-  driver: "driver",
+  artefacto: "artefacto",
+  herramienta: "herramienta",
 } as const;

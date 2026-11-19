@@ -8,7 +8,7 @@
 
 import type { ConversionPeticion, TrazoPeticion } from '@/api/generado/modelo';
 import type { ParteDeAltura } from './AlturaPorPartes';
-import { ALTURA_ESTANDAR_DE_PARTIDA_M } from './alturaEstandar';
+import { ALTURA_DE_HERRAMIENTA_M } from './alturaDeHerramienta';
 import type { Alineacion, Forma } from './formas';
 import { aWkt, MEDIDAS_POR_HERRAMIENTA, type GeometriaBase, type MedidaDeTrazo, type Punto } from './geometria';
 import type { TipoDeMedicion } from './tipos';
@@ -34,6 +34,8 @@ export interface DatosDelTrazo {
   readonly pendientePct?: number | null;
   readonly forma?: Forma | null;
   readonly medicionId?: string | null;
+  /** La plantilla de muro (artefacto) con que se traza la línea: su altura base cuenta desde que el muro nace. */
+  readonly muroPlantillaId?: string | null;
   readonly enlaces: readonly EnlaceDeTrazo[];
 }
 
@@ -53,6 +55,7 @@ export function trazoPeticion(d: DatosDelTrazo): TrazoPeticion {
     capa: capa ? capa : null,
     geometria_wkt: aWkt(d.herramienta, d.puntos),
     ...(d.medicionId ? { medicion_id: d.medicionId } : {}),
+    ...(conGrosor && d.muroPlantillaId ? { muro_plantilla_id: d.muroPlantillaId } : {}),
     ...(conGrosor && d.alineacion != null ? { grosor_m: String(d.grosorM), alineacion: d.alineacion } : {}),
     ...(d.herramienta === 'linea' && d.pendientePct != null ? { pendiente_pct: String(d.pendientePct) } : {}),
     ...(d.forma
@@ -110,16 +113,16 @@ export function medidaDirecta(
 
 /**
  * Altura de partida de un muro (m) para convertir su largo en área: el aplanado, la pintura. Es el valor de partida del driver
- * `altura_estandar` (3.00 m, Ola 4C): el plano lee el vigente de la obra (`useAlturaEstandar`) y solo cae aquí mientras no responde.
+ * la de la HERRAMIENTA (3.00 m): el plano ya no lee el driver `altura_estandar`. Con una plantilla elegida, la propuesta es su altura base.
  * Los trazos ya guardados conservan su altura (Q1). Se afina en el detalle.
  */
-export const ALTURA_POR_DEFECTO_M = ALTURA_ESTANDAR_DE_PARTIDA_M;
+export const ALTURA_POR_DEFECTO_M = ALTURA_DE_HERRAMIENTA_M;
 /** Caras por defecto de un muro: las dos. */
 export const CARAS_POR_DEFECTO = 2;
 
 /**
  * El factor del enlace directo. Casi siempre 1; una **línea sobre un concepto en m²** (con o sin grosor) mide su largo y lo
- * convierte en área con la altura estándar de la obra y las caras por defecto: largo × 3.00 × 2 = largo × 6 (con el driver de partida).
+ * convierte en área con su altura base (la de la herramienta, 3.00 m) y las caras por defecto: largo × 3.00 × 2 = largo × 6.
  */
 export function factorDeLaMedida(
   tipo: TipoDeMedicion | null,
@@ -147,7 +150,7 @@ export interface OpcionesDeMuro {
   readonly partes: readonly ParteDeAltura[];
 }
 
-/** Las opciones con que nace un muro, con la altura estándar de la obra (el driver) o, sin ella, la de partida. */
+/** Las opciones con que nace un muro, con la altura base que se le pase (la de la plantilla) o, sin ella, la de la herramienta. */
 export function opcionesDeMuroIniciales(alturaM: number = ALTURA_POR_DEFECTO_M): OpcionesDeMuro {
   return { mide: 'cara2', cara: 'int', lado: 'der', alt: String(alturaM), partes: [] };
 }
@@ -155,12 +158,12 @@ export function opcionesDeMuroIniciales(alturaM: number = ALTURA_POR_DEFECTO_M):
 export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = opcionesDeMuroIniciales();
 
 /** La conversión con que nace un muro (o una línea) sobre un concepto en m²: su superficie por caras × altura. Una altura que no
- *  vale cae a `alturaPorDefectoM` (la estándar de la obra). */
+ *  vale cae a `alturaPorDefectoM` (la base). */
 export function conversionDeMuro(
   o: OpcionesDeMuro,
   alturaPorDefectoM: number = ALTURA_POR_DEFECTO_M,
   /** `false`: la altura del panel es solo la propuesta (no se tecleó): se manda sin `alt` y el servidor toma la de la zona de losa
-   *  bajo la que cae el muro, o la estándar de la obra (3.00 m de partida) si no hay zona. */
+   *  bajo la que cae el muro, o la base del artefacto o de la herramienta (3.00 m) si no hay zona. */
   alturaTecleada: boolean = true,
 ): ConversionPeticion {
   const alt = Number(String(o.alt).replace(',', '.'));

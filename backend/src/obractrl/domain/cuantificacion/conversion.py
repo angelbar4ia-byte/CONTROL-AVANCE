@@ -74,20 +74,20 @@ def _numero(valor: Any, que: str) -> float:
 
 
 ALTURA_ESTANDAR_DE_PARTIDA_M = 3.0
-"""El valor de partida del driver `altura_estandar`; el caso de uso pasa el vigente de la obra."""
+"""La altura de la HERRAMIENTA de trazo (3.00 m): con la que nace un muro sin plantilla ni zona. El caso de uso pasa la base del artefacto si la hay."""
 ALTURA_ANTERIOR_M = 2.6
 """La altura que contaba una conversión guardada sin `alt` antes del driver (Q1: lo guardado la conserva)."""
 
 
 def conversion_por_defecto(
-    tipo: str, unidad_del_concepto: str | None, altura_estandar: float | None = None
+    tipo: str, unidad_del_concepto: str | None, altura_base: float | None = None
 ) -> dict[str, Any]:
     """Cómo cuenta un trazo si nadie lo ha dicho: según la unidad del concepto (el `convDefecto` del mockup). La altura es la
-    estándar de la obra (el driver `altura_estandar`)."""
+    base del trazo (artefacto o herramienta; no el driver `altura_estandar`)."""
     u = (unidad_del_concepto or "").lower().replace("²", "2").replace("³", "3")
     base: dict[str, Any] = {
         "mide": "cara2", "cara": "int", "lado": "der", "gro": None, "esp": 0.12, "desc": 0.0, "pw": 0.6, "ph": 0.6,
-        "merma": 5.0, "alt": altura_estandar if altura_estandar is not None else ALTURA_ESTANDAR_DE_PARTIDA_M, "sep": 2.5,
+        "merma": 5.0, "alt": altura_base if altura_base is not None else ALTURA_ESTANDAR_DE_PARTIDA_M, "sep": 2.5,
         "partes": [],
     }
     if tipo == "area":

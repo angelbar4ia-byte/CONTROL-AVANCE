@@ -189,7 +189,8 @@ import {
   useColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost,
   useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut,
 } from '@/api/generado/artefacto-de-muros/artefacto-de-muros';
-import { useAlturaEstandar } from './useAlturaEstandar';
+import { ALTURA_DE_HERRAMIENTA_M, alturaBaseDeLaPlantilla } from './alturaDeHerramienta';
+import { useListarPlantillasApiV1MuroPlantillasGet } from '@/api/generado/artefacto-de-muros/artefacto-de-muros';
 import { RevestimientosDelMuro, type RevestimientoPorColocar } from './RevestimientosDelMuro';
 import { acabadoPorDefecto, ClasificacionDelMuro, type Acabado, type TipoDeMuro } from './ClasificacionDeMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
@@ -443,16 +444,22 @@ export function EspacioDeTrazo({
   /** Pendiente en % de la línea que se traza (un tramo inclinado); `null` = horizontal. */
   const [pendientePct, setPendientePct] = useState<number | null>(null);
   const [alineacion, setAlineacion] = useState<Alineacion>('centro');
-  // La altura que propone el plano al trazar un muro es el driver `altura_estandar` de la obra (Ola 4C), no un 2.6 fijo: sigue al driver
-  // mientras quien traza no la teclee. Un trazo ya guardado conserva la suya (Q1).
-  const alturaEstandar = useAlturaEstandar(obraId);
   const [cambiosDeMuro, setCambiosDeMuro] = useState<Partial<OpcionesDeMuro>>({});
-  const opcionesMuro = useMemo<OpcionesDeMuro>(
-    () => ({ ...opcionesDeMuroIniciales(alturaEstandar), ...cambiosDeMuro }),
-    [alturaEstandar, cambiosDeMuro],
-  );
   /** El tipo de muro y el acabado con que nace el siguiente muro (F-22): el trazo se guarda ya clasificado. */
   const [muroNuevo, setMuroNuevo] = useState<{ tipo: TipoDeMuro | null; acabado: Acabado; plantillaId?: string | null }>({ tipo: null, acabado: acabadoPorDefecto() });
+  // La altura que propone el plano al trazar un muro NO sale del driver `altura_estandar`: la fija el ARTEFACTO (la altura base de la
+  // plantilla elegida para el muro nuevo) y, sin plantilla o sin altura en ella, la HERRAMIENTA (3.00 m). Se ve y se corrige en el panel de
+  // la línea; con una zona de losa manda la de la zona. Un trazo ya guardado conserva la suya (Q1).
+  const plantillasDeMuro = useListarPlantillasApiV1MuroPlantillasGet({ query: { enabled: muroNuevo.plantillaId != null } });
+  const alturaBase = useMemo(
+    () =>
+      alturaBaseDeLaPlantilla(plantillasDeMuro.data?.find((p) => p.id === muroNuevo.plantillaId)?.altura_m) ?? ALTURA_DE_HERRAMIENTA_M,
+    [plantillasDeMuro.data, muroNuevo.plantillaId],
+  );
+  const opcionesMuro = useMemo<OpcionesDeMuro>(
+    () => ({ ...opcionesDeMuroIniciales(alturaBase), ...cambiosDeMuro }),
+    [alturaBase, cambiosDeMuro],
+  );
   const elegirPlantillaDelMuro = useElegirPlantillaDelTrazoApiV1TrazosTrazoIdMuroPlantillaPut<ErrorApi>();
   const colocarPlantillaDelMuro = useColocarPlantillaEnElMuroApiV1TrazosTrazoIdMuroPlantillaColocarPost<ErrorApi>();
   const clasificarMuro = useFijarClasificacionDeMuroApiV1TrazosTrazoIdMuroClasificacionPut<ErrorApi>();
@@ -1731,6 +1738,7 @@ export function EspacioDeTrazo({
       puntos,
       grosorM: tipo === 'linea' ? grosorUsado : null,
       alineacion: conGrosor ? alineacion : null,
+      muroPlantillaId: conGrosor ? (muroNuevo.plantillaId ?? null) : null,
       pendientePct: tipo === 'linea' ? pendientePct : null,
       forma: conForma,
     };
@@ -1749,7 +1757,7 @@ export function EspacioDeTrazo({
             actividadId: r.actividadId,
             medida: 'longitud',
             factor: '1',
-            conversion: conversionDeMuro({ ...opcionesDeMuroIniciales(alturaEstandar), mide: 'eje', alt: String(r.alturaM), partes: [] }, alturaEstandar),
+            conversion: conversionDeMuro({ ...opcionesDeMuroIniciales(), mide: 'eje', alt: String(r.alturaM), partes: [] }, ALTURA_DE_HERRAMIENTA_M),
           },
         ],
       });
@@ -1835,10 +1843,10 @@ export function EspacioDeTrazo({
     } else if (conceptoEnFoco) {
       const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
       if (medida) {
-        factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida, alturaEstandar);
+        factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida, alturaBase);
         // Una línea sobre un concepto en m² nace con la conversión elegida en el panel (Eje / 1 cara / 2 caras × altura).
         if (tipoDelConcepto === 'area' && tipo === 'linea' && medida === 'longitud') {
-          conversionDeLaLinea = conversionDeMuro(opcionesMuro, alturaEstandar, cambiosDeMuro.alt !== undefined);
+          conversionDeLaLinea = conversionDeMuro(opcionesMuro, alturaBase, cambiosDeMuro.alt !== undefined);
           factor = '1';
         }
         data = trazoPeticion({
@@ -1864,7 +1872,7 @@ export function EspacioDeTrazo({
         if (conversionDeLaLinea) {
           // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
           setAviso(
-            `Línea medida como área: ${textoDeMuro(opcionesMuro, alturaEstandar, cambiosDeMuro.alt !== undefined)}. ` +
+            `Línea medida como área: ${textoDeMuro(opcionesMuro, alturaBase, cambiosDeMuro.alt !== undefined)}. ` +
               `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. Se cambia en el detalle del trazo.`,
           );
         }
@@ -2652,7 +2660,7 @@ export function EspacioDeTrazo({
                 trazos={features}
                 actividades={actividades}
                 colocando={revestimientoPorColocar}
-                alturaPorDefectoM={alturaEstandar}
+                alturaPorDefectoM={ALTURA_DE_HERRAMIENTA_M}
                 onColocar={(r) => {
                   setRevestimientoPorColocar(r);
                   if (r) {
