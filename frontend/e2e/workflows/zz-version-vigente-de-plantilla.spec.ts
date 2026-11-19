@@ -15,7 +15,7 @@ test.describe('Cuantificador · versión vigente de la plantilla', () => {
   test.setTimeout(180_000);
 
   test('un muro con una versión anterior se actualiza a la vigente o se elimina el trazo', async ({ page, request }) => {
-    const sufijo = Date.now().toString(36).toUpperCase();
+    const sufijo = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     const partes = [{ nombre: 'Cuerpo', desde_m: '0', hasta_m: '3', rol: 'cuerpo' }];
     const base = { nombre: `Versionada ${sufijo}`, tipo: 'tabique', material: 'tabique_rojo', ubicacion: 'interior', partes, elementos: [] };
     const v1 = await llamarApi<{ id: string }>(request, 'control', 'POST', '/muro-plantillas', base);
