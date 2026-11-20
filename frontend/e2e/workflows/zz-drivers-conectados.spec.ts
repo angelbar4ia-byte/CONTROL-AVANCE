@@ -4,7 +4,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  * Drivers conectados (Ola 4): cambiar un driver de la obra en Paramétrico cambia el cálculo de un elemento y la vista previa de una
  * plantilla; sin tocar nada, valen los valores de partida.
  *
- *  1. Paramétrico: cada driver dice quién lo usa («Lo usan»); el desperdicio de mampostería dice por qué ningún cálculo lo lee aún.
+ *  1. Paramétrico: cada driver dice quién lo usa («Lo usan»); el desperdicio de mampostería lo lee el muro de sillar amarillo (BAP-01010).
  *  2. Elementos › castillo EST-02130: con el alto sin tocar sale la altura estándar de la obra (3.00 m) y la tarjeta dice que es del
  *     driver de la obra solo cuando la obra lo cambió; al cambiar el driver a 3.5 m el alto de la tarjeta y su tabla de drivers cambian.
  *  3. Elementos › bastón BA-1: el traslape sin tocar lo da el driver de la obra; lo que se teclea manda sobre el driver.
@@ -55,7 +55,9 @@ test.describe('Cuantificador · drivers conectados', () => {
     await expect(separacion.locator('[data-consumidor="plantilla_vista_previa"]')).toBeVisible();
     await expect(tabla.locator('tr[data-driver="traslape_varilla_diametros"] [data-consumidor="baston"]')).toBeVisible();
     await expect(tabla.locator('tr[data-driver="escarpio_minimo"] [data-consumidor="cimentacion_de_piedra"]')).toContainText('lo lee como constante');
-    await expect(tabla.locator('tr[data-driver="desperdicio_mamposteria"] [data-lo-usan]')).toContainText('tabique de 14 cm');
+    // F6: el desperdicio de mampostería lo lee el muro de sillar amarillo (BAP-01010); el tabique de 14 cm no lo lee.
+    await expect(tabla.locator('tr[data-driver="desperdicio_mamposteria"] [data-consumidor="muro_de_sillar"]')).toBeVisible();
+    await expect(tabla.locator('tr[data-driver="desperdicio_mamposteria"] [data-lo-usan]')).toContainText('sillar amarillo');
 
     // --- el ajuste de la obra: altura 3.5 m, separación de castillos 2 m y traslape de varilla de 60 diámetros -----------------
     for (const [clave, valor] of [['altura_estandar', '3.5'], ['separacion_castillos', '2'], ['traslape_varilla_diametros', '60']] as const) {

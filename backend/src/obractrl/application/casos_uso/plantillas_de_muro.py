@@ -19,6 +19,7 @@ from obractrl.application.casos_uso.cuantificar import (
     TrazoNoEncontrado,
 )
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
+from obractrl.domain.cuantificacion import muro_sillar, muro_tabique
 from obractrl.domain.cuantificacion.comparacion_con_catalogo import expandir_composicion
 from obractrl.domain.cuantificacion.materiales_de_elemento import claves_de_materiales
 from obractrl.domain.cuantificacion.muro_plantilla import (
@@ -37,10 +38,7 @@ from obractrl.domain.cuantificacion.muro_plantilla import (
     validar_que_edita,
     validar_que_valida,
 )
-from obractrl.domain.cuantificacion.muro_tabique import (
-    ELEMENTOS_DE_TABIQUE,
-    definicion_de,
-)
+from obractrl.domain.cuantificacion.muro_tabique import ELEMENTOS_DE_TABIQUE
 from obractrl.domain.cuantificacion.muro_tipo import acabado_normalizado
 from obractrl.domain.cuantificacion.muro_ubicacion import MATERIALES_DE_MURO
 from obractrl.domain.cuantificacion.prototipos_de_muro import (
@@ -66,6 +64,25 @@ class PlantillaEnUso(ErrorDePlantillaDeMuro):
 def _es_de_muro_de_tabique(clave: str) -> bool:
     e = ELEMENTOS_DE_TABIQUE.get(clave.strip().upper())
     return e is not None and e.categoria[0] == "muros"
+
+
+def _es_de_muro_de_sillar(clave: str) -> bool:
+    return clave.strip().upper() in muro_sillar.ELEMENTOS_DE_SILLAR
+
+
+def _es_de_muro(clave: str) -> bool:
+    """Un muro de la biblioteca que la plantilla puede llevar: de tabique (EST-02010…) o de sillar amarillo (BAP-01010)."""
+    return _es_de_muro_de_tabique(clave) or _es_de_muro_de_sillar(clave)
+
+
+def _nombre_de_muro(clave: str) -> str:
+    if _es_de_muro_de_sillar(clave):
+        return muro_sillar.elemento_de_sillar(clave).nombre
+    return ELEMENTOS_DE_TABIQUE[clave.strip().upper()].nombre
+
+
+def _definicion_de_muro(clave: str) -> dict[str, Any]:
+    return muro_sillar.definicion_de(clave) if _es_de_muro_de_sillar(clave) else muro_tabique.definicion_de(clave)
 
 
 class GestionarPlantillasDeMuro:
@@ -115,9 +132,9 @@ class GestionarPlantillasDeMuro:
                         ref=ref, nombre=str(el["nombre"]), clase=clase, categoria=str(el["categoria"]),
                         subcategoria=str(el["subcategoria"]), provisional=el.get("estado_autorizacion") == "pendiente",
                     )
-            elif _es_de_muro_de_tabique(ref):
+            elif _es_de_muro(ref):
                 ref = ref.upper()
-                info[ref] = InfoDeElemento(ref=ref, nombre=ELEMENTOS_DE_TABIQUE[ref].nombre, clase="muro")
+                info[ref] = InfoDeElemento(ref=ref, nombre=_nombre_de_muro(ref), clase="muro")
             elementos.append({**x, "ref": ref})
         return normalizar_plantilla({**entrada, "elementos": elementos}, info)
 
@@ -212,7 +229,7 @@ class GestionarPlantillasDeMuro:
         for i in instancias:
             ref, uid = str(i["ref"]), str(i["uid"])
             if i["clase"] == "muro":
-                if not _es_de_muro_de_tabique(ref):
+                if not _es_de_muro(ref):
                     alertas.append(Alerta("bloquea", "elemento_inexistente", uid, ref, f"El elemento de muro {ref} ya no existe."))
                     continue
                 para_validar.append(await self._del_muro(uid, ref, implicito=bool(i.get("implicito"))))
@@ -261,7 +278,7 @@ class GestionarPlantillasDeMuro:
         )
 
     async def _del_muro(self, uid: str, ref: str, *, implicito: bool) -> ElementoParaValidar:
-        d = definicion_de(ref)
+        d = _definicion_de_muro(ref)
         insumos = frozenset({str(d["pieza"]["insumo"]).upper(), str(d["mezcla"]).upper()})
         conceptos: list[ConceptoDelElemento] = []
         for c in d["conceptos"]:

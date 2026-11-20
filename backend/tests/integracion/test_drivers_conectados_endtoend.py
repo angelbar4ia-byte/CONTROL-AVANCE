@@ -20,6 +20,8 @@ from tests.integracion.conftest import Escenario
 K1 = "/api/v1/biblioteca-de-elementos/estructura/EST-02130/calcular"
 BASTON = "/api/v1/biblioteca-de-elementos/baston/BA-1/calcular"
 TRABE = "/api/v1/biblioteca-de-elementos/estructura-lineal/T-1-15x25/calcular"
+SILLAR = "/api/v1/biblioteca-de-elementos/sillar/BAP-01010/calcular"
+TABIQUE = "/api/v1/biblioteca-de-elementos/tabique/EST-02010/calcular"
 
 
 @pytest.fixture
@@ -71,6 +73,27 @@ async def test_cambiar_un_driver_de_la_obra_cambia_el_calculo_del_elemento_y_sin
     assert _usados(b)["tolerancia_corte_cm"]["fuente"] == "defecto"
 
 
+async def test_el_desperdicio_de_mamposteria_de_la_obra_mueve_el_sillar_y_no_el_tabique(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    """F6: el driver `desperdicio_mamposteria` lo lee el elemento del sillar amarillo (BAP-01010); el tabique de 14 cm no lo lee (M-105)."""
+    obra = str(escenario.obra_id)
+    antes = await control.post(SILLAR, json={"obra_id": obra})
+    assert _usados(antes)["desperdicio_mamposteria"]["fuente"] == "defecto" and antes.json()["parametros"]["desperdicio_de_pieza_pct"] == 5
+    tabique_antes = await control.post(TABIQUE, json={"obra_id": obra})
+    assert tabique_antes.status_code == 200, tabique_antes.text
+    r = await control.put(f"/api/v1/obras/{obra}/drivers/desperdicio_mamposteria", json={"valor": "10"})
+    assert r.status_code == 200, r.text
+    despues = await control.post(SILLAR, json={"obra_id": obra})
+    u = _usados(despues)["desperdicio_mamposteria"]
+    assert (u["valor"], u["fuente"]) == (10, "obra")
+    assert despues.json()["piezas"]["por_unidad"] > antes.json()["piezas"]["por_unidad"]
+    assert despues.json()["mezcla"]["por_unidad"] > antes.json()["mezcla"]["por_unidad"]
+    assert (await control.post(TABIQUE, json={"obra_id": obra})).json() == tabique_antes.json()
+    # Sin obra el cálculo no cambia, y la petición manda sobre el driver de la obra.
+    assert (await control.post(SILLAR, json={})).json()["piezas"] == antes.json()["piezas"]
+    p = await control.post(SILLAR, json={"obra_id": obra, "desperdicio_pct": 5})
+    assert _usados(p)["desperdicio_mamposteria"]["fuente"] == "peticion" and p.json()["piezas"] == antes.json()["piezas"]
+
+
 async def test_una_obra_inexistente_o_ajena_es_404_y_el_calculo_sin_obra_no_la_necesita(control: httpx.AsyncClient) -> None:
     r = await control.post(K1, json={"obra_id": str(uuid.uuid4())})
     assert r.status_code == 404, r.text
@@ -83,4 +106,6 @@ async def test_get_drivers_dice_quien_usa_cada_uno(control: httpx.AsyncClient, e
     assert {c["id"] for c in filas["altura_estandar"]["lo_usan"]} == {"estructura"}
     assert {c["id"] for c in filas["separacion_castillos"]["lo_usan"]} >= {"plantilla_colocar", "plantilla_vista_previa"}
     assert {c["id"]: c["lectura"] for c in filas["escarpio_minimo"]["lo_usan"]} == {"cimentacion_de_piedra": "constante"}
-    assert filas["desperdicio_mamposteria"]["lo_usan"] == [] and "tabique de 14 cm" in filas["desperdicio_mamposteria"]["sin_consumidor"]
+    # F6: el desperdicio de mampostería lo lee el elemento del sillar amarillo (el tabique de 14 cm no).
+    assert {c["id"] for c in filas["desperdicio_mamposteria"]["lo_usan"]} == {"muro_de_sillar"}
+    assert filas["desperdicio_mamposteria"]["sin_consumidor"] is None

@@ -100,7 +100,7 @@ CATALOGO_DE_DRIVERS: tuple[DefinicionDeDriver, ...] = (
     ),
     DefinicionDeDriver(
         "desperdicio_mamposteria", "Desperdicio de mampostería", "%", _d("5"), "ajustable",
-        "Ejemplo. No se aplica al tabique de 14 cm (EST-02010): su desperdicio va en el elemento (12 % pieza, 5 % mezcla).",
+        "Lo lee el muro de sillar amarillo BAP-01010 (pieza y mezcla). No se aplica al tabique de 14 cm (EST-02010): su desperdicio va en el elemento (12 % pieza, 5 % mezcla).",
         _d("0"), _d("100"), por_confirmar=True,
     ),
     DefinicionDeDriver(

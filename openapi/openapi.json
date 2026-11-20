@@ -15457,6 +15457,209 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/sillar/{clave}": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "La ficha del muro de sillar amarillo de la biblioteca (pieza 19×25×45, concepto BAP-01010, supuestos y pendientes)",
+        "operationId": "definicion_del_sillar_api_v1_biblioteca_de_elementos_sillar__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDelSillar"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de sillar con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/sillar/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Calcula el muro de sillar amarillo por m², lo contrasta con BAP-01010 y dice qué drivers leyó (solo cálculo)",
+        "operationId": "calcular_sillar_api_v1_biblioteca_de_elementos_sillar__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelSillarPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDelSillar"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de sillar con esa clave."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/sillar/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Las versiones de concepto propuestas, autorizadas y rechazadas del muro de sillar",
+        "operationId": "propuestas_de_sillar_api_v1_biblioteca_de_elementos_sillar__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas De Sillar Api V1 Biblioteca De Elementos Sillar  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de sillar con esa clave."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/sillar/{clave}/propuestas/actualizar-apu": {
+      "post": {
+        "tags": [
+          "biblioteca de elementos"
+        ],
+        "summary": "Confirmar el cálculo: proponer como nueva versión de BAP-01010 los coeficientes que difieren del catálogo",
+        "operationId": "proponer_actualizacion_de_apu_del_sillar_api_v1_biblioteca_de_elementos_sillar__clave__propuestas_actualizar_apu_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelSillarPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de sillar con esa clave."
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/baston/{clave}": {
       "get": {
         "tags": [
@@ -26839,6 +27042,177 @@
         ],
         "title": "CalculoDelMuroPeticion"
       },
+      "CalculoDelSillar": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "medida": {
+            "type": "string",
+            "const": "m2",
+            "title": "Medida"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoElegido"
+          },
+          "pieza": {
+            "$ref": "#/components/schemas/PiezaDeTabique"
+          },
+          "parametros": {
+            "$ref": "#/components/schemas/ParametrosDelTabique"
+          },
+          "geometria": {
+            "$ref": "#/components/schemas/GeometriaDelTabique"
+          },
+          "piezas": {
+            "$ref": "#/components/schemas/PiezasCalculadas"
+          },
+          "mezcla": {
+            "$ref": "#/components/schemas/MezclaCalculada"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDelSillar"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "mezcla_compuesta": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDeLaMezcla"
+            },
+            "type": "array",
+            "title": "Mezcla Compuesta"
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDelTabique"
+          },
+          "herramienta": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonDeHerramientaCalculado"
+            },
+            "type": "array",
+            "title": "Herramienta"
+          },
+          "conciliacion": {
+            "items": {
+              "$ref": "#/components/schemas/ConciliacionDelTabique"
+            },
+            "type": "array",
+            "title": "Conciliacion"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos"
+          },
+          "drivers_usados": {
+            "items": {
+              "$ref": "#/components/schemas/DriverUsadoRespuesta"
+            },
+            "type": "array",
+            "title": "Drivers Usados",
+            "description": "Los drivers que leyó el cálculo y de dónde salió cada valor."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "medida",
+          "unidad",
+          "cantidad",
+          "nivel",
+          "concepto",
+          "pieza",
+          "parametros",
+          "geometria",
+          "piezas",
+          "mezcla",
+          "insumos",
+          "mezcla_compuesta",
+          "mano_de_obra",
+          "herramienta",
+          "conciliacion",
+          "avisos"
+        ],
+        "title": "CalculoDelSillar"
+      },
+      "CalculoDelSillarPeticion": {
+        "properties": {
+          "cantidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cantidad",
+            "description": "m² de muro, ya sin huecos.",
+            "default": 1.0
+          },
+          "junta_cm": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Junta Cm",
+            "description": "Junta entre piezas. El catálogo no la trae: 2 cm es un supuesto (la del tabique), editable.",
+            "default": 2.0
+          },
+          "desperdicio_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desperdicio Pct",
+            "description": "Desperdicio de pieza y de mezcla. Si no se manda, vale el driver `desperdicio_mamposteria` de la obra (5 % de partida)."
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor de partida. Sin obra, todo vale lo de siempre."
+          }
+        },
+        "type": "object",
+        "title": "CalculoDelSillarPeticion"
+      },
       "CalculoDelTabique": {
         "properties": {
           "clave": {
@@ -34868,6 +35242,145 @@
         ],
         "title": "DefinicionDelElementoEstructural"
       },
+      "DefinicionDelSillar": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nombre_nominal": {
+            "type": "string",
+            "title": "Nombre Nominal"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "medida": {
+            "type": "string",
+            "const": "m2",
+            "title": "Medida"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeTabique"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeTabique"
+          },
+          "espesor_nominal_cm": {
+            "type": "integer",
+            "title": "Espesor Nominal Cm"
+          },
+          "espesor_real_cm": {
+            "type": "number",
+            "title": "Espesor Real Cm"
+          },
+          "aparejo": {
+            "type": "string",
+            "title": "Aparejo"
+          },
+          "aparejo_largo": {
+            "type": "string",
+            "title": "Aparejo Largo"
+          },
+          "aparejo_texto": {
+            "type": "string",
+            "title": "Aparejo Texto"
+          },
+          "planta_nota": {
+            "type": "string",
+            "title": "Planta Nota"
+          },
+          "pieza": {
+            "$ref": "#/components/schemas/PiezaDeTabique"
+          },
+          "mezcla": {
+            "type": "string",
+            "title": "Mezcla"
+          },
+          "parametros_por_defecto": {
+            "$ref": "#/components/schemas/ParametrosDelTabique"
+          },
+          "hiladas": {
+            "items": {
+              "$ref": "#/components/schemas/HiladaDelAparejo"
+            },
+            "type": "array",
+            "title": "Hiladas"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelTabique"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "driver_de_desperdicio": {
+            "type": "string",
+            "title": "Driver De Desperdicio",
+            "description": "El driver del Paramétrico que da el desperdicio (F6): `desperdicio_mamposteria`."
+          },
+          "piezas_por_unidad_de_partida": {
+            "type": "number",
+            "title": "Piezas Por Unidad De Partida",
+            "description": "Piezas por m² con la junta y el desperdicio de partida."
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "avisos_de_catalogo": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avisos De Catalogo"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDelTabique"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "nombre_nominal",
+          "tipo",
+          "medida",
+          "se_mide_por",
+          "categoria",
+          "subcategoria",
+          "espesor_nominal_cm",
+          "espesor_real_cm",
+          "aparejo",
+          "aparejo_largo",
+          "aparejo_texto",
+          "planta_nota",
+          "pieza",
+          "mezcla",
+          "parametros_por_defecto",
+          "hiladas",
+          "conceptos",
+          "driver_de_desperdicio",
+          "piezas_por_unidad_de_partida",
+          "fuente",
+          "avisos_de_catalogo",
+          "pendientes"
+        ],
+        "title": "DefinicionDelSillar"
+      },
       "DefinicionDelTabique": {
         "properties": {
           "clave": {
@@ -42430,6 +42943,60 @@
           "detalle"
         ],
         "title": "InsumoDelDren"
+      },
+      "InsumoDelSillar": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "sillar",
+              "mezcla"
+            ],
+            "title": "Parte"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_unidad": {
+            "type": "number",
+            "title": "Por Unidad"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "a_comprar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Comprar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_unidad",
+          "total",
+          "a_comprar"
+        ],
+        "title": "InsumoDelSillar"
       },
       "InsumoDelTabique": {
         "properties": {

@@ -12,7 +12,7 @@ Reglas (``reglas_de_ubicacion`` del mockup):
 
 El **material** de la mampostería es un parámetro de la plantilla, independiente de la **ubicación** (interior, pretil, barda…) y del
 tipo de muro (F2): una barda puede ser de tabique rojo, de sillar amarillo o de cantera rosa. Hechos del catálogo (C2, F7): el tabique
-rojo recocido es EST-02010 (14 cm); el sillar amarillo es de **19 cm** (BAP-01010, que existe como concepto pero aún no como elemento); no hay
+rojo recocido es EST-02010 (14 cm); el sillar amarillo es de **19 cm** (BAP-01010: concepto del catálogo y elemento de la biblioteca, `muro_sillar`); no hay
 concepto de block hueco ni de cantera rosa (por capturar: no se inventa ninguno).
 Funciones puras, sin base de datos.
 """
@@ -55,12 +55,12 @@ UBICACIONES_DE_MURO: dict[str, dict[str, Any]] = {
 MATERIALES_DE_MURO: dict[str, dict[str, Any]] = {
     "tabique_rojo": {"nombre": "Tabique rojo recocido 14 cm", "espesor_cm": 14, "elemento": "EST-02010", "concepto": "EST-02010"},
     "block_hueco": {"nombre": "Block hueco de concreto", "espesor_cm": None, "elemento": None, "concepto": None},
-    "sillar_amarillo": {"nombre": "Sillar amarillo 19 cm", "espesor_cm": 19, "elemento": None, "concepto": "BAP-01010"},
+    "sillar_amarillo": {"nombre": "Sillar amarillo 19 cm", "espesor_cm": 19, "elemento": "BAP-01010", "concepto": "BAP-01010"},
     "cantera_rosa": {"nombre": "Cantera rosa", "espesor_cm": None, "elemento": None, "concepto": None},
 }
-"""Los materiales de la mampostería. `elemento` es el elemento de la biblioteca que lo paga (solo el tabique rojo, EST-02010); `concepto` es
+"""Los materiales de la mampostería. `elemento` es el elemento de la biblioteca que lo paga (el tabique rojo, EST-02010, y el sillar amarillo, BAP-01010); `concepto` es
 el concepto del catálogo de presupuesto que lo cubre: `None` = no hay concepto, por capturar (block hueco y cantera rosa), y una plantilla
-con ese material **no se puede validar** (C3). El sillar amarillo tiene concepto (BAP-01010, 19 cm) pero aún no es un elemento (F7)."""
+con ese material **no se puede validar** (C3). El sillar amarillo tiene concepto (BAP-01010, 19 cm) y elemento (F7); el block hueco y la cantera rosa siguen sin ninguno."""
 
 
 def ubicacion_valida(ubicacion: str) -> str:

@@ -23,6 +23,7 @@ from obractrl.adapters.api.v1.bastones import router as router_bastones
 from obractrl.adapters.api.v1.biblioteca_de_elementos import router as router_biblioteca
 from obractrl.adapters.api.v1.elementos_de_estructura import router as router_estructura
 from obractrl.adapters.api.v1.elementos_estructurales import router as router_lineal
+from obractrl.adapters.api.v1.muros_de_sillar import router as router_sillar
 from obractrl.adapters.api.v1.muros_de_tabique import router as router_tabique
 from obractrl.adapters.api.v1.receta_acero import router as router_receta
 from obractrl.domain.cuantificacion.cambio_de_unidad import (
@@ -75,7 +76,7 @@ class _DriversDeObra:
 
 def _cliente(de_obra: dict[str, str], globales: dict[str, str] | None = None) -> TestClient:
     app = FastAPI()
-    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_biblioteca):
+    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_sillar, router_biblioteca):
         app.include_router(r)
     proveedor = _DriversDeObra(de_obra, globales)
     app.dependency_overrides[obtener_drivers_de_obra] = lambda: proveedor
@@ -85,7 +86,7 @@ def _cliente(de_obra: dict[str, str], globales: dict[str, str] | None = None) ->
 def _sin_sesion() -> TestClient:
     """La aplicación tal cual, SIN reemplazar la dependencia: sin `obra_id` no debe pedir token ni base de datos."""
     app = FastAPI()
-    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_biblioteca):
+    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_sillar, router_biblioteca):
         app.include_router(r)
     return TestClient(app)
 
@@ -101,6 +102,7 @@ K1 = "/biblioteca-de-elementos/estructura/EST-02130/calcular"
 BA = "/biblioteca-de-elementos/baston/BA-1/calcular"
 TRABE = "/biblioteca-de-elementos/estructura-lineal/T-1-15x25/calcular"
 RECETA = "/biblioteca-de-elementos/receta-acero/calcular"
+SILLAR = "/biblioteca-de-elementos/sillar/BAP-01010/calcular"
 
 
 def test_castillo_el_driver_de_la_obra_manda_sobre_el_defecto_y_la_peticion_sobre_el_driver() -> None:
@@ -160,6 +162,7 @@ CUERPOS = [
     ("/biblioteca-de-elementos/estructura/EST-02140/calcular", {"alto_m": 7.0, "drivers": {"tolerancia_corte_cm": 5}}),
     (TRABE, {"desperdicio_concreto_pct": 8}),
     (BA, {"trazo_m": 10, "largo_cm": 800}),
+    (SILLAR, {"cantidad": 12}),
     (RECETA, {"forma": "castillo", "ancho_cm": 15, "peralte_cm": 15, "longitud_m": 2.6, "varillas": [{"clave": "ACR-00001", "numero": 3, "peso_kg_m": 0.56, "cantidad": 4}], "anillos": [{"sep_cm": 20, "peso_kg_m": 0.249}]}),
 ]
 
@@ -190,6 +193,25 @@ def test_el_tabique_no_aplica_el_driver_de_desperdicio_de_mamposteria() -> None:
     a = _cliente({}).post("/biblioteca-de-elementos/tabique/EST-02010/calcular", json=cuerpo).json()
     b = _cliente({"desperdicio_mamposteria": "40"}).post("/biblioteca-de-elementos/tabique/EST-02010/calcular", json={**cuerpo}).json()
     assert a == b and a["parametros"]["desperdicio_de_pieza_pct"] == 12 and a["parametros"]["desperdicio_de_mezcla_pct"] == 5
+
+
+def test_el_sillar_amarillo_lee_el_desperdicio_de_mamposteria_de_la_obra_y_la_peticion_manda() -> None:
+    """F6: el elemento del sillar amarillo (BAP-01010) es el consumidor del driver; petición > obra > valor de partida."""
+    c = _cliente({"desperdicio_mamposteria": "9"})
+    r = c.post(SILLAR, json={"obra_id": str(OBRA), "cantidad": 10})
+    u = _usados(r)
+    assert set(u) == {"desperdicio_mamposteria"}
+    assert u["desperdicio_mamposteria"]["valor"] == 9 and u["desperdicio_mamposteria"]["fuente"] == "obra"
+    p = r.json()["parametros"]
+    assert p["desperdicio_de_pieza_pct"] == p["desperdicio_de_mezcla_pct"] == 9
+    assert r.json()["piezas"]["por_unidad"] == pytest.approx(r.json()["piezas"]["netas_por_unidad"] * 1.09)
+    assert r.json()["mezcla"]["por_unidad"] == pytest.approx(r.json()["mezcla"]["neta_por_unidad"] * 1.09)
+    m = c.post(SILLAR, json={"obra_id": str(OBRA), "desperdicio_pct": 3})
+    assert _usados(m)["desperdicio_mamposteria"]["valor"] == 3 and _usados(m)["desperdicio_mamposteria"]["fuente"] == "peticion"
+    # Con la obra en el valor de partida y sin obra, el cálculo es el mismo (5 %).
+    de_partida = _cliente({}).post(SILLAR, json={"obra_id": str(OBRA)}).json()
+    assert _usados(_cliente({}).post(SILLAR, json={"obra_id": str(OBRA)}))["desperdicio_mamposteria"]["fuente"] == "defecto"
+    assert de_partida["parametros"]["desperdicio_de_pieza_pct"] == 5
 
 
 def test_los_cimientos_de_piedra_leen_el_escarpio_y_la_corona_como_constantes_iguales_a_los_drivers_fijos() -> None:
@@ -248,6 +270,7 @@ _BASES_DE_PRUEBA: dict[str, list[tuple[str, dict[str, Any]]]] = {
         for largo in (3.0, 7.0, 16.0)
     ],
     "baston": [(BA, {"trazo_m": 10, "largo_cm": largo, "varilla_numero": 3}) for largo in (120, 400, 900, 1350, 1700)],
+    "muro_de_sillar": [(SILLAR, {"cantidad": cantidad}) for cantidad in (1, 25.5)],
 }
 
 

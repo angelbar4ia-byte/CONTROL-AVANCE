@@ -352,7 +352,7 @@ export async function cajaEstable(
 /**
  * Un alto de castillo propio de cada spec: la firma anti-duplicados (M-29) rechaza un elemento idéntico a otro, y todos los specs comparten la
  * base. Cada spec reserva un rango de 0.1 m que NINGÚN otro usa (resolución de 1e-7, la firma redondea a 1e-6):
- *   0.5 zz-elementos-clasificacion · 2.0 zj-colocar-elemento · 2.5 zz-colocar-plantilla · 3.0 zs-toma-de-elementos · 3.1 zz-insumos-del-elemento ·
+ *   0.5 zz-elementos-clasificacion · 2.0 zj-colocar-elemento · 2.5 zz-colocar-plantilla · 3.0 zs-toma-de-elementos · 3.1 zz-insumos-del-elemento · 7.0 zz-muro-de-sillar ·
  *   3.2 zz-autorizacion-de-elementos · 3.5 zz-conceptos-por-contexto · 6.0 zz-encuadre-del-visor · 9.0 zz-conceptos-por-contexto (segundo).
  * Un spec nuevo que cree castillos con alto aleatorio toma un rango libre (p. ej. 7.0, 8.0) y lo anota aquí. Los castillos con `largo` propio
  * (0.15 + n/1e4 en zz-artefacto y zz-drivers; 0.40 a 0.41 en los de prototipos) tienen su propio espacio.
