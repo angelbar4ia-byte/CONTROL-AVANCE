@@ -31129,6 +31129,19 @@
               }
             ],
             "title": "Partida Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde se midió (0143). Un muro compartido sale con una fila por espacio y la parte que le toca a cada uno: suman lo del muro."
           }
         },
         "type": "object",

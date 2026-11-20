@@ -397,6 +397,7 @@ export * from "./conceptoCalculadoRanura";
 export type * from "./conceptoColocadoRespuesta";
 export type * from "./conceptoColocadoRespuestaAviso";
 export type * from "./conceptoColocadoRespuestaConceptoId";
+export type * from "./conceptoColocadoRespuestaEspacioId";
 export * from "./conceptoColocadoRespuestaEstado";
 export * from "./conceptoColocadoRespuestaOrigen";
 export type * from "./conceptoColocadoRespuestaPartidaId";

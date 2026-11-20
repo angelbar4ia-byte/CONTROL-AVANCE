@@ -161,6 +161,15 @@ async def test_un_muro_sin_espacio_sigue_como_siempre_y_con_espacio_cuenta_en_la
     assert await _medido(control, escenario, de_b["actividad"]) == pytest.approx(7)
     espacios = {e["id"]: e for e in (await control.get(f"{API}/obras/{escenario.obra_id}/espacios")).json()}
     assert espacios[recamara["id"]]["muros"] == 1 and espacios[bano["id"]]["muros"] == 1
+    # El reporte de lo colocado dice lo mismo: una fila por espacio con su parte y su partida, y las partes suman los 10 m del muro.
+    colocacion = (await control.get(f"{API}/trazos/{muro}/muro/plantilla/colocacion")).json()
+    (cadena,) = [e for e in colocacion["elementos"] if e["clase"] == "cadena"]
+    por_espacio = {c["espacio_id"]: (Decimal(c["cantidad"]), c["partida_id"], c["cuenta"]) for c in cadena["conceptos"]}
+    assert por_espacio == {
+        recamara["id"]: (Decimal(3), de_r["partida"], True),
+        bano["id"]: (Decimal(7), de_b["partida"], True),
+    }
+    assert sum(c[0] for c in por_espacio.values()) == Decimal(10)
 
     # El plano trae la asignación en las propiedades del trazo.
     plano = (await control.get(f"{API}/obras/{escenario.obra_id}/planos")).json()[0]["id"]

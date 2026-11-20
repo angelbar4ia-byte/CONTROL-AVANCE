@@ -11,6 +11,7 @@ import type { ConceptoColocadoRespuestaEstado } from "./conceptoColocadoRespuest
 import type { ConceptoColocadoRespuestaOrigen } from "./conceptoColocadoRespuestaOrigen";
 import type { ConceptoColocadoRespuestaAviso } from "./conceptoColocadoRespuestaAviso";
 import type { ConceptoColocadoRespuestaPartidaId } from "./conceptoColocadoRespuestaPartidaId";
+import type { ConceptoColocadoRespuestaEspacioId } from "./conceptoColocadoRespuestaEspacioId";
 
 export interface ConceptoColocadoRespuesta {
   ranura: ConceptoColocadoRespuestaRanura;
@@ -26,4 +27,6 @@ export interface ConceptoColocadoRespuesta {
   origen: ConceptoColocadoRespuestaOrigen;
   aviso: ConceptoColocadoRespuestaAviso;
   partida_id: ConceptoColocadoRespuestaPartidaId;
+  /** El espacio donde se midió (0143). Un muro compartido sale con una fila por espacio y la parte que le toca a cada uno: suman lo del muro. */
+  espacio_id?: ConceptoColocadoRespuestaEspacioId;
 }
