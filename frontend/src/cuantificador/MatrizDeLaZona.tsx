@@ -9,6 +9,8 @@
  *   conceptos nuevos son **propuestos** con clave provisional (sin precio ni destajo con importe); Costos o Control de obra los proponen y solo
  *   Control de obra los autoriza (en la tarjeta del elemento, o con «Proponer los conceptos que faltan»).
  * - La **conciliación** del total de la zona contra un concepto del catálogo vigente (el catálogo no se edita).
+ * - Por **espacio** (0143): cada elemento (y cada polígono de losa, desde su detalle) dice en qué espacio está; la matriz se reparte por espacio (la suma es
+ *   el total de la zona) y cada concepto dice en qué partida del árbol se mide, o por qué no cuenta.
  *
  * No calcula nada: pinta lo que responde el servidor.
  */
@@ -25,10 +27,11 @@ import {
   useProponerConceptosDeLaZonaApiV1ZonasDeLosaZonaIdMatrizProponerConceptosPost,
   useQuitarElementoApiV1ElementosDeLosaElementoIdDelete,
 } from '@/api/generado/losas/losas';
-import type { ElementoCalculado, ZonaDeLosa } from '@/api/generado/modelo';
+import type { ElementoCalculado, Espacio, ZonaDeLosa } from '@/api/generado/modelo';
 import { useCambiarZonaApiV1ZonasDeLosaZonaIdPut } from '@/api/generado/zonas-de-losa/zonas-de-losa';
 import { queryClient } from '@/app/queryClient';
 
+import { NOMBRE_DEL_ESTADO_DE_PARTIDA } from './espacios';
 import { numeroTecleado } from './volumen';
 
 function mensaje(err: unknown, defecto: string): string {
@@ -53,6 +56,8 @@ const MARCA: Record<string, { texto: string; clase: string }> = {
 
 function refrescar() {
   void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
+  // Los espacios cuentan lo que tienen asignado (elementos, losas, muros): cambia al agregar, mover o quitar un elemento.
+  void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/espacios') });
   void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/biblioteca-de-elementos') });
 }
 
@@ -61,11 +66,13 @@ interface Props {
   readonly puedeEditar: boolean;
   /** El rol de quien mira: Costos y Control de obra proponen los conceptos nuevos. */
   readonly rol: string | null;
+  /** Los espacios de la obra (0143): con ellos cada elemento elige el suyo y la matriz se reparte por espacio. */
+  readonly espacios?: readonly Espacio[];
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
 }
 
-export function MatrizDeLaZona({ zona, puedeEditar, rol, onCambio, onError }: Props) {
+export function MatrizDeLaZona({ zona, puedeEditar, rol, espacios = [], onCambio, onError }: Props) {
   const [abierta, setAbierta] = useState(false);
   return (
     <div className="zonas-losa__matriz" data-testid="matriz-de-la-zona" data-zona={zona.id}>
@@ -83,12 +90,12 @@ export function MatrizDeLaZona({ zona, puedeEditar, rol, onCambio, onError }: Pr
           Losa {zona.tipo_de_losa === 'nervada' ? 'nervada' : 'maciza'} · {zona.uso_de_losa === 'azotea' ? 'azotea' : 'entrepiso'}
         </span>
       </div>
-      {abierta && <CuerpoDeLaMatriz zona={zona} puedeEditar={puedeEditar} rol={rol} onCambio={onCambio} onError={onError} />}
+      {abierta && <CuerpoDeLaMatriz zona={zona} puedeEditar={puedeEditar} rol={rol} espacios={espacios} onCambio={onCambio} onError={onError} />}
     </div>
   );
 }
 
-function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) {
+function CuerpoDeLaMatriz({ zona, puedeEditar, rol, espacios = [], onCambio, onError }: Props) {
   const [conciliar, setConciliar] = useState('');
   const [aConciliar, setAConciliar] = useState('');
   const consulta = useMatrizDeLaZonaApiV1ZonasDeLosaZonaIdMatrizGet(zona.id, aConciliar === '' ? undefined : { concepto_clave: aConciliar }, {
@@ -105,6 +112,7 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) 
   const [cantidad, setCantidad] = useState('10');
   const [largo, setLargo] = useState('4.00');
   const [pago, setPago] = useState<'en_la_losa' | 'propio'>('en_la_losa');
+  const [espacioPorAgregar, setEspacioPorAgregar] = useState('');
   const m = consulta.data;
   const permitidos = ficha.data?.elementos_permitidos ?? [];
   const elegida = clave || permitidos[0]?.clave || '';
@@ -135,7 +143,7 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) 
     try {
       await agregar.mutateAsync({
         zonaId: zona.id,
-        data: { elemento_clave: elegida, modo, cantidad: q, largo_m: modo === 'pieza' ? l : null, pago },
+        data: { elemento_clave: elegida, modo, cantidad: q, largo_m: modo === 'pieza' ? l : null, pago, ...(espacioPorAgregar ? { espacio_id: espacioPorAgregar } : {}) },
       });
       refrescar();
       onCambio(`${elegida} agregado a la matriz de «${zona.nombre}».`);
@@ -150,13 +158,31 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) 
       await cambiarElemento.mutateAsync({
         elementoId: e.id,
         data: {
-          elemento_clave: e.clave, modo: e.modo, pago: nuevo,
+          elemento_clave: e.clave, modo: e.modo, pago: nuevo, ...(e.espacio_id ? { espacio_id: e.espacio_id } : {}),
           ...(e.origen === 'trazo' && e.trazo_id ? { trazo_id: e.trazo_id } : { cantidad: e.cantidad, largo_m: e.largo_m }),
         },
       });
       refrescar();
     } catch (err) {
       onError(mensaje(err, 'No se pudo cambiar el pago del elemento.'));
+    }
+  }
+
+  async function cambiarElEspacio(e: ElementoCalculado, nuevo: string) {
+    if (!e.id) return;
+    try {
+      await cambiarElemento.mutateAsync({
+        elementoId: e.id,
+        data: {
+          elemento_clave: e.clave, modo: e.modo, pago: e.pago, espacio_id: nuevo || null,
+          ...(e.origen === 'trazo' && e.trazo_id ? { trazo_id: e.trazo_id } : { cantidad: e.cantidad, largo_m: e.largo_m }),
+        },
+      });
+      refrescar();
+      void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/cuantificacion') });
+      onCambio(nuevo ? `${e.clave} asignado a su espacio.` : `${e.clave} quedó sin espacio.`);
+    } catch (err) {
+      onError(mensaje(err, 'No se pudo asignar el espacio del elemento.'));
     }
   }
 
@@ -253,6 +279,22 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) 
                   <option value="en_la_losa">paga la losa</option>
                   <option value="propio">paga su concepto por ml</option>
                 </select>
+                {(espacios.length > 0 || e.espacio_id) && (
+                  <select
+                    className="input"
+                    aria-label={`Espacio de ${e.clave}`}
+                    value={e.espacio_id ?? ''}
+                    disabled={!puedeEditar || cambiarElemento.isPending}
+                    onChange={(ev) => void cambiarElEspacio(e, ev.target.value)}
+                  >
+                    <option value="">sin espacio</option>
+                    {espacios.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.nombre}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {puedeEditar && (
                   <button type="button" className="btn btn--sm" aria-label={`Quitar ${e.clave} de la matriz`} onClick={() => void quitarElemento(e)}>
                     Quitar
@@ -282,6 +324,16 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) 
                 <option value="en_la_losa">paga la losa</option>
                 <option value="propio">paga su concepto por ml</option>
               </select>
+              {espacios.length > 0 && (
+                <select className="input" aria-label="Espacio del elemento por agregar" value={espacioPorAgregar} onChange={(e) => setEspacioPorAgregar(e.target.value)}>
+                  <option value="">sin espacio</option>
+                  {espacios.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.nombre}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button type="button" className="btn btn--sm btn--primary" disabled={agregar.isPending} onClick={() => void agregarElemento()}>
                 Agregar elemento
               </button>
@@ -321,6 +373,53 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, onCambio, onError }: Props) 
               ))}
             </tbody>
           </table>
+          {(m.por_espacio ?? []).some((g) => g.espacio_id) && (
+            <div data-testid="matriz-por-espacio">
+              <p className="text-xs">
+                Por espacio: cada polígono y cada elemento está en un solo espacio, así que la suma de los espacios es el total de la zona. Solo cuenta en el
+                presupuesto lo asignado a un espacio, con concepto del catálogo y partida en el árbol.
+              </p>
+              <table className="table" aria-label="Matriz de la zona por espacio">
+                <thead>
+                  <tr>
+                    <th>Espacio</th>
+                    <th>Concepto</th>
+                    <th>Cantidad</th>
+                    <th>Partida</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(m.por_espacio ?? []).flatMap((g) =>
+                    g.conceptos
+                      .filter((c) => c.cantidad > 0)
+                      .map((c, i) => (
+                        <tr
+                          key={`${g.espacio_id ?? 'sin'}-${c.concepto.clave}-${c.elemento_clave}-${i}`}
+                          data-espacio={g.espacio_nombre ?? 'sin espacio'}
+                          data-concepto={c.concepto.clave}
+                          data-estado-de-partida={c.resolucion?.estado ?? ''}
+                        >
+                          <td>{g.espacio_nombre ?? 'sin espacio'}</td>
+                          <td className="mono">{c.concepto.clave}</td>
+                          <td className="mono">
+                            {num(c.cantidad)} {unidadVisible(c.unidad)}
+                          </td>
+                          <td>
+                            {c.resolucion?.cuenta ? (
+                              <span className="badge badge--ok">{c.resolucion.partida_nombre ?? 'partida del árbol'}</span>
+                            ) : (
+                              <span className="badge badge--warn" title={c.resolucion?.aviso ?? undefined}>
+                                {NOMBRE_DEL_ESTADO_DE_PARTIDA[c.resolucion?.estado ?? ''] ?? 'sin resolver'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
           {puedeProponer && sinProponer.length > 0 && (
             <button type="button" className="btn btn--sm" disabled={proponer.isPending} onClick={() => void proponerFaltantes()}>
               Proponer los conceptos que faltan ({sinProponer.length})

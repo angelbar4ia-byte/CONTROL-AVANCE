@@ -2633,6 +2633,8 @@ export function EspacioDeTrazo({
             <ZonaDeLosaDelTrazo
               trazoId={seleccionado.id as string}
               planoId={planoElegido}
+              obraId={obraId}
+              conGrosor={seleccionado.properties.grosor_m != null}
               tipoDeGeometria={String(seleccionado.geometry.type)}
               esMuro={seleccionado.geometry.type === 'LineString'}
               losaZonaId={seleccionado.properties.losa_zona_id ?? null}
@@ -2950,6 +2952,7 @@ export function EspacioDeTrazo({
           />
           <PanelDeZonasDeLosa
             planoId={planoElegido}
+            obraId={obraId}
             puedeEditar={sesion?.rol === 'control_obra'}
             rol={sesion?.rol ?? null}
             colocando={zonaPorColocar}

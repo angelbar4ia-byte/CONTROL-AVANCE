@@ -8,6 +8,8 @@
  *   (su cota y su rótulo) o un muro (qué zona, altura, enrase y cara aplicarían, por tramo). Lo del muro es una sugerencia: solo se
  *   aplica al pulsar «Aplicar al muro». Una línea (una trabe, una nervadura) se puede **medir como elemento de la losa** de una zona: su longitud
  *   deriva de la línea y de la escala del plano.
+ * - La capa «espacio» (0143): el panel muestra los espacios de la obra y el detalle del trazo asigna un polígono de losa o un muro a su espacio (un muro
+ *   también se comparte entre dos); la matriz de cada zona reparte sus elementos por espacio.
  */
 
 import { useState } from 'react';
@@ -31,6 +33,7 @@ import {
   useAgregarElementoApiV1ZonasDeLosaZonaIdElementosPost,
   useDefinicionDeLaLosaApiV1BibliotecaDeElementosLosaClaveGet,
 } from '@/api/generado/losas/losas';
+import { EspacioDelTrazo, PanelDeEspacios, useEspaciosDeLaObra } from './EspaciosDeLaObra';
 import { MatrizDeLaZona } from './MatrizDeLaZona';
 import { NOMBRE_DE_CARA, NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
 
@@ -45,6 +48,8 @@ export type PorColocar =
 
 interface PanelProps {
   readonly planoId: string;
+  /** La obra del plano (0143): con ella el panel muestra los espacios y la matriz de cada zona se reparte por espacio. */
+  readonly obraId?: string;
   readonly puedeEditar: boolean;
   /** El rol de quien mira: Costos y Control de obra proponen los conceptos nuevos de la matriz. */
   readonly rol?: string | null;
@@ -73,8 +78,9 @@ function datosDe(b: Borrador) {
   };
 }
 
-export function PanelDeZonasDeLosa({ planoId, puedeEditar, rol = null, colocando, onColocar, onCambio, onError }: PanelProps) {
+export function PanelDeZonasDeLosa({ planoId, obraId = '', puedeEditar, rol = null, colocando, onColocar, onCambio, onError }: PanelProps) {
   const consulta = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(planoId, { query: { enabled: planoId !== '' } });
+  const espacios = useEspaciosDeLaObra(obraId);
   const crear = useCrearZonaApiV1PlanosPlanoIdZonasDeLosaPost<ErrorApi>();
   const cambiar = useCambiarZonaApiV1ZonasDeLosaZonaIdPut<ErrorApi>();
   const borrar = useBorrarZonaApiV1ZonasDeLosaZonaIdDelete<ErrorApi>();
@@ -132,6 +138,8 @@ export function PanelDeZonasDeLosa({ planoId, puedeEditar, rol = null, colocando
   );
 
   return (
+    <>
+    {obraId !== '' && <PanelDeEspacios obraId={obraId} puedeEditar={puedeEditar} onCambio={onCambio} onError={onError} />}
     <section className="zonas-losa" aria-label="Zonas de losa" data-testid="zonas-de-losa">
       <div className="estacion__subencabezado">
         <span className="estacion__subtitulo">Zonas de losa</span>
@@ -171,7 +179,7 @@ export function PanelDeZonasDeLosa({ planoId, puedeEditar, rol = null, colocando
             {z.losas.length} {z.losas.length === 1 ? 'losa' : 'losas'}
             {z.losas.some((l) => l.espesor_propio_m != null) && ` · subzonas: ${z.losas.filter((l) => l.espesor_propio_m != null).length}`}
           </div>
-          <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} onCambio={onCambio} onError={onError} />
+          <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           {puedeEditar && (
             <div className="row">
               <button
@@ -246,14 +254,19 @@ export function PanelDeZonasDeLosa({ planoId, puedeEditar, rol = null, colocando
         </p>
       )}
     </section>
+    </>
   );
 }
 
 interface TrazoProps {
   readonly trazoId: string;
   readonly planoId: string;
+  /** La obra del plano (0143): con ella el detalle del trazo ofrece asignarlo a un espacio. */
+  readonly obraId?: string;
   readonly tipoDeGeometria: string;
   readonly esMuro: boolean;
+  /** El trazo es una línea con grosor, o sea un muro: solo un muro se asigna a un espacio o se comparte entre dos. */
+  readonly conGrosor?: boolean;
   readonly losaZonaId: string | null;
   readonly losaEspesorM: string | null;
   readonly nivelExteriorM: string | null;
@@ -268,12 +281,28 @@ export function ZonaDeLosaDelTrazo(p: TrazoProps) {
   const zonasConsulta = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(p.planoId, { query: { enabled: p.planoId !== '' } });
   const zonas = zonasConsulta.data?.zonas ?? [];
   const hayZonas = zonas.length > 0;
-  if (p.tipoDeGeometria === 'Polygon') return <RolDeLosa {...p} zonas={zonas} />;
+  const obraId = p.obraId ?? '';
+  if (p.tipoDeGeometria === 'Polygon') {
+    return (
+      <>
+        <RolDeLosa {...p} zonas={zonas} />
+        {p.losaZonaId && obraId !== '' && (
+          <EspacioDelTrazo obraId={obraId} trazoId={p.trazoId} esMuro={false} puedeEditar={p.puedeEditar} onCambio={p.onCambio} onError={p.onError} />
+        )}
+      </>
+    );
+  }
   if (p.tipoDeGeometria === 'Point') return <PuntoDeNivel {...p} />;
+  if (p.tipoDeGeometria === 'LineString' && p.conGrosor && obraId !== '' && !hayZonas) {
+    return <EspacioDelTrazo obraId={obraId} trazoId={p.trazoId} esMuro puedeEditar={p.puedeEditar} onCambio={p.onCambio} onError={p.onError} />;
+  }
   if (p.tipoDeGeometria === 'LineString' && hayZonas) {
     return (
       <>
         {p.esMuro && <ZonaDelMuro {...p} />}
+        {p.conGrosor && obraId !== '' && (
+          <EspacioDelTrazo obraId={obraId} trazoId={p.trazoId} esMuro puedeEditar={p.puedeEditar} onCambio={p.onCambio} onError={p.onError} />
+        )}
         {p.puedeEditar && <ElementoDeLosaDeLaLinea {...p} zonas={zonas} />}
       </>
     );

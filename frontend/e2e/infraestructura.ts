@@ -355,7 +355,8 @@ export async function cajaEstable(
  *   0.5 zz-elementos-clasificacion · 2.0 zj-colocar-elemento · 2.5 zz-colocar-plantilla · 3.0 zs-toma-de-elementos · 3.1 zz-insumos-del-elemento · 7.0 zz-muro-de-sillar ·
  *   3.2 zz-autorizacion-de-elementos · 3.5 zz-conceptos-por-contexto · 6.0 zz-encuadre-del-visor · 9.0 zz-conceptos-por-contexto (segundo) ·
  *   8.0 zz-flujo-completo (el castillo que propone Costos; el rango 8.1 queda reservado para su siguiente castillo) ·
- *   10.0 zz-matriz-de-losa (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(10.0)`).
+ *   10.0 zz-matriz-de-losa (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(10.0)`) ·
+ *   11.0 zz-espacios (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(11.0)`).
  * Un spec nuevo que cree castillos con alto aleatorio toma un rango libre (p. ej. 7.0, 8.0) y lo anota aquí. Los castillos con `largo` propio
  * (0.15 + n/1e4 en zz-artefacto y zz-drivers; 0.40 a 0.41 en los de prototipos) tienen su propio espacio.
  */
