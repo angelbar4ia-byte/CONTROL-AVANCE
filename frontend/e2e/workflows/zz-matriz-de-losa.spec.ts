@@ -73,13 +73,13 @@ test.describe('Cuantificador · matriz de conceptos de la losa', () => {
     await expect(matriz.getByTestId('matriz-resumen')).toContainText('Área 32.00 m²');
     await expect(matriz.getByTestId('matriz-resumen')).toContainText('CON-00003'); // entrepiso
     await expect(matriz.getByTestId('matriz-resumen')).toContainText('cimbra 32.00 m²');
-    await expect(matriz.getByText(/no tiene escala calibrada/)).toBeVisible();
+    await expect(matriz.getByText(/no tiene escala calibrada/).first()).toBeVisible();
     await expect(matriz.locator('[data-concepto="EJ-800"]')).toBeVisible(); // el concepto de la losa por m² (provisional)
     await expect(matriz.getByTestId('matriz-sin-mano-de-obra')).toContainText('Sin precios');
 
     // Una trabe a mano: su acero lo paga su auxiliar del catálogo y la losa sigue pagando su concreto y su cimbra.
-    await matriz.getByLabel('Elemento por agregar').selectOption('T-1-15x25');
-    await matriz.getByLabel('Cantidad del elemento').fill('10');
+    await matriz.getByLabel('Elemento por agregar', { exact: true }).selectOption('T-1-15x25');
+    await matriz.getByLabel('Cantidad del elemento', { exact: true }).fill('10');
     await matriz.getByRole('button', { name: 'Agregar elemento' }).click();
     await expect(matriz.getByTestId('elemento-de-la-zona')).toHaveCount(1);
     await expect(matriz.getByTestId('elemento-de-la-zona')).toContainText('10.00 ml');
@@ -100,11 +100,11 @@ test.describe('Cuantificador · matriz de conceptos de la losa', () => {
     await expect(matriz.locator('[data-concepto="EJ-800"]')).toHaveCount(0);
     await expect(zonaEl).toContainText('Losa nervada · entrepiso');
 
-    // Una LÍNEA dibujada en el plano mide una contratrabe: su longitud deriva de la línea, no se teclea.
+    // Una LÍNEA dibujada en el plano (fuera del cuadro de opciones y de las losas) mide una contratrabe: su longitud deriva de la línea, no se teclea.
     const c = await cajaEstable(page, lienzo);
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
-    await page.mouse.click(c.x + c.width * 0.1, c.y + c.height * 0.72);
-    await page.mouse.click(c.x + c.width * 0.3, c.y + c.height * 0.94);
+    await page.mouse.click(c.x + c.width * 0.62, c.y + c.height * 0.76);
+    await page.mouse.click(c.x + c.width * 0.9, c.y + c.height * 0.94);
     await expect.poll(async () => (await trazos()).filter((t) => t.geometry.type === 'LineString').length).toBe(1);
     const linea = (await trazos()).find((t) => t.geometry.type === 'LineString')!;
     const [[x1, y1], [x2, y2]] = linea.geometry.coordinates as [[number, number], [number, number]];
