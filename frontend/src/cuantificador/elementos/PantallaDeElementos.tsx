@@ -1,7 +1,7 @@
 /**
  * El área de trabajo de la pestaña «Elementos»: solo la tarjeta del elemento elegido en la biblioteca (que vive en el
  * panel izquierdo): los muros de piedra MCT-01010 (contención) y CIM-01010 (cimentación) y los castillos, aparentes y columnas
- * forjadas, los muros de tabique con sus aparejos y el piso de petatillo, y los elementos estructurales lineales (trabes,
+ * forjadas, los muros de tabique con sus aparejos, el muro de sillar amarillo BAP-01010 y el piso de petatillo, y los elementos estructurales lineales (trabes,
  * contratrabes, nervaduras, zapata Z-1 y columna C-1) y el bastón BA-1 (por longitud de trazo).
  */
 
@@ -13,9 +13,11 @@ import { TarjetaEstructura } from './TarjetaEstructura';
 
 import { TarjetaMuroCimentacion } from './TarjetaMuroCimentacion';
 import { TarjetaMuroContencion } from './TarjetaMuroContencion';
+import { TarjetaMuroSillar } from './TarjetaMuroSillar';
 import { TarjetaMuroTabique } from './TarjetaMuroTabique';
 
 const TIPO_DE_TABIQUE = 'tabique';
+const TIPO_DE_SILLAR = 'sillar';
 const TIPO_DE_BASTON = 'baston';
 const TIPOS_LINEALES = new Set(['lineal_estructural', 'zapata_aislada', 'columna_de_concreto']);
 
@@ -40,6 +42,9 @@ export function PantallaDeElementos({
   const esDeTabique = (biblioteca.data ?? []).some((c) =>
     c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && e.tipo === TIPO_DE_TABIQUE)),
   );
+  const esDeSillar = (biblioteca.data ?? []).some((c) =>
+    c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && e.tipo === TIPO_DE_SILLAR)),
+  );
   const esBaston = (biblioteca.data ?? []).some((c) =>
     c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && e.tipo === TIPO_DE_BASTON)),
   );
@@ -52,6 +57,8 @@ export function PantallaDeElementos({
           <TarjetaEstructura clave={clave} obraId={obraId} />
         ) : clave && esDeTabique ? (
           <TarjetaMuroTabique key={clave} clave={clave} />
+        ) : clave && esDeSillar ? (
+          <TarjetaMuroSillar key={clave} clave={clave} obraId={obraId} />
         ) : clave && esBaston ? (
           <TarjetaBaston key={clave} clave={clave} obraId={obraId} />
         ) : clave && esLineal ? (

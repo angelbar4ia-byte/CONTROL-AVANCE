@@ -36,6 +36,8 @@ import type {
   CalculoDelElementoEstructuralPeticion,
   CalculoDelMuro,
   CalculoDelMuroPeticion,
+  CalculoDelSillar,
+  CalculoDelSillarPeticion,
   CalculoDelTabique,
   CalculoDelTabiquePeticion,
   CalculoDelTrazo,
@@ -48,6 +50,7 @@ import type {
   DefinicionDelBaston,
   DefinicionDelElemento,
   DefinicionDelElementoEstructural,
+  DefinicionDelSillar,
   DefinicionDelTabique,
   FilaDeTabiqueRevision,
   HTTPValidationError,
@@ -5431,6 +5434,1276 @@ export const useProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueCl
   > => {
     const mutationOptions =
       getProponerCorreccionesDeTabiqueApiV1BibliotecaDeElementosTabiqueClavePropuestasCorreccionesPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary La ficha del muro de sillar amarillo de la biblioteca (pieza 19×25×45, concepto BAP-01010, supuestos y pendientes)
+ */
+export const definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet = (
+  clave: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<DefinicionDelSillar>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/sillar/${clave}`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/sillar/${clave}`,
+    ] as const;
+  };
+
+export const getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetQueryKey =
+  (clave?: string) => {
+    return [`/api/v1/biblioteca-de-elementos/sillar/${clave}`] as const;
+  };
+
+export const getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >
+  >;
+export type DefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha del muro de sillar amarillo de la biblioteca (pieza 19×25×45, concepto BAP-01010, supuestos y pendientes)
+ */
+
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+        >
+      >
+    > = ({ signal }) =>
+      definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+      >
+    >
+  >;
+export type DefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetQueryError =
+  void | HTTPValidationError;
+
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary La ficha del muro de sillar amarillo de la biblioteca (pieza 19×25×45, concepto BAP-01010, supuestos y pendientes)
+ */
+
+export function useDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet<
+  TData = Awaited<
+    ReturnType<
+      typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof definicionDelSillarApiV1BibliotecaDeElementosSillarClaveGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDefinicionDelSillarApiV1BibliotecaDeElementosSillarClaveGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Calcula el muro de sillar amarillo por m², lo contrasta con BAP-01010 y dice qué drivers leyó (solo cálculo)
+ */
+export const calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost = (
+  clave: string,
+  calculoDelSillarPeticion: CalculoDelSillarPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CalculoDelSillar>(
+    {
+      url: `/api/v1/biblioteca-de-elementos/sillar/${clave}/calcular`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: calculoDelSillarPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCalcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelSillarPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelSillarPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost
+        >
+      >,
+      { clave: string; data: CalculoDelSillarPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CalcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost
+      >
+    >
+  >;
+export type CalcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPostMutationBody =
+  CalculoDelSillarPeticion;
+export type CalcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPostMutationError =
+  void;
+
+/**
+ * @summary Calcula el muro de sillar amarillo por m², lo contrasta con BAP-01010 y dice qué drivers leyó (solo cálculo)
+ */
+export const useCalcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelSillarPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof calcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelSillarPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getCalcularSillarApiV1BibliotecaDeElementosSillarClaveCalcularPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del muro de sillar
+ */
+export const propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet =
+  (
+    clave: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<PropuestaDeEstructura[]>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/sillar/${clave}/propuestas`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfiniteQueryKey =
+  (clave?: string) => {
+    return [
+      "infinite",
+      `/api/v1/biblioteca-de-elementos/sillar/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetQueryKey =
+  (clave?: string) => {
+    return [
+      `/api/v1/biblioteca-de-elementos/sillar/${clave}/propuestas`,
+    ] as const;
+  };
+
+export const getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfiniteQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del muro de sillar
+ */
+
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetInfiniteQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    clave: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetQueryKey(
+        clave,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+        >
+      >
+    > = ({ signal }) =>
+      propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet(
+        clave,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!clave,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type PropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+      >
+    >
+  >;
+export type PropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetQueryError =
+  void | HTTPValidationError;
+
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las versiones de concepto propuestas, autorizadas y rechazadas del muro de sillar
+ */
+
+export function usePropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  clave: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof propuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPropuestasDeSillarApiV1BibliotecaDeElementosSillarClavePropuestasGetQueryOptions(
+      clave,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Confirmar el cálculo: proponer como nueva versión de BAP-01010 los coeficientes que difieren del catálogo
+ */
+export const proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost =
+  (
+    clave: string,
+    calculoDelSillarPeticion: CalculoDelSillarPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ResultadoDeProponer>(
+      {
+        url: `/api/v1/biblioteca-de-elementos/sillar/${clave}/propuestas/actualizar-apu`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: calculoDelSillarPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost
+        >
+      >,
+      TError,
+      { clave: string; data: CalculoDelSillarPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelSillarPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost
+        >
+      >,
+      { clave: string; data: CalculoDelSillarPeticion }
+    > = (props) => {
+      const { clave, data } = props ?? {};
+
+      return proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost(
+        clave,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost
+      >
+    >
+  >;
+export type ProponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPostMutationBody =
+  CalculoDelSillarPeticion;
+export type ProponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPostMutationError =
+  void;
+
+/**
+ * @summary Confirmar el cálculo: proponer como nueva versión de BAP-01010 los coeficientes que difieren del catálogo
+ */
+export const useProponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost
+          >
+        >,
+        TError,
+        { clave: string; data: CalculoDelSillarPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPost
+      >
+    >,
+    TError,
+    { clave: string; data: CalculoDelSillarPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerActualizacionDeApuDelSillarApiV1BibliotecaDeElementosSillarClavePropuestasActualizarApuPostMutationOptions(
         options,
       );
 

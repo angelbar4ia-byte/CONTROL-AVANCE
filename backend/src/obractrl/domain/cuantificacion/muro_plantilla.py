@@ -352,7 +352,7 @@ class ElementoParaValidar:
     conceptos: Sequence[ConceptoDelElemento] = ()
     provisional: bool = False
     implicito: bool = False
-    """El muro que sale del material de la plantilla (tabique rojo → EST-02010) y no se colocó a mano."""
+    """El muro que sale del material de la plantilla (tabique rojo → EST-02010, sillar amarillo → BAP-01010) y no se colocó a mano."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -425,11 +425,12 @@ def validar_contra_matriz(elementos: Iterable[ElementoParaValidar]) -> list[Aler
 def alertas_del_material(material: str, *, lleva_muro_propio: bool) -> list[Alerta]:
     """La mampostería de la plantilla (su material) también es una parte que necesita concepto (C3, F7).
 
-    - El material con elemento de la biblioteca (tabique rojo → EST-02010) se revisa como cualquier elemento: aquí no avisa.
+    - El material con elemento de la biblioteca (tabique rojo → EST-02010, sillar amarillo → BAP-01010) se revisa como cualquier elemento: aquí no avisa.
     - ``material_sin_concepto`` (**bloquea**): el catálogo no tiene concepto para ese material (block hueco, cantera rosa): queda por
       capturar y no se inventa uno; la plantilla no se valida hasta que haya concepto (o el muro se coloque con un elemento de la biblioteca).
-    - ``material_sin_elemento`` (alerta): el catálogo sí tiene concepto (sillar amarillo, BAP-01010, 19 cm) pero el material aún no es un
-      elemento (regla F7: si se crea el elemento se crea también su concepto); se acepta con casilla.
+    - ``material_sin_elemento`` (alerta): el catálogo tiene concepto pero el material aún no es un elemento de la biblioteca (regla F7: si se
+      crea el elemento se crea también su concepto); se acepta con casilla. Hoy ningún material con concepto está en ese caso: el sillar
+      amarillo (BAP-01010, 19 cm) ya es un elemento, y la alerta queda para un material que gane concepto antes que elemento.
     Si la plantilla ya lleva un elemento de muro propio, el material no necesita uno."""
     if lleva_muro_propio:
         return []

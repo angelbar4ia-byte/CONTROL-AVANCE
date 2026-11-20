@@ -194,13 +194,13 @@ async def test_control_de_obra_valida_contra_la_matriz_y_acepta_las_alertas(cont
 
 @pytest.mark.parametrize(
     ("material", "codigo", "nivel"),
-    [("block_hueco", "material_sin_concepto", "bloquea"), ("cantera_rosa", "material_sin_concepto", "bloquea"), ("sillar_amarillo", "material_sin_elemento", "alerta")],
+    [("block_hueco", "material_sin_concepto", "bloquea"), ("cantera_rosa", "material_sin_concepto", "bloquea")],
 )
-async def test_un_material_sin_concepto_en_el_catalogo_bloquea_y_el_sillar_solo_avisa(
+async def test_un_material_sin_concepto_en_el_catalogo_bloquea(
     control: httpx.AsyncClient, material: str, codigo: str, nivel: str
 ) -> None:
     """C2/C3/F2: el material es un parámetro de la plantilla (independiente de la ubicación). Block hueco y cantera rosa no tienen concepto
-    en el catálogo (por capturar): bloquean. El sillar amarillo (19 cm, BAP-01010) tiene concepto pero aún no es un elemento: avisa."""
+    en el catálogo (por capturar): bloquean; no se inventa un concepto ni un elemento para ellos."""
     p = await control.post(PLANTILLAS, json=_plantilla(nombre=f"Barda {material}", tipo="tabique", material=material, ubicacion="barda", elementos=[]))
     assert p.status_code == 201, p.text
     assert (p.json()["material"], p.json()["ubicacion"]) == (material, "barda")
@@ -212,12 +212,34 @@ async def test_un_material_sin_concepto_en_el_catalogo_bloquea_y_el_sillar_solo_
     assert (r.status_code == 422) is (nivel == "bloquea")
 
 
+async def test_el_sillar_amarillo_ya_es_un_elemento_y_la_plantilla_lo_toma_como_muro_implicito(control: httpx.AsyncClient) -> None:
+    """El elemento BAP-01010 existe en la biblioteca: el aviso `material_sin_elemento` desaparece y la plantilla revisa el muro del sillar contra
+    su concepto del catálogo igual que el tabique rojo revisa EST-02010 (aquí la base de pruebas no trae la matriz: solo avisa, no bloquea)."""
+    p = await control.post(PLANTILLAS, json=_plantilla(nombre="Barda de sillar", tipo="tabique", material="sillar_amarillo", ubicacion="barda", elementos=[]))
+    assert p.status_code == 201, p.text
+    rev = (await control.get(f"{PLANTILLAS}/{p.json()['id']}/revision")).json()
+    assert not [a for a in rev["alertas"] if a["codigo"] == "material_sin_elemento"]
+    assert not [a for a in rev["alertas"] if a["codigo"] in ("material_sin_concepto", "elemento_inexistente")]
+    muro = [a for a in rev["alertas"] if a["ref"] == "BAP-01010"]
+    assert muro and all(a["nivel"] == "alerta" for a in muro)
+    assert rev["bloquea"] is False and rev["validable"] is True
+    r = await control.post(f"{PLANTILLAS}/{p.json()['id']}/validar", json={"aceptar_alertas": True})
+    assert r.status_code == 200, r.text
+    # También se puede colocar a mano como elemento de muro de la plantilla.
+    a_mano = await control.post(
+        PLANTILLAS, json=_plantilla(nombre="Sillar a mano", tipo="tabique", material="sillar_amarillo", elementos=[{"ref": "bap-01010"}])
+    )
+    assert a_mano.status_code == 201, a_mano.text
+    assert [(e["ref"], e["clase"]) for e in a_mano.json()["elementos"]] == [("BAP-01010", "muro")]
+
+
 async def test_el_material_de_la_barda_es_independiente_de_la_ubicacion_y_del_tipo(control: httpx.AsyncClient) -> None:
     """F2: pretil, barda e interior se combinan con cualquier material y cualquier tipo de muro; el catálogo del artefacto lo dice."""
     cat = (await control.get("/api/v1/muro-artefacto/catalogo")).json()
     materiales = {m["clave"]: m for m in cat["materiales"]}
     assert set(materiales) == {"tabique_rojo", "block_hueco", "sillar_amarillo", "cantera_rosa"}
     assert (materiales["sillar_amarillo"]["espesor_cm"], materiales["sillar_amarillo"]["concepto"]) == (19, "BAP-01010")
+    assert materiales["sillar_amarillo"]["elemento"] == "BAP-01010" and materiales["tabique_rojo"]["elemento"] == "EST-02010"
     assert (materiales["block_hueco"]["espesor_cm"], materiales["block_hueco"]["concepto"]) == (None, None)  # por capturar: no se inventa
     assert (materiales["cantera_rosa"]["elemento"], materiales["cantera_rosa"]["concepto"]) == (None, None)
     for i, (material, ubicacion, tipo) in enumerate(

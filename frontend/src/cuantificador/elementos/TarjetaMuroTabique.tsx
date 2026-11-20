@@ -52,7 +52,7 @@ interface Props {
 }
 
 /** La planta de la hilada: cada hilera con su espesor, a escala, y la junta entre hileras. Solo dibuja lo que el servidor calculó. */
-function PlantaDeLaHilada({ g, junta }: { readonly g: GeometriaDelTabique; readonly junta: number }) {
+export function PlantaDeLaHilada({ g, junta }: { readonly g: GeometriaDelTabique; readonly junta: number }) {
   const ancho = 300;
   const hiladas = g.hiladas;
   const maximo = Math.max(...hiladas.map((h) => h.espesor_cm), 1);

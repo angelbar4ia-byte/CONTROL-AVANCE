@@ -57,6 +57,7 @@ __all__ = [
     "CLAVE_MEZCLA",
     "CLAVE_PIEZA",
     "ELEMENTOS_DE_TABIQUE",
+    "MEZCLA_COMPUESTA",
     "NIVEL_DEL_TERCER_NIVEL",
     "TIPOS_DE_SARDINEL",
     "AparejoDeTabique",
@@ -101,6 +102,9 @@ _MEZCLA_COMPUESTA: tuple[tuple[str, str, str, float, str], ...] = (
     ("SER-00003", "PIPA 10000", "serv", 0.0185, "ANALISIS_DE_BASICOS_COMPUESTOS:263"),
 )
 """Lo que lleva 1 m³ de MEZ-07010 según el catálogo (clave, descripción, unidad, cantidad, línea del CSV)."""
+
+MEZCLA_COMPUESTA = _MEZCLA_COMPUESTA
+"""La composición de 1 m³ de MEZ-07010: la comparten los muros que se asientan con esa mezcla (tabique y sillar amarillo)."""
 
 _DESCRIPCIONES = {CLAVE_PIEZA: "TABIQUE", CLAVE_MEZCLA: "MEZCLA CEMENTO-ARENA 1:4"}
 

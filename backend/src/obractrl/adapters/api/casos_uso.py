@@ -380,6 +380,9 @@ from obractrl.application.casos_uso.propuestas_de_baston import (
 from obractrl.application.casos_uso.propuestas_de_estructura import (
     GestionarPropuestasDeEstructura,
 )
+from obractrl.application.casos_uso.propuestas_de_sillar import (
+    GestionarPropuestasDeSillar,
+)
 from obractrl.application.casos_uso.propuestas_de_tabique import (
     GestionarPropuestasDeTabique,
 )
@@ -524,6 +527,7 @@ __all__ = [
     "GestionarPlantillasDeMuroDep",
     "GestionarPropuestasDeBastonDep",
     "GestionarPropuestasDeEstructuraDep",
+    "GestionarPropuestasDeSillarDep",
     "GestionarPropuestasDeTabiqueDep",
     "GestionarVanosDep",
     "GestionarZonasDeLosaDep",
@@ -1110,6 +1114,13 @@ def obtener_gestionar_propuestas_de_baston(sesion: SesionRLS) -> GestionarPropue
     )
 
 
+def obtener_gestionar_propuestas_de_sillar(sesion: SesionRLS) -> GestionarPropuestasDeSillar:
+    return GestionarPropuestasDeSillar(
+        propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_gestionar_propuestas_de_tabique(sesion: SesionRLS) -> GestionarPropuestasDeTabique:
     return GestionarPropuestasDeTabique(
         propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
@@ -1470,6 +1481,9 @@ GestionarPropuestasDeEstructuraDep = Annotated[
 ]
 GestionarPropuestasDeBastonDep = Annotated[
     GestionarPropuestasDeBaston, Depends(obtener_gestionar_propuestas_de_baston)
+]
+GestionarPropuestasDeSillarDep = Annotated[
+    GestionarPropuestasDeSillar, Depends(obtener_gestionar_propuestas_de_sillar)
 ]
 GestionarPropuestasDeTabiqueDep = Annotated[
     GestionarPropuestasDeTabique, Depends(obtener_gestionar_propuestas_de_tabique)
