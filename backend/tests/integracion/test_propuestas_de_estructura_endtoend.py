@@ -251,7 +251,7 @@ async def test_las_propuestas_son_de_la_organizacion(control, escenario) -> None
 
 
 async def test_las_correcciones_de_las_trabes_se_proponen_igual_que_las_de_un_castillo(control, costos, residente) -> None:
-    """D7 (Q56): T-2-12x20 (dos anillos) y T-5-12x30 (anillo 10×25 en 12×30) son versiones propuestas del concepto AUX; el catálogo no se toca."""
+    """D7 (Q56): T-2-12x20 (dos anillos) y T-5-12x30 (anillo 10×25 en 12×30, que pasa a alambrón) son versiones propuestas del concepto AUX; el catálogo no se toca."""
     assert (await residente.post(f"{RUTA}/T-2-12x20/propuestas/correcciones")).status_code == 403
     r = await costos.post(f"{RUTA}/T-2-12x20/propuestas/correcciones")
     assert r.status_code == 201, r.text
@@ -275,4 +275,5 @@ async def test_las_correcciones_de_las_trabes_se_proponen_igual_que_las_de_un_ca
     assert t5.status_code == 201
     (q,) = (await control.get(f"{RUTA}/T-5-12x30/propuestas")).json()
     assert (q["estado"], q["version"], q["concepto_clave"]) == ("autorizada", 2, "AUX-00060")
-    assert [(c["insumo"], c["antes"], c["despues"]) for c in q["cambios"]] == [("ACE-00006", 1.940125, 1.803175)]
+    assert {(c["insumo"], c["antes"], c["despues"]) for c in q["cambios"]} == {("ACE-00006", 1.940125, 0), ("ACE-00002", 0, 1.803175)}
+    assert any("Pendiente de confirmar con Costos" in m for m in p["motivos"])
