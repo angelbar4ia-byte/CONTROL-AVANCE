@@ -15,7 +15,7 @@ from obractrl.domain.cuantificacion.zonas_de_losa import ErrorDeZonaDeLosa
 
 __all__ = ["RepositorioZonasDeLosaSQL"]
 
-_COLUMNAS_ZONA = "z.id, z.plano_id, z.nombre, z.nivel, z.cota_piso_m, z.altura_libre_m, z.espesor_m, z.created_at, z.updated_at"
+_COLUMNAS_ZONA = "z.id, z.plano_id, z.nombre, z.nivel, z.cota_piso_m, z.altura_libre_m, z.espesor_m, z.tipo_de_losa, z.uso_de_losa, z.created_at, z.updated_at"
 
 
 class RepositorioZonasDeLosaSQL:
@@ -106,8 +106,9 @@ class RepositorioZonasDeLosaSQL:
                     await self._sesion.execute(
                         text(
                             """
-                            insert into losa_zona (org_id, plano_id, nombre, nivel, cota_piso_m, altura_libre_m, espesor_m, autor_id)
-                            select app.current_org_id(), :p, :nombre, :nivel, :cota, :altura, :espesor, :autor
+                            insert into losa_zona (org_id, plano_id, nombre, nivel, cota_piso_m, altura_libre_m, espesor_m, tipo_de_losa, uso_de_losa, autor_id)
+                            select app.current_org_id(), :p, :nombre, :nivel, :cota, :altura, :espesor,
+                                   coalesce(:tipo, 'maciza'), coalesce(:uso, 'entrepiso'), :autor
                             returning id
                             """
                         ),
@@ -124,7 +125,7 @@ class RepositorioZonasDeLosaSQL:
                 await self._sesion.execute(
                     text(
                         "update losa_zona set nombre = :nombre, nivel = :nivel, cota_piso_m = :cota, altura_libre_m = :altura, "
-                        "espesor_m = :espesor where id = :z"
+                        "espesor_m = :espesor, tipo_de_losa = coalesce(:tipo, tipo_de_losa), uso_de_losa = coalesce(:uso, uso_de_losa) where id = :z"
                     ),
                     self._valores(datos) | {"z": str(zona_id)},
                 )
@@ -136,6 +137,7 @@ class RepositorioZonasDeLosaSQL:
         return {
             "nombre": datos["nombre"], "nivel": datos["nivel"], "cota": datos["cota_piso_m"],
             "altura": datos["altura_libre_m"], "espesor": datos["espesor_m"],
+            "tipo": datos.get("tipo_de_losa"), "uso": datos.get("uso_de_losa"),
         }
 
     @staticmethod

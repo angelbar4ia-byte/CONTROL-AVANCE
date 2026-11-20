@@ -14,10 +14,10 @@ Dominio puro del mockup de elementos paramétricos (`muestra`, `muestraZap`, `co
 - **Columna C-1**, por pieza de altura conocida: habitual 4.20 m, editable (el catálogo la paga con EST-11011 «hasta 6.00 m»).
 
 **Sin mano de obra.** El catálogo no trae destajo por metro para trabes, contratrabes ni nervaduras (Q52) y su concreto y su cimbra
-se pagan dentro de la losa por m² (Q51). Esta lane **contempla pero no ejecuta** ese camino: `camino_de_colado_y_cimbra` describe
-cómo se registraría después el concepto nuevo de colado y cimbra por elemento y el destajo por ml, pero no crea ningún concepto ni
-ningún destajo ni pone precios. La Z-1 y la C-1 sí tienen concepto con destajo en el catálogo (MOE-05010, MOE-20210); el elemento
-no lo calcula: se lista aparte en la conciliación.
+se pagan dentro de la losa por m² (Q51). La fase 2 de la losa (D8) **registra como propuesta** el concepto nuevo de colado y cimbra por ml y
+su destajo por ml (`colado_por_ml`): clave provisional, sin precio, destajo sin importe, pendiente de autorizar por Control de obra.
+`camino_de_colado_y_cimbra` describe ese concepto. El cálculo del elemento sigue sin mano de obra. La Z-1 y la C-1 sí tienen concepto con
+destajo en el catálogo (MOE-05010, MOE-20210); el elemento no lo calcula: se lista aparte en la conciliación.
 
 **Conciliación.** Cada elemento se contrasta con la composición real de su concepto del catálogo (=, ≈ hasta 8 %, ≠, solo en el
 catálogo / solo en el elemento) con `comparacion_con_catalogo`. Lo que el catálogo trae distinto **se muestra, no se corrige**.
@@ -92,11 +92,12 @@ PENDIENTES: tuple[dict[str, str], ...] = (
     {
         "clave": "Q51",
         "texto": "El concreto y la cimbra de trabes, contratrabes y nervaduras no tienen concepto propio en el catálogo (se pagan por m² de losa). "
-        "Se contempla un concepto nuevo de colado y cimbra por elemento, pero todavía no se registra.",
+        "D8: el concepto nuevo de colado y cimbra por ml se propone con clave provisional (EJ-7xx), pendiente de autorizar por Control de obra.",
     },
     {
         "clave": "Q52",
-        "texto": "El catálogo no trae destajo por ml para trabes, contratrabes ni nervaduras: el elemento queda sin mano de obra. Nada se inventa.",
+        "texto": "El catálogo no trae destajo por ml para trabes, contratrabes ni nervaduras: el elemento queda sin mano de obra. D8: el destajo por ml se registra "
+        "sin importe (clave provisional) y Costos lo define; nada se inventa.",
     },
     {
         "clave": "Q55",
@@ -348,17 +349,20 @@ def _pendientes_de(e: dict[str, Any]) -> tuple[dict[str, str], ...]:
 
 
 # --------------------------------------------------------------------------------------------------------------
-# Camino para registrar después el colado y cimbra (Q51) y el destajo por ml (Q52): NO se ejecuta
+# Colado y cimbra por ml (Q51) y destajo por ml (Q52): se registran como PROPUESTA con la fase 2 de la losa (D8)
 # --------------------------------------------------------------------------------------------------------------
 
 
 def camino_de_colado_y_cimbra(clave: str) -> dict[str, Any] | None:
-    """Cómo se registraría el concepto nuevo de colado y cimbra del elemento y su destajo por ml. **No registra nada.**
+    """Cómo se registra el concepto nuevo de colado y cimbra del elemento y su destajo por ml (D8). **Este método no registra nada**: dice la
+    clave provisional y el borrador; se registra con ``POST /biblioteca-de-elementos/estructura/{clave}/propuestas/colado-por-ml``.
 
-    Solo las trabes, contratrabes y nervaduras lo necesitan: su acero ya tiene concepto en el catálogo (el material auxiliar
-    AUX-xxxxx), pero su concreto y su cimbra los paga la losa. La Z-1 y la C-1 ya tienen concepto de colado en el catálogo.
-    El borrador deja `clave_propuesta` vacía (la clave EJ-7xx del mockup no se crea) y el destajo sin definir.
+    Solo las trabes, contratrabes y nervaduras lo necesitan: su acero ya tiene concepto en el catálogo (el material auxiliar AUX-xxxxx), pero su
+    concreto y su cimbra los paga la losa por m². La Z-1 y la C-1 ya tienen concepto de colado en el catálogo. El destajo por ml queda sin
+    importe (el catálogo no lo trae y no se inventa).
     """
+    from obractrl.domain.cuantificacion.colado_por_ml import concepto_de_colado
+
     e = _POR_CLAVE.get(clave)
     if e is None:
         return None
@@ -370,26 +374,32 @@ def camino_de_colado_y_cimbra(clave: str) -> dict[str, Any] | None:
             "mano_de_obra": {"estado": "en_el_concepto_del_catalogo", "destajo": None},
             "preguntas": [],
         }
-    consumos = [{"clave": c, "descripcion": _descripcion(c), "consumo": como, "cantidad": q} for c, como, q in e["cimbra"]]
+    c = concepto_de_colado(clave, con_insumos=False)
+    assert c is not None  # toda trabe, contratrabe y nervadura de la biblioteca tiene su clave provisional (lo comprueba una prueba)
+    consumos = [{"clave": k, "descripcion": _descripcion(k), "consumo": como, "cantidad": q} for k, como, q in e["cimbra"]]
     return {
         "estado": "por_registrar",
         "motivo": (
-            "El catálogo paga el concreto y la cimbra de este elemento dentro de la losa por m². Un concepto nuevo de colado y "
-            "cimbra por ml lo registrará Costos como «propuesto»: sin precio y pendiente de Control de obra."
+            "El catálogo paga el concreto y la cimbra de este elemento dentro de la losa por m². El concepto nuevo de colado y cimbra por ml "
+            f"({c['clave']}, clave provisional) se propone como «propuesto»: sin precio y pendiente de Control de obra. Lo usa la trabe suelta o la "
+            "zona de la losa que lo elige; con el pago «en la losa» (lo que hace el catálogo) no entra."
         ),
         "borrador": {
             "unidad": "ml",
-            "toma": {"concreto": True, "cimbra": bool(e["lados"])},
-            "clave_propuesta": None,
-            "descripcion_sugerida": f"Colado y cimbra de {e['nombre'].rstrip('.')}",
+            "toma": c["toma"],
+            "clave_propuesta": c["clave"],
+            "descripcion_sugerida": c["descripcion"],
             "concreto": {"clave": e["concreto"], "descripcion": _descripcion(e["concreto"])},
             "cimbra": consumos,
-            "ruta": "POST /elementos-parametricos/{elemento_id}/conceptos con unidad, toma, clave_propuesta y descripcion",
+            "ruta": f"POST /biblioteca-de-elementos/estructura/{clave}/propuestas/colado-por-ml",
         },
         "mano_de_obra": {
-            "estado": "sin_destajo_por_ml",
-            "destajo": None,
-            "nota": "El catálogo de trabajos no trae destajo para trabes, contratrabes ni nervaduras. El destajo por ml se agrega después en el APU del concepto; no se inventa.",
+            "estado": "destajo_por_ml_sin_importe",
+            "destajo": c["destajo_por_ml"]["clave_provisional"],
+            "nota": (
+                "El catálogo de trabajos no trae destajo para trabes, contratrabes ni nervaduras. El destajo por ml se registra con el concepto, "
+                "con clave provisional y sin importe: Costos lo define; no se inventa."
+            ),
         },
         "preguntas": ["Q51", "Q52"],
     }

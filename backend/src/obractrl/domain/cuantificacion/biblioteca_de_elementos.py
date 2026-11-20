@@ -1,6 +1,6 @@
 """La biblioteca de elementos: categorías y subcategorías que clasifican a los elementos paramétricos.
 
-Hoy trae **dos elementos**: el muro de contención de piedra MCT-01010 (categoría «Muros de contención», subcategoría
+Hoy trae **dos elementos propios**: el muro de contención de piedra MCT-01010 (categoría «Muros de contención», subcategoría
 «Mampostería») y el muro de cimentación de piedra CIM-01010 (categoría «Muros de cimentación», subcategoría «Mampostería
 de piedra»); los dos se pagan con el concepto MCT-01011. Las trabes, contratrabes, nervaduras, Z-1 y C-1 (Ola 3B, `elementos_lineales`) se unen por clave de categoría y subcategoría. Los demás siguen definiéndose en el panel
 de la pestaña Elementos y pasarán aquí cuando se construyan. Función pura, sin base de datos.
@@ -12,6 +12,7 @@ from typing import Any
 
 from obractrl.domain.cuantificacion import (
     baston,
+    matriz_de_losa,
     muro_cimentacion,
     muro_sillar,
     muro_tabique,
@@ -112,7 +113,8 @@ _EXISTENTES: tuple[dict[str, Any], ...] = (
 
 
 BIBLIOTECA: tuple[dict[str, Any], ...] = _unir(
-    _EXISTENTES, _categorias_lineales(), muro_tabique.categorias_de_biblioteca(), muro_sillar.categorias_de_biblioteca(), baston.categorias_de_biblioteca()
+    _EXISTENTES, _categorias_lineales(), muro_tabique.categorias_de_biblioteca(), muro_sillar.categorias_de_biblioteca(), baston.categorias_de_biblioteca(),
+    matriz_de_losa.categorias_de_biblioteca(),
 )
 
 
@@ -120,7 +122,7 @@ def elemento_de_la_biblioteca(clave: str) -> dict[str, Any] | None:
     for categoria in BIBLIOTECA:
         for sub in categoria["subcategorias"]:
             for elemento in sub["elementos"]:
-                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES and elemento.get("tipo") not in ("tabique", "sillar", "baston"):
+                if elemento["clave"] == clave and elemento.get("tipo") != "estructura_de_catalogo" and elemento.get("tipo") not in _TIPOS_LINEALES and elemento.get("tipo") not in ("tabique", "sillar", "baston", "losa_de_concreto"):
                     cimiento = clave == muro_cimentacion.CLAVE_ELEMENTO
                     return {
                         **elemento,

@@ -106,11 +106,10 @@ CATEGORIAS: tuple[dict[str, Any], ...] = (
     _cat(
         "losas", "Losas", "losa", "L",
         (_sub("maciza", "Losas macizas", "L", en_muro=False), _sub("nervada", "Losas nervadas", "L", en_muro=False)),
-        construida=False,
     ),
 )
 """La biblioteca de los elementos que se calculan con la receta paramétrica. `construida` dice si el mockup ya la construyó;
-las que no (dados, losas) se aceptan igual porque un elemento de tipo `zapata` o `losa` ya se puede guardar."""
+las que no (dados) se aceptan igual porque un elemento de tipo `zapata` o `losa` ya se puede guardar."""
 
 _POR_CLAVE = {c["clave"]: c for c in CATEGORIAS}
 

@@ -70,6 +70,7 @@ from obractrl.adapters.api.v1.insumos import router as router_insumos
 from obractrl.adapters.api.v1.insumos_de_elemento import (
     router as router_insumos_de_elemento,
 )
+from obractrl.adapters.api.v1.losas import router as router_losas
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.mediciones import router as router_mediciones
 from obractrl.adapters.api.v1.muros_de_sillar import router as router_muros_de_sillar
@@ -139,6 +140,7 @@ api_v1.include_router(router_elementos_de_estructura)
 api_v1.include_router(router_elementos_estructurales)
 api_v1.include_router(router_muros_de_tabique)
 api_v1.include_router(router_muros_de_sillar)
+api_v1.include_router(router_losas)
 api_v1.include_router(router_bastones)
 api_v1.include_router(router_plantillas_de_muro)
 api_v1.include_router(router_zonas_de_losa)

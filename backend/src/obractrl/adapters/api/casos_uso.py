@@ -89,6 +89,7 @@ from obractrl.adapters.repos.insumos_de_elemento_sql import (
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.mano_de_obra_opus_sql import RepositorioManoDeObraOpusSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
+from obractrl.adapters.repos.matriz_de_losa_sql import RepositorioElementosDeLosaSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
@@ -354,6 +355,7 @@ from obractrl.application.casos_uso.insumos_de_elemento import (
 from obractrl.application.casos_uso.matrices_de_concepto import (
     GestionarMatricesDeConcepto,
 )
+from obractrl.application.casos_uso.matriz_de_losa import GestionarMatrizDeLosa
 from obractrl.application.casos_uso.mediciones import GestionarMediciones
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
@@ -380,6 +382,7 @@ from obractrl.application.casos_uso.propuestas_de_baston import (
 from obractrl.application.casos_uso.propuestas_de_estructura import (
     GestionarPropuestasDeEstructura,
 )
+from obractrl.application.casos_uso.propuestas_de_losa import GestionarPropuestasDeLosa
 from obractrl.application.casos_uso.propuestas_de_sillar import (
     GestionarPropuestasDeSillar,
 )
@@ -522,11 +525,13 @@ __all__ = [
     "GestionarEnlacesDeRanuraDep",
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
+    "GestionarMatrizDeLosaDep",
     "GestionarMedicionesDep",
     "GestionarNumeroDeNivelDep",
     "GestionarPlantillasDeMuroDep",
     "GestionarPropuestasDeBastonDep",
     "GestionarPropuestasDeEstructuraDep",
+    "GestionarPropuestasDeLosaDep",
     "GestionarPropuestasDeSillarDep",
     "GestionarPropuestasDeTabiqueDep",
     "GestionarVanosDep",
@@ -1121,6 +1126,25 @@ def obtener_gestionar_propuestas_de_sillar(sesion: SesionRLS) -> GestionarPropue
     )
 
 
+def obtener_gestionar_propuestas_de_losa(sesion: SesionRLS) -> GestionarPropuestasDeLosa:
+    return GestionarPropuestasDeLosa(
+        propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_gestionar_matriz_de_losa(sesion: SesionRLS) -> GestionarMatrizDeLosa:
+    return GestionarMatrizDeLosa(
+        zonas=RepositorioZonasDeLosaSQL(sesion),
+        elementos=RepositorioElementosDeLosaSQL(sesion),
+        drivers=obtener_gestionar_drivers(sesion),
+        propuestas=obtener_gestionar_propuestas_de_losa(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_gestionar_propuestas_de_tabique(sesion: SesionRLS) -> GestionarPropuestasDeTabique:
     return GestionarPropuestasDeTabique(
         propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
@@ -1506,6 +1530,8 @@ GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 ColocarElementosDeMuroDep = Annotated[ColocarElementosDeMuro, Depends(obtener_colocar_elementos_de_muro)]
 GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obtener_gestionar_plantillas_de_muro)]
 GestionarZonasDeLosaDep = Annotated[GestionarZonasDeLosa, Depends(obtener_gestionar_zonas_de_losa)]
+GestionarPropuestasDeLosaDep = Annotated[GestionarPropuestasDeLosa, Depends(obtener_gestionar_propuestas_de_losa)]
+GestionarMatrizDeLosaDep = Annotated[GestionarMatrizDeLosa, Depends(obtener_gestionar_matriz_de_losa)]
 ConsultarFachadaPorBandasDep = Annotated[ConsultarFachadaPorBandas, Depends(obtener_consultar_fachada_por_bandas)]
 AplicarZonaAlMuroDep = Annotated[AplicarZonaAlMuro, Depends(obtener_aplicar_zona_al_muro)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ZonaDeLosaNivel } from "./zonaDeLosaNivel";
+import type { ZonaDeLosaTipoDeLosa } from "./zonaDeLosaTipoDeLosa";
+import type { ZonaDeLosaUsoDeLosa } from "./zonaDeLosaUsoDeLosa";
 import type { LosaDeZona } from "./losaDeZona";
 
 export interface ZonaDeLosa {
@@ -19,6 +21,8 @@ export interface ZonaDeLosa {
   altura_libre_m: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   espesor_m: string;
+  tipo_de_losa: ZonaDeLosaTipoDeLosa;
+  uso_de_losa: ZonaDeLosaUsoDeLosa;
   /**
    * Cota del nivel bajo de la losa (cota del piso + altura libre).
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$

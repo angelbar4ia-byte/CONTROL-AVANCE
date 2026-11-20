@@ -113,21 +113,28 @@ class GestionarZonasDeLosa:
 
     async def crear(
         self, plano_id: UUID, *, nombre: str, altura_libre_m: Any, espesor_m: Any, cota_piso_m: Any = 0, nivel: str | None = None,
-        autor_id: UUID,
+        tipo_de_losa: str | None = None, uso_de_losa: str | None = None, autor_id: UUID,
     ) -> dict[str, Any]:
         if await self._zonas.plano(plano_id) is None:
             raise PlanoNoEncontrado(f"El plano {plano_id} no existe o no está en tu alcance.")
-        datos = validar_zona(nombre=nombre, altura_libre_m=altura_libre_m, espesor_m=espesor_m, cota_piso_m=cota_piso_m, nivel=nivel)
+        datos = validar_zona(
+            nombre=nombre, altura_libre_m=altura_libre_m, espesor_m=espesor_m, cota_piso_m=cota_piso_m, nivel=nivel,
+            tipo_de_losa=tipo_de_losa, uso_de_losa=uso_de_losa,
+        )
         async with self._uow:
             nueva = await self._zonas.crear(plano_id=plano_id, datos=datos, autor_id=autor_id)
             await self._uow.commit()
         return await self._zona_existente(nueva)
 
     async def cambiar(
-        self, zona_id: UUID, *, nombre: str, altura_libre_m: Any, espesor_m: Any, cota_piso_m: Any = 0, nivel: str | None = None
+        self, zona_id: UUID, *, nombre: str, altura_libre_m: Any, espesor_m: Any, cota_piso_m: Any = 0, nivel: str | None = None,
+        tipo_de_losa: str | None = None, uso_de_losa: str | None = None,
     ) -> dict[str, Any]:
         await self._zona_existente(zona_id)
-        datos = validar_zona(nombre=nombre, altura_libre_m=altura_libre_m, espesor_m=espesor_m, cota_piso_m=cota_piso_m, nivel=nivel)
+        datos = validar_zona(
+            nombre=nombre, altura_libre_m=altura_libre_m, espesor_m=espesor_m, cota_piso_m=cota_piso_m, nivel=nivel,
+            tipo_de_losa=tipo_de_losa, uso_de_losa=uso_de_losa,
+        )
         async with self._uow:
             await self._zonas.actualizar(zona_id, datos)
             await self._uow.commit()

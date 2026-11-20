@@ -1,4 +1,4 @@
-"""Endpoints de las zonas de losa (Fase 1: geometría y cotas, sin conceptos de losa).
+"""Endpoints de las zonas de losa (Fase 1: geometría y cotas; la matriz de conceptos de la losa es la fase 2, en `losas.py`).
 
 Hay desniveles entre plantas y el plano no viene dividido en ellos: las zonas se definen con el artefacto de la losa, reciclando los
 polígonos del plano. Una **zona** lleva sus cotas (relativas al piso terminado de PB = 0): la cota del piso, la altura libre hasta el
@@ -39,6 +39,12 @@ class ZonaDeLosaPeticion(BaseModel):
     cota_piso_m: Decimal = Field(default=Decimal(0), description="Cota del piso terminado de la zona; el piso terminado de PB = 0.")
     altura_libre_m: Decimal = Field(gt=0, le=30, description="Del piso terminado al nivel BAJO de la losa: la altura que toma el muro.")
     espesor_m: Decimal = Field(gt=0, le=3, description="Espesor de la losa (la cota que sigue a la altura libre).")
+    tipo_de_losa: Literal["maciza", "nervada"] | None = Field(
+        default=None, description="Matriz de la losa (fase 2): maciza o nervada. Sin él, la zona conserva el suyo (al crearla, maciza)."
+    )
+    uso_de_losa: Literal["entrepiso", "azotea"] | None = Field(
+        default=None, description="Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso)."
+    )
 
 
 class LosaDeZona(BaseModel):
@@ -55,6 +61,8 @@ class ZonaDeLosa(BaseModel):
     cota_piso_m: Decimal
     altura_libre_m: Decimal
     espesor_m: Decimal
+    tipo_de_losa: Literal["maciza", "nervada"]
+    uso_de_losa: Literal["entrepiso", "azotea"]
     cota_inferior_m: Decimal = Field(description="Cota del nivel bajo de la losa (cota del piso + altura libre).")
     cota_superior_m: Decimal = Field(description="Cota del nivel alto de la losa (nivel bajo + espesor).")
     losas: list[LosaDeZona]

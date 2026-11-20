@@ -23,6 +23,7 @@ from obractrl.adapters.api.v1.bastones import router as router_bastones
 from obractrl.adapters.api.v1.biblioteca_de_elementos import router as router_biblioteca
 from obractrl.adapters.api.v1.elementos_de_estructura import router as router_estructura
 from obractrl.adapters.api.v1.elementos_estructurales import router as router_lineal
+from obractrl.adapters.api.v1.losas import router as router_losas
 from obractrl.adapters.api.v1.muros_de_sillar import router as router_sillar
 from obractrl.adapters.api.v1.muros_de_tabique import router as router_tabique
 from obractrl.adapters.api.v1.receta_acero import router as router_receta
@@ -50,6 +51,7 @@ from obractrl.domain.cuantificacion.estructura_de_catalogo import ELEMENTOS_DE_E
 from obractrl.domain.cuantificacion.muro_cimentacion import CORONA_M, ESCARPIO_MINIMO
 
 OBRA = uuid4()
+LINEALES = [k for k in claves_de_elementos_estructurales() if k not in ("Z-1", "C-1")]
 
 
 class _DriversDeObra:
@@ -76,7 +78,7 @@ class _DriversDeObra:
 
 def _cliente(de_obra: dict[str, str], globales: dict[str, str] | None = None) -> TestClient:
     app = FastAPI()
-    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_sillar, router_biblioteca):
+    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_sillar, router_losas, router_biblioteca):
         app.include_router(r)
     proveedor = _DriversDeObra(de_obra, globales)
     app.dependency_overrides[obtener_drivers_de_obra] = lambda: proveedor
@@ -86,7 +88,7 @@ def _cliente(de_obra: dict[str, str], globales: dict[str, str] | None = None) ->
 def _sin_sesion() -> TestClient:
     """La aplicación tal cual, SIN reemplazar la dependencia: sin `obra_id` no debe pedir token ni base de datos."""
     app = FastAPI()
-    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_sillar, router_biblioteca):
+    for r in (router_receta, router_estructura, router_lineal, router_bastones, router_tabique, router_sillar, router_losas, router_biblioteca):
         app.include_router(r)
     return TestClient(app)
 
@@ -271,6 +273,21 @@ _BASES_DE_PRUEBA: dict[str, list[tuple[str, dict[str, Any]]]] = {
     ],
     "baston": [(BA, {"trazo_m": 10, "largo_cm": largo, "varilla_numero": 3}) for largo in (120, 400, 900, 1350, 1700)],
     "muro_de_sillar": [(SILLAR, {"cantidad": cantidad}) for cantidad in (1, 25.5)],
+    # La matriz de la losa: la losa (concreto) y todas las trabes, contratrabes y nervaduras por pieza (largas y cortas) y por ml.
+    "matriz_de_losa": [
+        (
+            f"/biblioteca-de-elementos/losa/{clave}/calcular",
+            {
+                "losas": [{"area_m2": 90.0}],
+                "elementos": [
+                    {"clave": k, "modo": "pieza", "cantidad": 2, "largo_m": largo}
+                    for k in LINEALES
+                    for largo in (3.0, 9.0, 14.0)
+                ] + [{"clave": k, "modo": "ml", "cantidad": 30} for k in LINEALES],
+            },
+        )
+        for clave in ("LOSA-MACIZA", "LOSA-NERVADA")
+    ],
 }
 
 
