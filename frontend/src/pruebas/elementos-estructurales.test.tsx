@@ -268,6 +268,30 @@ describe('TarjetaElementoEstructural', () => {
     expect(within(region).queryByRole('button', { name: 'Autorizar' })).not.toBeInTheDocument();
   });
 
+  it('una versión propuesta que cambia el anillo por alambrón muestra la fila del insumo nuevo y el anillo en cero', async () => {
+    m.definicion.current = {
+      ...DEFINICION,
+      correcciones_de_fabrica: [
+        {
+          concepto_clave: 'AUX-00008',
+          resumen: 'Nueva versión de AUX-00008: ACE-00005 0.8217 → 0; ACE-00002 0 → 0.8217',
+          cambios: [
+            { insumo: 'ACE-00005', unidad: 'kg', antes: 0.8217, despues: 0 },
+            { insumo: 'ACE-00002', unidad: 'kg', antes: 0, despues: 0.8217 },
+          ],
+          motivos: ['Q56 / D7: alambrón.'],
+        },
+      ],
+    };
+    render(<TarjetaElementoEstructural clave="T-1-15x25" rol="costos" />);
+    const conciliacion = await screen.findByRole('region', { name: 'Conciliación con el catálogo' });
+    const nueva = within(conciliacion).getByText('ACE-00002').closest('tr') as HTMLElement;
+    expect(nueva).toHaveAttribute('data-marca', 'solo_propuesta');
+    expect(within(nueva).getByText(/0\.8217/)).toBeInTheDocument();
+    const anillo = within(conciliacion).getByText('ACE-00005').closest('tr') as HTMLElement;
+    expect(within(anillo).getByText('0.0000')).toBeInTheDocument();
+  });
+
   it('Control de obra autoriza la propuesta pendiente de una trabe; Costos no puede', async () => {
     m.definicion.current = { ...DEFINICION, correcciones_de_fabrica: [CORRECCION_DE_FABRICA] };
     m.propuestas.current = [

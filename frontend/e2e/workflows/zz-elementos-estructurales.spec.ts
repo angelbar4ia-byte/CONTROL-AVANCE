@@ -128,6 +128,22 @@ test.describe('Cuantificador · elementos estructurales de la biblioteca', () =>
     // El catálogo vigente no cambió: la fila del segundo anillo sigue ahí con 0.6683.
     await expect(t2.locator('[data-conciliacion="AUX-10205"]')).toContainText('0.6683');
 
+    // --- 3c. T-5-12x30: el estribo pasa del anillo 10×25 al alambrón (ACE-00002), con los kg reales ----------------------
+    await biblioteca.getByRole('button', { name: /^T-5-12x30\b/ }).click();
+    const t5 = area.getByRole('article', { name: /T-5-12x30/ });
+    const conciliacionT5 = t5.locator('[data-conciliacion="AUX-00060"]');
+    await expect(conciliacionT5).toContainText('Versión propuesta');
+    await expect(conciliacionT5.locator('tr[data-marca="solo_propuesta"]')).toContainText('ACE-00002'); // el alambrón entra
+    await expect(conciliacionT5.locator('tr[data-marca="solo_propuesta"]')).toContainText('1.8032'); // kg reales por metro
+    const versionesT5 = t5.getByRole('region', { name: 'Versiones propuestas' });
+    const proponerT5 = versionesT5.getByRole('button', { name: 'Proponer las correcciones del catálogo' });
+    if (await proponerT5.count()) await proponerT5.click();
+    const propuestaT5 = versionesT5.locator('[data-propuesta="AUX-00060"]');
+    await expect(propuestaT5).toContainText('ACE-00002');
+    await expect(propuestaT5).toContainText('ACE-00006');
+    // El catálogo vigente no cambió: el anillo 10×25 sigue con 1.9401.
+    await expect(conciliacionT5).toContainText('1.9401');
+
     // --- 4. La corrección de EST-02330 como versión nueva del concepto ------------------------------------------------
     await biblioteca.getByRole('button', { name: /^T-1-15x25\b/ }).click();
     const costos = await browser.newContext();

@@ -13,7 +13,7 @@ from obractrl.domain.cuantificacion.elementos_lineales import (
     calcular_elemento,
     elemento_estructural,
 )
-from obractrl.domain.cuantificacion.elementos_lineales_catalogo import ELEMENTOS
+from obractrl.domain.cuantificacion.elementos_lineales_catalogo import ELEMENTOS, INSUMOS
 
 
 def test_t2_12x20_pasa_de_dos_anillos_a_uno_con_los_kg_del_elemento() -> None:
@@ -27,12 +27,35 @@ def test_t2_12x20_pasa_de_dos_anillos_a_uno_con_los_kg_del_elemento() -> None:
     assert "Q56" in p["detalle"]["motivos"][0]
 
 
-def test_t5_12x30_lleva_los_kg_que_calcula_el_elemento_sin_inventar_un_insumo() -> None:
+def test_t5_12x30_pasa_del_anillo_al_alambron_con_los_kg_reales() -> None:
+    """Decisión del usuario (2026-11-20): el estribo de T-5 es alambrón (ACE-00002, kg); no se inventa ningún insumo."""
     (p,) = correcciones_de_elemento_lineal("T-5-12x30")
     assert p["concepto_clave"] == "AUX-00060"
-    (c,) = p["detalle"]["cambios"]
-    assert (c["insumo"], c["antes"], c["despues"]) == ("ACE-00006", pytest.approx(1.940125), pytest.approx(1.803175))
-    assert "no se inventa" in p["detalle"]["motivos"][0]
+    cambios = {c["insumo"]: c for c in p["detalle"]["cambios"]}
+    assert set(cambios) == {"ACE-00006", "ACE-00002"}
+    assert (cambios["ACE-00006"]["antes"], cambios["ACE-00006"]["despues"]) == (pytest.approx(1.940125), 0)
+    assert (cambios["ACE-00002"]["antes"], cambios["ACE-00002"]["despues"]) == (0, pytest.approx(1.803175))
+    assert cambios["ACE-00002"]["unidad"] == "kg" and INSUMOS["ACE-00002"]["descripcion"] == "ALAMBRON"
+    assert any("alambrón" in m for m in p["detalle"]["motivos"]) and "provisional" not in p["resumen"]
+
+
+def test_t5_kg_del_alambron_son_la_formula_de_receta_acero() -> None:
+    """kg/m = (100 ÷ separación) × (perímetro del núcleo × factor + gancho) × peso del alambrón."""
+    e = elemento_estructural("T-5-12x30")
+    assert e is not None
+    a = e["armado"]
+    sep, _ = a["anillos"][0]
+    rec = a["rec_cm"] / 100
+    largo = 2 * ((e["ancho_cm"] / 100 - 2 * rec) + (e["peralte_cm"] / 100 - 2 * rec)) * a["factor_anillo"] + a["gancho_cm"] / 100
+    esperado = (100 / sep) * largo * INSUMOS["ACE-00002"]["peso_kg_m"]
+    (p,) = correcciones_de_elemento_lineal("T-5-12x30")
+    despues = next(c["despues"] for c in p["detalle"]["cambios"] if c["insumo"] == "ACE-00002")
+    assert despues == pytest.approx(esperado, abs=1e-5)
+
+
+def test_t2_12x20_queda_marcada_pendiente_de_confirmar_con_costos() -> None:
+    (p,) = correcciones_de_elemento_lineal("T-2-12x20")
+    assert "Pendiente de confirmar con Costos" in p["detalle"]["motivos"][0]
 
 
 def test_la_propuesta_es_lo_que_calcula_el_elemento() -> None:
@@ -41,6 +64,12 @@ def test_la_propuesta_es_lo_que_calcula_el_elemento() -> None:
         (p,) = correcciones_de_elemento_lineal(clave)
         filas = {f["clave"]: f for f in calcular_elemento(EntradaElementoEstructural(clave))["conciliacion"][0]["filas"]}
         for c in p["detalle"]["cambios"]:
+            if c["insumo"] == "ACE-00002":  # el alambrón de T-5 toma los kg que el cálculo vigente da al anillo
+                assert c["despues"] == pytest.approx(filas["ACE-00006"]["elemento"], abs=1e-6)
+                continue
+            if c["insumo"] == "ACE-00006":  # y el anillo se quita
+                assert c["despues"] == 0
+                continue
             esperado = filas[c["insumo"]]["elemento"] or 0.0
             assert c["despues"] == pytest.approx(esperado, abs=1e-6)
 

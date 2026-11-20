@@ -163,6 +163,11 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
 
   /** Las correcciones de fábrica del concepto, con el estado de la que ya se registró (la pendiente o la autorizada). */
   const propuestasDe = (concepto: string) => d.correcciones_de_fabrica.filter((c) => c.concepto_clave === concepto);
+  /** Insumos que la versión propuesta agrega y que ni el catálogo ni el cálculo traen (el alambrón de T-5-12x30). */
+  const insumosSoloDeLaPropuesta = (concepto: string, presentes: string[]) =>
+    propuestasDe(concepto)
+      .flatMap((c) => c.cambios)
+      .filter((x) => !presentes.includes(x.insumo));
   const celdaPropuesta = (concepto: string, insumo: string) => {
     const cambio = propuestasDe(concepto)
       .flatMap((c) => c.cambios)
@@ -416,6 +421,18 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
                           <td>
                             <span className={MARCA[f.marca]?.clase}>{MARCA[f.marca]?.texto ?? f.marca}</span>
                           </td>
+                        </tr>
+                      ))}
+                      {insumosSoloDeLaPropuesta(c.concepto.clave, c.filas.map((f) => f.clave)).map((x) => (
+                        <tr key={`propuesta-${x.insumo}`} data-marca="solo_propuesta">
+                          <td>
+                            <span className="mono">{x.insumo}</span> <span className="text-mute text-xs">(entra en la versión propuesta)</span>
+                          </td>
+                          <td className="n mono">—</td>
+                          <td className="n mono">{celdaPropuesta(c.concepto.clave, x.insumo)}</td>
+                          <td className="n mono">—</td>
+                          <td className="n mono">—</td>
+                          <td />
                         </tr>
                       ))}
                     </tbody>
