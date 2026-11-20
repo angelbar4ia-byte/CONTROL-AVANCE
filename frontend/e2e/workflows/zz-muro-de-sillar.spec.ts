@@ -91,6 +91,10 @@ test.describe('Cuantificador · muro de sillar amarillo BAP-01010', () => {
     await biblioteca.getByRole('button', { name: /^BAP-01010\b/ }).click();
 
     // --- 4. Costos propone, Control de obra autoriza -------------------------------------------------------------------------------
+    // La propuesta es del concepto BAP-01010 de toda la organización: en una base ya usada (segunda corrida) ya hay una vigente y proponer es
+    // idempotente; en una base limpia (CI) se recorre el ciclo completo.
+    const previas = await llamarApi<{ estado: string }[]>(request, 'control', 'GET', '/biblioteca-de-elementos/sillar/BAP-01010/propuestas');
+    const yaHayVigente = previas.some((p) => p.estado !== 'rechazada');
     const costos = await browser.newPage();
     await entrarComo(costos, 'costos');
     await costos.goto(url);
@@ -102,17 +106,23 @@ test.describe('Cuantificador · muro de sillar amarillo BAP-01010', () => {
     await expect(sillarCostos.getByRole('button', { name: 'Autorizar' })).toHaveCount(0);
     await expect(sillarCostos.getByRole('button', { name: /concepto nuevo/i })).toHaveCount(0); // el concepto ya está en el catálogo (F7)
     await sillarCostos.getByRole('button', { name: /Confirmar cálculo/ }).click();
-    await expect(sillarCostos.getByTestId('sillar-aviso')).toContainText('espera la autorización de Control de obra');
-    await expect(sillarCostos.locator('[data-propuesta="BAP-01010"]')).toContainText('Pendiente');
-    await expect(sillarCostos.locator('[data-propuesta="BAP-01010"]')).toContainText('PET-00008');
+    if (yaHayVigente) {
+      await expect(sillarCostos.getByTestId('sillar-aviso')).toContainText('ya hay una vigente');
+    } else {
+      await expect(sillarCostos.getByTestId('sillar-aviso')).toContainText('espera la autorización de Control de obra');
+      await expect(sillarCostos.locator('[data-propuesta="BAP-01010"]')).toContainText('Pendiente');
+      await expect(sillarCostos.locator('[data-propuesta="BAP-01010"]')).toContainText('PET-00008');
+    }
     await costos.close();
 
     await page.reload();
     await pestanas.getByRole('tab', { name: /^Elementos/ }).click();
     await biblioteca.getByRole('button', { name: 'Expandir todo' }).click();
     await biblioteca.getByRole('button', { name: /^BAP-01010\b/ }).click();
-    const propuesta = muro.locator('[data-propuesta="BAP-01010"]');
-    await propuesta.getByRole('button', { name: 'Autorizar' }).click();
+    const propuesta = muro.locator('[data-propuesta="BAP-01010"]').first();
+    if (!yaHayVigente) {
+      await propuesta.getByRole('button', { name: 'Autorizar' }).click();
+    }
     await expect(propuesta).toContainText(/Autorizada · versión \d+/);
   });
 
