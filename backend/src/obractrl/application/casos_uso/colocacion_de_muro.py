@@ -53,6 +53,7 @@ def _concepto_dict(c: ConceptoColocado) -> dict[str, Any]:
     return {
         "ranura": c.ranura, "concepto_id": c.concepto_id, "clave": c.clave, "unidad": c.unidad, "cantidad": c.cantidad,
         "cuenta": c.cuenta, "estado": c.estado, "origen": c.origen, "aviso": c.aviso, "partida_id": c.partida_id,
+        "espacio_id": c.espacio_id,
     }
 
 
@@ -118,6 +119,8 @@ class ColocarElementosDeMuro(GestionarVanos):
                 "elemento_id": catalogo[i.ref]["id"], "ref": i.ref, "uid": i.uid,
                 "numero_de_nivel": contexto.get("numero_de_nivel"), "nivel_id": contexto.get("nivel_id"), "etapa_id": contexto.get("etapa_id"),
                 "ubicacion": contexto.get("ubicacion"),
+                "espacio_id": contexto.get("espacio_id"), "espacio_comparte_id": contexto.get("espacio_comparte_id"),
+                "espacio_reparto_pct": contexto.get("espacio_reparto_pct"),
                 **(
                     {"alto_m": i.alto_m, "piezas": i.piezas_exactas}
                     if i.clase == "castillo"
@@ -132,7 +135,9 @@ class ColocarElementosDeMuro(GestionarVanos):
             for g, cs, avisos in await conceptos_de_lo_colocado(
                 elementos=self._elementos, parametrico=self._parametrico, obra_id=obra_id, instancias=grupos
             ):
-                conceptos[g["uid"]] = (cs, avisos)
+                # Un muro compartido sale como una entrada por espacio con la misma `uid`: se juntan (cada concepto lleva su espacio y su partida).
+                antes, antes_avisos = conceptos.get(g["uid"], ([], []))
+                conceptos[g["uid"]] = ([*antes, *cs], [*antes_avisos, *avisos])
         avisos_generales = list(colocacion.avisos)
         origenes = {str(e.get("uid")): e.get("origen") for e in plantilla["elementos"] or []}
         elementos = []

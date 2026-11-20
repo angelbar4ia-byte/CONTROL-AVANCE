@@ -11,6 +11,7 @@ import type { ElementoCalculadoLargoM } from "./elementoCalculadoLargoM";
 import type { ElementoCalculadoOrigen } from "./elementoCalculadoOrigen";
 import type { ElementoCalculadoTrazoId } from "./elementoCalculadoTrazoId";
 import type { ElementoCalculadoLongitudDelTrazoM } from "./elementoCalculadoLongitudDelTrazoM";
+import type { ElementoCalculadoEspacioId } from "./elementoCalculadoEspacioId";
 import type { ElementoCalculadoPago } from "./elementoCalculadoPago";
 import type { SeccionDelElementoDeLaZona } from "./seccionDelElementoDeLaZona";
 
@@ -28,6 +29,8 @@ export interface ElementoCalculado {
   origen: ElementoCalculadoOrigen;
   trazo_id: ElementoCalculadoTrazoId;
   longitud_del_trazo_m?: ElementoCalculadoLongitudDelTrazoM;
+  /** El espacio donde está el elemento (0143). */
+  espacio_id?: ElementoCalculadoEspacioId;
   pago: ElementoCalculadoPago;
   seccion: SeccionDelElementoDeLaZona;
   acero_kg: number;

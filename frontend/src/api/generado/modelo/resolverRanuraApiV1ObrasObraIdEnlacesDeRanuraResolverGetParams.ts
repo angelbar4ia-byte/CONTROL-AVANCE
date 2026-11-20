@@ -15,4 +15,5 @@ export type ResolverRanuraApiV1ObrasObraIdEnlacesDeRanuraResolverGetParams = {
   nivel_id?: string | null;
   etapa_id?: string | null;
   ubicacion?: string | null;
+  espacio_id?: string | null;
 };

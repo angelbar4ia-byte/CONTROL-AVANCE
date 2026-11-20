@@ -121,7 +121,10 @@ class SincronizarTomas:
         desviaciones: Any,
         parametrico: Any | None = None,
         trazos: Any | None = None,
+        losas: Any | None = None,
     ) -> None:
+        # Con las zonas de losa (0143), lo que paga la matriz de cada espacio se escribe en la partida de ese espacio.
+        self._losas = losas
         # Con el repositorio del Paramétrico, los castillos colocados desde la plantilla de un muro también alimentan conceptos (Ola 4C).
         self._parametrico = parametrico
         # Con el de trazos, lo que trae la plantilla de un muro (cadenas y castillos estimados) alimenta conceptos sin colocarse en el plano.
@@ -134,7 +137,24 @@ class SincronizarTomas:
         self._desviaciones = desviaciones
 
     async def tomas_de_la_obra(self, obra_id: UUID) -> dict[UUID, tuple[Decimal, str]]:
-        """Concepto → (cantidad, unidad) de lo que toma de los elementos colocados en toda la obra."""
+        """Concepto → (cantidad, unidad) de lo que toma de los elementos colocados en toda la obra (sin lo que cae en partidas de un espacio)."""
+        return (await self.tomas_completas(obra_id))[0]
+
+    async def _partidas_de_espacio(self, obra_id: UUID) -> set[UUID]:
+        """Las partidas del árbol que están dentro de un espacio (0143): lo que cae en ellas se escribe en ESA partida y no en todas las que tienen el concepto."""
+        if self._parametrico is None:
+            return set()
+        return {UUID(str(f["id"])) for f in await self._parametrico.partidas(obra_id) if f.get("espacio_id")}
+
+    async def tomas_completas(
+        self, obra_id: UUID
+    ) -> tuple[dict[UUID, tuple[Decimal, str]], dict[UUID, dict[UUID, tuple[Decimal, str]]]]:
+        """Lo que se toma de lo colocado en la obra: `(general, por partida)`.
+
+        - `general`: concepto → (cantidad, unidad), como siempre (se escribe en cada actividad que tiene el concepto).
+        - `por partida` (0143): partida del árbol (nodo del prototipo) → concepto → (cantidad, unidad), solo de lo que cae en una partida **de un
+          espacio** (muros con espacio y losas con espacio). Se SUMA a lo general en esa partida y a ninguna otra: así una recámara y un baño con el
+          mismo concepto reciben cada uno lo suyo y el total de la obra es la suma, sin doble conteo."""
         elementos = {e["id"]: e for e in await self._elementos.listar_todos()}
         totales = totales_de_trazos(elementos, await self._elementos.trazos_de_la_obra(obra_id))
         suma: dict[UUID, tuple[Decimal, str]] = {}
@@ -143,12 +163,27 @@ class SincronizarTomas:
             antes = suma.get(cid)
             cantidad = Decimal(str(f["cantidad"])) + (antes[0] if antes and antes[1] == f["unidad"] else Decimal(0))
             suma[cid] = (cantidad, f["unidad"])
-        for cid, cantidad, unidad in [*await self._tomas_de_castillos_colocados(obra_id), *await self._tomas_de_plantillas(obra_id)]:
+        de_espacio = await self._partidas_de_espacio(obra_id)
+        por_partida: dict[UUID, dict[UUID, tuple[Decimal, str]]] = {pid: {} for pid in de_espacio}
+        for cid, cantidad, unidad, partida_id in [
+            *await self._tomas_de_castillos_colocados(obra_id), *await self._tomas_de_plantillas(obra_id)
+        ]:
+            if partida_id is not None and partida_id in de_espacio:
+                cubo = por_partida.setdefault(partida_id, {})
+                antes = cubo.get(cid)
+                cubo[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
+                continue
             antes = suma.get(cid)
             suma[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
-        return suma
+        if self._losas is not None:
+            for partida_id, cid, cantidad, unidad in await self._losas.tomas_de_la_obra(obra_id):
+                # Lo de la losa que cae en una partida general (el concepto no tiene partida en ese espacio) sigue la regla general.
+                cubo = por_partida[partida_id] if partida_id in de_espacio else suma
+                antes = cubo.get(cid)
+                cubo[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
+        return suma, por_partida
 
-    async def _tomas_de_plantillas(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str]]:
+    async def _tomas_de_plantillas(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str, UUID | None]]:
         """Lo que toman los conceptos de lo que trae la plantilla de cada muro de la obra **sin colocarse en el plano**: las cadenas (el largo
         del muro, en ml) y los castillos estimados del muro confinado (sus piezas por la regla de la plantilla). Los castillos ubicados salen
         de lo colocado (`_tomas_de_castillos_colocados`), así que no se cuentan dos veces. Si el concepto no cuenta (propuesto, sin partida
@@ -193,17 +228,19 @@ class SincronizarTomas:
                     {
                         "elemento_id": el["id"], "ref": i.ref, "uid": i.uid, "clase": i.clase, "numero_de_nivel": f.get("numero_de_nivel"),
                         "nivel_id": f.get("nivel_id"), "etapa_id": f.get("etapa_id"), "ubicacion": f.get("ubicacion"),
+                        "espacio_id": f.get("espacio_id"), "espacio_comparte_id": f.get("espacio_comparte_id"),
+                        "espacio_reparto_pct": f.get("espacio_reparto_pct"),
                         **({"alto_m": i.alto_m, "piezas": i.piezas_exactas} if i.clase == "castillo" else {"alto_m": None, "piezas": 1, "metros": i.metros}),
                     }
                 )
-        salida: list[tuple[UUID, Decimal, str]] = []
+        salida: list[tuple[UUID, Decimal, str, UUID | None]] = []
         for _, conceptos, _avisos in await conceptos_de_lo_colocado(
             elementos=self._elementos, parametrico=self._parametrico, obra_id=obra_id, instancias=grupos
         ):
-            salida.extend((c.concepto_id, c.cantidad, c.unidad) for c in conceptos if c.cuenta and c.concepto_id is not None)
+            salida.extend((c.concepto_id, c.cantidad, c.unidad, c.partida_id) for c in conceptos if c.cuenta and c.concepto_id is not None)
         return salida
 
-    async def _tomas_de_castillos_colocados(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str]]:
+    async def _tomas_de_castillos_colocados(self, obra_id: UUID) -> list[tuple[UUID, Decimal, str, UUID | None]]:
         """Lo que toman los conceptos de los castillos colocados desde la plantilla de un muro (0135): por cada muro y alto, el concepto lo
         eligen el nivel, la ubicación y el alto (2A) y la ranura enlazada en el Paramétrico (4B). Si la partida no está en el árbol de la
         obra, avisa (en el reporte de lo colocado) y no cuenta. Sin castillos colocados no hay nada."""
@@ -217,11 +254,11 @@ class SincronizarTomas:
             clave = (f["trazo_id"], f["elemento_id"], Decimal(str(f["alto_m"])))
             g = grupos.setdefault(clave, {**f, "piezas": 0})
             g["piezas"] += int(f["piezas"])
-        salida: list[tuple[UUID, Decimal, str]] = []
+        salida: list[tuple[UUID, Decimal, str, UUID | None]] = []
         for _, conceptos, _avisos in await conceptos_de_lo_colocado(
             elementos=self._elementos, parametrico=self._parametrico, obra_id=obra_id, instancias=grupos.values()
         ):
-            salida.extend((c.concepto_id, c.cantidad, c.unidad) for c in conceptos if c.cuenta and c.concepto_id is not None)
+            salida.extend((c.concepto_id, c.cantidad, c.unidad, c.partida_id) for c in conceptos if c.cuenta and c.concepto_id is not None)
         return salida
 
     async def de_la_obra_del_trazo(self, trazo_id: UUID) -> None:
@@ -232,7 +269,8 @@ class SincronizarTomas:
 
     async def de_la_obra(self, obra_id: UUID) -> None:
         """Rehace las cantidades medidas de las matrices que toman de elementos. Se llama dentro de la transacción."""
-        a_recalcular = await self._matrices.aplicar_tomas(obra_id, await self.tomas_de_la_obra(obra_id))
+        general, por_partida = await self.tomas_completas(obra_id)
+        a_recalcular = await self._matrices.aplicar_tomas(obra_id, general, por_partida)
         for actividad_id in a_recalcular:
             await _recalcular_nodo(
                 tipo_nodo=TipoNodoCuantificacion.ACTIVIDAD,

@@ -23,6 +23,9 @@ import type { TrazoPropiedadesLosaZonaId } from "./trazoPropiedadesLosaZonaId";
 import type { TrazoPropiedadesLosaEspesorM } from "./trazoPropiedadesLosaEspesorM";
 import type { TrazoPropiedadesNivelExteriorM } from "./trazoPropiedadesNivelExteriorM";
 import type { TrazoPropiedadesRotulo } from "./trazoPropiedadesRotulo";
+import type { TrazoPropiedadesEspacioId } from "./trazoPropiedadesEspacioId";
+import type { TrazoPropiedadesEspacioComparteId } from "./trazoPropiedadesEspacioComparteId";
+import type { TrazoPropiedadesEspacioRepartoPct } from "./trazoPropiedadesEspacioRepartoPct";
 import type { ConexionDeMuro } from "./conexionDeMuro";
 import type { TrazoPropiedadesMedicionId } from "./trazoPropiedadesMedicionId";
 import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
@@ -69,6 +72,12 @@ export interface TrazoPropiedades {
   nivel_exterior_m?: TrazoPropiedadesNivelExteriorM;
   /** Rótulo de un punto de nivel exterior (0137). */
   rotulo?: TrazoPropiedadesRotulo;
+  /** El espacio donde cae el muro, el polígono de losa o el elemento (0143); `null` = sin espacio. */
+  espacio_id?: TrazoPropiedadesEspacioId;
+  /** Muro compartido (0143): el otro espacio entre los que se reparte la cantidad; el muro cuenta una sola vez. */
+  espacio_comparte_id?: TrazoPropiedadesEspacioComparteId;
+  /** Muro compartido: el % que toca al espacio principal (1 a 99); `null` = mitad y mitad (0143). */
+  espacio_reparto_pct?: TrazoPropiedadesEspacioRepartoPct;
   /** Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo. */
   conexiones?: ConexionDeMuro[];
   /** La medición a la que pertenece el trazo (0088); `null` = suelto. */

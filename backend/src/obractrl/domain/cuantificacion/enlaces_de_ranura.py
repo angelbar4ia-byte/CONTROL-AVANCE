@@ -57,7 +57,7 @@ _FORMA = re.compile(
 
 Estado = Literal["enlazado", "falta_partida", "sin_enlace"]
 
-_PESO_UBICACION, _PESO_ETAPA, _PESO_NIVEL = 10, 2, 1
+_PESO_UBICACION, _PESO_ESPACIO, _PESO_ETAPA, _PESO_NIVEL = 10, 5, 2, 1
 
 
 class ErrorDeEnlaceDeRanura(ErrorDeCuantificacion):
@@ -69,15 +69,17 @@ class Capa:
     nivel_id: UUID | None = None
     etapa_id: UUID | None = None
     ubicacion: str | None = None
+    espacio_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Contexto:
-    """Dónde se mide: el nivel y la etapa del plano o del trazo y la ubicación del muro."""
+    """Dónde se mide: el nivel y la etapa del plano o del trazo, la ubicación del muro y el espacio donde cae."""
 
     nivel_id: UUID | None = None
     etapa_id: UUID | None = None
     ubicacion: str | None = None
+    espacio_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +101,8 @@ class Partida:
     etapa_id: UUID | None
     nombre: str
     orden: int = 0
+    espacio_id: UUID | None = None
+    """El espacio de la rama del árbol donde está la partida (heredado); `None` = partida general (sin espacio)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,8 +173,12 @@ def validar_ubicacion(ubicacion: str | None) -> str | None:
 
 def puntaje_de_la_capa(capa: Capa, ctx: Contexto) -> int | None:
     """Qué tan específica es la capa para donde se mide, o `None` si no aplica. Cada dato que la capa fija debe coincidir:
-    ubicación 10, etapa 2, nivel 1; una capa vacía aplica a todo con 0."""
+    ubicación 10, espacio 5, etapa 2, nivel 1; una capa vacía aplica a todo con 0."""
     puntos = 0
+    if capa.espacio_id is not None:
+        if capa.espacio_id != ctx.espacio_id:
+            return None
+        puntos += _PESO_ESPACIO
     if capa.ubicacion is not None:
         if capa.ubicacion != ctx.ubicacion:
             return None
@@ -200,16 +208,34 @@ def elegir_enlace(enlaces: Sequence[EnlaceDeRanura], ranura: str, ctx: Contexto)
 
 
 def partida_en_capa(partidas: Sequence[Partida], concepto_id: UUID, ctx: Contexto) -> Partida | None:
-    """La partida del árbol que contiene el concepto en el nivel y la etapa donde se mide. Sin nivel (o sin etapa) en el
-    contexto, vale cualquiera. Con varias, la de menor orden."""
+    """La partida del árbol que contiene el concepto en el espacio, el nivel y la etapa donde se mide. Sin nivel (o sin etapa) en el
+    contexto, vale cualquiera. Con espacio, gana la partida de ese espacio y, si no hay, la general (sin espacio); sin espacio solo vale una
+    general (una partida de otro espacio nunca cuenta). Con varias, la de menor orden."""
     candidatas = [
         p
         for p in partidas
         if p.concepto_id == concepto_id
         and (ctx.nivel_id is None or p.nivel_id == ctx.nivel_id)
         and (ctx.etapa_id is None or p.etapa_id == ctx.etapa_id)
+        and (p.espacio_id is None or p.espacio_id == ctx.espacio_id)
     ]
-    return min(candidatas, key=lambda p: (p.orden, p.nombre), default=None)
+    return min(
+        candidatas,
+        key=lambda p: (0 if ctx.espacio_id is not None and p.espacio_id == ctx.espacio_id else 1, p.orden, p.nombre),
+        default=None,
+    )
+
+
+def _solo_en_espacios(partidas: Sequence[Partida], concepto_id: UUID, ctx: Contexto) -> bool:
+    """El concepto está en el árbol en este nivel y etapa pero solo dentro de espacios que no son donde se mide."""
+    mismas = [
+        p
+        for p in partidas
+        if p.concepto_id == concepto_id
+        and (ctx.nivel_id is None or p.nivel_id == ctx.nivel_id)
+        and (ctx.etapa_id is None or p.etapa_id == ctx.etapa_id)
+    ]
+    return bool(mismas) and all(p.espacio_id is not None for p in mismas)
 
 
 def resolver_ranura(
@@ -227,8 +253,15 @@ def resolver_ranura(
         return Resolucion("sin_enlace", False, None, None, por_defecto, aviso)
     p = partida_en_capa(partidas, e.concepto_id, ctx)
     if p is None:
+        sufijo = (
+            " Solo está dentro de espacios: asigna lo que se mide a uno de ellos."
+            if ctx.espacio_id is None and _solo_en_espacios(partidas, e.concepto_id, ctx)
+            else " Solo está dentro de otros espacios: agrégalo al árbol en este."
+            if ctx.espacio_id is not None and _solo_en_espacios(partidas, e.concepto_id, ctx)
+            else ""
+        )
         return Resolucion(
             "falta_partida", False, e, None, False,
-            f"El concepto {e.concepto_clave} no está en el árbol de la obra en esa capa: agrégalo al árbol; mientras tanto no cuenta.",
+            f"El concepto {e.concepto_clave} no está en el árbol de la obra en esa capa: agrégalo al árbol; mientras tanto no cuenta.{sufijo}",
         )
     return Resolucion("enlazado", True, e, p, False, None)

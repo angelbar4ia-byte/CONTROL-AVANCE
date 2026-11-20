@@ -68,6 +68,7 @@ from obractrl.adapters.repos.elementos_parametricos_sql import (
     RepositorioElementosParametricosSQL,
 )
 from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
+from obractrl.adapters.repos.espacios_sql import RepositorioEspaciosSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
 )
@@ -213,6 +214,7 @@ from obractrl.application.casos_uso.elementos_parametricos import (
     GestionarElementosParametricos,
 )
 from obractrl.application.casos_uso.enlaces_de_hoja import GestionarEnlacesDeHoja
+from obractrl.application.casos_uso.espacios import GestionarEspacios
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
@@ -394,6 +396,7 @@ from obractrl.application.casos_uso.registrar_revision_fisica import (
 )
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
 from obractrl.application.casos_uso.tomas_de_elemento import SincronizarTomas
+from obractrl.application.casos_uso.tomas_de_losas import TomasDeLosas
 from obractrl.application.casos_uso.valuacion_de_partes import (
     ConsultarValuacion,
     RedisenarParte,
@@ -523,6 +526,7 @@ __all__ = [
     "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
     "GestionarEnlacesDeRanuraDep",
+    "GestionarEspaciosDep",
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMatrizDeLosaDep",
@@ -951,6 +955,7 @@ def _sincronizador_de_tomas(sesion: SesionRLS, elementos: RepositorioElementosPa
         desviaciones=RepositorioDesviacionesSQL(sesion),
         parametrico=RepositorioParametricoSQL(sesion),
         trazos=RepositorioTrazosSQL(sesion),
+        losas=TomasDeLosas(zonas=RepositorioZonasDeLosaSQL(sesion), matriz=_matriz_de_losa(sesion)),
     )
 
 
@@ -1133,7 +1138,7 @@ def obtener_gestionar_propuestas_de_losa(sesion: SesionRLS) -> GestionarPropuest
     )
 
 
-def obtener_gestionar_matriz_de_losa(sesion: SesionRLS) -> GestionarMatrizDeLosa:
+def _matriz_de_losa(sesion: SesionRLS, sincronizador: SincronizarTomas | None = None) -> GestionarMatrizDeLosa:
     return GestionarMatrizDeLosa(
         zonas=RepositorioZonasDeLosaSQL(sesion),
         elementos=RepositorioElementosDeLosaSQL(sesion),
@@ -1142,6 +1147,19 @@ def obtener_gestionar_matriz_de_losa(sesion: SesionRLS) -> GestionarMatrizDeLosa
         conceptos=RepositorioConceptosSQL(sesion),
         insumos=RepositorioInsumosDeElementoSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        parametrico=RepositorioParametricoSQL(sesion),
+        sincronizador=sincronizador,
+    )
+
+
+def obtener_gestionar_matriz_de_losa(sesion: SesionRLS) -> GestionarMatrizDeLosa:
+    # La que escribe elementos rehace las tomas de la obra cuando lo asignado a un espacio cambia (0143).
+    return _matriz_de_losa(sesion, _sincronizador_de_tomas(sesion))
+
+
+def obtener_gestionar_espacios(sesion: SesionRLS) -> GestionarEspacios:
+    return GestionarEspacios(
+        espacios=RepositorioEspaciosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion), tomas=_sincronizador_de_tomas(sesion)
     )
 
 
@@ -1532,6 +1550,7 @@ GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obte
 GestionarZonasDeLosaDep = Annotated[GestionarZonasDeLosa, Depends(obtener_gestionar_zonas_de_losa)]
 GestionarPropuestasDeLosaDep = Annotated[GestionarPropuestasDeLosa, Depends(obtener_gestionar_propuestas_de_losa)]
 GestionarMatrizDeLosaDep = Annotated[GestionarMatrizDeLosa, Depends(obtener_gestionar_matriz_de_losa)]
+GestionarEspaciosDep = Annotated[GestionarEspacios, Depends(obtener_gestionar_espacios)]
 ConsultarFachadaPorBandasDep = Annotated[ConsultarFachadaPorBandas, Depends(obtener_consultar_fachada_por_bandas)]
 AplicarZonaAlMuroDep = Annotated[AplicarZonaAlMuro, Depends(obtener_aplicar_zona_al_muro)]
 MatrizQueCuentaDep = Annotated[MatrizQueCuenta, Depends(obtener_matriz_que_cuenta)]

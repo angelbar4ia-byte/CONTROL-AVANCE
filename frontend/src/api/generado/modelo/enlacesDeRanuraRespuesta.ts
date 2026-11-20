@@ -9,6 +9,7 @@ import type { EnlaceDeRanuraRespuesta } from "./enlaceDeRanuraRespuesta";
 import type { RanuraDePlantilla } from "./ranuraDePlantilla";
 import type { NivelDelArbol } from "./nivelDelArbol";
 import type { CapaDelArbol } from "./capaDelArbol";
+import type { EspacioDelArbol } from "./espacioDelArbol";
 import type { ConceptoDelArbol } from "./conceptoDelArbol";
 
 export interface EnlacesDeRanuraRespuesta {
@@ -18,6 +19,8 @@ export interface EnlacesDeRanuraRespuesta {
   niveles: NivelDelArbol[];
   /** Las etapas que usa el árbol de la obra. */
   etapas: CapaDelArbol[];
+  /** Los espacios de la obra (0143): una capa más donde enlazar. */
+  espacios?: EspacioDelArbol[];
   /** Cuántos conceptos tiene el árbol de la obra. */
   partidas_del_arbol: number;
   /** Los conceptos distintos que el árbol de la obra ya trae: los que se enlazan sin avisos. */

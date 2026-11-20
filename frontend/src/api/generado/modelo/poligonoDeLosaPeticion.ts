@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PoligonoDeLosaPeticionEspesorM } from "./poligonoDeLosaPeticionEspesorM";
+import type { PoligonoDeLosaPeticionEspacioId } from "./poligonoDeLosaPeticionEspacioId";
 
 export interface PoligonoDeLosaPeticion {
   /**
@@ -16,4 +17,6 @@ export interface PoligonoDeLosaPeticion {
   area_m2: number;
   /** Subzona: espesor estructural propio; sin él vale el de la zona. */
   espesor_m?: PoligonoDeLosaPeticionEspesorM;
+  /** Una etiqueta del espacio donde cae el polígono (0143): reparte la matriz por espacio. */
+  espacio_id?: PoligonoDeLosaPeticionEspacioId;
 }

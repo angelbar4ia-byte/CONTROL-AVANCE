@@ -319,6 +319,8 @@ class ConceptoColocado:
     """cuenta, falta_partida, propuesto, unidad_no_admitida."""
     aviso: str | None = None
     partida_id: UUID | None = None
+    espacio_id: UUID | None = None
+    """El espacio donde se midió (0143): un muro compartido cuenta una parte en cada espacio, sin contarse dos veces."""
 
 
 def _cantidad(unidad: str, piezas: Decimal | int, alto_m: Decimal | None, metros: Decimal | None) -> Decimal | None:
@@ -346,6 +348,7 @@ def conceptos_de_instancia(
     etapa_id: UUID | None,
     unidades: Mapping[UUID, str],
     metros: Decimal | None = None,
+    espacio_id: UUID | None = None,
 ) -> tuple[list[ConceptoColocado], list[str]]:
     """Los conceptos que paga un castillo colocado (`piezas` de `alto_m`) o una cadena (`metros`, sin alto) en este nivel y esta ubicación.
 
@@ -360,7 +363,7 @@ def conceptos_de_instancia(
     """
     ubic_concepto = ubicacion if ubicacion in UBICACIONES_DE_CONCEPTO else None
     ubic_ranura = ubicacion if ubicacion in UBICACIONES_DE_RANURA else None
-    ctx = ContextoDeRanura(nivel_id, etapa_id, ubic_ranura)
+    ctx = ContextoDeRanura(nivel_id, etapa_id, ubic_ranura, espacio_id)
     r = resolver(conceptos, nivel=nivel, ubicacion=ubic_concepto, alto_m=alto_m)
     avisos = list(r.avisos)
     salida: list[ConceptoColocado] = []
@@ -370,7 +373,7 @@ def conceptos_de_instancia(
             salida.append(
                 ConceptoColocado(
                     ranura, None, c.clave, c.unidad, Decimal(0), False, "contexto", "propuesto",
-                    f"El concepto {c.clave} aún está pendiente de autorizar: no cuenta.",
+                    f"El concepto {c.clave} aún está pendiente de autorizar: no cuenta.", None, espacio_id,
                 )
             )
             continue
@@ -382,7 +385,7 @@ def conceptos_de_instancia(
                 salida.append(
                     ConceptoColocado(
                         ranura, res.enlace.concepto_id, res.enlace.concepto_clave, unidades.get(res.enlace.concepto_id, c.unidad),
-                        Decimal(0), False, "ranura", "falta_partida", res.aviso,
+                        Decimal(0), False, "ranura", "falta_partida", res.aviso, None, espacio_id,
                     )
                 )
                 continue
@@ -396,6 +399,7 @@ def conceptos_de_instancia(
                 ConceptoColocado(
                     ranura, concepto_id, clave, unidad, Decimal(0), False, origen, "unidad_no_admitida",
                     f"El concepto {clave} se mide en {unidad}: {'una cadena se cuenta en ml' if metros is not None else 'un castillo se cuenta en pza o ml'}, así que no cuenta.",
+                    None, espacio_id,
                 )
             )
             continue
@@ -405,10 +409,11 @@ def conceptos_de_instancia(
                 ConceptoColocado(
                     ranura, concepto_id, clave, unidad, cantidad, False, origen, "falta_partida",
                     f"El concepto {clave} no está en el árbol de la obra en este nivel: agrégalo; mientras tanto no cuenta.",
+                    None, espacio_id,
                 )
             )
             continue
         salida.append(
-            ConceptoColocado(ranura, concepto_id, clave, unidad, cantidad, True, origen, "cuenta", None, partida.id)
+            ConceptoColocado(ranura, concepto_id, clave, unidad, cantidad, True, origen, "cuenta", None, partida.id, espacio_id)
         )
     return salida, list(dict.fromkeys(avisos + [x.aviso for x in salida if x.aviso]))

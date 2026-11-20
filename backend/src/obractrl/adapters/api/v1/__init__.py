@@ -56,6 +56,7 @@ from obractrl.adapters.api.v1.elementos_parametricos import (
 )
 from obractrl.adapters.api.v1.enlaces_de_hoja import router as router_enlaces_de_hoja
 from obractrl.adapters.api.v1.ensambles import router as router_ensambles
+from obractrl.adapters.api.v1.espacios import router as router_espacios
 from obractrl.adapters.api.v1.estimacion import router as router_estimacion
 from obractrl.adapters.api.v1.evaluaciones import router as router_evaluaciones
 from obractrl.adapters.api.v1.eventos import router as router_eventos
@@ -144,6 +145,7 @@ api_v1.include_router(router_losas)
 api_v1.include_router(router_bastones)
 api_v1.include_router(router_plantillas_de_muro)
 api_v1.include_router(router_zonas_de_losa)
+api_v1.include_router(router_espacios)
 api_v1.include_router(router_fachada_por_bandas)
 api_v1.include_router(router_correcciones_de_catalogo)
 api_v1.include_router(router_parametrico)

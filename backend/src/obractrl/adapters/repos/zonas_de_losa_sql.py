@@ -60,6 +60,18 @@ class RepositorioZonasDeLosaSQL:
         ).mappings().all()
         return [dict(f) for f in filas]
 
+    async def zonas_de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"select {_COLUMNAS_ZONA} from losa_zona z join plano p on p.id = z.plano_id where p.obra_id = :o "
+                    "order by p.created_at, p.id, z.cota_piso_m, z.altura_libre_m, lower(z.nombre), z.id"
+                ),
+                {"o": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
     async def zona(self, zona_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(text(f"select {_COLUMNAS_ZONA} from losa_zona z where z.id = :z"), {"z": str(zona_id)})
@@ -71,7 +83,7 @@ class RepositorioZonasDeLosaSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select t.id, t.losa_zona_id as zona_id, t.losa_espesor_m as espesor_propio_m,
+                    select t.id, t.losa_zona_id as zona_id, t.losa_espesor_m as espesor_propio_m, t.espacio_id,
                            ST_AsGeoJSON(app.geometria_efectiva(t.id, t.geometria), 9, 0) as geojson
                       from trazo t
                      where t.plano_id = :p and t.losa_zona_id is not null and t.hueco_de is null

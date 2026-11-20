@@ -69,6 +69,7 @@ from obractrl.application.casos_uso.cuantificar import (
     TrazoNoEncontrado,
 )
 from obractrl.application.casos_uso.enlaces_de_hoja import EnlaceDeHojaNoEncontrado
+from obractrl.application.casos_uso.espacios import EspacioNoEncontrado
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
     ObraYaEjecutada,
@@ -1696,6 +1697,16 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="zona-de-losa-no-encontrada",
             titulo="Zona de losa no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EspacioNoEncontrado)
+    async def _espacio_no_encontrado(request: Request, exc: EspacioNoEncontrado) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="espacio-no-encontrado",
+            titulo="Espacio no encontrado",
             detalle=str(exc),
         )
 

@@ -8,6 +8,7 @@
 import type { ElementoDeLaMatrizPeticionModo } from "./elementoDeLaMatrizPeticionModo";
 import type { ElementoDeLaMatrizPeticionLargoM } from "./elementoDeLaMatrizPeticionLargoM";
 import type { ElementoDeLaMatrizPeticionPago } from "./elementoDeLaMatrizPeticionPago";
+import type { ElementoDeLaMatrizPeticionEspacioId } from "./elementoDeLaMatrizPeticionEspacioId";
 
 export interface ElementoDeLaMatrizPeticion {
   /** Una trabe, contratrabe o nervadura de la biblioteca (T-1-15x25, CT1-15x25, N-1-12x25…). */
@@ -22,4 +23,6 @@ export interface ElementoDeLaMatrizPeticion {
   largo_m?: ElementoDeLaMatrizPeticionLargoM;
   /** `en_la_losa`: la losa paga el concreto y la cimbra del elemento (lo que hace el catálogo); `propio`: los paga su concepto de colado por ml (D8). */
   pago?: ElementoDeLaMatrizPeticionPago;
+  /** Una etiqueta del espacio donde está el elemento (0143): reparte la matriz por espacio. */
+  espacio_id?: ElementoDeLaMatrizPeticionEspacioId;
 }

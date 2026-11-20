@@ -153,6 +153,7 @@ class DefinicionDeLaLosa(BaseModel):
 class PoligonoDeLosaPeticion(BaseModel):
     area_m2: float = Field(ge=0, le=1_000_000, description="Área neta del polígono (ya sin huecos).")
     espesor_m: float | None = Field(default=None, gt=0, le=3, description="Subzona: espesor estructural propio; sin él vale el de la zona.")
+    espacio_id: str | None = Field(default=None, max_length=60, description="Una etiqueta del espacio donde cae el polígono (0143): reparte la matriz por espacio.")
 
 
 class ElementoDeLaMatrizPeticion(BaseModel):
@@ -164,6 +165,7 @@ class ElementoDeLaMatrizPeticion(BaseModel):
         default="en_la_losa",
         description="`en_la_losa`: la losa paga el concreto y la cimbra del elemento (lo que hace el catálogo); `propio`: los paga su concepto de colado por ml (D8).",
     )
+    espacio_id: str | None = Field(default=None, max_length=60, description="Una etiqueta del espacio donde está el elemento (0143): reparte la matriz por espacio.")
 
 
 class CalculoDeLaLosaPeticion(BaseModel):
@@ -185,6 +187,7 @@ class LosaCalculada(BaseModel):
     area_m2: float
     espesor_m: float
     subzona: bool
+    espacio_id: str | None = Field(default=None, description="El espacio donde cae el polígono (0143).")
     concreto_m3: float = Field(description="Geométrico, sin desperdicio: área × espesor (maciza) o área × capa de compresión (nervada).")
 
 
@@ -219,6 +222,7 @@ class ElementoCalculado(BaseModel):
     origen: Literal["manual", "trazo"] = Field(description="`trazo`: la medida sale de una línea del plano (medición derivada).")
     trazo_id: str | None
     longitud_del_trazo_m: float | None = None
+    espacio_id: str | None = Field(default=None, description="El espacio donde está el elemento (0143).")
     pago: Literal["en_la_losa", "propio"]
     seccion: SeccionDelElementoDeLaZona
     acero_kg: float
@@ -271,6 +275,34 @@ class ConceptoDeLaMatriz(BaseModel):
     propuesta: PropuestaDelConceptoDeLosa | None = Field(
         default=None, description="Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
     )
+
+
+class ResolucionDelConcepto(BaseModel):
+    estado: Literal["cuenta", "sin_espacio", "propuesto", "sin_concepto", "falta_partida", "sin_cantidad"] = Field(
+        description="`cuenta`: concepto del catálogo con partida en el árbol en ese espacio (o una general): su cantidad se escribe ahí. Lo demás avisa y no escribe."
+    )
+    cuenta: bool
+    aviso: str | None
+    concepto_id: UUID | None
+    partida_id: UUID | None = Field(description="La partida del árbol donde se mide (solo si cuenta).")
+    partida_nombre: str | None
+
+
+class ConceptoPorEspacio(ConceptoDeLaMatriz):
+    resolucion: ResolucionDelConcepto | None = Field(
+        default=None, description="En qué partida del árbol se mide (solo la matriz de una zona; el cálculo suelto no consulta el árbol)."
+    )
+
+
+class GrupoPorEspacio(BaseModel):
+    espacio_id: str | None = Field(description="El espacio; `null` = lo que no está asignado a ninguno.")
+    espacio_nombre: str | None = None
+    area_m2: float
+    longitud_de_elementos_ml: float
+    concreto_m3: float
+    cimbra_m2: float
+    acero_de_elementos_kg: float
+    conceptos: list[ConceptoPorEspacio]
 
 
 class ManoDeObraDeLaLosa(BaseModel):
@@ -330,6 +362,10 @@ class MatrizDeLosa(BaseModel):
     totales: TotalesDeLaMatriz
     insumos: list[InsumoDeLaMatriz]
     conceptos: list[ConceptoDeLaMatriz]
+    por_espacio: list[GrupoPorEspacio] = Field(
+        default_factory=list,
+        description="La misma matriz repartida por espacio (0143): cada polígono y cada elemento cae en un solo grupo, así que la suma de los grupos es el total de la zona (sin doble conteo). Cada concepto dice en qué partida se mide.",
+    )
     mano_de_obra: ManoDeObraDeLaLosa
     advertencias: list[str]
     pendientes: list[PendienteDeLaLosa]
@@ -355,6 +391,9 @@ class ElementoDeLaZonaPeticion(BaseModel):
         default=None,
         description="Una línea del plano de la zona: su longitud (con la escala del plano) es la medida del elemento, derivada al calcular (por pieza, el largo de la pieza).",
     )
+    espacio_id: UUID | None = Field(
+        default=None, description="El espacio donde está el elemento (0143); `null` = sin espacio. Con espacio, su concepto se mide en la partida de ese espacio."
+    )
 
 
 class ElementoDeLaZona(BaseModel):
@@ -367,6 +406,7 @@ class ElementoDeLaZona(BaseModel):
     trazo_id: UUID | None
     origen: Literal["manual", "trazo"]
     longitud_del_trazo_m: float | None
+    espacio_id: UUID | None = None
 
 
 # ── Biblioteca: la ficha, el cálculo suelto y las propuestas de la losa ─────────────────────────────────
@@ -404,9 +444,10 @@ async def calcular_la_losa(clave: str, peticion: CalculoDeLaLosaPeticion, driver
         r = calcular_matriz_de_losa(
             EntradaMatrizDeLosa(
                 tipo=tipo, uso=peticion.uso, espesor_m=peticion.espesor_m, capa_de_compresion_cm=peticion.capa_de_compresion_cm,
-                losas=[LosaDeEntrada(area_m2=lo.area_m2, espesor_m=lo.espesor_m) for lo in peticion.losas],
+                losas=[LosaDeEntrada(area_m2=lo.area_m2, espesor_m=lo.espesor_m, espacio_id=lo.espacio_id) for lo in peticion.losas],
                 elementos=[
-                    ElementoDeLosa(clave=e.clave, modo=e.modo, cantidad=e.cantidad, largo_m=e.largo_m, pago=e.pago) for e in peticion.elementos
+                    ElementoDeLosa(clave=e.clave, modo=e.modo, cantidad=e.cantidad, largo_m=e.largo_m, pago=e.pago, espacio_id=e.espacio_id)
+                    for e in peticion.elementos
                 ],
                 desperdicio_concreto_pct=desperdicio_pct, drivers=drivers,
             )

@@ -399,8 +399,14 @@ class RepositorioMatrices(Protocol):
         la deja sin medir."""
         ...
 
-    async def aplicar_tomas(self, obra_id: UUID, tomas: dict[UUID, tuple[Decimal, str]]) -> list[UUID]:
-        """Escribe la cantidad que cada matriz de la obra toma de un elemento (D-639); devuelve las actividades a recalcular."""
+    async def aplicar_tomas(
+        self,
+        obra_id: UUID,
+        tomas: dict[UUID, tuple[Decimal, str]],
+        por_partida: dict[UUID, dict[UUID, tuple[Decimal, str]]] | None = None,
+    ) -> list[UUID]:
+        """Escribe la cantidad que cada matriz de la obra toma de un elemento (D-639); devuelve las actividades a recalcular. `por_partida` (0143):
+        nodo del árbol → concepto → (cantidad, unidad), lo que cae en la partida de un espacio; se suma a lo general solo en esa partida."""
         ...
 
     async def de_si_misma(self, actividad_id: UUID) -> Decimal | None:

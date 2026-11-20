@@ -305,13 +305,16 @@ class GestionarDrivers:
 
 def _a_enlace(f: dict[str, Any]) -> EnlaceDeRanura:
     return EnlaceDeRanura(
-        id=f["id"], ranura=f["ranura"], capa=Capa(f["nivel_id"], f["etapa_id"], f["ubicacion"]),
+        id=f["id"], ranura=f["ranura"], capa=Capa(f["nivel_id"], f["etapa_id"], f["ubicacion"], f.get("espacio_id")),
         concepto_id=f["concepto_id"], concepto_clave=f["concepto_clave"],
     )
 
 
 def _a_partida(f: dict[str, Any]) -> Partida:
-    return Partida(id=f["id"], concepto_id=f["concepto_id"], nivel_id=f["nivel_id"], etapa_id=f["etapa_id"], nombre=f["nombre"], orden=f["orden"])
+    return Partida(
+        id=f["id"], concepto_id=f["concepto_id"], nivel_id=f["nivel_id"], etapa_id=f["etapa_id"], nombre=f["nombre"], orden=f["orden"],
+        espacio_id=f.get("espacio_id"),
+    )
 
 
 def _resumen(r: Resolucion) -> dict[str, Any]:
@@ -345,13 +348,14 @@ class GestionarEnlacesDeRanura:
         capas = await self._p.capas(obra_id)
         salida = []
         for f, e in zip(filas, enlaces, strict=True):
-            r = resolver_ranura([e], partidas, e.ranura, Contexto(e.capa.nivel_id, e.capa.etapa_id, e.capa.ubicacion))
+            r = resolver_ranura([e], partidas, e.ranura, Contexto(e.capa.nivel_id, e.capa.etapa_id, e.capa.ubicacion, e.capa.espacio_id))
             salida.append({**f, "capa": e.capa, **{k: v for k, v in _resumen(r).items() if k != "enlace_id"}})
         return {
             "enlaces": salida,
             "ranuras_de_plantilla": [self._plantilla(r) for r in ranuras_de_plantilla()],
             "niveles": capas["niveles"],
             "etapas": capas["etapas"],
+            "espacios": capas.get("espacios", []),
             "partidas_del_arbol": len(partidas),
             "conceptos_del_arbol": [{"clave": k, "descripcion": en_el_arbol[k]} for k in sorted(en_el_arbol)],
         }
@@ -361,14 +365,15 @@ class GestionarEnlacesDeRanura:
         return {"ranura": r.ranura, "nombre": r.nombre, "grupo": r.grupo, "sugerido_clave": r.sugerido_clave}
 
     async def resolver(
-        self, obra_id: UUID, ranura: str, *, nivel_id: UUID | None, etapa_id: UUID | None, ubicacion: str | None
+        self, obra_id: UUID, ranura: str, *, nivel_id: UUID | None, etapa_id: UUID | None, ubicacion: str | None,
+        espacio_id: UUID | None = None,
     ) -> dict[str, Any]:
-        """Lo que cuenta una ranura donde se mide (nivel, etapa y ubicación): el concepto, su partida o el aviso."""
+        """Lo que cuenta una ranura donde se mide (espacio, nivel, etapa y ubicación): el concepto, su partida o el aviso."""
         await self._obra(obra_id)
         ranura = validar_ranura(ranura)
         enlaces = [_a_enlace(f) for f in await self._p.enlaces(obra_id)]
         partidas = [_a_partida(f) for f in await self._p.partidas(obra_id)]
-        r = resolver_ranura(enlaces, partidas, ranura, Contexto(nivel_id, etapa_id, validar_ubicacion(ubicacion)))
+        r = resolver_ranura(enlaces, partidas, ranura, Contexto(nivel_id, etapa_id, validar_ubicacion(ubicacion), espacio_id))
         return {"ranura": ranura, **_resumen(r)}
 
     async def guardar(
@@ -382,6 +387,7 @@ class GestionarEnlacesDeRanura:
         ubicacion: str | None,
         usuario_id: UUID,
         rol: str,
+        espacio_id: UUID | None = None,
     ) -> tuple[dict[str, Any], bool]:
         """Enlaza la ranura, en esa capa, con un concepto que ya existe. Si la capa ya tenía enlace, le cambia el concepto."""
         validar_que_enlaza(rol)
@@ -395,10 +401,12 @@ class GestionarEnlacesDeRanura:
             raise ErrorDeEnlaceDeRanura("El nivel no existe.")
         if etapa_id is not None and not await self._p.nivel_o_etapa_existe("etapa_constructiva", etapa_id):
             raise ErrorDeEnlaceDeRanura("La etapa no existe.")
+        if espacio_id is not None and not await self._p.espacio_existe(obra_id, espacio_id):
+            raise ErrorDeEnlaceDeRanura("El espacio no existe en esta obra.")
         async with self._uow:
             ident, creado = await self._p.guardar_enlace(
                 obra_id=obra_id, ranura=ranura, nivel_id=nivel_id, etapa_id=etapa_id, ubicacion=ubicacion,
-                concepto_id=concepto["id"], usuario_id=usuario_id,
+                concepto_id=concepto["id"], usuario_id=usuario_id, espacio_id=espacio_id,
             )
             await self._uow.commit()
         listado = await self.listar(obra_id)
