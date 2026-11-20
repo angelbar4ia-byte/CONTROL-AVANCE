@@ -2951,6 +2951,7 @@ export function EspacioDeTrazo({
           <PanelDeZonasDeLosa
             planoId={planoElegido}
             puedeEditar={sesion?.rol === 'control_obra'}
+            rol={sesion?.rol ?? null}
             colocando={zonaPorColocar}
             onColocar={(c) => {
               setZonaPorColocar(c);

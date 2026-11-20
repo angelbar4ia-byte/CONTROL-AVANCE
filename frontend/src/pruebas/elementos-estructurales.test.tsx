@@ -18,6 +18,7 @@ const m = vi.hoisted(() => ({
   proponerCorrecciones: vi.fn(),
   autorizarPropuesta: vi.fn(),
   rechazarPropuesta: vi.fn(),
+  proponerColado: vi.fn(),
 }));
 
 vi.mock('@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos', () => ({
@@ -33,6 +34,9 @@ vi.mock('@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos', () => 
   useProponerCorreccionApiV1CorreccionesDeCatalogoPost: () => ({ mutateAsync: m.proponer }),
   useAutorizarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdAutorizarPost: () => ({ mutateAsync: m.autorizar }),
   useRechazarCorreccionApiV1CorreccionesDeCatalogoCorreccionIdRechazarPost: () => ({ mutateAsync: m.rechazar }),
+}));
+vi.mock('@/api/generado/losas/losas', () => ({
+  useProponerColadoPorMlApiV1BibliotecaDeElementosEstructuraClavePropuestasColadoPorMlPost: () => ({ mutateAsync: m.proponerColado, isPending: false }),
 }));
 vi.mock('@/app/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn() } }));
 
@@ -67,13 +71,13 @@ const DEFINICION = {
     borrador: {
       unidad: 'ml',
       toma: { concreto: true, cimbra: true },
-      clave_propuesta: null,
+      clave_propuesta: 'EJ-703',
       descripcion_sugerida: 'Colado y cimbra de Trabe T-1',
       concreto: { clave: 'CON-00003', descripcion: 'CONCRETO' },
       cimbra: [{ clave: 'MAD-00001', descripcion: 'CIMBRA', consumo: 'por_m2', cantidad: 1 }],
-      ruta: 'POST /elementos-parametricos/{elemento_id}/conceptos con unidad, toma, clave_propuesta y descripcion',
+      ruta: 'POST /biblioteca-de-elementos/estructura/T-1-15x25/propuestas/colado-por-ml',
     },
-    mano_de_obra: { estado: 'sin_destajo_por_ml', destajo: null, nota: 'El catálogo de trabajos no trae destajo para trabes.' },
+    mano_de_obra: { estado: 'destajo_por_ml_sin_importe', destajo: 'EJ-703-MO', nota: 'El catálogo de trabajos no trae destajo para trabes.' },
     preguntas: ['Q51', 'Q52'],
   },
   usado_en: [],
@@ -150,11 +154,12 @@ const CORRECCION = {
 };
 
 beforeEach(() => {
-  for (const f of [m.calcular, m.proponer, m.autorizar, m.rechazar, m.proponerCorrecciones, m.autorizarPropuesta, m.rechazarPropuesta]) f.mockReset();
+  for (const f of [m.calcular, m.proponer, m.autorizar, m.rechazar, m.proponerCorrecciones, m.autorizarPropuesta, m.rechazarPropuesta, m.proponerColado]) f.mockReset();
   m.propuestas.current = [];
   m.proponerCorrecciones.mockResolvedValue({ creadas: ['p1'], omitidas: [] });
   m.autorizarPropuesta.mockResolvedValue({ version: 2 });
   m.rechazarPropuesta.mockResolvedValue(undefined);
+  m.proponerColado.mockResolvedValue({ creadas: ['c1'], omitidas: [] });
   m.calcular.mockResolvedValue(CALCULO);
   m.proponer.mockResolvedValue({ id: 'c1', estado: 'pendiente', version: null });
   m.autorizar.mockResolvedValue({ version: 1 });
@@ -196,13 +201,46 @@ describe('TarjetaElementoEstructural', () => {
     await waitFor(() => expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'T-1-15x25', data: { modo: 'ml', cantidad: 1 } }));
   });
 
-  it('deja el colado y cimbra por registrar, sin clave ni destajo', async () => {
+  it('el colado y cimbra por ml se propone con su clave provisional y su destajo por ml sin importe (D8)', async () => {
     render(<TarjetaElementoEstructural clave="T-1-15x25" rol="costos" />);
     const camino = await screen.findByRole('region', { name: 'Colado, cimbra y destajo' });
     expect(camino).toHaveAttribute('data-camino', 'por_registrar');
     expect(within(camino).getByTestId('ee-camino-colado')).toHaveTextContent('Concepto nuevo por registrar');
     expect(within(camino).getByTestId('ee-sin-destajo')).toHaveTextContent('no trae destajo');
-    expect(camino.textContent).not.toMatch(/EJ-7/);
+    // La clave es provisional y el destajo por ml queda sin importe: nada de precios.
+    const propuesto = camino.querySelector('[data-concepto-propuesto="EJ-703"]') as HTMLElement;
+    expect(propuesto).toHaveAttribute('data-estado-propuesta', 'sin_proponer');
+    expect(within(propuesto).getByText('provisional')).toBeInTheDocument();
+    expect(within(camino).getByTestId('ee-destajo-por-ml')).toHaveTextContent('EJ-703-MO');
+    expect(within(camino).getByTestId('ee-destajo-por-ml')).toHaveTextContent('sin importe');
+    expect(camino.textContent).not.toMatch(/\$/);
+    fireEvent.click(within(camino).getByRole('button', { name: 'Proponer el colado y cimbra por ml' }));
+    await waitFor(() => expect(m.proponerColado).toHaveBeenCalledWith({ clave: 'T-1-15x25' }));
+  });
+
+  it('con el colado ya propuesto muestra su estado y Control de obra lo autoriza; el residente no propone', async () => {
+    const propuesta = {
+      id: 'c9', elemento_clave: 'T-1-15x25', concepto_clave: 'EJ-703', clase: 'concepto_nuevo', estado: 'pendiente', version: null, resumen: 'Concepto nuevo EJ-703',
+      cambios: [], motivos: [], destajo_por_definir: null, propuso_nombre: 'Ana', propuso_rol: 'costos', propuesto_en: '2026-11-20T00:00:00Z',
+      decidio_nombre: null, decidio_rol: null, decidido_en: null, motivo: null,
+    };
+    m.propuestas.current = [propuesta];
+    const { unmount } = render(<TarjetaElementoEstructural clave="T-1-15x25" rol="costos" />);
+    let camino = await screen.findByRole('region', { name: 'Colado, cimbra y destajo' });
+    expect(camino.querySelector('[data-concepto-propuesto="EJ-703"]')).toHaveAttribute('data-estado-propuesta', 'pendiente');
+    expect(within(camino).queryByRole('button', { name: 'Proponer el colado y cimbra por ml' })).not.toBeInTheDocument();
+    expect(within(camino).queryByRole('button', { name: 'Autorizar' })).not.toBeInTheDocument();
+    unmount();
+    const otra = render(<TarjetaElementoEstructural clave="T-1-15x25" rol="control_obra" />);
+    camino = await screen.findByRole('region', { name: 'Colado, cimbra y destajo' });
+    fireEvent.click(within(camino).getByRole('button', { name: 'Autorizar' }));
+    await waitFor(() => expect(m.autorizarPropuesta).toHaveBeenCalledWith({ propuestaId: 'c9' }));
+    otra.unmount();
+    m.propuestas.current = [];
+    render(<TarjetaElementoEstructural clave="T-1-15x25" rol="residente" />);
+    camino = await screen.findByRole('region', { name: 'Colado, cimbra y destajo' });
+    expect(within(camino).queryByRole('button', { name: 'Proponer el colado y cimbra por ml' })).not.toBeInTheDocument();
+    expect(within(camino).getByText('Lo propone Costos o Control de obra.')).toBeInTheDocument();
   });
 
   it('la columna manda su altura y la zapata solo es pieza', async () => {
