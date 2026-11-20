@@ -211,4 +211,86 @@ describe('MatrizDeLaZona', () => {
     pintar('control_obra', true);
     expect(screen.getByText(/no tiene escala calibrada: se toma 1 unidad de plano = 1 m/)).toBeInTheDocument();
   });
+
+  describe('por espacio (0143)', () => {
+    const ESPACIOS = [
+      { id: 'r', nombre: 'Recámara 1' },
+      { id: 'b', nombre: 'Baño' },
+    ] as never;
+    const fila = (clave: string, cantidad: number, resolucion: Record<string, unknown>) => ({
+      parte: 'acero', elemento_clave: 'T-1-15x25', ref: 'e1', toma: ['acero'], cantidad, unidad: 'ml', nota: '',
+      concepto: { clave, descripcion: 'Trabe T-1', unidad: 'ml', estado: 'catalogo', provisional: false }, resolucion,
+    });
+    const POR_ESPACIO = [
+      {
+        espacio_id: 'r', espacio_nombre: 'Recámara 1', area_m2: 12, longitud_de_elementos_ml: 5, concreto_m3: 1, cimbra_m2: 12, acero_de_elementos_kg: 3,
+        conceptos: [
+          fila('AUX-00008', 5, { estado: 'cuenta', cuenta: true, aviso: null, concepto_id: 'c1', partida_id: 'p1', partida_nombre: 'Acero recámara' }),
+          fila('AUX-00009', 0, { estado: 'sin_cantidad', cuenta: false, aviso: null, concepto_id: null, partida_id: null, partida_nombre: null }),
+        ],
+      },
+      {
+        espacio_id: null, espacio_nombre: null, area_m2: 0, longitud_de_elementos_ml: 3, concreto_m3: 0, cimbra_m2: 0, acero_de_elementos_kg: 1,
+        conceptos: [fila('AUX-00008', 3, { estado: 'sin_espacio', cuenta: false, aviso: 'Sin espacio', concepto_id: 'c1', partida_id: null, partida_nombre: null })],
+      },
+    ];
+
+    function pintarConEspacios(puedeEditar: boolean) {
+      m.matriz.current = MATRIZ({ elementos: [ELEMENTO({ espacio_id: 'r' })], por_espacio: POR_ESPACIO });
+      render(<MatrizDeLaZona zona={ZONA} puedeEditar={puedeEditar} rol="control_obra" espacios={ESPACIOS} onCambio={vi.fn()} onError={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Matriz de conceptos de Entrepiso 3.00' }));
+    }
+
+    it('cada elemento elige su espacio y se conserva al cambiar el pago', async () => {
+      pintarConEspacios(true);
+      const sel = screen.getByLabelText('Espacio de T-1-15x25');
+      expect(sel).toHaveValue('r');
+      fireEvent.change(sel, { target: { value: 'b' } });
+      await waitFor(() =>
+        expect(m.cambiarElemento).toHaveBeenCalledWith({
+          elementoId: 'e1', data: { elemento_clave: 'T-1-15x25', modo: 'ml', pago: 'en_la_losa', espacio_id: 'b', cantidad: 10.5, largo_m: null },
+        }),
+      );
+      fireEvent.change(screen.getByLabelText('Pago de T-1-15x25'), { target: { value: 'propio' } });
+      await waitFor(() =>
+        expect(m.cambiarElemento).toHaveBeenLastCalledWith({
+          elementoId: 'e1', data: { elemento_clave: 'T-1-15x25', modo: 'ml', pago: 'propio', espacio_id: 'r', cantidad: 10.5, largo_m: null },
+        }),
+      );
+      fireEvent.change(sel, { target: { value: '' } });
+      await waitFor(() => expect(m.cambiarElemento).toHaveBeenLastCalledWith({ elementoId: 'e1', data: expect.objectContaining({ espacio_id: null }) }));
+    });
+
+    it('un elemento nuevo puede nacer en un espacio', async () => {
+      pintarConEspacios(true);
+      fireEvent.change(screen.getByLabelText('Espacio del elemento por agregar'), { target: { value: 'b' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar elemento' }));
+      await waitFor(() =>
+        expect(m.agregar).toHaveBeenCalledWith({ zonaId: 'z1', data: { elemento_clave: 'T-1-15x25', modo: 'ml', cantidad: 10, largo_m: null, pago: 'en_la_losa', espacio_id: 'b' } }),
+      );
+    });
+
+    it('la matriz por espacio dice en qué partida cuenta cada concepto y por qué no cuenta el resto', () => {
+      pintarConEspacios(true);
+      const tabla = screen.getByTestId('matriz-por-espacio');
+      const filas = within(tabla).getAllByRole('row').slice(1);
+      expect(filas).toHaveLength(2); // la de cantidad cero no se pinta
+      expect(filas[0]).toHaveAttribute('data-espacio', 'Recámara 1');
+      expect(filas[0]).toHaveTextContent('Acero recámara');
+      expect(filas[1]).toHaveAttribute('data-espacio', 'sin espacio');
+      expect(filas[1]).toHaveTextContent('sin espacio: no se escribe');
+    });
+
+    it('los demás roles leen: el espacio del elemento va deshabilitado', () => {
+      pintarConEspacios(false);
+      expect(screen.getByLabelText('Espacio de T-1-15x25')).toBeDisabled();
+    });
+
+    it('sin espacios en la obra y sin nada asignado no aparece nada de espacios', () => {
+      pintar('control_obra', true);
+      expect(screen.queryByLabelText('Espacio de T-1-15x25')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('matriz-por-espacio')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Espacio del elemento por agregar')).not.toBeInTheDocument();
+    });
+  });
 });
