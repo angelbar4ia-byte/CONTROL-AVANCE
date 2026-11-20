@@ -34,6 +34,20 @@ el **solape** (``solape_con_la_losa_m3``) y no se descuenta (valor conservador; 
 Mano de obra: ninguna se calcula ni se elige. El catálogo de trabajos trae destajos de losa por m² (``MOE-02211`` a ``MOE-02218``) pero sus
 propias matrices los usan de forma desigual (una losa nervada de 3.00 m con ``MOE-02211`` y otra con ``MOE-02215``): elegir uno sería inventar. Se
 listan como candidatos; el destajo por ml de las trabes queda sin importe (D8). Sin precios. Función pura, sin base de datos.
+
+El camino de lo que NO se construye aquí (para quien siga)
+----------------------------------------------------------
+- **Fase 3, el relleno**: es un elemento SEPARADO de la losa (decisión del usuario, 2026-11-16): su volumen sale de la pendiente y de los espesores
+  estructurales distintos de la zona (las subzonas de ``losa_zona``/``trazo.losa_espesor_m``), no de la losa. Se construiría como una familia nueva de la
+  biblioteca (categoría «Rellenos»), con su concepto propuesto (regla F7) y su propia tabla de elementos de zona; esta matriz solo le prestaría el área
+  y los espesores por polígono que ya calcula (``losas``).
+- **Fase 4, escaleras y cimentación**: la escalera sale de la diferencia de cotas entre zonas (``cota_inferior_m`` de cada zona) y la losa de cimentación
+  es otra zona con ``uso_de_losa`` propio (hoy solo entrepiso y azotea) y sus contratrabes CT (que esta matriz ya admite). Falta decidir el uso
+  «cimentación» (concreto CON-00001, TD 200) y el concepto de las 7 losas de cimentación del catálogo.
+- **Capa «espacio»** (pedido del 2026-11-16): el cuarto o área del plano (recámara 1, baño…) en los enlaces de ranura. Una zona de losa NO es un espacio: una
+  zona puede cubrir varios cuartos. Cuando exista la tabla ``espacio`` (D-640), ``losa_elemento`` ganaría un ``espacio_id`` opcional para repartir las
+  trabes por cuarto sin cambiar el cálculo de esta matriz.
+
 """
 
 from __future__ import annotations
