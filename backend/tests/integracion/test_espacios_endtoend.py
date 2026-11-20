@@ -293,6 +293,13 @@ async def test_la_matriz_de_la_zona_se_reparte_por_espacio_y_la_suma_es_la_zona(
     espacios = {e["id"]: e for e in (await control.get(f"{API}/obras/{escenario.obra_id}/espacios")).json()}
     assert (espacios[recamara["id"]]["losas"], espacios[recamara["id"]]["elementos"]) == (1, 1)
     assert (espacios[bano["id"]]["losas"], espacios[bano["id"]]["elementos"]) == (1, 2)
+    # Un cliente que no manda `espacio_id` (p. ej. al cambiar el pago) no le quita su espacio al elemento; con `null` sí.
+    r = await control.put(f"{API}/elementos-de-losa/{suelto.json()['id']}", json={"elemento_clave": "CT1-15x25", "cantidad": 3, "pago": "propio"})
+    assert r.status_code == 200 and r.json()["espacio_id"] == bano["id"] and r.json()["pago"] == "propio"
+    r = await control.put(f"{API}/elementos-de-losa/{suelto.json()['id']}", json={"elemento_clave": "CT1-15x25", "cantidad": 3, "espacio_id": None})
+    assert r.status_code == 200 and r.json()["espacio_id"] is None
+    r = await control.put(f"{API}/elementos-de-losa/{suelto.json()['id']}", json={"elemento_clave": "CT1-15x25", "cantidad": 3, "espacio_id": bano["id"]})
+    assert r.status_code == 200
     # Un espacio que no existe en la obra no vale.
     r = await control.put(f"{API}/elementos-de-losa/{suelto.json()['id']}", json={"elemento_clave": "CT1-15x25", "cantidad": 3, "espacio_id": str(uuid.uuid4())})
     assert r.status_code == 422 and "no existe" in r.text

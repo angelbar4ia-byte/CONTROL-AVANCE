@@ -521,12 +521,15 @@ async def agregar_elemento(
 @router.put(
     "/elementos-de-losa/{elemento_id}",
     response_model=ElementoDeLaZona,
-    summary="Cambiar un elemento de la zona (solo Control de obra)",
+    summary="Cambiar un elemento de la zona (solo Control de obra); sin `espacio_id` conserva su espacio",
     dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
     responses={422: {"description": "El elemento, la medida o la línea no valen."}},
 )
 async def cambiar_elemento(elemento_id: UUID, peticion: ElementoDeLaZonaPeticion, caso_uso: GestionarMatrizDeLosaDep) -> dict[str, Any]:
-    return await caso_uso.cambiar_elemento(elemento_id, **peticion.model_dump())
+    datos = peticion.model_dump()
+    if "espacio_id" not in peticion.model_fields_set:
+        del datos["espacio_id"]  # sin `espacio_id` el elemento conserva su espacio; con `null` queda sin espacio
+    return await caso_uso.cambiar_elemento(elemento_id, **datos)
 
 
 @router.delete(

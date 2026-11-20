@@ -55,7 +55,10 @@ from obractrl.domain.cuantificacion.matriz_de_losa import (
     validar_elemento_de_losa,
 )
 
-__all__ = ["ElementoDeLosaNoEncontrado", "GestionarMatrizDeLosa"]
+__all__ = ["CONSERVAR_ESPACIO", "ElementoDeLosaNoEncontrado", "GestionarMatrizDeLosa"]
+
+CONSERVAR_ESPACIO: Any = object()
+"""Al cambiar un elemento, si la petición no trae `espacio_id` el elemento conserva el suyo (un cliente que no conoce los espacios no se lo quita)."""
 
 
 class ElementoDeLosaNoEncontrado(ElementoParametricoNoEncontrado):
@@ -196,11 +199,13 @@ class GestionarMatrizDeLosa:
 
     async def cambiar_elemento(
         self, elemento_id: UUID, *, elemento_clave: str, modo: str, cantidad: float | None, largo_m: float | None, pago: str,
-        trazo_id: UUID | None, espacio_id: UUID | None = None,
+        trazo_id: UUID | None, espacio_id: Any = CONSERVAR_ESPACIO,
     ) -> dict[str, Any]:
         f = await self._elementos.uno(elemento_id)
         if f is None:
             raise ElementoDeLosaNoEncontrado(f"El elemento {elemento_id} no existe o no está en tu alcance.")
+        if espacio_id is CONSERVAR_ESPACIO:
+            espacio_id = f.get("espacio_id")
         zona = await self._zona(f["zona_id"])
         datos = await self._datos_de_elemento(
             zona, elemento_clave=elemento_clave, modo=modo, cantidad=cantidad, largo_m=largo_m, pago=pago, trazo_id=trazo_id,

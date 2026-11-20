@@ -16019,7 +16019,7 @@
         "tags": [
           "losas"
         ],
-        "summary": "Cambiar un elemento de la zona (solo Control de obra)",
+        "summary": "Cambiar un elemento de la zona (solo Control de obra); sin `espacio_id` conserva su espacio",
         "operationId": "cambiar_elemento_api_v1_elementos_de_losa__elemento_id__put",
         "security": [
           {
