@@ -2,7 +2,7 @@
  * El área de trabajo de la pestaña «Elementos»: solo la tarjeta del elemento elegido en la biblioteca (que vive en el
  * panel izquierdo): los muros de piedra MCT-01010 (contención) y CIM-01010 (cimentación) y los castillos, aparentes y columnas
  * forjadas, los muros de tabique con sus aparejos, el muro de sillar amarillo BAP-01010 y el piso de petatillo, y los elementos estructurales lineales (trabes,
- * contratrabes, nervaduras, zapata Z-1 y columna C-1) y el bastón BA-1 (por longitud de trazo).
+ * contratrabes, nervaduras, zapata Z-1 y columna C-1), el bastón BA-1 (por longitud de trazo) y la losa maciza y nervada (matriz de conceptos de una zona).
  */
 
 import { useBibliotecaDeElementosApiV1BibliotecaDeElementosGet } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
@@ -10,6 +10,7 @@ import { useBibliotecaDeElementosApiV1BibliotecaDeElementosGet } from '@/api/gen
 import { TarjetaBaston } from './TarjetaBaston';
 import { TarjetaElementoEstructural } from './TarjetaElementoEstructural';
 import { TarjetaEstructura } from './TarjetaEstructura';
+import { TarjetaLosa } from './TarjetaLosa';
 
 import { TarjetaMuroCimentacion } from './TarjetaMuroCimentacion';
 import { TarjetaMuroContencion } from './TarjetaMuroContencion';
@@ -19,6 +20,7 @@ import { TarjetaMuroTabique } from './TarjetaMuroTabique';
 const TIPO_DE_TABIQUE = 'tabique';
 const TIPO_DE_SILLAR = 'sillar';
 const TIPO_DE_BASTON = 'baston';
+const TIPO_DE_LOSA = 'losa_de_concreto';
 const TIPOS_LINEALES = new Set(['lineal_estructural', 'zapata_aislada', 'columna_de_concreto']);
 
 export function PantallaDeElementos({
@@ -48,6 +50,9 @@ export function PantallaDeElementos({
   const esBaston = (biblioteca.data ?? []).some((c) =>
     c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && e.tipo === TIPO_DE_BASTON)),
   );
+  const esLosa = (biblioteca.data ?? []).some((c) =>
+    c.subcategorias.some((s) => s.elementos.some((e) => e.clave === clave && e.tipo === TIPO_DE_LOSA)),
+  );
   return (
     <section className="pantalla-elementos" role="region" id="area-elementos" aria-label="Elementos">
       <div className="pantalla-elementos__tarjeta">
@@ -59,6 +64,8 @@ export function PantallaDeElementos({
           <TarjetaMuroTabique key={clave} clave={clave} />
         ) : clave && esDeSillar ? (
           <TarjetaMuroSillar key={clave} clave={clave} obraId={obraId} />
+        ) : clave && esLosa ? (
+          <TarjetaLosa key={clave} clave={clave} rol={rol} obraId={obraId} />
         ) : clave && esBaston ? (
           <TarjetaBaston key={clave} clave={clave} obraId={obraId} />
         ) : clave && esLineal ? (

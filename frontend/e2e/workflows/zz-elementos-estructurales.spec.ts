@@ -5,7 +5,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  *
  *  1. La biblioteca trae las categorías nuevas con sus elementos (24 trabes en «Trabes de losa (catálogo)»).
  *  2. La tarjeta de una trabe: sección ancho × peralte, cálculo por metro lineal y por pieza (largo y zonas de anillo), conciliación con
- *     el catálogo (= ≈ ≠) y el elemento sin mano de obra, con el colado y cimbra por ml por registrar (clave provisional EJ-703, D8; el destajo por ml sin importe).
+ *     el catálogo (= ≈ ≠) y el elemento sin mano de obra, con el colado y cimbra por ml por proponer (clave provisional EJ-703, D8) y su destajo por ml sin importe.
  *  3. La zapata Z-1 cuadra con EST-03020 sin dado; la columna C-1 nace con su altura habitual de 4.20 m (editable) y su anclaje es una
  *     sugerencia de 40 diámetros por extremo: el elemento avisa si el valor capturado cumple.
  *  3b. T-2-12x20 (dos anillos) trae una versión propuesta del concepto: Costos la propone, Control de obra la autoriza y el catálogo
@@ -62,12 +62,14 @@ test.describe('Cuantificador · elementos estructurales de la biblioteca', () =>
     await expect(conciliacion.locator('tr[data-marca="="]')).toHaveCount(2); // anillo y alambre iguales al catálogo
     await expect(conciliacion.locator('tr[data-marca="≈"]')).toContainText('ACR-00001'); // varilla: traslape de 40 diámetros contra 8 %
     await expect(conciliacion.locator('tr[data-marca="≈"]')).toContainText('-4.4 %');
-    // El colado y la cimbra por ml quedan por registrar (D8): su clave provisional EJ-703 se propone, no se crea; sin precio ni destajo con importe.
+    // El colado y la cimbra por ml se proponen con su clave provisional (D8); el destajo por ml queda sin importe y no hay precios.
     const camino = trabe.getByRole('region', { name: 'Colado, cimbra y destajo' });
     await expect(camino).toHaveAttribute('data-camino', 'por_registrar');
     await expect(camino.getByTestId('ee-camino-colado')).toContainText('Concepto nuevo por registrar');
     await expect(camino.getByTestId('ee-sin-destajo')).toContainText('no trae destajo');
-    expect(await camino.innerText()).toMatch(/EJ-703/);
+    await expect(camino.locator('[data-concepto-propuesto="EJ-703"]')).toBeVisible();
+    await expect(camino.getByTestId('ee-destajo-por-ml')).toContainText('EJ-703-MO');
+    await expect(camino.getByTestId('ee-destajo-por-ml')).toContainText('sin importe');
     expect(await camino.innerText()).not.toMatch(/\$/);
 
     // Por pieza de 6 m, con zonas de anillo en los extremos.

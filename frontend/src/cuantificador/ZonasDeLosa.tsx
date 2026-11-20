@@ -1,12 +1,13 @@
 /**
- * Zonas de losa (Fase 1: geometría y cotas, sin conceptos de losa).
+ * Zonas de losa (Fase 1: geometría y cotas; la matriz de conceptos de cada zona es la fase 2, en `MatrizDeLaZona`).
  *
  * - `PanelDeZonasDeLosa`: las zonas del plano (nombre, nivel, cota del piso, altura libre al nivel bajo de la losa y espesor), con
  *   «Dibujar losa» (el polígono que se trace nace como losa de esa zona) y «Colocar punto de nivel exterior» (cota y rótulo).
  *   Cotas relativas al piso terminado de la planta baja = 0. **Solo Control de obra edita; los demás leen.**
  * - `ZonaDeLosaDelTrazo`: en el detalle del trazo elegido: un polígono (a qué zona pertenece, espesor propio de subzona), un punto
  *   (su cota y su rótulo) o un muro (qué zona, altura, enrase y cara aplicarían, por tramo). Lo del muro es una sugerencia: solo se
- *   aplica al pulsar «Aplicar al muro».
+ *   aplica al pulsar «Aplicar al muro». Una línea (una trabe, una nervadura) se puede **medir como elemento de la losa** de una zona: su longitud
+ *   deriva de la línea y de la escala del plano.
  */
 
 import { useState } from 'react';
@@ -26,6 +27,11 @@ import {
   useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet,
 } from '@/api/generado/zonas-de-losa/zonas-de-losa';
 import type { ZonaDeLosa } from '@/api/generado/modelo';
+import {
+  useAgregarElementoApiV1ZonasDeLosaZonaIdElementosPost,
+  useDefinicionDeLaLosaApiV1BibliotecaDeElementosLosaClaveGet,
+} from '@/api/generado/losas/losas';
+import { MatrizDeLaZona } from './MatrizDeLaZona';
 import { NOMBRE_DE_CARA, NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
 
 function mensaje(err: unknown, defecto: string): string {
@@ -40,6 +46,8 @@ export type PorColocar =
 interface PanelProps {
   readonly planoId: string;
   readonly puedeEditar: boolean;
+  /** El rol de quien mira: Costos y Control de obra proponen los conceptos nuevos de la matriz. */
+  readonly rol?: string | null;
   readonly colocando: PorColocar | null;
   readonly onColocar: (c: PorColocar | null) => void;
   readonly onCambio: (aviso: string) => void;
@@ -65,7 +73,7 @@ function datosDe(b: Borrador) {
   };
 }
 
-export function PanelDeZonasDeLosa({ planoId, puedeEditar, colocando, onColocar, onCambio, onError }: PanelProps) {
+export function PanelDeZonasDeLosa({ planoId, puedeEditar, rol = null, colocando, onColocar, onCambio, onError }: PanelProps) {
   const consulta = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(planoId, { query: { enabled: planoId !== '' } });
   const crear = useCrearZonaApiV1PlanosPlanoIdZonasDeLosaPost<ErrorApi>();
   const cambiar = useCambiarZonaApiV1ZonasDeLosaZonaIdPut<ErrorApi>();
@@ -163,6 +171,7 @@ export function PanelDeZonasDeLosa({ planoId, puedeEditar, colocando, onColocar,
             {z.losas.length} {z.losas.length === 1 ? 'losa' : 'losas'}
             {z.losas.some((l) => l.espesor_propio_m != null) && ` · subzonas: ${z.losas.filter((l) => l.espesor_propio_m != null).length}`}
           </div>
+          <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} onCambio={onCambio} onError={onError} />
           {puedeEditar && (
             <div className="row">
               <button
@@ -261,7 +270,14 @@ export function ZonaDeLosaDelTrazo(p: TrazoProps) {
   const hayZonas = zonas.length > 0;
   if (p.tipoDeGeometria === 'Polygon') return <RolDeLosa {...p} zonas={zonas} />;
   if (p.tipoDeGeometria === 'Point') return <PuntoDeNivel {...p} />;
-  if (p.tipoDeGeometria === 'LineString' && p.esMuro && hayZonas) return <ZonaDelMuro {...p} />;
+  if (p.tipoDeGeometria === 'LineString' && hayZonas) {
+    return (
+      <>
+        {p.esMuro && <ZonaDelMuro {...p} />}
+        {p.puedeEditar && <ElementoDeLosaDeLaLinea {...p} zonas={zonas} />}
+      </>
+    );
+  }
   return null;
 }
 
@@ -459,6 +475,73 @@ function ZonaDelMuro(p: TrazoProps) {
           Aplicar al muro
         </button>
       )}
+    </div>
+  );
+}
+
+/** En el detalle de una línea: medirla como un elemento (trabe, contratrabe, nervadura) de la losa de una zona; su longitud deriva de la línea. */
+function ElementoDeLosaDeLaLinea(p: TrazoProps & { readonly zonas: readonly ZonaDeLosa[] }) {
+  const ficha = useDefinicionDeLaLosaApiV1BibliotecaDeElementosLosaClaveGet('LOSA-MACIZA');
+  const agregar = useAgregarElementoApiV1ZonasDeLosaZonaIdElementosPost<ErrorApi>();
+  const [zonaId, setZonaId] = useState('');
+  const [clave, setClave] = useState('');
+  const [modo, setModo] = useState<'ml' | 'pieza'>('ml');
+  const [pago, setPago] = useState<'en_la_losa' | 'propio'>('en_la_losa');
+  const permitidos = ficha.data?.elementos_permitidos ?? [];
+  const zona = p.zonas.find((z) => z.id === zonaId) ?? p.zonas[0];
+  const elemento = clave || permitidos[0]?.clave || '';
+  if (!zona) return null;
+  async function medir() {
+    if (!zona || elemento === '') return;
+    try {
+      await agregar.mutateAsync({ zonaId: zona.id, data: { elemento_clave: elemento, modo, pago, trazo_id: p.trazoId } });
+      refrescarTodo();
+      p.onCambio(`${elemento} medido con esta línea en la matriz de «${zona.nombre}».`);
+    } catch (err) {
+      p.onError(mensaje(err, 'No se pudo medir el elemento con la línea.'));
+    }
+  }
+  return (
+    <div className="zonas-losa__trazo" data-testid="elemento-de-losa-de-la-linea">
+      <div className="opciones__titulo">Medir un elemento de losa</div>
+      <p className="text-mute text-xs">La longitud de esta línea (con la escala del plano) es la medida del elemento: si la línea cambia, la matriz cambia.</p>
+      <label className="mct__campo">
+        Zona
+        <select className="input" aria-label="Zona del elemento de losa" value={zona.id} onChange={(e) => setZonaId(e.target.value)}>
+          {p.zonas.map((z) => (
+            <option key={z.id} value={z.id}>
+              {z.nombre}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mct__campo">
+        Elemento
+        <select className="input" aria-label="Elemento de losa de la línea" value={elemento} onChange={(e) => setClave(e.target.value)}>
+          {permitidos.map((x) => (
+            <option key={x.clave} value={x.clave}>
+              {x.clave}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mct__campo">
+        Se mide por
+        <select className="input" aria-label="Se mide por la línea" value={modo} onChange={(e) => setModo(e.target.value as 'ml' | 'pieza')}>
+          <option value="ml">ml de la línea</option>
+          <option value="pieza">una pieza del largo de la línea</option>
+        </select>
+      </label>
+      <label className="mct__campo">
+        Pago
+        <select className="input" aria-label="Pago del elemento de la línea" value={pago} onChange={(e) => setPago(e.target.value as 'en_la_losa' | 'propio')}>
+          <option value="en_la_losa">paga la losa</option>
+          <option value="propio">paga su concepto por ml</option>
+        </select>
+      </label>
+      <button type="button" className="btn btn--sm" disabled={agregar.isPending} onClick={() => void medir()}>
+        Medir con esta línea
+      </button>
     </div>
   );
 }

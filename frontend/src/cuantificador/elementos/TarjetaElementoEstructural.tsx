@@ -5,8 +5,8 @@
  *
  * Se mide por metro lineal de trazo o por pieza de largo conocido (la zapata y la columna, siempre por pieza). Abajo del cálculo va la
  * conciliación con la composición real del catálogo (= ≈ ≠ solo en el catálogo / solo en el elemento): lo que el catálogo trae
- * distinto se muestra, no se corrige. El elemento NO tiene mano de obra y el concepto de colado y cimbra por ml queda por registrar
- * (Q51, Q52): la tarjeta lo dice y no crea nada.
+ * distinto se muestra, no se corrige. El elemento NO tiene mano de obra. El concepto de colado y cimbra por ml y su destajo por ml (D8, Q51 y Q52) se
+ * **proponen** desde aquí con su clave provisional: sin precio, el destajo sin importe y pendiente de autorizar por Control de obra.
  *
  * La columna C-1 nace con su altura habitual de 4.20 m (editable). El anclaje de la varilla de una pieza es una **sugerencia** de 40
  * diámetros por extremo: se puede capturar otro valor y el servidor dice si cumple. Lo que el catálogo trae mal en una trabe se muestra
@@ -21,6 +21,8 @@ import {
   useDefinicionDelElementoEstructuralApiV1BibliotecaDeElementosEstructuraLinealClaveGet,
   usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet,
 } from '@/api/generado/biblioteca-de-elementos/biblioteca-de-elementos';
+import { useProponerColadoPorMlApiV1BibliotecaDeElementosEstructuraClavePropuestasColadoPorMlPost } from '@/api/generado/losas/losas';
+import { queryClient } from '@/app/queryClient';
 import type {
   CalculoDelElementoEstructural,
   CalculoDelElementoEstructuralPeticion,
@@ -31,6 +33,7 @@ import type {
 import { numeroTecleado } from '../volumen';
 import { CorreccionesDelCatalogo } from './CorreccionesDelCatalogo';
 import { DriversUsadosDelCalculo } from './DriversUsadosDelCalculo';
+import { PropuestaDeConceptoNuevo } from './PropuestaDeConceptoNuevo';
 import { ESTADO_DE_LA_PROPUESTA, VersionesPropuestasDelElemento } from './VersionesPropuestasDelElemento';
 
 function num(n: number | null | undefined, dec = 2): string {
@@ -103,9 +106,11 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
   const esColumna = d?.tipo === 'columna_de_concreto';
 
   const hayCorrecciones = (d?.correcciones_de_fabrica.length ?? 0) > 0;
+  const proponeColado = d?.camino_de_colado_y_cimbra?.estado === 'por_registrar';
   const propuestas = usePropuestasDeEstructuraApiV1BibliotecaDeElementosEstructuraClavePropuestasGet(clave, {
-    query: { enabled: hayCorrecciones },
+    query: { enabled: hayCorrecciones || proponeColado },
   });
+  const proponerColado = useProponerColadoPorMlApiV1BibliotecaDeElementosEstructuraClavePropuestasColadoPorMlPost<ErrorApi>();
 
   const peticion = useMemo<CalculoDelElementoEstructuralPeticion | null>(() => {
     if (!d) return null;
@@ -474,9 +479,31 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
                 <span className="mono">{camino.borrador.concreto.clave}</span>
                 {camino.borrador.cimbra.length > 0 ? `; cimbra ${camino.borrador.cimbra.map((c) => c.clave).join(', ')}` : '; sin cimbra'}.
               </p>
-              <p className="text-mute text-xs">
-                Cómo se registra: <span className="mono">{camino.borrador.ruta}</span>. Queda propuesto, sin precio, pendiente de Control de obra. Todavía no se crea.
+              <p className="text-mute text-xs" data-testid="ee-camino-ruta">
+                Se propone con <span className="mono">{camino.borrador.ruta}</span>: concepto nuevo por ml con clave provisional, sin precio y pendiente de
+                Control de obra. El catálogo no se edita.
               </p>
+              {camino.borrador.clave_propuesta && (
+                <PropuestaDeConceptoNuevo
+                  conceptoClave={camino.borrador.clave_propuesta}
+                  lista={propuestas.data ?? []}
+                  rol={rol}
+                  textoDelBoton="Proponer el colado y cimbra por ml"
+                  proponiendo={proponerColado.isPending}
+                  onProponer={() =>
+                    void proponerColado.mutateAsync({ clave }).then(
+                      () => queryClient.invalidateQueries(),
+                      (e: unknown) => window.alert(e instanceof Error ? e.message : 'No se pudo proponer el colado y cimbra por ml.'),
+                    )
+                  }
+                />
+              )}
+              {camino.mano_de_obra.destajo && (
+                <p className="text-xs" data-testid="ee-destajo-por-ml">
+                  Destajo por ml: <span className="mono">{camino.mano_de_obra.destajo}</span> <span className="badge badge--outline">provisional</span>{' '}
+                  <span className="badge badge--warn">sin importe</span>. Costos lo define; no se inventa.
+                </p>
+              )}
             </>
           )}
           <p className="text-mute text-xs" data-testid="ee-sin-destajo">
@@ -486,7 +513,12 @@ export function TarjetaElementoEstructural({ clave, rol, obraId = '' }: Props) {
       )}
 
       {hayCorrecciones && (
-        <VersionesPropuestasDelElemento clave={clave} rol={rol} deFabrica={d.correcciones_de_fabrica} lista={propuestas.data ?? []} />
+        <VersionesPropuestasDelElemento
+          clave={clave}
+          rol={rol}
+          deFabrica={d.correcciones_de_fabrica}
+          lista={(propuestas.data ?? []).filter((p) => p.clase === 'version_de_concepto')}
+        />
       )}
 
       {mostrarCorrecciones && <CorreccionesDelCatalogo rol={rol} />}

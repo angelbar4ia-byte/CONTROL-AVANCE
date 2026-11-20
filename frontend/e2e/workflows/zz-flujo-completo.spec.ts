@@ -339,7 +339,7 @@ test.describe('Cuantificador · el flujo completo, de punta a punta', () => {
     await expect(baston.getByTestId('baston-corte')).toContainText('2 × 4.0 m'); // más de 6 m: dos piezas con traslape
     await baston.getByLabel('Largo del bastón en centímetros').fill('142.86');
 
-    // --- Trabes por ml, con el colado y la cimbra por registrar (sin destajo inventado) ------------------------------------------------
+    // --- Trabes por ml, con el colado y la cimbra por ml por proponer (clave provisional) y el destajo por ml sin importe (no se inventa) ------------------------------------------------
     await biblioteca.getByRole('button', { name: /^T-1-15x25\b/ }).click();
     const trabe = area.getByRole('article', { name: /T-1-15x25/ });
     await expect(trabe.getByTestId('ee-seccion')).toContainText('15 × 25 cm (ancho × peralte)');
