@@ -1010,6 +1010,13 @@ class TrazoPropiedades(BaseModel):
         default=None, description="Si el trazo es un punto de nivel exterior, su cota (piso terminado de PB = 0) (0137)."
     )
     rotulo: str | None = Field(default=None, description="Rótulo de un punto de nivel exterior (0137).")
+    espacio_id: UUID | None = Field(default=None, description="El espacio donde cae el muro, el polígono de losa o el elemento (0143); `null` = sin espacio.")
+    espacio_comparte_id: UUID | None = Field(
+        default=None, description="Muro compartido (0143): el otro espacio entre los que se reparte la cantidad; el muro cuenta una sola vez."
+    )
+    espacio_reparto_pct: Decimal | None = Field(
+        default=None, description="Muro compartido: el % que toca al espacio principal (1 a 99); `null` = mitad y mitad (0143)."
+    )
     conexiones: list[ConexionDeMuro] = Field(
         default_factory=list,
         description="Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo.",
@@ -1171,6 +1178,9 @@ async def trazos_de_plano(
                     losa_espesor_m=trazo.get("losa_espesor_m"),
                     nivel_exterior_m=trazo.get("nivel_exterior_m"),
                     rotulo=trazo.get("rotulo"),
+                    espacio_id=trazo.get("espacio_id"),
+                    espacio_comparte_id=trazo.get("espacio_comparte_id"),
+                    espacio_reparto_pct=trazo.get("espacio_reparto_pct"),
                     conexiones=[ConexionDeMuro(**c) for c in trazo.get("conexiones", [])],
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),

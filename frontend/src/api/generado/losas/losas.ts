@@ -1984,7 +1984,7 @@ export const useAgregarElementoApiV1ZonasDeLosaZonaIdElementosPost = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * @summary Cambiar un elemento de la zona (solo Control de obra)
+ * @summary Cambiar un elemento de la zona (solo Control de obra); sin `espacio_id` conserva su espacio
  */
 export const cambiarElementoApiV1ElementosDeLosaElementoIdPut = (
   elementoId: string,
@@ -2058,7 +2058,7 @@ export type CambiarElementoApiV1ElementosDeLosaElementoIdPutMutationError =
   void;
 
 /**
- * @summary Cambiar un elemento de la zona (solo Control de obra)
+ * @summary Cambiar un elemento de la zona (solo Control de obra); sin `espacio_id` conserva su espacio
  */
 export const useCambiarElementoApiV1ElementosDeLosaElementoIdPut = <
   TError = void,

@@ -11,6 +11,7 @@ import type { ElementoDeLaZonaPago } from "./elementoDeLaZonaPago";
 import type { ElementoDeLaZonaTrazoId } from "./elementoDeLaZonaTrazoId";
 import type { ElementoDeLaZonaOrigen } from "./elementoDeLaZonaOrigen";
 import type { ElementoDeLaZonaLongitudDelTrazoM } from "./elementoDeLaZonaLongitudDelTrazoM";
+import type { ElementoDeLaZonaEspacioId } from "./elementoDeLaZonaEspacioId";
 
 export interface ElementoDeLaZona {
   id: string;
@@ -22,4 +23,5 @@ export interface ElementoDeLaZona {
   trazo_id: ElementoDeLaZonaTrazoId;
   origen: ElementoDeLaZonaOrigen;
   longitud_del_trazo_m: ElementoDeLaZonaLongitudDelTrazoM;
+  espacio_id?: ElementoDeLaZonaEspacioId;
 }

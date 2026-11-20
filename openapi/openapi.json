@@ -16019,7 +16019,7 @@
         "tags": [
           "losas"
         ],
-        "summary": "Cambiar un elemento de la zona (solo Control de obra)",
+        "summary": "Cambiar un elemento de la zona (solo Control de obra); sin `espacio_id` conserva su espacio",
         "operationId": "cambiar_elemento_api_v1_elementos_de_losa__elemento_id__put",
         "security": [
           {
@@ -17674,6 +17674,381 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/espacios": {
+      "get": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "Los espacios de la obra, con lo que tiene asignado cada uno",
+        "operationId": "espacios_de_la_obra_api_v1_obras__obra_id__espacios_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Espacio"
+                  },
+                  "title": "Response Espacios De La Obra Api V1 Obras  Obra Id  Espacios Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "Crear un espacio de la obra (solo Control de obra)",
+        "operationId": "crear_espacio_api_v1_obras__obra_id__espacios_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EspacioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Espacio"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra edita los espacios."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El nombre se repite o un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/espacios/{espacio_id}": {
+      "put": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "Cambiar un espacio (solo Control de obra)",
+        "operationId": "cambiar_espacio_api_v1_espacios__espacio_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "espacio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Espacio Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EspacioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Espacio"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra edita los espacios."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El nombre se repite o un dato no vale."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "Borrar un espacio (solo Control de obra): lo asignado queda sin espacio y sus ramas del árbol vuelven a ser generales",
+        "operationId": "borrar_espacio_api_v1_espacios__espacio_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "espacio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Espacio Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Solo Control de obra edita los espacios."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/espacios/{espacio_id}/nodos": {
+      "put": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "Fijar las ramas del árbol del presupuesto que pertenecen al espacio (sus partidas heredan el espacio; solo Control de obra)",
+        "operationId": "fijar_nodos_del_espacio_api_v1_espacios__espacio_id__nodos_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "espacio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Espacio Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodosDelEspacioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Espacio"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra edita los espacios."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Un nodo no es del árbol de la obra."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/espacio": {
+      "get": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "El espacio de un muro o de un polígono de losa y cómo se reparte si el muro es compartido",
+        "operationId": "espacio_del_trazo_api_v1_trazos__trazo_id__espacio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsignacionDeEspacio"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "espacios"
+        ],
+        "summary": "Asignar un muro o un polígono de losa a un espacio, o compartir el muro entre dos con su reparto (solo Control de obra)",
+        "operationId": "asignar_espacio_al_trazo_api_v1_trazos__trazo_id__espacio_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AsignacionDeEspacioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsignacionDeEspacio"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra edita los espacios."
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La asignación no vale: espacio de otra obra, compartir sin principal, reparto fuera de rango."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/fachada-por-bandas": {
       "get": {
         "tags": [
@@ -18562,6 +18937,23 @@
                 }
               ],
               "title": "Ubicacion"
+            }
+          },
+          {
+            "name": "espacio_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Espacio Id"
             }
           }
         ],
@@ -26061,6 +26453,117 @@
         ],
         "title": "AsignacionCreada"
       },
+      "AsignacionDeEspacio": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          },
+          "espacio_comparte_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Comparte Id"
+          },
+          "reparto_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reparto Pct"
+          },
+          "reparto": {
+            "items": {
+              "$ref": "#/components/schemas/ParteDelReparto"
+            },
+            "type": "array",
+            "title": "Reparto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "espacio_id",
+          "espacio_comparte_id",
+          "reparto_pct",
+          "reparto"
+        ],
+        "title": "AsignacionDeEspacio"
+      },
+      "AsignacionDeEspacioPeticion": {
+        "properties": {
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde cae el muro o el polígono de losa; `null` lo deja sin espacio."
+          },
+          "espacio_comparte_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Comparte Id",
+            "description": "Muro compartido: el otro espacio. El muro se traza una vez y su cantidad se reparte entre los dos."
+          },
+          "reparto_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 100.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reparto Pct",
+            "description": "Muro compartido: el % del espacio principal; sin él, mitad y mitad. El resto es del otro espacio."
+          }
+        },
+        "type": "object",
+        "title": "AsignacionDeEspacioPeticion"
+      },
       "AsignacionPeticion": {
         "properties": {
           "actividad_id": {
@@ -28910,6 +29413,19 @@
               }
             ],
             "title": "Ubicacion"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "La capa «espacio» (0143): el enlace solo aplica a lo que se mide en ese espacio."
           }
         },
         "type": "object",
@@ -30613,6 +31129,19 @@
               }
             ],
             "title": "Partida Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde se midió (0143). Un muro compartido sale con una fila por espacio y la parte que le toca a cada uno: suman lo del muro."
           }
         },
         "type": "object",
@@ -32039,6 +32568,92 @@
           "elegido"
         ],
         "title": "ConceptoPorContextoRespuesta"
+      },
+      "ConceptoPorEspacio": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "losa",
+              "acero",
+              "colado"
+            ],
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "El elemento de la zona del que sale la fila (`null` en la fila de la losa)."
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "La cantidad medida, en la unidad del concepto."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
+          },
+          "resolucion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolucionDelConcepto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En qué partida del árbol se mide (solo la matriz de una zona; el cálculo suelto no consulta el árbol)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoPorEspacio"
       },
       "ConceptoRespuesta": {
         "properties": {
@@ -38242,6 +38857,18 @@
             ],
             "title": "Longitud Del Trazo M"
           },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde está el elemento (0143)."
+          },
           "pago": {
             "type": "string",
             "enum": [
@@ -38575,6 +39202,19 @@
             "title": "Pago",
             "description": "`en_la_losa`: la losa paga el concreto y la cimbra del elemento (lo que hace el catálogo); `propio`: los paga su concepto de colado por ml (D8).",
             "default": "en_la_losa"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "Una etiqueta del espacio donde está el elemento (0143): reparte la matriz por espacio."
           }
         },
         "type": "object",
@@ -38655,6 +39295,18 @@
               }
             ],
             "title": "Longitud Del Trazo M"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
           }
         },
         "type": "object",
@@ -38736,6 +39388,19 @@
             ],
             "title": "Trazo Id",
             "description": "Una línea del plano de la zona: su longitud (con la escala del plano) es la medida del elemento, derivada al calcular (por pieza, el largo de la pieza)."
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde está el elemento (0143); `null` = sin espacio. Con espacio, su concepto se mide en la partida de ese espacio."
           }
         },
         "type": "object",
@@ -39784,6 +40449,19 @@
               }
             ],
             "title": "Ubicacion"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "La capa «espacio» (0143); sin él el enlace aplica a cualquier espacio."
           }
         },
         "type": "object",
@@ -39998,6 +40676,14 @@
             "type": "array",
             "title": "Etapas",
             "description": "Las etapas que usa el árbol de la obra."
+          },
+          "espacios": {
+            "items": {
+              "$ref": "#/components/schemas/EspacioDelArbol"
+            },
+            "type": "array",
+            "title": "Espacios",
+            "description": "Los espacios de la obra (0143): una capa más donde enlazar."
           },
           "partidas_del_arbol": {
             "type": "integer",
@@ -40495,6 +41181,237 @@
           "fuente"
         ],
         "title": "EscarpioDelCimiento"
+      },
+      "Espacio": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "recamara",
+              "bano",
+              "cocina",
+              "sala",
+              "comedor",
+              "estancia",
+              "cochera",
+              "pasillo",
+              "escalera",
+              "patio",
+              "azotea",
+              "bodega",
+              "otro"
+            ],
+            "title": "Tipo"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          },
+          "muros": {
+            "type": "integer",
+            "title": "Muros",
+            "description": "Muros (líneas) asignados al espacio, solos o compartidos."
+          },
+          "losas": {
+            "type": "integer",
+            "title": "Losas",
+            "description": "Polígonos de losa asignados al espacio."
+          },
+          "elementos": {
+            "type": "integer",
+            "title": "Elementos",
+            "description": "Elementos de zonas de losa (trabes, contratrabes, nervaduras) asignados al espacio."
+          },
+          "nodos": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Nodos",
+            "description": "Las ramas del árbol del presupuesto (nodos del prototipo) que pertenecen al espacio: sus partidas lo heredan."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "nombre",
+          "tipo",
+          "nivel_id",
+          "area_m2",
+          "orden",
+          "muros",
+          "losas",
+          "elementos",
+          "nodos"
+        ],
+        "title": "Espacio"
+      },
+      "EspacioDelArbol": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "tipo"
+        ],
+        "title": "EspacioDelArbol"
+      },
+      "EspacioPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Nombre",
+            "description": "Nombre del espacio (único en la obra), p. ej. «Recámara 1»."
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "recamara",
+                  "bano",
+                  "cocina",
+                  "sala",
+                  "comedor",
+                  "estancia",
+                  "cochera",
+                  "pasillo",
+                  "escalera",
+                  "patio",
+                  "azotea",
+                  "bodega",
+                  "otro"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo",
+            "description": "Clasifica el espacio; sin él, «otro». No cambia ningún cálculo."
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id",
+            "description": "El nivel donde está (informativo)."
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2",
+            "description": "m² del espacio, si se conocen."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre"
+        ],
+        "title": "EspacioPeticion"
       },
       "EspecialidadRespuesta": {
         "properties": {
@@ -43651,6 +44568,71 @@
         ],
         "title": "GeometriaDelTabique"
       },
+      "GrupoPorEspacio": {
+        "properties": {
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio; `null` = lo que no está asignado a ninguno."
+          },
+          "espacio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Nombre"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "longitud_de_elementos_ml": {
+            "type": "number",
+            "title": "Longitud De Elementos Ml"
+          },
+          "concreto_m3": {
+            "type": "number",
+            "title": "Concreto M3"
+          },
+          "cimbra_m2": {
+            "type": "number",
+            "title": "Cimbra M2"
+          },
+          "acero_de_elementos_kg": {
+            "type": "number",
+            "title": "Acero De Elementos Kg"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoPorEspacio"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espacio_id",
+          "area_m2",
+          "longitud_de_elementos_ml",
+          "concreto_m3",
+          "cimbra_m2",
+          "acero_de_elementos_kg",
+          "conceptos"
+        ],
+        "title": "GrupoPorEspacio"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -46042,6 +47024,18 @@
             "type": "boolean",
             "title": "Subzona"
           },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde cae el polígono (0143)."
+          },
           "concreto_m3": {
             "type": "number",
             "title": "Concreto M3",
@@ -47041,6 +48035,14 @@
             },
             "type": "array",
             "title": "Conceptos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio",
+            "description": "La misma matriz repartida por espacio (0143): cada polígono y cada elemento cae en un solo grupo, así que la suma de los grupos es el total de la zona (sin doble conteo). Cada concepto dice en qué partida se mide."
           },
           "mano_de_obra": {
             "$ref": "#/components/schemas/ManoDeObraDeLaLosa"
@@ -48670,6 +49672,25 @@
           "nombre"
         ],
         "title": "NodoPrototipoRespuesta"
+      },
+      "NodosDelEspacioPeticion": {
+        "properties": {
+          "nodo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Nodo Ids",
+            "description": "Las ramas del árbol del presupuesto del espacio; sustituyen a las anteriores. Un nodo es de un solo espacio."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodo_ids"
+        ],
+        "title": "NodosDelEspacioPeticion"
       },
       "NotaPlanoDetalleRespuesta": {
         "properties": {
@@ -50535,6 +51556,27 @@
           "detalle"
         ],
         "title": "ParteDelArmado"
+      },
+      "ParteDelReparto": {
+        "properties": {
+          "espacio_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Espacio Id"
+          },
+          "fraccion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Fraccion",
+            "description": "La parte del muro que cuenta en ese espacio. Las partes suman exactamente 1: no hay doble conteo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "espacio_id",
+          "fraccion"
+        ],
+        "title": "ParteDelReparto"
       },
       "ParteDelTramo": {
         "properties": {
@@ -52545,6 +53587,19 @@
             ],
             "title": "Espesor M",
             "description": "Subzona: espesor estructural propio; sin él vale el de la zona."
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "Una etiqueta del espacio donde cae el polígono (0143): reparte la matriz por espacio."
           }
         },
         "type": "object",
@@ -56617,6 +57672,84 @@
         ],
         "title": "ResolucionDeRanura"
       },
+      "ResolucionDelConcepto": {
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "cuenta",
+              "sin_espacio",
+              "propuesto",
+              "sin_concepto",
+              "falta_partida",
+              "sin_cantidad"
+            ],
+            "title": "Estado",
+            "description": "`cuenta`: concepto del catálogo con partida en el árbol en ese espacio (o una general): su cantidad se escribe ahí. Lo demás avisa y no escribe."
+          },
+          "cuenta": {
+            "type": "boolean",
+            "title": "Cuenta"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "partida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Id",
+            "description": "La partida del árbol donde se mide (solo si cuenta)."
+          },
+          "partida_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partida Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado",
+          "cuenta",
+          "aviso",
+          "concepto_id",
+          "partida_id",
+          "partida_nombre"
+        ],
+        "title": "ResolucionDelConcepto"
+      },
       "ResolucionDelMuro": {
         "properties": {
           "trazo_id": {
@@ -59914,6 +61047,45 @@
             ],
             "title": "Rotulo",
             "description": "Rótulo de un punto de nivel exterior (0137)."
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde cae el muro, el polígono de losa o el elemento (0143); `null` = sin espacio."
+          },
+          "espacio_comparte_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Comparte Id",
+            "description": "Muro compartido (0143): el otro espacio entre los que se reparte la cantidad; el muro cuenta una sola vez."
+          },
+          "espacio_reparto_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Reparto Pct",
+            "description": "Muro compartido: el % que toca al espacio principal (1 a 99); `null` = mitad y mitad (0143)."
           },
           "conexiones": {
             "items": {

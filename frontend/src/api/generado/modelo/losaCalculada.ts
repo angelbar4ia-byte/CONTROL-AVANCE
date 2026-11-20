@@ -5,12 +5,15 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { LosaCalculadaEspacioId } from "./losaCalculadaEspacioId";
 
 export interface LosaCalculada {
   id: string;
   area_m2: number;
   espesor_m: number;
   subzona: boolean;
+  /** El espacio donde cae el polígono (0143). */
+  espacio_id?: LosaCalculadaEspacioId;
   /** Geométrico, sin desperdicio: área × espesor (maciza) o área × capa de compresión (nervada). */
   concreto_m3: number;
 }

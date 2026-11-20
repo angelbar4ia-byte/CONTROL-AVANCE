@@ -1333,6 +1333,9 @@ class RepositorioTrazosSQL:
                            -- El rol de losa de un polígono y el punto de nivel exterior (0137).
                            to_jsonb(t)->>'losa_zona_id' as losa_zona_id, to_jsonb(t)->>'losa_espesor_m' as losa_espesor_m,
                            to_jsonb(t)->>'nivel_exterior_m' as nivel_exterior_m, to_jsonb(t)->>'rotulo' as rotulo,
+                           -- El espacio donde cae el trazo y, si el muro es compartido, el otro y el reparto (0143).
+                           to_jsonb(t)->>'espacio_id' as espacio_id, to_jsonb(t)->>'espacio_comparte_id' as espacio_comparte_id,
+                           to_jsonb(t)->>'espacio_reparto_pct' as espacio_reparto_pct,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.
@@ -1805,12 +1808,21 @@ class RepositorioMatricesSQL:
             {"actividad": str(actividad_id), "concepto": str(concepto_id), "cantidad": cantidad, **({"origen": origen} if con_origen else {})},
         )
 
-    async def aplicar_tomas(self, obra_id: UUID, tomas: dict[UUID, tuple[Decimal, str]]) -> list[UUID]:
+    async def aplicar_tomas(
+        self,
+        obra_id: UUID,
+        tomas: dict[UUID, tuple[Decimal, str]],
+        por_partida: dict[UUID, dict[UUID, tuple[Decimal, str]]] | None = None,
+    ) -> list[UUID]:
         """Escribe, en cada matriz de la obra que un elemento alimenta, la cantidad que toma de él (D-639).
 
         `tomas`: concepto → (cantidad, unidad del concepto). Una matriz medida con trazos propios no se toca (lo medido
         manda). Las que venían de un elemento y ya no lo tienen se borran. Devuelve las actividades cuya cantidad sale de
         una de esas matrices (la que cuenta, D-636): hay que recalcularlas.
+
+        `por_partida` (0143): lo que cae en la partida de un espacio (nodo del árbol → concepto → toma; una partida de espacio sin nada trae su
+        dict vacío). La actividad de ESA partida recibe solo lo suyo y lo general de la obra no le llega; a las demás no les llega lo de ella: dos
+        espacios con el mismo concepto no se cuentan el uno en el otro.
         """
         if not await _hay_columna(self._sesion, "actividad_matriz", "origen"):
             return []
@@ -1818,11 +1830,26 @@ class RepositorioMatricesSQL:
 
         actividades = (
             await self._sesion.execute(
-                text("select id from actividad where obra_id = :o and concepto_id is not null"), {"o": str(obra_id)}
+                text("select id, prototipo_nodo_id from actividad where obra_id = :o and concepto_id is not null"), {"o": str(obra_id)}
             )
-        ).scalars().all()
+        ).all()
         a_recalcular: list[UUID] = []
-        for actividad_id in actividades:
+        for actividad_id, nodo_id in actividades:
+            propias = (por_partida or {}).get(UUID(str(nodo_id))) if nodo_id is not None else None
+            # Una partida de espacio viene en `por_partida` (aunque no reciba nada): lo general de la obra no le toca, es de otras partidas.
+            de_espacio = propias is not None
+            propias = propias or {}
+
+            def toma_de(
+                cid: UUID, propias: dict[UUID, tuple[Decimal, str]] = propias, de_espacio: bool = de_espacio
+            ) -> tuple[Decimal, str] | None:
+                general, de_la_partida = (None if de_espacio else tomas.get(cid)), propias.get(cid)
+                if de_la_partida is None:
+                    return general
+                if general is None:
+                    return de_la_partida
+                return (general[0] + de_la_partida[0], general[1]) if general[1] == de_la_partida[1] else general
+
             arbol = await self.arbol_de_actividad(UUID(str(actividad_id)))
             if arbol is None:
                 continue
@@ -1841,7 +1868,7 @@ class RepositorioMatricesSQL:
             conservadas: list[str] = []
             for m in arbol["matrices"]:
                 cid = UUID(str(m["concepto_id"]))
-                toma = tomas.get(cid)
+                toma = toma_de(cid)
                 if toma is None or cid in con_trazos or not coincide_la_unidad(str(m["unidad"] or ""), toma[1]):
                     continue
                 await self.fijar_cantidad(actividad_id=UUID(str(actividad_id)), concepto_id=cid, cantidad=toma[0], origen="elemento")
@@ -1849,7 +1876,7 @@ class RepositorioMatricesSQL:
             # El concepto de la actividad misma también puede tomar de un elemento (D-639): su cantidad se guarda con su
             # propio concepto como clave y solo vale mientras no tenga trazos directos (lo medido manda).
             propio = arbol.get("concepto_id")
-            toma_propia = tomas.get(UUID(str(propio))) if propio is not None else None
+            toma_propia = toma_de(UUID(str(propio))) if propio is not None else None
             if toma_propia is not None:
                 directos = (
                     await self._sesion.execute(

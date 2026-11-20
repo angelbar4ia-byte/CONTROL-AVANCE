@@ -466,6 +466,10 @@ class ConceptoColocadoRespuesta(BaseModel):
     origen: Literal["contexto", "ranura"] = Field(description="`contexto`: lo eligieron el nivel y el alto (2A). `ranura`: lo enlazó el Paramétrico (4B).")
     aviso: str | None
     partida_id: UUID | None
+    espacio_id: UUID | None = Field(
+        default=None,
+        description="El espacio donde se midió (0143). Un muro compartido sale con una fila por espacio y la parte que le toca a cada uno: suman lo del muro.",
+    )
 
 
 class ElementoColocadoRespuesta(BaseModel):

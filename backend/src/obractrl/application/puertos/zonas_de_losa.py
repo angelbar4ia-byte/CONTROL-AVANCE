@@ -23,8 +23,12 @@ class RepositorioZonasDeLosa(Protocol):
 
     async def zona(self, zona_id: UUID) -> dict[str, Any] | None: ...
 
+    async def zonas_de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Las zonas de losa de todos los planos de la obra, con su `plano_id` (0143: de ahí salen las tomas de la losa por espacio)."""
+        ...
+
     async def losas(self, plano_id: UUID) -> list[dict[str, Any]]:
-        """Los polígonos con rol de losa: `{id, zona_id, espesor_propio_m, geojson}` (con sus huecos ya restados)."""
+        """Los polígonos con rol de losa: `{id, zona_id, espesor_propio_m, espacio_id, geojson}` (con sus huecos ya restados)."""
         ...
 
     async def puntos_de_nivel(self, plano_id: UUID) -> list[dict[str, Any]]:

@@ -148,6 +148,10 @@ class RepositorioArbolDeObraSQL:
                 {"n": str(nuevo), "o": str(obra_id), "v": str(viejo)},
             )
             n += r.rowcount or 0
+            # Las ramas que la obra asignó a un espacio (0143) siguen a sus nodos copiados.
+            await self._sesion.execute(
+                text("select app.espacio_nodo_seguir_a_la_copia(:o, :v, :n)"), {"n": str(nuevo), "o": str(obra_id), "v": str(viejo)}
+            )
         return n
 
     # --- el borrador ------------------------------------------------------------------------------------------

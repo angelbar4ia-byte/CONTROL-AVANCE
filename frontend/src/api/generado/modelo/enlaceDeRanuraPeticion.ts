@@ -8,6 +8,7 @@
 import type { EnlaceDeRanuraPeticionNivelId } from "./enlaceDeRanuraPeticionNivelId";
 import type { EnlaceDeRanuraPeticionEtapaId } from "./enlaceDeRanuraPeticionEtapaId";
 import type { EnlaceDeRanuraPeticionUbicacion } from "./enlaceDeRanuraPeticionUbicacion";
+import type { EnlaceDeRanuraPeticionEspacioId } from "./enlaceDeRanuraPeticionEspacioId";
 
 export interface EnlaceDeRanuraPeticion {
   /**
@@ -24,4 +25,6 @@ export interface EnlaceDeRanuraPeticion {
   nivel_id?: EnlaceDeRanuraPeticionNivelId;
   etapa_id?: EnlaceDeRanuraPeticionEtapaId;
   ubicacion?: EnlaceDeRanuraPeticionUbicacion;
+  /** La capa «espacio» (0143); sin él el enlace aplica a cualquier espacio. */
+  espacio_id?: EnlaceDeRanuraPeticionEspacioId;
 }

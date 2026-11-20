@@ -10,6 +10,7 @@ import type { ElementoDeLaZonaPeticionCantidad } from "./elementoDeLaZonaPeticio
 import type { ElementoDeLaZonaPeticionLargoM } from "./elementoDeLaZonaPeticionLargoM";
 import type { ElementoDeLaZonaPeticionPago } from "./elementoDeLaZonaPeticionPago";
 import type { ElementoDeLaZonaPeticionTrazoId } from "./elementoDeLaZonaPeticionTrazoId";
+import type { ElementoDeLaZonaPeticionEspacioId } from "./elementoDeLaZonaPeticionEspacioId";
 
 export interface ElementoDeLaZonaPeticion {
   /** Una trabe, contratrabe o nervadura de la biblioteca. */
@@ -22,4 +23,6 @@ export interface ElementoDeLaZonaPeticion {
   pago?: ElementoDeLaZonaPeticionPago;
   /** Una línea del plano de la zona: su longitud (con la escala del plano) es la medida del elemento, derivada al calcular (por pieza, el largo de la pieza). */
   trazo_id?: ElementoDeLaZonaPeticionTrazoId;
+  /** El espacio donde está el elemento (0143); `null` = sin espacio. Con espacio, su concepto se mide en la partida de ese espacio. */
+  espacio_id?: ElementoDeLaZonaPeticionEspacioId;
 }

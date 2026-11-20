@@ -227,6 +227,7 @@ class CapaDelEnlace(BaseModel):
     nivel_id: UUID | None = None
     etapa_id: UUID | None = None
     ubicacion: str | None = None
+    espacio_id: UUID | None = Field(default=None, description="La capa «espacio» (0143): el enlace solo aplica a lo que se mide en ese espacio.")
 
 
 EstadoDelEnlace = Literal["enlazado", "falta_partida", "sin_enlace"]
@@ -271,6 +272,15 @@ class NivelDelArbol(CapaDelArbol):
     )
 
 
+class EspacioDelArbol(BaseModel):
+    id: UUID
+    nombre: str
+    tipo: str
+    nivel_id: UUID | None = None
+    area_m2: Decimal | None = None
+    orden: int = 0
+
+
 class NumeroDeNivelPeticion(BaseModel):
     numero_de_nivel: int | None = Field(ge=1, le=99, description="PB = 1. `null` quita el número explícito.")
 
@@ -285,6 +295,7 @@ class EnlacesDeRanuraRespuesta(BaseModel):
     ranuras_de_plantilla: list[RanuraDePlantilla]
     niveles: list[NivelDelArbol] = Field(description="Los niveles que usa el árbol de la obra.")
     etapas: list[CapaDelArbol] = Field(description="Las etapas que usa el árbol de la obra.")
+    espacios: list[EspacioDelArbol] = Field(default_factory=list, description="Los espacios de la obra (0143): una capa más donde enlazar.")
     partidas_del_arbol: int = Field(description="Cuántos conceptos tiene el árbol de la obra.")
     conceptos_del_arbol: list[ConceptoDelArbol] = Field(description="Los conceptos distintos que el árbol de la obra ya trae: los que se enlazan sin avisos.")
 
@@ -295,6 +306,7 @@ class EnlaceDeRanuraPeticion(BaseModel):
     nivel_id: UUID | None = None
     etapa_id: UUID | None = None
     ubicacion: str | None = Field(default=None, max_length=20)
+    espacio_id: UUID | None = Field(default=None, description="La capa «espacio» (0143); sin él el enlace aplica a cualquier espacio.")
 
 
 class ResolucionDeRanura(BaseModel):
@@ -313,8 +325,8 @@ class ResolucionDeRanura(BaseModel):
 def _respuesta_de_enlace(f: dict) -> EnlaceDeRanuraRespuesta:
     c = f["capa"]
     return EnlaceDeRanuraRespuesta(
-        **{k: v for k, v in f.items() if k not in ("capa", "nivel_id", "etapa_id", "ubicacion", "orden")},
-        capa=CapaDelEnlace(nivel_id=c.nivel_id, etapa_id=c.etapa_id, ubicacion=c.ubicacion),
+        **{k: v for k, v in f.items() if k not in ("capa", "nivel_id", "etapa_id", "ubicacion", "espacio_id", "orden")},
+        capa=CapaDelEnlace(nivel_id=c.nivel_id, etapa_id=c.etapa_id, ubicacion=c.ubicacion, espacio_id=c.espacio_id),
     )
 
 
@@ -331,6 +343,7 @@ async def enlaces_de_ranura(obra_id: UUID, caso_uso: GestionarEnlacesDeRanuraDep
         ranuras_de_plantilla=[RanuraDePlantilla(**x) for x in r["ranuras_de_plantilla"]],
         niveles=[NivelDelArbol(**n) for n in r["niveles"]],
         etapas=[CapaDelArbol(**n) for n in r["etapas"]],
+        espacios=[EspacioDelArbol(**n) for n in r.get("espacios", [])],
         partidas_del_arbol=r["partidas_del_arbol"],
         conceptos_del_arbol=[ConceptoDelArbol(**c) for c in r["conceptos_del_arbol"]],
     )
@@ -349,8 +362,11 @@ async def resolver_ranura(
     nivel_id: UUID | None = None,
     etapa_id: UUID | None = None,
     ubicacion: str | None = Query(default=None, max_length=20),
+    espacio_id: UUID | None = None,
 ) -> ResolucionDeRanura:
-    return ResolucionDeRanura(**await caso_uso.resolver(obra_id, ranura, nivel_id=nivel_id, etapa_id=etapa_id, ubicacion=ubicacion))
+    return ResolucionDeRanura(
+        **await caso_uso.resolver(obra_id, ranura, nivel_id=nivel_id, etapa_id=etapa_id, ubicacion=ubicacion, espacio_id=espacio_id)
+    )
 
 
 @router.put(
@@ -366,6 +382,7 @@ async def enlazar_ranura(
     enlace, creado = await caso_uso.guardar(
         obra_id, ranura=peticion.ranura, concepto_clave=peticion.concepto_clave, nivel_id=peticion.nivel_id,
         etapa_id=peticion.etapa_id, ubicacion=peticion.ubicacion, usuario_id=ctx.usuario_id, rol=ctx.rol,
+        espacio_id=peticion.espacio_id,
     )
     respuesta.status_code = status.HTTP_201_CREATED if creado else status.HTTP_200_OK
     return _respuesta_de_enlace(enlace)

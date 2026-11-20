@@ -16,6 +16,7 @@ import type { ElementoCalculado } from "./elementoCalculado";
 import type { TotalesDeLaMatriz } from "./totalesDeLaMatriz";
 import type { InsumoDeLaMatriz } from "./insumoDeLaMatriz";
 import type { ConceptoDeLaMatriz } from "./conceptoDeLaMatriz";
+import type { GrupoPorEspacio } from "./grupoPorEspacio";
 import type { ManoDeObraDeLaLosa } from "./manoDeObraDeLaLosa";
 import type { PendienteDeLaLosa } from "./pendienteDeLaLosa";
 import type { DriverUsadoRespuesta } from "./driverUsadoRespuesta";
@@ -39,6 +40,8 @@ export interface MatrizDeLosa {
   totales: TotalesDeLaMatriz;
   insumos: InsumoDeLaMatriz[];
   conceptos: ConceptoDeLaMatriz[];
+  /** La misma matriz repartida por espacio (0143): cada polígono y cada elemento cae en un solo grupo, así que la suma de los grupos es el total de la zona (sin doble conteo). Cada concepto dice en qué partida se mide. */
+  por_espacio?: GrupoPorEspacio[];
   mano_de_obra: ManoDeObraDeLaLosa;
   advertencias: string[];
   pendientes: PendienteDeLaLosa[];

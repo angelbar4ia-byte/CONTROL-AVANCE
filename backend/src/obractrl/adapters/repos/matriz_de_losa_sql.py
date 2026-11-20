@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 __all__ = ["RepositorioElementosDeLosaSQL"]
 
 _SELECCION = """
-    select e.id, e.zona_id, e.elemento_clave, e.modo, e.cantidad, e.largo_m, e.pago, e.trazo_id, e.created_at,
+    select e.id, e.zona_id, e.elemento_clave, e.modo, e.cantidad, e.largo_m, e.pago, e.trazo_id, e.espacio_id, e.created_at,
            case when t.id is null then null else ST_AsGeoJSON(app.geometria_efectiva(t.id, t.geometria), 9, 0) end as geojson
       from losa_elemento e
       left join trazo t on t.id = e.trazo_id
@@ -44,8 +44,8 @@ class RepositorioElementosDeLosaSQL:
             await self._sesion.execute(
                 text(
                     """
-                    insert into losa_elemento (org_id, zona_id, elemento_clave, modo, cantidad, largo_m, pago, trazo_id, autor_id)
-                    select app.current_org_id(), :z, :clave, :modo, :cantidad, :largo, :pago, cast(:trazo as uuid), :autor
+                    insert into losa_elemento (org_id, zona_id, elemento_clave, modo, cantidad, largo_m, pago, trazo_id, espacio_id, autor_id)
+                    select app.current_org_id(), :z, :clave, :modo, :cantidad, :largo, :pago, cast(:trazo as uuid), cast(:espacio as uuid), :autor
                     returning id
                     """
                 ),
@@ -58,7 +58,7 @@ class RepositorioElementosDeLosaSQL:
         await self._sesion.execute(
             text(
                 "update losa_elemento set elemento_clave = :clave, modo = :modo, cantidad = :cantidad, largo_m = :largo, pago = :pago, "
-                "trazo_id = cast(:trazo as uuid) where id = :e"
+                "trazo_id = cast(:trazo as uuid), espacio_id = cast(:espacio as uuid) where id = :e"
             ),
             {**self._valores(datos), "e": str(elemento_id)},
         )
@@ -71,4 +71,13 @@ class RepositorioElementosDeLosaSQL:
         return {
             "clave": d["elemento_clave"], "modo": d["modo"], "cantidad": d["cantidad"], "largo": d["largo_m"], "pago": d["pago"],
             "trazo": str(d["trazo_id"]) if d.get("trazo_id") else None,
+            "espacio": str(d["espacio_id"]) if d.get("espacio_id") else None,
         }
+
+    async def espacio_existe(self, obra_id: UUID, espacio_id: UUID) -> bool:
+        fila = (
+            await self._sesion.execute(
+                text("select 1 from espacio where id = :e and obra_id = :o"), {"e": str(espacio_id), "o": str(obra_id)}
+            )
+        ).first()
+        return fila is not None

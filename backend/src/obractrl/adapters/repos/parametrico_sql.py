@@ -175,7 +175,7 @@ class RepositorioParametricoSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select e.id, e.ranura, e.nivel_id, e.etapa_id, e.ubicacion, e.concepto_id,
+                    select e.id, e.ranura, e.nivel_id, e.etapa_id, e.ubicacion, e.espacio_id, e.concepto_id,
                            c.clave as concepto_clave, c.descripcion as concepto_descripcion, u.clave as unidad
                       from enlace_ranura e
                       join concepto c on c.id = e.concepto_id
@@ -190,22 +190,25 @@ class RepositorioParametricoSQL:
         return [dict(f) for f in filas]
 
     async def partidas(self, obra_id: UUID) -> list[dict[str, Any]]:
-        """Los nodos de concepto del árbol de la obra, con el nivel y la etapa del ancestro más cercano que los fija."""
+        """Los nodos de concepto del árbol de la obra, con el nivel, la etapa y el espacio del ancestro más cercano que los fija (el espacio sale de
+        `espacio_nodo`, la rama del árbol que la obra asignó a un espacio; sin él, la partida es general)."""
         filas = (
             await self._sesion.execute(
                 text(
                     """
                     with recursive nodos as (
-                      select n.id, n.parent_id, n.tipo, n.nombre, n.concepto_id, n.nivel_id, n.etapa_id, n.orden
+                      select n.id, n.parent_id, n.tipo, n.nombre, n.concepto_id, n.nivel_id, n.etapa_id, n.orden, en.espacio_id
                         from prototipo_nodo n join obra o on o.prototipo_id = n.prototipo_id
+                        left join espacio_nodo en on en.prototipo_nodo_id = n.id and en.obra_id = o.id
                        where o.id = :o
                     ), subida as (
-                      select id as hoja, parent_id, nivel_id, etapa_id from nodos where tipo = 'concepto'
+                      select id as hoja, parent_id, nivel_id, etapa_id, espacio_id from nodos where tipo = 'concepto'
                       union all
-                      select s.hoja, p.parent_id, coalesce(s.nivel_id, p.nivel_id), coalesce(s.etapa_id, p.etapa_id)
+                      select s.hoja, p.parent_id, coalesce(s.nivel_id, p.nivel_id), coalesce(s.etapa_id, p.etapa_id),
+                             coalesce(s.espacio_id, p.espacio_id)
                         from subida s join nodos p on p.id = s.parent_id
                     )
-                    select h.id, h.concepto_id, h.nombre, h.orden, s.nivel_id, s.etapa_id,
+                    select h.id, h.concepto_id, h.nombre, h.orden, s.nivel_id, s.etapa_id, s.espacio_id,
                            c.clave as concepto_clave, c.descripcion as concepto_descripcion
                       from nodos h join subida s on s.hoja = h.id and s.parent_id is null
                       join concepto c on c.id = h.concepto_id
@@ -244,7 +247,13 @@ class RepositorioParametricoSQL:
                 {"o": str(obra_id)},
             )
         ).mappings().all()
-        return {"niveles": [dict(f) for f in niveles], "etapas": [dict(f) for f in etapas]}
+        espacios = (
+            await self._sesion.execute(
+                text("select id, nombre, tipo, nivel_id, area_m2, orden from espacio where obra_id = :o order by orden, lower(nombre), id"),
+                {"o": str(obra_id)},
+            )
+        ).mappings().all()
+        return {"niveles": [dict(f) for f in niveles], "etapas": [dict(f) for f in etapas], "espacios": [dict(f) for f in espacios]}
 
     async def fijar_numero_de_nivel(self, nivel_id: UUID, numero: int | None) -> dict[str, Any] | None:
         """El número de nivel explícito (F5, 0141); `None` lo quita. Devuelve el nivel con su número efectivo, o `None` si no existe."""
@@ -282,6 +291,15 @@ class RepositorioParametricoSQL:
         fila = (await self._sesion.execute(text(f"select 1 from {tabla} where id = :i"), {"i": str(ident)})).first()  # noqa: S608
         return fila is not None
 
+    async def espacio_existe(self, obra_id: UUID, espacio_id: UUID) -> bool:
+        """El espacio es de esa obra (y se ve con el alcance de quien pregunta)."""
+        fila = (
+            await self._sesion.execute(
+                text("select 1 from espacio where id = :e and obra_id = :o"), {"e": str(espacio_id), "o": str(obra_id)}
+            )
+        ).first()
+        return fila is not None
+
     async def guardar_enlace(
         self,
         *,
@@ -292,6 +310,7 @@ class RepositorioParametricoSQL:
         ubicacion: str | None,
         concepto_id: UUID,
         usuario_id: UUID,
+        espacio_id: UUID | None = None,
     ) -> tuple[UUID, bool]:
         """Crea el enlace de esa capa o cambia su concepto si ya existe. Devuelve (id, creado)."""
         existente = (
@@ -303,11 +322,13 @@ class RepositorioParametricoSQL:
                        and coalesce(nivel_id, cast(:z as uuid)) = coalesce(cast(:n as uuid), cast(:z as uuid))
                        and coalesce(etapa_id, cast(:z as uuid)) = coalesce(cast(:e as uuid), cast(:z as uuid))
                        and coalesce(ubicacion, '') = coalesce(:u, '')
+                       and coalesce(espacio_id, cast(:z as uuid)) = coalesce(cast(:s as uuid), cast(:z as uuid))
                     """
                 ),
                 {
                     "o": str(obra_id), "r": ranura, "z": _SIN_UUID, "u": ubicacion,
                     "n": str(nivel_id) if nivel_id else None, "e": str(etapa_id) if etapa_id else None,
+                    "s": str(espacio_id) if espacio_id else None,
                 },
             )
         ).scalar_one_or_none()
@@ -321,13 +342,14 @@ class RepositorioParametricoSQL:
             await self._sesion.execute(
                 text(
                     """
-                    insert into enlace_ranura (org_id, obra_id, ranura, nivel_id, etapa_id, ubicacion, concepto_id, actualizado_por)
-                    values (app.current_org_id(), :o, :r, cast(:n as uuid), cast(:e as uuid), :u, :c, :a) returning id
+                    insert into enlace_ranura (org_id, obra_id, ranura, nivel_id, etapa_id, ubicacion, espacio_id, concepto_id, actualizado_por)
+                    values (app.current_org_id(), :o, :r, cast(:n as uuid), cast(:e as uuid), :u, cast(:s as uuid), :c, :a) returning id
                     """
                 ),
                 {
                     "o": str(obra_id), "r": ranura, "u": ubicacion, "c": str(concepto_id), "a": str(usuario_id),
                     "n": str(nivel_id) if nivel_id else None, "e": str(etapa_id) if etapa_id else None,
+                    "s": str(espacio_id) if espacio_id else None,
                 },
             )
         ).scalar_one()

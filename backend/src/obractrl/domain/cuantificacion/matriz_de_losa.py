@@ -44,9 +44,10 @@ El camino de lo que NO se construye aquí (para quien siga)
 - **Fase 4, escaleras y cimentación**: la escalera sale de la diferencia de cotas entre zonas (``cota_inferior_m`` de cada zona) y la losa de cimentación
   es otra zona con ``uso_de_losa`` propio (hoy solo entrepiso y azotea) y sus contratrabes CT (que esta matriz ya admite). Falta decidir el uso
   «cimentación» (concreto CON-00001, TD 200) y el concepto de las 7 losas de cimentación del catálogo.
-- **Capa «espacio»** (pedido del 2026-11-16): el cuarto o área del plano (recámara 1, baño…) en los enlaces de ranura. Una zona de losa NO es un espacio: una
-  zona puede cubrir varios cuartos. Cuando exista la tabla ``espacio`` (D-640), ``losa_elemento`` ganaría un ``espacio_id`` opcional para repartir las
-  trabes por cuarto sin cambiar el cálculo de esta matriz.
+- **Capa «espacio»** (0143, ``espacios``): una zona de losa NO es un espacio (una zona puede cubrir varios cuartos), pero cada polígono de losa
+  (``trazo.espacio_id``) y cada elemento (``losa_elemento.espacio_id``) puede decir en qué cuarto está. El cálculo de la zona NO cambia: ``por_espacio``
+  solo reparte lo mismo por cuarto (cada polígono y cada elemento cae en **un** grupo, así que la suma de los grupos es el total de la zona: sin doble
+  conteo). Lo que no tiene espacio forma el grupo «sin espacio» y se comporta como antes.
 
 """
 
@@ -54,7 +55,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import pairwise
 from typing import Any, Literal
 
@@ -243,6 +244,8 @@ class LosaDeEntrada:
     area_m2: float
     espesor_m: float | None = None
     id: str | None = None
+    espacio_id: str | None = None
+    """El espacio donde cae el polígono (0143); `None` = sin espacio."""
 
 
 @dataclass(frozen=True)
@@ -258,6 +261,8 @@ class ElementoDeLosa:
     id: str | None = None
     origen: Literal["manual", "trazo"] = "manual"
     trazo_id: str | None = None
+    espacio_id: str | None = None
+    """El espacio donde está el elemento (0143); `None` = sin espacio."""
 
 
 @dataclass(frozen=True)
@@ -500,6 +505,7 @@ def _elemento_de_la_zona(e: ElementoDeLosa, i: EntradaMatrizDeLosa) -> dict[str,
         "longitud_ml": ml,
         "origen": e.origen,
         "trazo_id": e.trazo_id,
+        "espacio_id": e.espacio_id,
         "pago": e.pago,
         "seccion": {"ancho_cm": seccion["ancho_cm"], "peralte_cm": seccion["peralte_cm"]},
         "acero_kg": float(r["acero_kg"]) * e.cantidad,
@@ -516,8 +522,47 @@ def _fila_de_insumo(parte: str, clave: str, unidad: str, cantidad: float, origen
     }
 
 
-def calcular_matriz_de_losa(i: EntradaMatrizDeLosa) -> dict[str, Any]:  # noqa: PLR0912, PLR0915 - un cálculo de punta a punta, legible de arriba abajo
-    """La matriz de la zona: concreto, cimbra, acero, elementos y los conceptos que paga cada parte, en las unidades de cada concepto."""
+def calcular_matriz_de_losa(i: EntradaMatrizDeLosa) -> dict[str, Any]:
+    """La matriz de la zona: concreto, cimbra, acero, elementos y los conceptos que paga cada parte, en las unidades de cada concepto, y lo mismo
+    repartido por espacio (``por_espacio``, 0143)."""
+    r = _calcular(i)
+    r["por_espacio"] = _por_espacio(i)
+    return r
+
+
+def _por_espacio(i: EntradaMatrizDeLosa) -> list[dict[str, Any]]:
+    """La misma matriz repartida por espacio: cada polígono y cada elemento cae en **un** grupo (su espacio, o «sin espacio») y cada grupo se calcula
+    como una zona más chica. El cálculo es lineal en las áreas y los metros, así que la suma de los grupos es el total de la zona (sin doble conteo).
+    El orden es el de la primera aparición; sin nada, un solo grupo «sin espacio»."""
+    claves: list[str | None] = []
+    for x in [*i.losas, *i.elementos]:
+        if x.espacio_id not in claves:
+            claves.append(x.espacio_id)
+    if not claves:
+        claves.append(None)
+    grupos: list[dict[str, Any]] = []
+    for clave in claves:
+        sub = replace(
+            i,
+            losas=[x for x in i.losas if x.espacio_id == clave],
+            elementos=[x for x in i.elementos if x.espacio_id == clave],
+        )
+        r = _calcular(sub)
+        grupos.append(
+            {
+                "espacio_id": clave,
+                "area_m2": r["area_m2"],
+                "longitud_de_elementos_ml": r["totales"]["longitud_de_elementos_ml"],
+                "concreto_m3": r["totales"]["concreto_m3"],
+                "cimbra_m2": r["totales"]["cimbra_m2"],
+                "acero_de_elementos_kg": r["totales"]["acero_de_elementos_kg"],
+                "conceptos": r["conceptos"],
+            }
+        )
+    return grupos
+
+
+def _calcular(i: EntradaMatrizDeLosa) -> dict[str, Any]:  # noqa: PLR0912, PLR0915 - un cálculo de punta a punta, legible de arriba abajo
     _validar(i)
     tipo = i.tipo
     nombre_del_elemento = _nombre(tipo)
@@ -536,6 +581,7 @@ def calcular_matriz_de_losa(i: EntradaMatrizDeLosa) -> dict[str, Any]:  # noqa: 
                 "area_m2": lo.area_m2,
                 "espesor_m": espesor,
                 "subzona": lo.espesor_m is not None,
+                "espacio_id": lo.espacio_id,
                 "concreto_m3": lo.area_m2 * grosor,
             }
         )

@@ -11,7 +11,7 @@ __all__ = ["RepositorioElementosDeLosa"]
 @runtime_checkable
 class RepositorioElementosDeLosa(Protocol):
     async def de_la_zona(self, zona_id: UUID) -> list[dict[str, Any]]:
-        """Los elementos de la zona en orden de alta: `{id, zona_id, elemento_clave, modo, cantidad, largo_m, pago, trazo_id, geojson}` (el
+        """Los elementos de la zona en orden de alta: `{id, zona_id, elemento_clave, modo, cantidad, largo_m, pago, trazo_id, espacio_id, geojson}` (el
         `geojson` es la línea del plano si el elemento se mide de ella, si no `None`)."""
         ...
 
@@ -22,3 +22,7 @@ class RepositorioElementosDeLosa(Protocol):
     async def actualizar(self, elemento_id: UUID, datos: dict[str, Any]) -> None: ...
 
     async def eliminar(self, elemento_id: UUID) -> None: ...
+
+    async def espacio_existe(self, obra_id: UUID, espacio_id: UUID) -> bool:
+        """El espacio es de esa obra (0143)."""
+        ...

@@ -41,6 +41,8 @@ from obractrl.domain.cuantificacion.drivers_de_elementos import (
     desperdicio_concreto_de_obra,
     receta_de_obra,
 )
+from obractrl.domain.cuantificacion.enlaces_de_ranura import Partida
+from obractrl.domain.cuantificacion.espacios import resolver_matriz_por_espacio
 from obractrl.domain.cuantificacion.matriz_de_losa import (
     CAPA_DE_COMPRESION_CM,
     ElementoDeLosa,
@@ -53,7 +55,10 @@ from obractrl.domain.cuantificacion.matriz_de_losa import (
     validar_elemento_de_losa,
 )
 
-__all__ = ["ElementoDeLosaNoEncontrado", "GestionarMatrizDeLosa"]
+__all__ = ["CONSERVAR_ESPACIO", "ElementoDeLosaNoEncontrado", "GestionarMatrizDeLosa"]
+
+CONSERVAR_ESPACIO: Any = object()
+"""Al cambiar un elemento, si la petición no trae `espacio_id` el elemento conserva el suyo (un cliente que no conoce los espacios no se lo quita)."""
 
 
 class ElementoDeLosaNoEncontrado(ElementoParametricoNoEncontrado):
@@ -76,7 +81,13 @@ class GestionarMatrizDeLosa:
         conceptos: Any,
         insumos: Any,
         uow: UnidadDeTrabajo,
+        parametrico: Any | None = None,
+        sincronizador: Any | None = None,
     ) -> None:
+        # Con el sincronizador de tomas, un elemento que se asigna a un espacio (o se saca de él) rehace lo que la losa paga en las partidas (0143).
+        self._sincronizador = sincronizador
+        # Con el repositorio del Paramétrico (0143), la matriz dice en qué partida del árbol se mide lo de cada espacio.
+        self._parametrico = parametrico
         self._zonas = zonas
         self._elementos = elementos
         self._drivers = drivers
@@ -100,6 +111,13 @@ class GestionarMatrizDeLosa:
         definida = plano["escala_m_por_unidad"] is not None
         return (float(plano["escala_m_por_unidad"]) if definida else 1.0), definida, plano["obra_id"]
 
+    async def _resincronizar(self, plano_id: UUID, *espacios: Any) -> None:
+        """Si el elemento está o estaba en un espacio, lo que la losa paga en las partidas se rehace (en la misma transacción)."""
+        if self._sincronizador is None or all(e is None for e in espacios):
+            return
+        _, _, obra_id = await self._escala(plano_id)
+        await self._sincronizador.de_la_obra(obra_id)
+
     # ── Elementos de la zona ────────────────────────────────────────────────────────────────────────────
 
     @staticmethod
@@ -107,6 +125,7 @@ class GestionarMatrizDeLosa:
         """La medida con que cuenta el elemento: la de su línea del plano (derivada) o la tecleada."""
         base = {
             "id": f["id"], "elemento_clave": f["elemento_clave"], "modo": f["modo"], "pago": f["pago"], "trazo_id": f["trazo_id"],
+            "espacio_id": f.get("espacio_id"),
         }
         if f.get("geojson"):
             largo = _largo_de_linea_m(f["geojson"], escala)
@@ -125,8 +144,12 @@ class GestionarMatrizDeLosa:
 
     async def _datos_de_elemento(
         self, zona: dict[str, Any], *, elemento_clave: str, modo: str, cantidad: float | None, largo_m: float | None, pago: str,
-        trazo_id: UUID | None,
+        trazo_id: UUID | None, espacio_id: UUID | None = None,
     ) -> dict[str, Any]:
+        if espacio_id is not None:
+            _, _, obra_id = await self._escala(zona["plano_id"])
+            if not await self._elementos.espacio_existe(obra_id, espacio_id):
+                raise ErrorDeMatrizDeLosa("El espacio no existe en esta obra.")
         if trazo_id is not None:
             trazo = await self._zonas.trazo(trazo_id)
             if trazo is None:
@@ -148,18 +171,21 @@ class GestionarMatrizDeLosa:
         return {
             **validar_elemento_de_losa(clave=elemento_clave, modo=modo, cantidad=float(cantidad), largo_m=largo_m, pago=pago),
             "trazo_id": trazo_id,
+            "espacio_id": espacio_id,
         }
 
     async def agregar_elemento(
         self, zona_id: UUID, *, elemento_clave: str, modo: str, cantidad: float | None, largo_m: float | None, pago: str,
-        trazo_id: UUID | None, autor_id: UUID,
+        trazo_id: UUID | None, autor_id: UUID, espacio_id: UUID | None = None,
     ) -> dict[str, Any]:
         zona = await self._zona(zona_id)
         datos = await self._datos_de_elemento(
-            zona, elemento_clave=elemento_clave, modo=modo, cantidad=cantidad, largo_m=largo_m, pago=pago, trazo_id=trazo_id
+            zona, elemento_clave=elemento_clave, modo=modo, cantidad=cantidad, largo_m=largo_m, pago=pago, trazo_id=trazo_id,
+            espacio_id=espacio_id,
         )
         async with self._uow:
             nuevo = await self._elementos.agregar(zona_id=zona_id, datos=datos, autor_id=autor_id)
+            await self._resincronizar(zona["plano_id"], espacio_id)
             await self._uow.commit()
         return await self._elemento(nuevo)
 
@@ -173,25 +199,32 @@ class GestionarMatrizDeLosa:
 
     async def cambiar_elemento(
         self, elemento_id: UUID, *, elemento_clave: str, modo: str, cantidad: float | None, largo_m: float | None, pago: str,
-        trazo_id: UUID | None,
+        trazo_id: UUID | None, espacio_id: Any = CONSERVAR_ESPACIO,
     ) -> dict[str, Any]:
         f = await self._elementos.uno(elemento_id)
         if f is None:
             raise ElementoDeLosaNoEncontrado(f"El elemento {elemento_id} no existe o no está en tu alcance.")
+        if espacio_id is CONSERVAR_ESPACIO:
+            espacio_id = f.get("espacio_id")
         zona = await self._zona(f["zona_id"])
         datos = await self._datos_de_elemento(
-            zona, elemento_clave=elemento_clave, modo=modo, cantidad=cantidad, largo_m=largo_m, pago=pago, trazo_id=trazo_id
+            zona, elemento_clave=elemento_clave, modo=modo, cantidad=cantidad, largo_m=largo_m, pago=pago, trazo_id=trazo_id,
+            espacio_id=espacio_id,
         )
         async with self._uow:
             await self._elementos.actualizar(elemento_id, datos)
+            await self._resincronizar(zona["plano_id"], f.get("espacio_id"), espacio_id)
             await self._uow.commit()
         return await self._elemento(elemento_id)
 
     async def quitar_elemento(self, elemento_id: UUID) -> None:
-        if await self._elementos.uno(elemento_id) is None:
+        f = await self._elementos.uno(elemento_id)
+        if f is None:
             raise ElementoDeLosaNoEncontrado(f"El elemento {elemento_id} no existe o no está en tu alcance.")
+        zona = await self._zona(f["zona_id"])
         async with self._uow:
             await self._elementos.eliminar(elemento_id)
+            await self._resincronizar(zona["plano_id"], f.get("espacio_id"))
             await self._uow.commit()
 
     # ── La matriz ───────────────────────────────────────────────────────────────────────────────────────
@@ -213,6 +246,7 @@ class GestionarMatrizDeLosa:
                 id=str(lo["id"]),
                 area_m2=area_de_poligonos(_poligonos(lo["geojson"], escala)),
                 espesor_m=float(lo["espesor_propio_m"]) if lo["espesor_propio_m"] is not None else None,
+                espacio_id=str(lo["espacio_id"]) if lo.get("espacio_id") else None,
             )
             for lo in losas_de_la_zona
         ]
@@ -221,6 +255,7 @@ class GestionarMatrizDeLosa:
             ElementoDeLosa(
                 clave=m["elemento_clave"], modo=m["modo"], cantidad=m["cantidad"], largo_m=m["largo_m"], pago=m["pago"], id=str(m["id"]),
                 origen=m["origen"], trazo_id=str(m["trazo_id"]) if m["trazo_id"] else None,
+                espacio_id=str(m["espacio_id"]) if m.get("espacio_id") else None,
             )
             for m in medidas
         ]
@@ -243,7 +278,29 @@ class GestionarMatrizDeLosa:
             clave = c["concepto"]["clave"]
             c["propuesta"] = await self._propuestas.estado_de(clave) if c["concepto"]["provisional"] else None
         r["conciliacion"] = await self._conciliar(concepto_clave, r) if concepto_clave else None
+        r["por_espacio"] = await self._por_espacio(obra_id, r["por_espacio"])
         return r
+
+    async def _por_espacio(self, obra_id: UUID, grupos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Anota, por espacio, en qué partida del árbol se mide cada concepto de la matriz (o por qué no cuenta). Sin el Paramétrico no hay árbol que
+        consultar y los conceptos quedan sin resolución (`falta_partida` para lo que sí tiene espacio)."""
+        nombres: dict[UUID, str] = {}
+        partidas: list[Partida] = []
+        concepto_id_de: dict[str, UUID] = {}
+        if self._parametrico is not None:
+            nombres = {UUID(str(e["id"])): e["nombre"] for e in (await self._parametrico.capas(obra_id)).get("espacios", [])}
+            partidas = [
+                Partida(
+                    id=f["id"], concepto_id=f["concepto_id"], nivel_id=f["nivel_id"], etapa_id=f["etapa_id"], nombre=f["nombre"],
+                    orden=f["orden"], espacio_id=f.get("espacio_id"),
+                )
+                for f in await self._parametrico.partidas(obra_id)
+            ]
+            for clave in sorted({c["concepto"]["clave"] for g in grupos for c in g["conceptos"]}):
+                concepto = await self._parametrico.concepto_por_clave(clave)
+                if concepto is not None:
+                    concepto_id_de[clave] = UUID(str(concepto["id"]))
+        return resolver_matriz_por_espacio(grupos, partidas=partidas, concepto_id_de=concepto_id_de, nombres=nombres)
 
     async def _conciliar(self, concepto_clave: str, r: dict[str, Any]) -> dict[str, Any]:
         """El total de la zona contra la composición real de un concepto del catálogo vigente (auxiliares expandidos hasta los insumos). El

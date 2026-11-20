@@ -8,9 +8,12 @@
 import type { CapaDelEnlaceNivelId } from "./capaDelEnlaceNivelId";
 import type { CapaDelEnlaceEtapaId } from "./capaDelEnlaceEtapaId";
 import type { CapaDelEnlaceUbicacion } from "./capaDelEnlaceUbicacion";
+import type { CapaDelEnlaceEspacioId } from "./capaDelEnlaceEspacioId";
 
 export interface CapaDelEnlace {
   nivel_id?: CapaDelEnlaceNivelId;
   etapa_id?: CapaDelEnlaceEtapaId;
   ubicacion?: CapaDelEnlaceUbicacion;
+  /** La capa «espacio» (0143): el enlace solo aplica a lo que se mide en ese espacio. */
+  espacio_id?: CapaDelEnlaceEspacioId;
 }
