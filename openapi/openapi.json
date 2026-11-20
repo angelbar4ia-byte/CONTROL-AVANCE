@@ -16218,6 +16218,497 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/relleno/{clave}": {
+      "get": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "La ficha del relleno de azotea o compactado (qué calcula, lo que toma del catálogo, su concepto y los pendientes)",
+        "operationId": "definicion_del_relleno_api_v1_biblioteca_de_elementos_relleno__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDelRelleno"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de relleno con esa clave (REL-AZOTEA o REL-COMPACTADO)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/relleno/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Calcula un relleno con los polígonos que se mandan (solo cálculo; no guarda nada)",
+        "operationId": "calcular_el_relleno_api_v1_biblioteca_de_elementos_relleno__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDelRellenoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RellenoCalculado"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de relleno con esa clave (REL-AZOTEA o REL-COMPACTADO)."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/relleno/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Las propuestas de concepto nuevo del relleno: pendientes, autorizadas y rechazadas",
+        "operationId": "propuestas_del_relleno_api_v1_biblioteca_de_elementos_relleno__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas Del Relleno Api V1 Biblioteca De Elementos Relleno  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de relleno con esa clave (REL-AZOTEA o REL-COMPACTADO)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/relleno/{clave}/propuestas/concepto": {
+      "post": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Proponer el concepto nuevo del relleno compactado por m³ (clave provisional, sin precio ni destajo; lo autoriza Control de obra)",
+        "operationId": "proponer_concepto_del_relleno_api_v1_biblioteca_de_elementos_relleno__clave__propuestas_concepto_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "El relleno de azotea usa ALB-03014 del catálogo: no necesita concepto nuevo."
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/rellenos": {
+      "get": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Los rellenos de una zona de losa, con sus parámetros",
+        "operationId": "rellenos_de_la_zona_api_v1_zonas_de_losa__zona_id__rellenos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RellenoDeLaZona"
+                  },
+                  "title": "Response Rellenos De La Zona Api V1 Zonas De Losa  Zona Id  Rellenos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Agregar un relleno a la zona (solo Control de obra)",
+        "operationId": "agregar_relleno_api_v1_zonas_de_losa__zona_id__rellenos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RellenoDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RellenoDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El elemento, un parámetro, el polígono o el espacio no valen, o el relleno cubriría dos veces lo mismo."
+          }
+        }
+      }
+    },
+    "/api/v1/rellenos-de-zona/{relleno_id}": {
+      "put": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Cambiar un relleno de la zona (solo Control de obra); sin `espacio_id` conserva su espacio y un parámetro que no viene vuelve al de omisión",
+        "operationId": "cambiar_relleno_api_v1_rellenos_de_zona__relleno_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relleno_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Relleno Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RellenoDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RellenoDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El elemento, un parámetro, el polígono o el espacio no valen, o el relleno cubriría dos veces lo mismo."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Quitar un relleno de la zona (solo Control de obra)",
+        "operationId": "quitar_relleno_api_v1_rellenos_de_zona__relleno_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relleno_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Relleno Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/rellenos/calculo": {
+      "get": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "El cálculo de los rellenos de una zona: volumen, espesor por polígono, insumos, conceptos y lo que paga cada espacio",
+        "operationId": "calculo_de_los_rellenos_api_v1_zonas_de_losa__zona_id__rellenos_calculo_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          },
+          {
+            "name": "conciliar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Concilia el relleno de azotea contra la composición de ALB-03014 del catálogo vigente.",
+              "default": false,
+              "title": "Conciliar"
+            },
+            "description": "Concilia el relleno de azotea contra la composición de ALB-03014 del catálogo vigente."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDeLosRellenosDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Un dato de la zona no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/rellenos/propuestas": {
+      "post": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Proponer el concepto nuevo que los rellenos de la zona necesitan (el del compactado; idempotente)",
+        "operationId": "proponer_conceptos_de_los_rellenos_api_v1_zonas_de_losa__zona_id__rellenos_propuestas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/baston/{clave}": {
       "get": {
         "tags": [
@@ -27429,6 +27920,53 @@
         "type": "object",
         "title": "CalculoDeLaLosaPeticion"
       },
+      "CalculoDeLosRellenosDeLaZona": {
+        "properties": {
+          "zona": {
+            "$ref": "#/components/schemas/ZonaDelRelleno"
+          },
+          "escala_definida": {
+            "type": "boolean",
+            "title": "Escala Definida",
+            "description": "Sin escala calibrada se toma 1 unidad de plano = 1 m y no se escribe nada en las partidas."
+          },
+          "rellenos": {
+            "items": {
+              "$ref": "#/components/schemas/RellenoDeLaZonaCalculado"
+            },
+            "type": "array",
+            "title": "Rellenos"
+          },
+          "totales": {
+            "$ref": "#/components/schemas/TotalesDeLosRellenos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDelRellenoPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio",
+            "description": "Lo que paga el relleno de cada espacio de la zona y en qué partida se mide; la suma de los grupos es el total (sin doble conteo)."
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zona",
+          "escala_definida",
+          "rellenos",
+          "totales",
+          "por_espacio",
+          "advertencias"
+        ],
+        "title": "CalculoDeLosRellenosDeLaZona"
+      },
       "CalculoDelBaston": {
         "properties": {
           "clave": {
@@ -28172,6 +28710,132 @@
           "alto_m"
         ],
         "title": "CalculoDelMuroPeticion"
+      },
+      "CalculoDelRellenoPeticion": {
+        "properties": {
+          "espesor_de_la_zona_m": {
+            "type": "number",
+            "maximum": 3.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Espesor De La Zona M",
+            "description": "Espesor de la losa de la zona.",
+            "default": 0.12
+          },
+          "espesor_maximo_de_la_zona_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Maximo De La Zona M",
+            "description": "La losa más gruesa de toda la zona (referencia de la compensación); sin ella vale la más gruesa de los polígonos."
+          },
+          "poligonos": {
+            "items": {
+              "$ref": "#/components/schemas/PoligonoDelRellenoPeticion"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Poligonos"
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Sin él vale el de omisión del elemento."
+          },
+          "pendiente_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Pct"
+          },
+          "recorrido_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorrido M"
+          },
+          "compensar_espesores": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compensar Espesores"
+          },
+          "abundamiento_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 60.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abundamiento Pct"
+          },
+          "mortero_m3_por_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.5,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortero M3 Por M2"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "Una etiqueta de espacio para todo el relleno (0143)."
+          }
+        },
+        "type": "object",
+        "title": "CalculoDelRellenoPeticion"
       },
       "CalculoDelSillar": {
         "properties": {
@@ -31552,6 +32216,38 @@
         ],
         "title": "ConceptoDeLaMatriz"
       },
+      "ConceptoDeLosTotales": {
+        "properties": {
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "unidad",
+          "cantidad"
+        ],
+        "title": "ConceptoDeLosTotales"
+      },
       "ConceptoDelArbol": {
         "properties": {
           "clave": {
@@ -31830,6 +32526,157 @@
           "materiales"
         ],
         "title": "ConceptoDelPlanoRespuesta"
+      },
+      "ConceptoDelRelleno": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "const": "relleno",
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "La cantidad medida, en la unidad del concepto (azotea: m²; compactado: m³)."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDelRelleno"
+      },
+      "ConceptoDelRellenoPorEspacio": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "const": "relleno",
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "La cantidad medida, en la unidad del concepto (azotea: m²; compactado: m³)."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
+          },
+          "resolucion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolucionDelConcepto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En qué partida del árbol se mide (solo el cálculo de una zona; el cálculo suelto no consulta el árbol)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDelRellenoPorEspacio"
       },
       "ConceptoDelReporteRespuesta": {
         "properties": {
@@ -36913,6 +37760,92 @@
           "correcciones_de_fabrica"
         ],
         "title": "DefinicionDelElementoEstructural"
+      },
+      "DefinicionDelRelleno": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "azotea",
+              "compactado"
+            ],
+            "title": "Tipo"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeLosa"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeLosa"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "parametros_por_defecto": {
+            "$ref": "#/components/schemas/ParametrosDelRelleno"
+          },
+          "tezontle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsumoDeLaFichaDelRelleno"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mortero": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsumoDeLaFichaDelRelleno"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "destajos_candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/DestajoCandidato"
+            },
+            "type": "array",
+            "title": "Destajos Candidatos"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "se_mide_por",
+          "categoria",
+          "subcategoria",
+          "concepto",
+          "parametros_por_defecto",
+          "tezontle",
+          "mortero",
+          "destajos_candidatos",
+          "pendientes"
+        ],
+        "title": "DefinicionDelRelleno"
       },
       "DefinicionDelSillar": {
         "properties": {
@@ -44568,6 +45501,56 @@
         ],
         "title": "GeometriaDelTabique"
       },
+      "GrupoDelRellenoPorEspacio": {
+        "properties": {
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio; `null` = lo que no está asignado a ninguno."
+          },
+          "espacio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Nombre"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelRellenoPorEspacio"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espacio_id",
+          "area_m2",
+          "volumen_m3",
+          "conceptos"
+        ],
+        "title": "GrupoDelRellenoPorEspacio"
+      },
       "GrupoPorEspacio": {
         "properties": {
           "espacio_id": {
@@ -45381,6 +46364,50 @@
         ],
         "title": "InsumoDeElementoRespuesta"
       },
+      "InsumoDeLaFichaDelRelleno": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_m2": {
+            "type": "number",
+            "title": "Por M2"
+          },
+          "m3_por_viaje": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "M3 Por Viaje"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_m2",
+          "fuente"
+        ],
+        "title": "InsumoDeLaFichaDelRelleno"
+      },
       "InsumoDeLaMatriz": {
         "properties": {
           "parte": {
@@ -45556,6 +46583,57 @@
           "detalle"
         ],
         "title": "InsumoDelDren"
+      },
+      "InsumoDelRelleno": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "tezontle",
+              "mortero"
+            ],
+            "title": "Parte"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "zona",
+              "catalogo"
+            ],
+            "title": "Origen"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "origen",
+          "nota"
+        ],
+        "title": "InsumoDelRelleno"
       },
       "InsumoDelSillar": {
         "properties": {
@@ -50724,6 +51802,50 @@
         ],
         "title": "ParametrosDelBaston"
       },
+      "ParametrosDelRelleno": {
+        "properties": {
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M",
+            "description": "Espesor mínimo del relleno (m); a él se suman la compensación de espesores de losa y la pendiente."
+          },
+          "pendiente_pct": {
+            "type": "number",
+            "title": "Pendiente Pct",
+            "description": "Pendiente del relleno (%): con el recorrido da el volumen en cuña (pendiente × recorrido / 2)."
+          },
+          "recorrido_m": {
+            "type": "number",
+            "title": "Recorrido M",
+            "description": "Recorrido (m) sobre el que corre la pendiente."
+          },
+          "compensar_espesores": {
+            "type": "boolean",
+            "title": "Compensar Espesores",
+            "description": "Las subzonas de losa más delgadas reciben la diferencia contra la más gruesa de la zona."
+          },
+          "abundamiento_pct": {
+            "type": "number",
+            "title": "Abundamiento Pct",
+            "description": "Solo el compactado: % de material suelto de más (el catálogo no trae factor; por omisión 0)."
+          },
+          "mortero_m3_por_m2": {
+            "type": "number",
+            "title": "Mortero M3 Por M2",
+            "description": "Solo la azotea: m³ de mortero por m² (el del catálogo: 0.0735)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "espesor_m",
+          "pendiente_pct",
+          "recorrido_m",
+          "compensar_espesores",
+          "abundamiento_pct",
+          "mortero_m3_por_m2"
+        ],
+        "title": "ParametrosDelRelleno"
+      },
       "ParametrosDelTabique": {
         "properties": {
           "junta_cm": {
@@ -53565,6 +54687,63 @@
         ],
         "title": "PlantillaDelCambio"
       },
+      "PoligonoCalculadoDelRelleno": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "espesor_de_losa_m": {
+            "type": "number",
+            "title": "Espesor De Losa M"
+          },
+          "subzona": {
+            "type": "boolean",
+            "title": "Subzona"
+          },
+          "compensacion_m": {
+            "type": "number",
+            "title": "Compensacion M",
+            "description": "Lo que el relleno suma para igualar la losa más gruesa de la zona."
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M",
+            "description": "El espesor del relleno en este polígono: mínimo + compensación + pendiente."
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "area_m2",
+          "espesor_de_losa_m",
+          "subzona",
+          "compensacion_m",
+          "espesor_m",
+          "volumen_m3",
+          "espacio_id"
+        ],
+        "title": "PoligonoCalculadoDelRelleno"
+      },
       "PoligonoDeLosaPeticion": {
         "properties": {
           "area_m2": {
@@ -53607,6 +54786,49 @@
           "area_m2"
         ],
         "title": "PoligonoDeLosaPeticion"
+      },
+      "PoligonoDelRellenoPeticion": {
+        "properties": {
+          "area_m2": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Area M2",
+            "description": "Área neta del polígono de losa que el relleno cubre (ya sin huecos)."
+          },
+          "espesor_de_losa_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor De Losa M",
+            "description": "Subzona: espesor estructural propio; sin él vale el de la zona."
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "Una etiqueta del espacio donde cae el polígono (0143): reparte el cálculo por espacio."
+          }
+        },
+        "type": "object",
+        "required": [
+          "area_m2"
+        ],
+        "title": "PoligonoDelRellenoPeticion"
       },
       "PonerMatrizPeticion": {
         "properties": {
@@ -56434,6 +57656,540 @@
           "solo_estimado"
         ],
         "title": "ReglaDeCastilloFicha"
+      },
+      "RellenoCalculado": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "azotea",
+              "compactado"
+            ],
+            "title": "Tipo"
+          },
+          "parametros": {
+            "$ref": "#/components/schemas/ParametrosDelRelleno"
+          },
+          "espesor_de_la_zona_m": {
+            "type": "number",
+            "title": "Espesor De La Zona M"
+          },
+          "espesor_maximo_de_la_zona_m": {
+            "type": "number",
+            "title": "Espesor Maximo De La Zona M"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "volumen_suelto_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumen Suelto M3",
+            "description": "Solo el compactado: el volumen compactado con el abundamiento."
+          },
+          "espesor_medio_m": {
+            "type": "number",
+            "title": "Espesor Medio M"
+          },
+          "extra_de_pendiente_m": {
+            "type": "number",
+            "title": "Extra De Pendiente M"
+          },
+          "poligonos": {
+            "items": {
+              "$ref": "#/components/schemas/PoligonoCalculadoDelRelleno"
+            },
+            "type": "array",
+            "title": "Poligonos"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDelRelleno"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelRelleno"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDelRellenoPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio",
+            "description": "El mismo relleno repartido por espacio (0143): cada polígono cae en un solo grupo, así que la suma de los grupos es el total (sin doble conteo)."
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDeLaLosa"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "parametros",
+          "espesor_de_la_zona_m",
+          "espesor_maximo_de_la_zona_m",
+          "area_m2",
+          "volumen_m3",
+          "volumen_suelto_m3",
+          "espesor_medio_m",
+          "extra_de_pendiente_m",
+          "poligonos",
+          "insumos",
+          "conceptos",
+          "por_espacio",
+          "mano_de_obra",
+          "advertencias",
+          "pendientes"
+        ],
+        "title": "RellenoCalculado"
+      },
+      "RellenoDeLaZona": {
+        "properties": {
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M",
+            "description": "Espesor mínimo del relleno (m); a él se suman la compensación de espesores de losa y la pendiente."
+          },
+          "pendiente_pct": {
+            "type": "number",
+            "title": "Pendiente Pct",
+            "description": "Pendiente del relleno (%): con el recorrido da el volumen en cuña (pendiente × recorrido / 2)."
+          },
+          "recorrido_m": {
+            "type": "number",
+            "title": "Recorrido M",
+            "description": "Recorrido (m) sobre el que corre la pendiente."
+          },
+          "compensar_espesores": {
+            "type": "boolean",
+            "title": "Compensar Espesores",
+            "description": "Las subzonas de losa más delgadas reciben la diferencia contra la más gruesa de la zona."
+          },
+          "abundamiento_pct": {
+            "type": "number",
+            "title": "Abundamiento Pct",
+            "description": "Solo el compactado: % de material suelto de más (el catálogo no trae factor; por omisión 0)."
+          },
+          "mortero_m3_por_m2": {
+            "type": "number",
+            "title": "Mortero M3 Por M2",
+            "description": "Solo la azotea: m³ de mortero por m² (el del catálogo: 0.0735)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "zona_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Zona Id"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "enum": [
+              "REL-AZOTEA",
+              "REL-COMPACTADO"
+            ],
+            "title": "Elemento Clave"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "azotea",
+                  "compactado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espesor_m",
+          "pendiente_pct",
+          "recorrido_m",
+          "compensar_espesores",
+          "abundamiento_pct",
+          "mortero_m3_por_m2",
+          "id",
+          "zona_id",
+          "elemento_clave",
+          "tipo",
+          "trazo_id",
+          "espacio_id"
+        ],
+        "title": "RellenoDeLaZona"
+      },
+      "RellenoDeLaZonaCalculado": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "azotea",
+              "compactado"
+            ],
+            "title": "Tipo"
+          },
+          "parametros": {
+            "$ref": "#/components/schemas/ParametrosDelRelleno"
+          },
+          "espesor_de_la_zona_m": {
+            "type": "number",
+            "title": "Espesor De La Zona M"
+          },
+          "espesor_maximo_de_la_zona_m": {
+            "type": "number",
+            "title": "Espesor Maximo De La Zona M"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "volumen_suelto_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumen Suelto M3",
+            "description": "Solo el compactado: el volumen compactado con el abundamiento."
+          },
+          "espesor_medio_m": {
+            "type": "number",
+            "title": "Espesor Medio M"
+          },
+          "extra_de_pendiente_m": {
+            "type": "number",
+            "title": "Extra De Pendiente M"
+          },
+          "poligonos": {
+            "items": {
+              "$ref": "#/components/schemas/PoligonoCalculadoDelRelleno"
+            },
+            "type": "array",
+            "title": "Poligonos"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDelRelleno"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelRelleno"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDelRellenoPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio",
+            "description": "El mismo relleno repartido por espacio (0143): cada polígono cae en un solo grupo, así que la suma de los grupos es el total (sin doble conteo)."
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDeLaLosa"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "zona",
+              "poligono"
+            ],
+            "title": "Origen",
+            "description": "`poligono`: cubre un polígono del plano (medición derivada); `zona`: todos los de la zona."
+          },
+          "conciliacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConciliacionDeLaLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo el de azotea y si se pidió `conciliar`: lo que calcula por m² contra la composición de ALB-03014 del catálogo vigente."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "parametros",
+          "espesor_de_la_zona_m",
+          "espesor_maximo_de_la_zona_m",
+          "area_m2",
+          "volumen_m3",
+          "volumen_suelto_m3",
+          "espesor_medio_m",
+          "extra_de_pendiente_m",
+          "poligonos",
+          "insumos",
+          "conceptos",
+          "por_espacio",
+          "mano_de_obra",
+          "advertencias",
+          "pendientes",
+          "id",
+          "trazo_id",
+          "espacio_id",
+          "origen"
+        ],
+        "title": "RellenoDeLaZonaCalculado"
+      },
+      "RellenoDeLaZonaPeticion": {
+        "properties": {
+          "elemento_clave": {
+            "type": "string",
+            "enum": [
+              "REL-AZOTEA",
+              "REL-COMPACTADO"
+            ],
+            "title": "Elemento Clave"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id",
+            "description": "Un polígono de losa de la zona: su área (con la escala del plano) es la que se rellena, derivada al calcular. Sin él cubre todos los polígonos de la zona."
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde está el relleno (0143); `null` = el de cada polígono que cubre. Con espacio, su concepto se mide en la partida de ese espacio."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 2.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Sin él vale el de omisión del elemento."
+          },
+          "pendiente_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Pct"
+          },
+          "recorrido_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorrido M"
+          },
+          "compensar_espesores": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compensar Espesores"
+          },
+          "abundamiento_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 60.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abundamiento Pct"
+          },
+          "mortero_m3_por_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.5,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortero M3 Por M2"
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_clave"
+        ],
+        "title": "RellenoDeLaZonaPeticion"
       },
       "RendimientoPorConceptoRespuesta": {
         "properties": {
@@ -59807,6 +61563,32 @@
           "solape_con_la_losa_m3"
         ],
         "title": "TotalesDeLaMatriz"
+      },
+      "TotalesDeLosRellenos": {
+        "properties": {
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLosTotales"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "area_m2",
+          "volumen_m3",
+          "conceptos"
+        ],
+        "title": "TotalesDeLosRellenos"
       },
       "TrabajoDeObraRespuesta": {
         "properties": {
@@ -64116,6 +65898,53 @@
           "espesor_m"
         ],
         "title": "ZonaDeLosaPeticion"
+      },
+      "ZonaDelRelleno": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M"
+          },
+          "espesor_maximo_m": {
+            "type": "number",
+            "title": "Espesor Maximo M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plano_id",
+          "nombre",
+          "nivel",
+          "espesor_m",
+          "espesor_maximo_m"
+        ],
+        "title": "ZonaDelRelleno"
       },
       "ZonasDelPlano": {
         "properties": {

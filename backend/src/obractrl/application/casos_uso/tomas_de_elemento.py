@@ -122,9 +122,12 @@ class SincronizarTomas:
         parametrico: Any | None = None,
         trazos: Any | None = None,
         losas: Any | None = None,
+        rellenos: Any | None = None,
     ) -> None:
         # Con las zonas de losa (0143), lo que paga la matriz de cada espacio se escribe en la partida de ese espacio.
         self._losas = losas
+        # Con los rellenos de las zonas (0144), lo que paga el relleno de cada espacio se escribe en la partida de ese espacio igual que la losa.
+        self._rellenos = rellenos
         # Con el repositorio del Paramétrico, los castillos colocados desde la plantilla de un muro también alimentan conceptos (Ola 4C).
         self._parametrico = parametrico
         # Con el de trazos, lo que trae la plantilla de un muro (cadenas y castillos estimados) alimenta conceptos sin colocarse en el plano.
@@ -175,9 +178,11 @@ class SincronizarTomas:
                 continue
             antes = suma.get(cid)
             suma[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
-        if self._losas is not None:
-            for partida_id, cid, cantidad, unidad in await self._losas.tomas_de_la_obra(obra_id):
-                # Lo de la losa que cae en una partida general (el concepto no tiene partida en ese espacio) sigue la regla general.
+        for fuente in (self._losas, self._rellenos):
+            if fuente is None:
+                continue
+            for partida_id, cid, cantidad, unidad in await fuente.tomas_de_la_obra(obra_id):
+                # Lo de la losa o el relleno que cae en una partida general (el concepto no tiene partida en ese espacio) sigue la regla general.
                 cubo = por_partida[partida_id] if partida_id in de_espacio else suma
                 antes = cubo.get(cid)
                 cubo[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)

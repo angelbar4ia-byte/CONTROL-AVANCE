@@ -108,6 +108,7 @@ from obractrl.adapters.repos.propuestas_de_estructura_sql import (
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
+from obractrl.adapters.repos.relleno_de_zona_sql import RepositorioRellenosDeZonaSQL
 from obractrl.adapters.repos.reprogramaciones_sql import RepositorioReprogramacionesSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
@@ -395,8 +396,13 @@ from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
+from obractrl.application.casos_uso.relleno_de_zona import (
+    GestionarPropuestasDeRelleno,
+    GestionarRellenos,
+)
 from obractrl.application.casos_uso.tomas_de_elemento import SincronizarTomas
 from obractrl.application.casos_uso.tomas_de_losas import TomasDeLosas
+from obractrl.application.casos_uso.tomas_de_rellenos import TomasDeRellenos
 from obractrl.application.casos_uso.valuacion_de_partes import (
     ConsultarValuacion,
     RedisenarParte,
@@ -536,8 +542,10 @@ __all__ = [
     "GestionarPropuestasDeBastonDep",
     "GestionarPropuestasDeEstructuraDep",
     "GestionarPropuestasDeLosaDep",
+    "GestionarPropuestasDeRellenoDep",
     "GestionarPropuestasDeSillarDep",
     "GestionarPropuestasDeTabiqueDep",
+    "GestionarRellenosDep",
     "GestionarVanosDep",
     "GestionarZonasDeLosaDep",
     "IniciarObraDep",
@@ -956,6 +964,7 @@ def _sincronizador_de_tomas(sesion: SesionRLS, elementos: RepositorioElementosPa
         parametrico=RepositorioParametricoSQL(sesion),
         trazos=RepositorioTrazosSQL(sesion),
         losas=TomasDeLosas(zonas=RepositorioZonasDeLosaSQL(sesion), matriz=_matriz_de_losa(sesion)),
+        rellenos=TomasDeRellenos(zonas=RepositorioZonasDeLosaSQL(sesion), rellenos=_relleno_de_zona(sesion)),
     )
 
 
@@ -1150,6 +1159,31 @@ def _matriz_de_losa(sesion: SesionRLS, sincronizador: SincronizarTomas | None = 
         parametrico=RepositorioParametricoSQL(sesion),
         sincronizador=sincronizador,
     )
+
+
+def obtener_gestionar_propuestas_de_relleno(sesion: SesionRLS) -> GestionarPropuestasDeRelleno:
+    return GestionarPropuestasDeRelleno(
+        propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def _relleno_de_zona(sesion: SesionRLS, sincronizador: SincronizarTomas | None = None) -> GestionarRellenos:
+    return GestionarRellenos(
+        zonas=RepositorioZonasDeLosaSQL(sesion),
+        rellenos=RepositorioRellenosDeZonaSQL(sesion),
+        propuestas=obtener_gestionar_propuestas_de_relleno(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        parametrico=RepositorioParametricoSQL(sesion),
+        sincronizador=sincronizador,
+    )
+
+
+def obtener_gestionar_rellenos(sesion: SesionRLS) -> GestionarRellenos:
+    # La que escribe rellenos rehace las tomas de la obra (el espacio puede venir del polígono) (0144).
+    return _relleno_de_zona(sesion, _sincronizador_de_tomas(sesion))
 
 
 def obtener_gestionar_matriz_de_losa(sesion: SesionRLS) -> GestionarMatrizDeLosa:
@@ -1550,6 +1584,8 @@ GestionarPlantillasDeMuroDep = Annotated[GestionarPlantillasDeMuro, Depends(obte
 GestionarZonasDeLosaDep = Annotated[GestionarZonasDeLosa, Depends(obtener_gestionar_zonas_de_losa)]
 GestionarPropuestasDeLosaDep = Annotated[GestionarPropuestasDeLosa, Depends(obtener_gestionar_propuestas_de_losa)]
 GestionarMatrizDeLosaDep = Annotated[GestionarMatrizDeLosa, Depends(obtener_gestionar_matriz_de_losa)]
+GestionarPropuestasDeRellenoDep = Annotated[GestionarPropuestasDeRelleno, Depends(obtener_gestionar_propuestas_de_relleno)]
+GestionarRellenosDep = Annotated[GestionarRellenos, Depends(obtener_gestionar_rellenos)]
 GestionarEspaciosDep = Annotated[GestionarEspacios, Depends(obtener_gestionar_espacios)]
 ConsultarFachadaPorBandasDep = Annotated[ConsultarFachadaPorBandas, Depends(obtener_consultar_fachada_por_bandas)]
 AplicarZonaAlMuroDep = Annotated[AplicarZonaAlMuro, Depends(obtener_aplicar_zona_al_muro)]
