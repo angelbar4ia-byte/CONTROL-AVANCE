@@ -179,7 +179,14 @@ def test_validar_zona_normaliza_y_rechaza() -> None:
     ok = validar_zona(nombre="  Zona 3.00 ", altura_libre_m="3", espesor_m="0.12", nivel=" PB ")
     assert ok == {
         "nombre": "Zona 3.00", "nivel": "PB", "cota_piso_m": D("0.000"), "altura_libre_m": D("3.000"), "espesor_m": D("0.120"),
+        "tipo_de_losa": None, "uso_de_losa": None,
     }
+    # Fase 2: el tipo y el uso de la losa solo toman sus valores; sin ellos la zona conserva los suyos.
+    nervada = validar_zona(nombre="x", altura_libre_m=3, espesor_m=0.2, tipo_de_losa="nervada", uso_de_losa="azotea")
+    assert (nervada["tipo_de_losa"], nervada["uso_de_losa"]) == ("nervada", "azotea")
+    for tipo, uso in (("curva", None), (None, "sótano")):
+        with pytest.raises(ErrorDeZonaDeLosa):
+            validar_zona(nombre="x", altura_libre_m=3, espesor_m=0.2, tipo_de_losa=tipo, uso_de_losa=uso)
     for mal in (
         {"nombre": " ", "altura_libre_m": 3, "espesor_m": 0.1},
         {"nombre": "x", "altura_libre_m": 0, "espesor_m": 0.1},

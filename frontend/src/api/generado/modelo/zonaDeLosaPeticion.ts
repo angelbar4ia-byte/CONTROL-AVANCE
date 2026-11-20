@@ -9,6 +9,8 @@ import type { ZonaDeLosaPeticionNivel } from "./zonaDeLosaPeticionNivel";
 import type { ZonaDeLosaPeticionCotaPisoM } from "./zonaDeLosaPeticionCotaPisoM";
 import type { ZonaDeLosaPeticionAlturaLibreM } from "./zonaDeLosaPeticionAlturaLibreM";
 import type { ZonaDeLosaPeticionEspesorM } from "./zonaDeLosaPeticionEspesorM";
+import type { ZonaDeLosaPeticionTipoDeLosa } from "./zonaDeLosaPeticionTipoDeLosa";
+import type { ZonaDeLosaPeticionUsoDeLosa } from "./zonaDeLosaPeticionUsoDeLosa";
 
 export interface ZonaDeLosaPeticion {
   /**
@@ -25,4 +27,8 @@ export interface ZonaDeLosaPeticion {
   altura_libre_m: ZonaDeLosaPeticionAlturaLibreM;
   /** Espesor de la losa (la cota que sigue a la altura libre). */
   espesor_m: ZonaDeLosaPeticionEspesorM;
+  /** Matriz de la losa (fase 2): maciza o nervada. Sin él, la zona conserva el suyo (al crearla, maciza). */
+  tipo_de_losa?: ZonaDeLosaPeticionTipoDeLosa;
+  /** Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso). */
+  uso_de_losa?: ZonaDeLosaPeticionUsoDeLosa;
 }

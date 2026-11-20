@@ -1,11 +1,11 @@
-"""Zonas de losa (Fase 1: geometría y cotas, sin conceptos de losa): de qué losa cuelga un muro, qué altura toma y qué cara es
+"""Zonas de losa (Fase 1: geometría y cotas; los conceptos de la losa son la fase 2, ``matriz_de_losa``): de qué losa cuelga un muro, qué altura toma y qué cara es
 interior o exterior.
 
 Hay desniveles entre plantas (entrepisos de 3.00 y de 4.20 m en la misma planta) y el plano no viene dividido en ellos. Las zonas
 las define Control de obra con el **artefacto de la losa**, reciclando los polígonos del plano: un polígono con rol de «losa» de
 una **zona** (nombre, cota del piso terminado, altura libre hasta el nivel bajo de la losa y espesor). Una zona puede tener varias
 losas y una losa puede traer un espesor estructural propio (subzona). Las cotas son relativas al piso terminado de la planta baja
-(= 0, editable). El relleno de pendientes es otro elemento y no se modela aquí; tampoco conceptos, trabes ni cimbra de la losa.
+(= 0, editable). El relleno de pendientes es otro elemento y no se modela aquí (fase 3). Los conceptos, trabes, nervaduras, concreto y cimbra de la losa los calcula `matriz_de_losa` (fase 2).
 
 Reglas (``reglas_de_ubicacion`` del mockup y aclaraciones del usuario del 2026-11-16):
 
@@ -170,8 +170,11 @@ def validar_zona(
     espesor_m: Any,
     cota_piso_m: Any = 0,
     nivel: str | None = None,
+    tipo_de_losa: str | None = None,
+    uso_de_losa: str | None = None,
 ) -> dict[str, Any]:
-    """Revisa y normaliza los datos de una zona de losa (cotas en m, relativas al piso terminado de PB = 0)."""
+    """Revisa y normaliza los datos de una zona de losa (cotas en m, relativas al piso terminado de PB = 0). ``tipo_de_losa`` (maciza o nervada) y
+    ``uso_de_losa`` (entrepiso o azotea) son de la matriz de la losa (fase 2); sin ellos la zona conserva los suyos (al crearla, maciza y entrepiso)."""
     limpio = (nombre or "").strip()
     if not 1 <= len(limpio) <= 60:
         raise ErrorDeZonaDeLosa("El nombre de la zona va de 1 a 60 caracteres.")
@@ -193,9 +196,15 @@ def validar_zona(
     nivel_limpio = (nivel or "").strip() or None
     if nivel_limpio is not None and len(nivel_limpio) > 40:
         raise ErrorDeZonaDeLosa("El nivel va de 1 a 40 caracteres.")
+    if tipo_de_losa is not None and tipo_de_losa not in ("maciza", "nervada"):
+        raise ErrorDeZonaDeLosa("El tipo de losa es «maciza» o «nervada».")
+    if uso_de_losa is not None and uso_de_losa not in ("entrepiso", "azotea"):
+        raise ErrorDeZonaDeLosa("El uso de la losa es «entrepiso» o «azotea».")
     return {
         "nombre": limpio,
         "nivel": nivel_limpio,
+        "tipo_de_losa": tipo_de_losa,
+        "uso_de_losa": uso_de_losa,
         "cota_piso_m": cota.quantize(_MILIMETRO, ROUND_HALF_UP),
         "altura_libre_m": altura.quantize(_MILIMETRO, ROUND_HALF_UP),
         "espesor_m": espesor.quantize(_MILIMETRO, ROUND_HALF_UP),

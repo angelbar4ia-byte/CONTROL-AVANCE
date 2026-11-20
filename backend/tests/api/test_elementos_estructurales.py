@@ -27,7 +27,7 @@ def test_la_definicion_trae_la_tarjeta(cliente: TestClient) -> None:
     assert d["seccion"] == {"ancho_cm": 15.0, "peralte_cm": 25.0, "largo_cm": None}
     assert d["modos"] == ["ml", "pieza"]
     assert d["camino_de_colado_y_cimbra"]["estado"] == "por_registrar"
-    assert d["camino_de_colado_y_cimbra"]["borrador"]["clave_propuesta"] is None
+    assert d["camino_de_colado_y_cimbra"]["borrador"]["clave_propuesta"] == "EJ-703"
     assert cliente.get("/biblioteca-de-elementos/estructura-lineal/XX-1").status_code == 404
 
 

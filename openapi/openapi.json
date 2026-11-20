@@ -15660,6 +15660,564 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/losa/{clave}": {
+      "get": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "La ficha de la losa maciza o nervada (qué calcula, lo que toma del catálogo, su concepto nuevo propuesto y los pendientes)",
+        "operationId": "definicion_de_la_losa_api_v1_biblioteca_de_elementos_losa__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDeLaLosa"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de losa con esa clave (LOSA-MACIZA o LOSA-NERVADA)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/losa/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Calcula la matriz de una losa con las áreas y los elementos que se mandan (solo cálculo; no guarda nada)",
+        "operationId": "calcular_la_losa_api_v1_biblioteca_de_elementos_losa__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDeLaLosaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrizDeLosa"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de losa con esa clave (LOSA-MACIZA o LOSA-NERVADA)."
+          },
+          "422": {
+            "description": "Un dato no vale."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/losa/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Las propuestas de concepto nuevo de la losa: pendientes, autorizadas y rechazadas",
+        "operationId": "propuestas_de_la_losa_api_v1_biblioteca_de_elementos_losa__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas De La Losa Api V1 Biblioteca De Elementos Losa  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de losa con esa clave (LOSA-MACIZA o LOSA-NERVADA)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/losa/{clave}/propuestas/concepto": {
+      "post": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Proponer el concepto nuevo de la losa por m² (clave provisional, sin precio ni destajo; lo autoriza Control de obra)",
+        "operationId": "proponer_concepto_de_la_losa_api_v1_biblioteca_de_elementos_losa__clave__propuestas_concepto_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/estructura/{clave}/propuestas/colado-por-ml": {
+      "post": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Proponer el concepto de colado y cimbra por ml de una trabe, contratrabe o nervadura, con su destajo por ml sin importe (D8)",
+        "operationId": "proponer_colado_por_ml_api_v1_biblioteca_de_elementos_estructura__clave__propuestas_colado_por_ml_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/elementos": {
+      "get": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Los elementos (trabes, contratrabes, nervaduras) de una zona de losa, con la medida que cuentan",
+        "operationId": "elementos_de_la_zona_api_v1_zonas_de_losa__zona_id__elementos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ElementoDeLaZona"
+                  },
+                  "title": "Response Elementos De La Zona Api V1 Zonas De Losa  Zona Id  Elementos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Agregar un elemento a la zona (solo Control de obra)",
+        "operationId": "agregar_elemento_api_v1_zonas_de_losa__zona_id__elementos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementoDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El elemento, la medida o la línea no valen."
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-de-losa/{elemento_id}": {
+      "put": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Cambiar un elemento de la zona (solo Control de obra)",
+        "operationId": "cambiar_elemento_api_v1_elementos_de_losa__elemento_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementoDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El elemento, la medida o la línea no valen."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Quitar un elemento de la zona (solo Control de obra)",
+        "operationId": "quitar_elemento_api_v1_elementos_de_losa__elemento_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/matriz": {
+      "get": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "La matriz de conceptos de una zona de losa: concreto, cimbra, acero, elementos y los conceptos que paga cada parte",
+        "operationId": "matriz_de_la_zona_api_v1_zonas_de_losa__zona_id__matriz_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          },
+          {
+            "name": "concepto_clave",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Una clave del catálogo vigente (p. ej. EST-21011) contra la que se concilia el total de la zona.",
+              "title": "Concepto Clave"
+            },
+            "description": "Una clave del catálogo vigente (p. ej. EST-21011) contra la que se concilia el total de la zona."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrizDeLosa"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Un dato de la zona no vale, o el concepto no está en el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/matriz/proponer-conceptos": {
+      "post": {
+        "tags": [
+          "losas"
+        ],
+        "summary": "Proponer los conceptos nuevos que la matriz de la zona necesita (el de la losa y el de colado por ml de los elementos con pago propio)",
+        "operationId": "proponer_conceptos_de_la_zona_api_v1_zonas_de_losa__zona_id__matriz_proponer_conceptos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/baston/{clave}": {
       "get": {
         "tags": [
@@ -26298,6 +26856,76 @@
         "type": "object",
         "title": "CalculoDeEstructuraPeticion"
       },
+      "CalculoDeLaLosaPeticion": {
+        "properties": {
+          "espesor_m": {
+            "type": "number",
+            "maximum": 3.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Espesor M",
+            "description": "Espesor de la losa de la zona.",
+            "default": 0.12
+          },
+          "uso": {
+            "type": "string",
+            "enum": [
+              "entrepiso",
+              "azotea"
+            ],
+            "title": "Uso",
+            "default": "entrepiso"
+          },
+          "capa_de_compresion_cm": {
+            "type": "number",
+            "maximum": 300.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Capa De Compresion Cm",
+            "description": "Solo la losa nervada.",
+            "default": 5.0
+          },
+          "losas": {
+            "items": {
+              "$ref": "#/components/schemas/PoligonoDeLosaPeticion"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Losas"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoDeLaMatrizPeticion"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Elementos"
+          },
+          "desperdicio_concreto_pct": {
+            "type": "number",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Desperdicio Concreto Pct",
+            "default": 5.0
+          },
+          "drivers": {
+            "$ref": "#/components/schemas/DriversDeRecetaPeticion"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "La obra cuyos drivers (Paramétrico) se leen. Precedencia: lo que manda la petición > el driver de la obra > el valor por defecto. Sin obra, todo vale lo de siempre."
+          }
+        },
+        "type": "object",
+        "title": "CalculoDeLaLosaPeticion"
+      },
       "CalculoDelBaston": {
         "properties": {
           "clave": {
@@ -29157,6 +29785,52 @@
         ],
         "title": "CimbraCalculada"
       },
+      "CimbraDeLaFicha": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "por_m2_de_losa": {
+            "type": "number",
+            "title": "Por M2 De Losa"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "por_m2_de_losa"
+        ],
+        "title": "CimbraDeLaFicha"
+      },
+      "CimbraDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "m2": {
+            "type": "number",
+            "title": "M2"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "m2"
+        ],
+        "title": "CimbraDeLaLosa"
+      },
       "CimbraDeLaReceta": {
         "properties": {
           "m2": {
@@ -29454,6 +30128,24 @@
           "nombre"
         ],
         "title": "ClaveYNombreDeEstructura"
+      },
+      "ClaveYNombreDeLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "ClaveYNombreDeLosa"
       },
       "ClaveYNombreDeTabique": {
         "properties": {
@@ -30124,6 +30816,29 @@
         ],
         "title": "ConceptoConciliado"
       },
+      "ConceptoConciliadoDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad"
+        ],
+        "title": "ConceptoConciliadoDeLaLosa"
+      },
       "ConceptoDeConciliacion": {
         "properties": {
           "clave": {
@@ -30195,6 +30910,118 @@
           "escalones"
         ],
         "title": "ConceptoDeLaDefinicion"
+      },
+      "ConceptoDeLaFicha": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "catalogo",
+              "propuesto"
+            ],
+            "title": "Estado"
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "estado",
+          "provisional"
+        ],
+        "title": "ConceptoDeLaFicha"
+      },
+      "ConceptoDeLaMatriz": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "losa",
+              "acero",
+              "colado"
+            ],
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "El elemento de la zona del que sale la fila (`null` en la fila de la losa)."
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "La cantidad medida, en la unidad del concepto."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDeLaMatriz"
       },
       "ConceptoDelArbol": {
         "properties": {
@@ -31495,6 +32322,52 @@
         ],
         "title": "ConciliacionDeEstructura"
       },
+      "ConciliacionDeLaLosa": {
+        "properties": {
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoConciliadoDeLaLosa"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeConciliacionDeLaLosa"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "mano_de_obra": {
+            "items": {
+              "$ref": "#/components/schemas/ManoDeObraDelCatalogo"
+            },
+            "type": "array",
+            "title": "Mano De Obra"
+          },
+          "resumen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resumen"
+          },
+          "coincide": {
+            "type": "boolean",
+            "title": "Coincide"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "nota",
+          "filas",
+          "mano_de_obra",
+          "resumen",
+          "coincide"
+        ],
+        "title": "ConciliacionDeLaLosa"
+      },
       "ConciliacionDelBaston": {
         "properties": {
           "concepto": {
@@ -31733,6 +32606,66 @@
           "desperdicio_pct"
         ],
         "title": "ConcretoCalculado"
+      },
+      "ConcretoDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "geometrico_m3": {
+            "type": "number",
+            "title": "Geometrico M3"
+          },
+          "con_desperdicio_m3": {
+            "type": "number",
+            "title": "Con Desperdicio M3"
+          },
+          "desperdicio_pct": {
+            "type": "number",
+            "title": "Desperdicio Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "geometrico_m3",
+          "con_desperdicio_m3",
+          "desperdicio_pct"
+        ],
+        "title": "ConcretoDeLaLosa"
+      },
+      "ConcretoPorUso": {
+        "properties": {
+          "uso": {
+            "type": "string",
+            "enum": [
+              "entrepiso",
+              "azotea"
+            ],
+            "title": "Uso"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uso",
+          "clave",
+          "descripcion"
+        ],
+        "title": "ConcretoPorUso"
       },
       "ConexionDeMuro": {
         "properties": {
@@ -34927,6 +35860,130 @@
         ],
         "title": "DefinicionDeEstructura"
       },
+      "DefinicionDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "maciza",
+              "nervada"
+            ],
+            "title": "Tipo"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeLosa"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeLosa"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "usos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Usos"
+          },
+          "concreto_por_uso": {
+            "items": {
+              "$ref": "#/components/schemas/ConcretoPorUso"
+            },
+            "type": "array",
+            "title": "Concreto Por Uso"
+          },
+          "cimbra": {
+            "$ref": "#/components/schemas/CimbraDeLaFicha"
+          },
+          "espesor_por_defecto_m": {
+            "type": "number",
+            "title": "Espesor Por Defecto M"
+          },
+          "capa_de_compresion_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa De Compresion Cm"
+          },
+          "parrilla": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParrillaDeLaLosa"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "elementos_permitidos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoPermitido"
+            },
+            "type": "array",
+            "title": "Elementos Permitidos"
+          },
+          "destajos_candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/DestajoCandidato"
+            },
+            "type": "array",
+            "title": "Destajos Candidatos"
+          },
+          "pagos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pagos"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "se_mide_por",
+          "categoria",
+          "subcategoria",
+          "concepto",
+          "usos",
+          "concreto_por_uso",
+          "cimbra",
+          "espesor_por_defecto_m",
+          "capa_de_compresion_cm",
+          "parrilla",
+          "elementos_permitidos",
+          "destajos_candidatos",
+          "pagos",
+          "pendientes"
+        ],
+        "title": "DefinicionDeLaLosa"
+      },
       "DefinicionDelBaston": {
         "properties": {
           "clave": {
@@ -35697,6 +36754,29 @@
           "desperdicio_acero_pct"
         ],
         "title": "DesperdicioDeLaReceta"
+      },
+      "DestajoCandidato": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad"
+        ],
+        "title": "DestajoCandidato"
       },
       "DestajoDelCatalogo": {
         "properties": {
@@ -37078,6 +38158,142 @@
         ],
         "title": "ElegirPlantillaRespuesta"
       },
+      "ElementoCalculado": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "ml",
+              "pieza"
+            ],
+            "title": "Modo"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M"
+          },
+          "longitud_ml": {
+            "type": "number",
+            "title": "Longitud Ml",
+            "description": "Los metros lineales que mide el elemento (por pieza: piezas × largo)."
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "trazo"
+            ],
+            "title": "Origen",
+            "description": "`trazo`: la medida sale de una línea del plano (medición derivada)."
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          },
+          "longitud_del_trazo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitud Del Trazo M"
+          },
+          "pago": {
+            "type": "string",
+            "enum": [
+              "en_la_losa",
+              "propio"
+            ],
+            "title": "Pago"
+          },
+          "seccion": {
+            "$ref": "#/components/schemas/SeccionDelElementoDeLaZona"
+          },
+          "acero_kg": {
+            "type": "number",
+            "title": "Acero Kg"
+          },
+          "concreto_m3": {
+            "type": "number",
+            "title": "Concreto M3"
+          },
+          "cimbra_m2": {
+            "type": "number",
+            "title": "Cimbra M2"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre",
+          "categoria",
+          "modo",
+          "cantidad",
+          "largo_m",
+          "longitud_ml",
+          "origen",
+          "trazo_id",
+          "pago",
+          "seccion",
+          "acero_kg",
+          "concreto_m3",
+          "cimbra_m2",
+          "advertencias"
+        ],
+        "title": "ElementoCalculado"
+      },
       "ElementoCambio": {
         "properties": {
           "nombre": {
@@ -37311,6 +38527,222 @@
           "concepto"
         ],
         "title": "ElementoDeBiblioteca"
+      },
+      "ElementoDeLaMatrizPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "Una trabe, contratrabe o nervadura de la biblioteca (T-1-15x25, CT1-15x25, N-1-12x25…)."
+          },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "ml",
+              "pieza"
+            ],
+            "title": "Modo",
+            "default": "ml"
+          },
+          "cantidad": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cantidad",
+            "description": "Metros (por ml) o piezas (por pieza).",
+            "default": 1.0
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M",
+            "description": "Largo de cada pieza (solo por pieza)."
+          },
+          "pago": {
+            "type": "string",
+            "enum": [
+              "en_la_losa",
+              "propio"
+            ],
+            "title": "Pago",
+            "description": "`en_la_losa`: la losa paga el concreto y la cimbra del elemento (lo que hace el catálogo); `propio`: los paga su concepto de colado por ml (D8).",
+            "default": "en_la_losa"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave"
+        ],
+        "title": "ElementoDeLaMatrizPeticion"
+      },
+      "ElementoDeLaZona": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "ml",
+              "pieza"
+            ],
+            "title": "Modo"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M"
+          },
+          "pago": {
+            "type": "string",
+            "enum": [
+              "en_la_losa",
+              "propio"
+            ],
+            "title": "Pago"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "trazo"
+            ],
+            "title": "Origen"
+          },
+          "longitud_del_trazo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitud Del Trazo M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "elemento_clave",
+          "modo",
+          "cantidad",
+          "largo_m",
+          "pago",
+          "trazo_id",
+          "origen",
+          "longitud_del_trazo_m"
+        ],
+        "title": "ElementoDeLaZona"
+      },
+      "ElementoDeLaZonaPeticion": {
+        "properties": {
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave",
+            "description": "Una trabe, contratrabe o nervadura de la biblioteca."
+          },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "ml",
+              "pieza"
+            ],
+            "title": "Modo",
+            "default": "ml"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad",
+            "description": "Metros (por ml) o piezas (por pieza). Sin ella debe venir `trazo_id`: la medida sale de la línea."
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M",
+            "description": "Largo de cada pieza (solo por pieza sin línea)."
+          },
+          "pago": {
+            "type": "string",
+            "enum": [
+              "en_la_losa",
+              "propio"
+            ],
+            "title": "Pago",
+            "default": "en_la_losa"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id",
+            "description": "Una línea del plano de la zona: su longitud (con la escala del plano) es la medida del elemento, derivada al calcular (por pieza, el largo de la pieza)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_clave"
+        ],
+        "title": "ElementoDeLaZonaPeticion"
       },
       "ElementoDeMedicion": {
         "properties": {
@@ -38024,6 +39456,24 @@
           "receta"
         ],
         "title": "ElementoParametricoRespuesta"
+      },
+      "ElementoPermitido": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tiene_concepto_de_colado": {
+            "type": "boolean",
+            "title": "Tiene Concepto De Colado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "tiene_concepto_de_colado"
+        ],
+        "title": "ElementoPermitido"
       },
       "ElementoPeticion": {
         "properties": {
@@ -40674,6 +42124,89 @@
         ],
         "title": "FilaDeConciliacionDeEstructura"
       },
+      "FilaDeConciliacionDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "catalogo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogo"
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "diferencia_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia Pct"
+          },
+          "marca": {
+            "type": "string",
+            "enum": [
+              "=",
+              "≈",
+              "≠",
+              "solo_catalogo",
+              "solo_elemento"
+            ],
+            "title": "Marca"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "catalogo",
+          "elemento",
+          "diferencia",
+          "diferencia_pct",
+          "marca"
+        ],
+        "title": "FilaDeConciliacionDeLaLosa"
+      },
       "FilaDeConciliacionDelElemento": {
         "properties": {
           "clave": {
@@ -42866,6 +44399,60 @@
         ],
         "title": "InsumoDeElementoRespuesta"
       },
+      "InsumoDeLaMatriz": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "acero",
+              "concreto",
+              "cimbra"
+            ],
+            "title": "Parte"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "origen": {
+            "type": "string",
+            "title": "Origen",
+            "description": "`zona` (la losa), `elemento`, `catalogo` (un dato del auxiliar del catálogo) o `zona+elemento`."
+          },
+          "paga": {
+            "type": "string",
+            "enum": [
+              "losa",
+              "elemento"
+            ],
+            "title": "Paga",
+            "description": "Quién paga este insumo: la losa por m² o el concepto del elemento."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "origen",
+          "paga"
+        ],
+        "title": "InsumoDeLaMatriz"
+      },
       "InsumoDeLaMezcla": {
         "properties": {
           "clave": {
@@ -42903,6 +44490,50 @@
           "linea"
         ],
         "title": "InsumoDeLaMezcla"
+      },
+      "InsumoDeLaParrilla": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_m2": {
+            "type": "number",
+            "title": "Por M2"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_m2",
+          "fuente"
+        ],
+        "title": "InsumoDeLaParrilla"
       },
       "InsumoDelDren": {
         "properties": {
@@ -44393,6 +46024,40 @@
         "title": "LineaPeticion",
         "description": "Una actividad dentro de la solicitud.\n\nVarias a propósito: el residente pide por sub-frente, y si se le agotó el\ncemento en tres actividades de albañilería manda **una** solicitud con tres\nrenglones, no tres que alguien tenga que relacionar después."
       },
+      "LosaCalculada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M"
+          },
+          "subzona": {
+            "type": "boolean",
+            "title": "Subzona"
+          },
+          "concreto_m3": {
+            "type": "number",
+            "title": "Concreto M3",
+            "description": "Geométrico, sin desperdicio: área × espesor (maciza) o área × capa de compresión (nervada)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "area_m2",
+          "espesor_m",
+          "subzona",
+          "concreto_m3"
+        ],
+        "title": "LosaCalculada"
+      },
       "LosaDeZona": {
         "properties": {
           "trazo_id": {
@@ -44635,6 +46300,33 @@
           "de"
         ],
         "title": "LugarDeLaPartidaRespuesta"
+      },
+      "ManoDeObraDeLaLosa": {
+        "properties": {
+          "estado": {
+            "type": "string",
+            "const": "sin_mano_de_obra",
+            "title": "Estado"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "destajos_candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/DestajoCandidato"
+            },
+            "type": "array",
+            "title": "Destajos Candidatos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado",
+          "nota",
+          "destajos_candidatos"
+        ],
+        "title": "ManoDeObraDeLaLosa"
       },
       "ManoDeObraDelCamino": {
         "properties": {
@@ -45257,6 +46949,181 @@
           "matrices"
         ],
         "title": "MatricesDeActividadRespuesta"
+      },
+      "MatrizDeLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "maciza",
+              "nervada"
+            ],
+            "title": "Tipo"
+          },
+          "uso": {
+            "type": "string",
+            "enum": [
+              "entrepiso",
+              "azotea"
+            ],
+            "title": "Uso"
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M"
+          },
+          "capa_de_compresion_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa De Compresion Cm"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "losas": {
+            "items": {
+              "$ref": "#/components/schemas/LosaCalculada"
+            },
+            "type": "array",
+            "title": "Losas"
+          },
+          "concreto": {
+            "$ref": "#/components/schemas/ConcretoDeLaLosa"
+          },
+          "cimbra": {
+            "$ref": "#/components/schemas/CimbraDeLaLosa"
+          },
+          "parrilla": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParrillaDeLaLosa"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoCalculado"
+            },
+            "type": "array",
+            "title": "Elementos"
+          },
+          "totales": {
+            "$ref": "#/components/schemas/TotalesDeLaMatriz"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDeLaMatriz"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLaMatriz"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDeLaLosa"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          },
+          "drivers_usados": {
+            "items": {
+              "$ref": "#/components/schemas/DriverUsadoRespuesta"
+            },
+            "type": "array",
+            "title": "Drivers Usados",
+            "description": "Los drivers que leyó el cálculo y de dónde salió cada valor."
+          },
+          "zona": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ZonaDeLaMatriz"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La zona de la que sale la matriz (solo la de una zona del plano)."
+          },
+          "escala_definida": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala Definida",
+            "description": "Sin escala calibrada se toma 1 unidad de plano = 1 m (solo la de una zona)."
+          },
+          "conciliacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConciliacionDeLaLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El total de la zona contra un concepto del catálogo vigente, si se pidió `concepto_clave` (solo la de una zona)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo",
+          "uso",
+          "espesor_m",
+          "capa_de_compresion_cm",
+          "area_m2",
+          "losas",
+          "concreto",
+          "cimbra",
+          "parrilla",
+          "elementos",
+          "totales",
+          "insumos",
+          "conceptos",
+          "mano_de_obra",
+          "advertencias",
+          "pendientes"
+        ],
+        "title": "MatrizDeLosa"
       },
       "MatrizNuevaPeticion": {
         "properties": {
@@ -48104,6 +49971,49 @@
         ],
         "title": "ParrillaCalculada"
       },
+      "ParrillaDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad",
+            "description": "Los m² de losa que cubre (solo en un cálculo)."
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDeLaParrilla"
+            },
+            "type": "array",
+            "title": "Insumos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "insumos"
+        ],
+        "title": "ParrillaDeLaLosa"
+      },
       "ParteDeAlturaDePlantilla-Input": {
         "properties": {
           "nombre": {
@@ -49238,6 +51148,24 @@
           "desde"
         ],
         "title": "PendienteDeAutorizar"
+      },
+      "PendienteDeLaLosa": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "PendienteDeLaLosa"
       },
       "PendienteDelBaston": {
         "properties": {
@@ -50594,6 +52522,36 @@
           "tipo"
         ],
         "title": "PlantillaDelCambio"
+      },
+      "PoligonoDeLosaPeticion": {
+        "properties": {
+          "area_m2": {
+            "type": "number",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Area M2",
+            "description": "Área neta del polígono (ya sin huecos)."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Subzona: espesor estructural propio; sin él vale el de la zona."
+          }
+        },
+        "type": "object",
+        "required": [
+          "area_m2"
+        ],
+        "title": "PoligonoDeLosaPeticion"
       },
       "PonerMatrizPeticion": {
         "properties": {
@@ -52051,6 +54009,47 @@
           "clase"
         ],
         "title": "PropuestaDelConcepto"
+      },
+      "PropuestaDelConceptoDeLosa": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "autorizada",
+              "rechazada"
+            ],
+            "title": "Estado"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "estado",
+          "version",
+          "elemento_clave"
+        ],
+        "title": "PropuestaDelConceptoDeLosa"
       },
       "PropuestaPeticion": {
         "properties": {
@@ -55873,6 +57872,24 @@
         ],
         "title": "SeccionDelElemento"
       },
+      "SeccionDelElementoDeLaZona": {
+        "properties": {
+          "ancho_cm": {
+            "type": "number",
+            "title": "Ancho Cm"
+          },
+          "peralte_cm": {
+            "type": "number",
+            "title": "Peralte Cm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ancho_cm",
+          "peralte_cm"
+        ],
+        "title": "SeccionDelElementoDeLaZona"
+      },
       "SeccionDelMuro": {
         "properties": {
           "alto_m": {
@@ -56587,6 +58604,76 @@
           "cantidad_a_comprar"
         ],
         "title": "TotalDeLaReceta"
+      },
+      "TotalesDeLaMatriz": {
+        "properties": {
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "longitud_de_elementos_ml": {
+            "type": "number",
+            "title": "Longitud De Elementos Ml"
+          },
+          "concreto_m3": {
+            "type": "number",
+            "title": "Concreto M3",
+            "description": "Todo el concreto de la zona: el de la losa y el de sus elementos."
+          },
+          "concreto_de_la_losa_m3": {
+            "type": "number",
+            "title": "Concreto De La Losa M3"
+          },
+          "concreto_de_los_elementos_m3": {
+            "type": "number",
+            "title": "Concreto De Los Elementos M3"
+          },
+          "concreto_pagado_por_la_losa_m3": {
+            "type": "number",
+            "title": "Concreto Pagado Por La Losa M3"
+          },
+          "concreto_pagado_por_elementos_m3": {
+            "type": "number",
+            "title": "Concreto Pagado Por Elementos M3"
+          },
+          "cimbra_m2": {
+            "type": "number",
+            "title": "Cimbra M2"
+          },
+          "cimbra_pagada_por_la_losa_m2": {
+            "type": "number",
+            "title": "Cimbra Pagada Por La Losa M2"
+          },
+          "cimbra_pagada_por_elementos_m2": {
+            "type": "number",
+            "title": "Cimbra Pagada Por Elementos M2"
+          },
+          "acero_de_elementos_kg": {
+            "type": "number",
+            "title": "Acero De Elementos Kg"
+          },
+          "solape_con_la_losa_m3": {
+            "type": "number",
+            "title": "Solape Con La Losa M3",
+            "description": "Concreto del espesor de la losa que la trabe y la losa cuentan las dos; se informa, no se descuenta (L2)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "area_m2",
+          "longitud_de_elementos_ml",
+          "concreto_m3",
+          "concreto_de_la_losa_m3",
+          "concreto_de_los_elementos_m3",
+          "concreto_pagado_por_la_losa_m3",
+          "concreto_pagado_por_elementos_m3",
+          "cimbra_m2",
+          "cimbra_pagada_por_la_losa_m2",
+          "cimbra_pagada_por_elementos_m2",
+          "acero_de_elementos_kg",
+          "solape_con_la_losa_m3"
+        ],
+        "title": "TotalesDeLaMatriz"
       },
       "TrabajoDeObraRespuesta": {
         "properties": {
@@ -60597,6 +62684,53 @@
         ],
         "title": "ZonaDeAnilloPeticion"
       },
+      "ZonaDeLaMatriz": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "altura_libre_m": {
+            "type": "number",
+            "title": "Altura Libre M"
+          },
+          "cota_piso_m": {
+            "type": "number",
+            "title": "Cota Piso M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plano_id",
+          "nombre",
+          "nivel",
+          "altura_libre_m",
+          "cota_piso_m"
+        ],
+        "title": "ZonaDeLaMatriz"
+      },
       "ZonaDeLosa": {
         "properties": {
           "id": {
@@ -60639,6 +62773,22 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Espesor M"
           },
+          "tipo_de_losa": {
+            "type": "string",
+            "enum": [
+              "maciza",
+              "nervada"
+            ],
+            "title": "Tipo De Losa"
+          },
+          "uso_de_losa": {
+            "type": "string",
+            "enum": [
+              "entrepiso",
+              "azotea"
+            ],
+            "title": "Uso De Losa"
+          },
           "cota_inferior_m": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -60678,6 +62828,8 @@
           "cota_piso_m",
           "altura_libre_m",
           "espesor_m",
+          "tipo_de_losa",
+          "uso_de_losa",
           "cota_inferior_m",
           "cota_superior_m",
           "losas",
@@ -60751,6 +62903,38 @@
             ],
             "title": "Espesor M",
             "description": "Espesor de la losa (la cota que sigue a la altura libre)."
+          },
+          "tipo_de_losa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "maciza",
+                  "nervada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo De Losa",
+            "description": "Matriz de la losa (fase 2): maciza o nervada. Sin él, la zona conserva el suyo (al crearla, maciza)."
+          },
+          "uso_de_losa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "entrepiso",
+                  "azotea"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uso De Losa",
+            "description": "Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso)."
           }
         },
         "type": "object",

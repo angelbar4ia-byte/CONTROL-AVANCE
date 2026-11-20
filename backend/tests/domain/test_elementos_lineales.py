@@ -11,6 +11,7 @@ from obractrl.domain.cuantificacion.biblioteca_de_elementos import (
     BIBLIOTECA,
     elemento_de_la_biblioteca,
 )
+from obractrl.domain.cuantificacion.colado_por_ml import CLAVES_PROVISIONALES
 from obractrl.domain.cuantificacion.elementos_lineales import (
     EntradaElementoEstructural,
     ErrorDeElementoEstructural,
@@ -247,19 +248,21 @@ def test_c1_avisa_si_pasa_del_escalon_del_catalogo() -> None:
 # --- Lo que se contempla y no se ejecuta -------------------------------------------------------------------------
 
 
-def test_el_colado_y_el_destajo_por_ml_quedan_por_registrar_sin_crear_nada() -> None:
-    """Q51 y Q52: se deja el camino, pero ni hay clave EJ-7xx, ni destajo, ni precio."""
+def test_el_colado_y_el_destajo_por_ml_se_registran_como_propuesta_sin_precio_ni_destajo_con_importe() -> None:
+    """Q51 y Q52 con la fase 2 de la losa (D8): el camino trae la clave provisional del concepto de colado por ml y el destajo por ml sin importe."""
     for e in LINEALES:
         c = camino_de_colado_y_cimbra(e["clave"])
         assert c is not None and c["estado"] == "por_registrar"
-        assert c["borrador"]["clave_propuesta"] is None
+        assert c["borrador"]["clave_propuesta"].startswith("EJ-7")
+        assert c["borrador"]["clave_propuesta"] == CLAVES_PROVISIONALES[e["clave"]]
         assert c["borrador"]["toma"]["concreto"] is True
-        assert c["mano_de_obra"]["destajo"] is None and c["mano_de_obra"]["estado"] == "sin_destajo_por_ml"
+        assert c["mano_de_obra"]["destajo"] == c["borrador"]["clave_propuesta"] + "-MO"
+        assert c["mano_de_obra"]["estado"] == "destajo_por_ml_sin_importe"
         assert "precio" not in str(c["borrador"]).lower().replace("sin precio", "")
     assert camino_de_colado_y_cimbra("Z-1")["estado"] == "no_aplica"  # type: ignore[index]
     assert camino_de_colado_y_cimbra("C-1")["estado"] == "no_aplica"  # type: ignore[index]
-    # Ninguna conciliación, definición ni cálculo inventa un concepto EJ-7xx.
-    assert "EJ-7" not in str(calc("T-1-15x25")) and "EJ-7" not in str(definicion_del_elemento("T-1-15x25"))
+    # El cálculo del elemento no crea ningún concepto: solo describe el camino.
+    assert "EJ-7" not in str(calc("T-1-15x25")["insumos"])
 
 
 def test_la_nervadura_no_pide_cimbra_en_el_borrador_de_colado() -> None:

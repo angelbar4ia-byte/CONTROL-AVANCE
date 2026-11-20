@@ -12,6 +12,10 @@ Dos formas de leer un driver:
 - `constantes`: el driver es **fijo** (no se edita por obra) y el cálculo lo sigue leyendo como constante del dominio, que debe ser
   igual al valor de partida del driver (`escarpio_minimo`, `corona_cimiento_cm` en el muro de cimentación de piedra).
 
+La **matriz de la losa** (fase 2) lee los mismos drivers que las trabes que contiene: el desperdicio de concreto (el de la losa y el de sus elementos) y
+la receta del acero (traslape, puntas, cortes y desperdicio del acero de cada trabe, contratrabe y nervadura). No lee `altura_estandar`: la losa
+no tiene altura propia, la altura libre es de su zona.
+
 La **fachada por bandas** (F1) NO lee ningún driver, a propósito: reparte los m² de cara exterior de los muros reales con las bandas de la
 decisión del usuario (0 a 3.00, 3.00 a 4.20, resto), que son constantes del dominio (`fachada_por_bandas`), y con la altura de cada muro y su zona
 de losa; no lee `altura_estandar` (el plano ya no la lee) ni ningún otro. `SIN_DRIVER_POR_DECISION` lo deja escrito y una prueba lo mantiene.
@@ -83,6 +87,14 @@ CONSUMIDORES: tuple[Consumidor, ...] = (
         "estructura_lineal", "elemento",
         "Trabes, contratrabes, nervaduras, zapata Z-1 y columna C-1 (biblioteca › Estructura)",
         (*_RECETA_DE_ACERO, "desperdicio_concreto"),
+    ),
+    Consumidor(
+        "matriz_de_losa", "elemento",
+        "Matriz de la losa de una zona (biblioteca › Losas): concreto de la losa y de sus trabes, contratrabes y nervaduras, y el acero de estas",
+        (
+            "traslape_armex_cm", "traslape_varilla_diametros", "tolerancia_corte_cm", "max_piezas_corte", "desperdicio_acero",
+            "desperdicio_concreto",
+        ),
     ),
     Consumidor("receta_acero", "elemento", "Receta del acero (cálculo suelto de varillas, armex y anillos)", _RECETA_DE_ACERO),
     Consumidor(
