@@ -68,6 +68,7 @@ from obractrl.adapters.repos.elementos_parametricos_sql import (
     RepositorioElementosParametricosSQL,
 )
 from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
+from obractrl.adapters.repos.escalera_de_zona_sql import RepositorioEscalerasDeZonaSQL
 from obractrl.adapters.repos.espacios_sql import RepositorioEspaciosSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
@@ -215,6 +216,10 @@ from obractrl.application.casos_uso.elementos_parametricos import (
     GestionarElementosParametricos,
 )
 from obractrl.application.casos_uso.enlaces_de_hoja import GestionarEnlacesDeHoja
+from obractrl.application.casos_uso.escalera_de_zona import (
+    GestionarEscaleras,
+    GestionarPropuestasDeEscalera,
+)
 from obractrl.application.casos_uso.espacios import GestionarEspacios
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
@@ -401,6 +406,7 @@ from obractrl.application.casos_uso.relleno_de_zona import (
     GestionarRellenos,
 )
 from obractrl.application.casos_uso.tomas_de_elemento import SincronizarTomas
+from obractrl.application.casos_uso.tomas_de_escaleras import TomasDeEscaleras
 from obractrl.application.casos_uso.tomas_de_losas import TomasDeLosas
 from obractrl.application.casos_uso.tomas_de_rellenos import TomasDeRellenos
 from obractrl.application.casos_uso.valuacion_de_partes import (
@@ -532,6 +538,7 @@ __all__ = [
     "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
     "GestionarEnlacesDeRanuraDep",
+    "GestionarEscalerasDep",
     "GestionarEspaciosDep",
     "GestionarInsumosDeElementoDep",
     "GestionarMatricesDeConceptoDep",
@@ -540,6 +547,7 @@ __all__ = [
     "GestionarNumeroDeNivelDep",
     "GestionarPlantillasDeMuroDep",
     "GestionarPropuestasDeBastonDep",
+    "GestionarPropuestasDeEscaleraDep",
     "GestionarPropuestasDeEstructuraDep",
     "GestionarPropuestasDeLosaDep",
     "GestionarPropuestasDeRellenoDep",
@@ -965,6 +973,7 @@ def _sincronizador_de_tomas(sesion: SesionRLS, elementos: RepositorioElementosPa
         trazos=RepositorioTrazosSQL(sesion),
         losas=TomasDeLosas(zonas=RepositorioZonasDeLosaSQL(sesion), matriz=_matriz_de_losa(sesion)),
         rellenos=TomasDeRellenos(zonas=RepositorioZonasDeLosaSQL(sesion), rellenos=_relleno_de_zona(sesion)),
+        escaleras=TomasDeEscaleras(zonas=RepositorioZonasDeLosaSQL(sesion), escaleras=_escalera_de_zona(sesion)),
     )
 
 
@@ -1184,6 +1193,31 @@ def _relleno_de_zona(sesion: SesionRLS, sincronizador: SincronizarTomas | None =
 def obtener_gestionar_rellenos(sesion: SesionRLS) -> GestionarRellenos:
     # La que escribe rellenos rehace las tomas de la obra (el espacio puede venir del polígono) (0144).
     return _relleno_de_zona(sesion, _sincronizador_de_tomas(sesion))
+
+
+def obtener_gestionar_propuestas_de_escalera(sesion: SesionRLS) -> GestionarPropuestasDeEscalera:
+    return GestionarPropuestasDeEscalera(
+        propuestas=RepositorioPropuestasDeEstructuraSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def _escalera_de_zona(sesion: SesionRLS, sincronizador: SincronizarTomas | None = None) -> GestionarEscaleras:
+    return GestionarEscaleras(
+        zonas=RepositorioZonasDeLosaSQL(sesion),
+        escaleras=RepositorioEscalerasDeZonaSQL(sesion),
+        propuestas=obtener_gestionar_propuestas_de_escalera(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        insumos=RepositorioInsumosDeElementoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        parametrico=RepositorioParametricoSQL(sesion),
+        sincronizador=sincronizador,
+    )
+
+
+def obtener_gestionar_escaleras(sesion: SesionRLS) -> GestionarEscaleras:
+    # La que escribe escaleras rehace las tomas de la obra (la escalera se mide en la partida de su espacio) (0145).
+    return _escalera_de_zona(sesion, _sincronizador_de_tomas(sesion))
 
 
 def obtener_gestionar_matriz_de_losa(sesion: SesionRLS) -> GestionarMatrizDeLosa:
@@ -1586,6 +1620,8 @@ GestionarPropuestasDeLosaDep = Annotated[GestionarPropuestasDeLosa, Depends(obte
 GestionarMatrizDeLosaDep = Annotated[GestionarMatrizDeLosa, Depends(obtener_gestionar_matriz_de_losa)]
 GestionarPropuestasDeRellenoDep = Annotated[GestionarPropuestasDeRelleno, Depends(obtener_gestionar_propuestas_de_relleno)]
 GestionarRellenosDep = Annotated[GestionarRellenos, Depends(obtener_gestionar_rellenos)]
+GestionarPropuestasDeEscaleraDep = Annotated[GestionarPropuestasDeEscalera, Depends(obtener_gestionar_propuestas_de_escalera)]
+GestionarEscalerasDep = Annotated[GestionarEscaleras, Depends(obtener_gestionar_escaleras)]
 GestionarEspaciosDep = Annotated[GestionarEspacios, Depends(obtener_gestionar_espacios)]
 ConsultarFachadaPorBandasDep = Annotated[ConsultarFachadaPorBandas, Depends(obtener_consultar_fachada_por_bandas)]
 AplicarZonaAlMuroDep = Annotated[AplicarZonaAlMuro, Depends(obtener_aplicar_zona_al_muro)]

@@ -357,7 +357,8 @@ export async function cajaEstable(
  *   8.0 zz-flujo-completo (el castillo que propone Costos; el rango 8.1 queda reservado para su siguiente castillo) ·
  *   10.0 zz-matriz-de-losa (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(10.0)`) ·
  *   11.0 zz-espacios (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(11.0)`) ·
- *   12.0 zz-relleno (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(12.0)`).
+ *   12.0 zz-relleno (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(12.0)`) ·
+ *   13.0 zz-escalera (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(13.0)`).
  * Un spec nuevo que cree castillos con alto aleatorio toma un rango libre (p. ej. 7.0, 8.0) y lo anota aquí. Los castillos con `largo` propio
  * (0.15 + n/1e4 en zz-artefacto y zz-drivers; 0.40 a 0.41 en los de prototipos) tienen su propio espacio.
  */
