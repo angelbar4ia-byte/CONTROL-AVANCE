@@ -174,7 +174,7 @@ def validar_zona(
     uso_de_losa: str | None = None,
 ) -> dict[str, Any]:
     """Revisa y normaliza los datos de una zona de losa (cotas en m, relativas al piso terminado de PB = 0). ``tipo_de_losa`` (maciza o nervada) y
-    ``uso_de_losa`` (entrepiso o azotea) son de la matriz de la losa (fase 2); sin ellos la zona conserva los suyos (al crearla, maciza y entrepiso)."""
+    ``uso_de_losa`` (entrepiso, azotea o cimentación) son de la matriz de la losa (fase 2); sin ellos la zona conserva los suyos (al crearla, maciza y entrepiso)."""
     limpio = (nombre or "").strip()
     if not 1 <= len(limpio) <= 60:
         raise ErrorDeZonaDeLosa("El nombre de la zona va de 1 a 60 caracteres.")
@@ -198,8 +198,8 @@ def validar_zona(
         raise ErrorDeZonaDeLosa("El nivel va de 1 a 40 caracteres.")
     if tipo_de_losa is not None and tipo_de_losa not in ("maciza", "nervada"):
         raise ErrorDeZonaDeLosa("El tipo de losa es «maciza» o «nervada».")
-    if uso_de_losa is not None and uso_de_losa not in ("entrepiso", "azotea"):
-        raise ErrorDeZonaDeLosa("El uso de la losa es «entrepiso» o «azotea».")
+    if uso_de_losa is not None and uso_de_losa not in ("entrepiso", "azotea", "cimentacion"):
+        raise ErrorDeZonaDeLosa("El uso de la losa es «entrepiso», «azotea» o «cimentacion».")
     return {
         "nombre": limpio,
         "nivel": nivel_limpio,

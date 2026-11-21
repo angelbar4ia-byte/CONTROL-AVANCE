@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({
   agregar: vi.fn(),
   agregarEscalera: vi.fn(),
+  agregarCimiento: vi.fn(),
   zonas: { current: undefined as unknown },
 }));
 
@@ -29,6 +30,9 @@ vi.mock('@/api/generado/losas/losas', () => ({
   useDefinicionDeLaLosaApiV1BibliotecaDeElementosLosaClaveGet: () => ({
     data: { elementos_permitidos: [{ clave: 'T-1-15x25', tiene_concepto_de_colado: true }, { clave: 'CT1-15x25', tiene_concepto_de_colado: true }] },
   }),
+}));
+vi.mock('@/api/generado/cimientos/cimientos', () => ({
+  useAgregarCimientoApiV1ZonasDeLosaZonaIdCimientosPost: () => ({ mutateAsync: m.agregarCimiento, isPending: false }),
 }));
 vi.mock('@/api/generado/escaleras/escaleras', () => ({
   useAgregarEscaleraApiV1ZonasDeLosaZonaIdEscalerasPost: () => ({ mutateAsync: m.agregarEscalera, isPending: false }),
@@ -60,6 +64,8 @@ function pintar(puedeEditar: boolean, tipo = 'LineString') {
 beforeEach(() => {
   m.agregar.mockReset();
   m.agregar.mockResolvedValue({});
+  m.agregarCimiento.mockReset();
+  m.agregarCimiento.mockResolvedValue({});
   m.agregarEscalera.mockReset();
   m.agregarEscalera.mockResolvedValue({});
   m.zonas.current = ZONAS;
@@ -105,6 +111,29 @@ describe('Una línea como elemento de la losa', () => {
     await waitFor(() => expect(onCambio).toHaveBeenCalledWith(expect.stringContaining('Escalera agregada a «Entrepiso 4.20»')));
   });
 
+  it('la misma línea puede ser un muro de cimentación con su cota de desplante: manda la línea y la cota', async () => {
+    const { onCambio, onError } = pintar(true);
+    expect(screen.getByTestId('cimiento-de-la-linea')).toHaveTextContent('menos la cota de desplante');
+    fireEvent.click(screen.getByRole('button', { name: 'Medir un cimiento con esta línea' }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('Teclea la cota de desplante')));
+    expect(m.agregarCimiento).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Zona del cimiento de la línea'), { target: { value: 'z2' } });
+    fireEvent.change(screen.getByLabelText('Cota de desplante del cimiento de la línea'), { target: { value: '-0.8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Medir un cimiento con esta línea' }));
+    await waitFor(() => expect(m.agregarCimiento).toHaveBeenCalledWith({ zonaId: 'z2', data: { trazo_id: 't1', cota_desplante_m: -0.8 } }));
+    await waitFor(() => expect(onCambio).toHaveBeenCalledWith(expect.stringContaining('Cimiento agregado a «Entrepiso 4.20»')));
+  });
+
+  it('el desplante puede venir de un punto de nivel exterior del plano y un error del servidor se avisa', async () => {
+    m.zonas.current = { ...ZONAS, puntos_de_nivel: [{ trazo_id: 'pn1', cota_m: '-0.600', rotulo: 'Desplante CIM-1' }] };
+    m.agregarCimiento.mockRejectedValue(new Error('Esa línea ya mide otro cimiento: se contaría dos veces.'));
+    const { onError } = pintar(true);
+    fireEvent.change(screen.getByLabelText('Punto de nivel del cimiento de la línea'), { target: { value: 'pn1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Medir un cimiento con esta línea' }));
+    await waitFor(() => expect(m.agregarCimiento).toHaveBeenCalledWith({ zonaId: 'z1', data: { trazo_id: 't1', punto_nivel_id: 'pn1' } }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('se contaría dos veces')));
+  });
+
   it('si la línea ya es el recorrido de otra escalera el error se avisa', async () => {
     m.agregarEscalera.mockRejectedValue(new Error('Esa línea ya da el recorrido de otra escalera: se contaría dos veces.'));
     const { onError } = pintar(true);
@@ -116,6 +145,7 @@ describe('Una línea como elemento de la losa', () => {
     pintar(false);
     expect(screen.queryByTestId('elemento-de-losa-de-la-linea')).not.toBeInTheDocument();
     expect(screen.queryByTestId('escalera-de-la-linea')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cimiento-de-la-linea')).not.toBeInTheDocument();
   });
 
   it('sin zonas en el plano no hay nada que medir', () => {

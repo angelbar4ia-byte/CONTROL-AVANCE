@@ -13,4 +13,5 @@ export type ConcretoPorUsoUso =
 export const ConcretoPorUsoUso = {
   entrepiso: "entrepiso",
   azotea: "azotea",
+  cimentacion: "cimentacion",
 } as const;

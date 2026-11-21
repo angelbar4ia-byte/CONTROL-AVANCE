@@ -31,7 +31,7 @@ vi.mock('@/api/generado/losas/losas', () => ({
 vi.mock('@/api/generado/zonas-de-losa/zonas-de-losa', () => ({
   useCambiarZonaApiV1ZonasDeLosaZonaIdPut: () => ({ mutateAsync: m.cambiarZona, isPending: false }),
 }));
-vi.mock('@/app/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn() } }));
+vi.mock('@/app/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn(), cancelQueries: vi.fn().mockResolvedValue(undefined) } }));
 
 import { MatrizDeLaZona } from '@/cuantificador/MatrizDeLaZona';
 

@@ -13,4 +13,5 @@ export type MatrizDeLosaUso =
 export const MatrizDeLosaUso = {
   entrepiso: "entrepiso",
   azotea: "azotea",
+  cimentacion: "cimentacion",
 } as const;

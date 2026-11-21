@@ -7,7 +7,7 @@
  */
 import type { ConceptoDelElemento } from "./conceptoDelElemento";
 import type { SeccionDelCimiento } from "./seccionDelCimiento";
-import type { EscarpioDelCimiento } from "./escarpioDelCimiento";
+import type { ObractrlAdaptersApiV1BibliotecaDeElementosEscarpioDelCimiento } from "./obractrlAdaptersApiV1BibliotecaDeElementosEscarpioDelCimiento";
 import type { VolumenDelMuro } from "./volumenDelMuro";
 import type { DentellonDelMuro } from "./dentellonDelMuro";
 import type { ContrasteConElConcepto } from "./contrasteConElConcepto";
@@ -21,7 +21,7 @@ export interface CalculoDelCimiento {
   unidad: string;
   concepto: ConceptoDelElemento;
   seccion: SeccionDelCimiento;
-  escarpio: EscarpioDelCimiento;
+  escarpio: ObractrlAdaptersApiV1BibliotecaDeElementosEscarpioDelCimiento;
   volumen: VolumenDelMuro;
   dentellon: DentellonDelMuro;
   contraste: ContrasteConElConcepto;

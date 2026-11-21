@@ -86,7 +86,7 @@ class ConceptoDeLaFicha(BaseModel):
 
 
 class ConcretoPorUso(BaseModel):
-    uso: Literal["entrepiso", "azotea"]
+    uso: Literal["entrepiso", "azotea", "cimentacion"]
     clave: str
     descripcion: str
 
@@ -170,7 +170,7 @@ class ElementoDeLaMatrizPeticion(BaseModel):
 
 class CalculoDeLaLosaPeticion(BaseModel):
     espesor_m: float = Field(default=0.12, gt=0, le=3, description="Espesor de la losa de la zona.")
-    uso: Literal["entrepiso", "azotea"] = "entrepiso"
+    uso: Literal["entrepiso", "azotea", "cimentacion"] = "entrepiso"
     capa_de_compresion_cm: float = Field(default=CAPA_DE_COMPRESION_CM, gt=0, le=300, description="Solo la losa nervada.")
     losas: list[PoligonoDeLosaPeticion] = Field(default_factory=list, max_length=200)
     elementos: list[ElementoDeLaMatrizPeticion] = Field(default_factory=list, max_length=500)
@@ -350,7 +350,7 @@ class MatrizDeLosa(BaseModel):
     clave: str
     nombre: str
     tipo: Literal["maciza", "nervada"]
-    uso: Literal["entrepiso", "azotea"]
+    uso: Literal["entrepiso", "azotea", "cimentacion"]
     espesor_m: float
     capa_de_compresion_cm: float | None
     area_m2: float

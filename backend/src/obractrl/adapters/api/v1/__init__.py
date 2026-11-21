@@ -28,6 +28,7 @@ from obractrl.adapters.api.v1.catalogos import router as router_catalogos
 from obractrl.adapters.api.v1.cierres import router as router_cierres
 from obractrl.adapters.api.v1.cierres_frente import router as router_cierres_frente
 from obractrl.adapters.api.v1.cierres_obra import router as router_cierres_obra
+from obractrl.adapters.api.v1.cimientos import router as router_cimientos
 from obractrl.adapters.api.v1.cliente import router as router_cliente
 from obractrl.adapters.api.v1.comprobaciones import router as router_comprobaciones
 from obractrl.adapters.api.v1.conceptos_de_elemento import (
@@ -146,6 +147,7 @@ api_v1.include_router(router_muros_de_sillar)
 api_v1.include_router(router_losas)
 api_v1.include_router(router_rellenos)
 api_v1.include_router(router_escaleras)
+api_v1.include_router(router_cimientos)
 api_v1.include_router(router_bastones)
 api_v1.include_router(router_plantillas_de_muro)
 api_v1.include_router(router_zonas_de_losa)

@@ -171,7 +171,7 @@ PENDIENTES: tuple[dict[str, str], ...] = (
     {
         "clave": "R6",
         "texto": "El relleno de cimentación y el filtro de grava del muro de contención (D11) son otras cosas: el filtro es del muro de contención, y el relleno de "
-        "cimentación es de la Fase 4. Este elemento solo rellena polígonos de una zona de losa.",
+        "cimentación no lo define el material del usuario (Fase 4b, pregunta C4: puede medirse con REL-COMPACTADO sobre la zona de cimentación). Este elemento solo rellena polígonos de una zona de losa.",
     },
     {
         "clave": "R7",
