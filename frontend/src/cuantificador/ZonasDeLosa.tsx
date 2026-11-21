@@ -35,6 +35,7 @@ import {
 } from '@/api/generado/losas/losas';
 import { EspacioDelTrazo, PanelDeEspacios, useEspaciosDeLaObra } from './EspaciosDeLaObra';
 import { MatrizDeLaZona } from './MatrizDeLaZona';
+import { RellenosDeLaZona } from './RellenosDeLaZona';
 import { NOMBRE_DE_CARA, NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
 
 function mensaje(err: unknown, defecto: string): string {
@@ -180,6 +181,7 @@ export function PanelDeZonasDeLosa({ planoId, obraId = '', puedeEditar, rol = nu
             {z.losas.some((l) => l.espesor_propio_m != null) && ` · subzonas: ${z.losas.filter((l) => l.espesor_propio_m != null).length}`}
           </div>
           <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
+          <RellenosDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           {puedeEditar && (
             <div className="row">
               <button
