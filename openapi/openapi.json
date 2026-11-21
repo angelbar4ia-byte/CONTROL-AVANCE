@@ -16709,6 +16709,511 @@
         }
       }
     },
+    "/api/v1/biblioteca-de-elementos/escalera/{clave}": {
+      "get": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "La ficha de la escalera forjada (qué calcula, lo que toma del catálogo, sus dos conceptos y los pendientes)",
+        "operationId": "definicion_de_la_escalera_api_v1_biblioteca_de_elementos_escalera__clave__get",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinicionDeLaEscalera"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de escalera con esa clave (ESC-FORJADA)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/escalera/{clave}/calcular": {
+      "post": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Calcula una escalera con las cotas que se mandan (solo cálculo; no guarda nada)",
+        "operationId": "calcular_la_escalera_api_v1_biblioteca_de_elementos_escalera__clave__calcular_post",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculoDeLaEscaleraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscaleraCalculada"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de escalera con esa clave (ESC-FORJADA)."
+          },
+          "422": {
+            "description": "Un dato no vale (p. ej. la llegada no está por encima del arranque)."
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/escalera/{clave}/propuestas": {
+      "get": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Las propuestas de concepto nuevo de la escalera: pendientes, autorizadas y rechazadas",
+        "operationId": "propuestas_de_la_escalera_api_v1_biblioteca_de_elementos_escalera__clave__propuestas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PropuestaDeEstructura"
+                  },
+                  "title": "Response Propuestas De La Escalera Api V1 Biblioteca De Elementos Escalera  Clave  Propuestas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No hay un elemento de escalera con esa clave (ESC-FORJADA)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/biblioteca-de-elementos/escalera/{clave}/propuestas/concepto": {
+      "post": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Proponer el concepto nuevo del descanso de la escalera por m² (clave provisional, sin precio ni destajo; lo autoriza Control de obra)",
+        "operationId": "proponer_concepto_de_la_escalera_api_v1_biblioteca_de_elementos_escalera__clave__propuestas_concepto_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clave"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/escaleras": {
+      "get": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Las escaleras que arrancan en una zona de losa, con sus parámetros",
+        "operationId": "escaleras_de_la_zona_api_v1_zonas_de_losa__zona_id__escaleras_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EscaleraDeLaZona"
+                  },
+                  "title": "Response Escaleras De La Zona Api V1 Zonas De Losa  Zona Id  Escaleras Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Agregar una escalera a la zona (solo Control de obra)",
+        "operationId": "agregar_escalera_api_v1_zonas_de_losa__zona_id__escaleras_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscaleraDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscaleraDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Una cota, un parámetro, la zona de llegada, la línea o el espacio no valen, o la línea ya da el recorrido de otra escalera."
+          }
+        }
+      }
+    },
+    "/api/v1/escaleras-de-zona/{escalera_id}": {
+      "put": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Cambiar una escalera de la zona (solo Control de obra); sin `espacio_id` conserva su espacio y un parámetro que no viene vuelve al de omisión",
+        "operationId": "cambiar_escalera_api_v1_escaleras_de_zona__escalera_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "escalera_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Escalera Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscaleraDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscaleraDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Una cota, un parámetro, la zona de llegada, la línea o el espacio no valen, o la línea ya da el recorrido de otra escalera."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Quitar una escalera de la zona (solo Control de obra)",
+        "operationId": "quitar_escalera_api_v1_escaleras_de_zona__escalera_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "escalera_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Escalera Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/escaleras/calculo": {
+      "get": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "El cálculo de las escaleras de una zona: cotas, peldaños, huella, descanso, insumos, conceptos y lo que paga cada espacio",
+        "operationId": "calculo_de_las_escaleras_api_v1_zonas_de_losa__zona_id__escaleras_calculo_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          },
+          {
+            "name": "conciliar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Concilia la escalera contra la composición de EST-01510 del catálogo vigente, por escalón.",
+              "default": false,
+              "title": "Conciliar"
+            },
+            "description": "Concilia la escalera contra la composición de EST-01510 del catálogo vigente, por escalón."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDeLasEscalerasDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/escaleras/propuestas": {
+      "post": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Proponer el concepto nuevo que las escaleras de la zona necesitan (el del descanso, si alguna lo lleva; idempotente)",
+        "operationId": "proponer_conceptos_de_las_escaleras_api_v1_zonas_de_losa__zona_id__escaleras_propuestas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDeProponer"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Proponen Costos y Control de obra."
+          },
+          "404": {
+            "description": "No existe ese elemento."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/baston/{clave}": {
       "get": {
         "tags": [
@@ -27850,6 +28355,147 @@
         "type": "object",
         "title": "CalculoDeEstructuraPeticion"
       },
+      "CalculoDeLaEscaleraPeticion": {
+        "properties": {
+          "cota_arranque_m": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": -30.0,
+            "title": "Cota Arranque M",
+            "description": "Cota del piso de arranque (relativa al piso terminado de PB = 0).",
+            "default": 0.0
+          },
+          "cota_llegada_m": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": -30.0,
+            "title": "Cota Llegada M",
+            "description": "Cota de llegada: por omisión 3.12 m (3.00 m de altura libre más 12 cm de losa).",
+            "default": 3.12
+          },
+          "peldanos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 120.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peldanos",
+            "description": "Sin él salen del desnivel y de la contrahuella máxima."
+          },
+          "contrahuella_max_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.3,
+                "minimum": 0.1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrahuella Max M"
+          },
+          "huella_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.6,
+                "minimum": 0.15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Huella M"
+          },
+          "recorrido_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorrido M",
+            "description": "El recorrido horizontal de las rampas (lo que mediría una línea del plano): manda sobre la huella."
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.5,
+                "minimum": 0.05
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M"
+          },
+          "rampas": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rampas"
+          },
+          "largo_descanso_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 6.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo Descanso M"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "Una etiqueta de espacio para toda la escalera (0143)."
+          }
+        },
+        "type": "object",
+        "title": "CalculoDeLaEscaleraPeticion"
+      },
       "CalculoDeLaLosaPeticion": {
         "properties": {
           "espesor_m": {
@@ -27919,6 +28565,53 @@
         },
         "type": "object",
         "title": "CalculoDeLaLosaPeticion"
+      },
+      "CalculoDeLasEscalerasDeLaZona": {
+        "properties": {
+          "zona": {
+            "$ref": "#/components/schemas/ZonaDeLaEscalera"
+          },
+          "escala_definida": {
+            "type": "boolean",
+            "title": "Escala Definida",
+            "description": "Sin escala calibrada se toma 1 unidad de plano = 1 m para el recorrido y no se escribe nada en las partidas."
+          },
+          "escaleras": {
+            "items": {
+              "$ref": "#/components/schemas/EscaleraDeLaZonaCalculada"
+            },
+            "type": "array",
+            "title": "Escaleras"
+          },
+          "totales": {
+            "$ref": "#/components/schemas/TotalesDeLasEscaleras"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDeLaEscaleraPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio",
+            "description": "Lo que paga la escalera de cada espacio de la zona y en qué partida se mide; la suma de los grupos es el total (sin doble conteo)."
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zona",
+          "escala_definida",
+          "escaleras",
+          "totales",
+          "por_espacio",
+          "advertencias"
+        ],
+        "title": "CalculoDeLasEscalerasDeLaZona"
       },
       "CalculoDeLosRellenosDeLaZona": {
         "properties": {
@@ -32104,6 +32797,163 @@
         ],
         "title": "ConceptoDeLaDefinicion"
       },
+      "ConceptoDeLaEscalera": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "escalon",
+              "descanso"
+            ],
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "La cantidad medida, en la unidad del concepto (escalón: pza de 1.20 m; descanso: m²)."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDeLaEscalera"
+      },
+      "ConceptoDeLaEscaleraPorEspacio": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "escalon",
+              "descanso"
+            ],
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "La cantidad medida, en la unidad del concepto (escalón: pza de 1.20 m; descanso: m²)."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si el concepto es provisional: su propuesta vigente (pendiente o autorizada); `null` si nadie la ha propuesto."
+          },
+          "resolucion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolucionDelConcepto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En qué partida del árbol se mide (solo el cálculo de una zona; el cálculo suelto no consulta el árbol)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDeLaEscaleraPorEspacio"
+      },
       "ConceptoDeLaFicha": {
         "properties": {
           "clave": {
@@ -32247,6 +33097,38 @@
           "cantidad"
         ],
         "title": "ConceptoDeLosTotales"
+      },
+      "ConceptoDeLosTotalesDeEscaleras": {
+        "properties": {
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "propuesta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropuestaDelConceptoDeLosa"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "unidad",
+          "cantidad"
+        ],
+        "title": "ConceptoDeLosTotalesDeEscaleras"
       },
       "ConceptoDelArbol": {
         "properties": {
@@ -35507,6 +36389,30 @@
         "title": "CostoDeJornadaPeticion",
         "description": "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048).\n\n`null` lo quita: dejar de saberlo es un estado real —una cuadrilla nueva sin\nprecio negociado— y un cero diría que es gratis."
       },
+      "CotasDeLaEscalera": {
+        "properties": {
+          "arranque_m": {
+            "type": "number",
+            "title": "Arranque M"
+          },
+          "llegada_m": {
+            "type": "number",
+            "title": "Llegada M"
+          },
+          "desnivel_m": {
+            "type": "number",
+            "title": "Desnivel M",
+            "description": "Llegada − arranque: de ahí salen los peldaños."
+          }
+        },
+        "type": "object",
+        "required": [
+          "arranque_m",
+          "llegada_m",
+          "desnivel_m"
+        ],
+        "title": "CotasDeLaEscalera"
+      },
       "CotizacionPeticion": {
         "properties": {
           "metodo_precio": {
@@ -37321,6 +38227,86 @@
           "fuente"
         ],
         "title": "DefinicionDeEstructura"
+      },
+      "DefinicionDeLaEscalera": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "se_mide_por": {
+            "type": "string",
+            "title": "Se Mide Por"
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeLosa"
+          },
+          "subcategoria": {
+            "$ref": "#/components/schemas/ClaveYNombreDeLosa"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "concepto_del_descanso": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "largo_base_del_escalon_m": {
+            "type": "number",
+            "title": "Largo Base Del Escalon M"
+          },
+          "parametros_por_defecto": {
+            "$ref": "#/components/schemas/ParametrosDeLaEscalera"
+          },
+          "composicion_del_escalon": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDeLaFichaDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Composicion Del Escalon"
+          },
+          "parrilla_por_m2": {
+            "items": {
+              "$ref": "#/components/schemas/ParrillaDeLaFicha"
+            },
+            "type": "array",
+            "title": "Parrilla Por M2"
+          },
+          "destajos_candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/DestajoCandidato"
+            },
+            "type": "array",
+            "title": "Destajos Candidatos"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "se_mide_por",
+          "categoria",
+          "subcategoria",
+          "concepto",
+          "concepto_del_descanso",
+          "largo_base_del_escalon_m",
+          "parametros_por_defecto",
+          "composicion_del_escalon",
+          "parrilla_por_m2",
+          "destajos_candidatos",
+          "pendientes"
+        ],
+        "title": "DefinicionDeLaEscalera"
       },
       "DefinicionDeLaLosa": {
         "properties": {
@@ -42012,6 +42998,488 @@
         ],
         "title": "EscalaRespuesta"
       },
+      "EscaleraCalculada": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "parametros": {
+            "$ref": "#/components/schemas/ParametrosDeLaEscalera"
+          },
+          "cotas": {
+            "$ref": "#/components/schemas/CotasDeLaEscalera"
+          },
+          "geometria": {
+            "$ref": "#/components/schemas/GeometriaDeLaEscalera"
+          },
+          "insumos": {
+            "items": {
+              "$ref": "#/components/schemas/InsumoDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Insumos"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDeLaEscaleraPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio",
+            "description": "La escalera asignada a un espacio (0143): su cantidad se mide en la partida de ese espacio; la suma de los grupos es el total (sin doble conteo)."
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDeLaLosa"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "parametros",
+          "cotas",
+          "geometria",
+          "insumos",
+          "conceptos",
+          "por_espacio",
+          "mano_de_obra",
+          "advertencias",
+          "pendientes"
+        ],
+        "title": "EscaleraCalculada"
+      },
+      "EscaleraDeLaZona": {
+        "properties": {
+          "peldanos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peldanos",
+            "description": "Número de peldaños; `null` = el que sale del desnivel y de la contrahuella máxima."
+          },
+          "contrahuella_max_m": {
+            "type": "number",
+            "title": "Contrahuella Max M",
+            "description": "Contrahuella máxima (m): con ella los peldaños salen del desnivel (valor de referencia: 0.18)."
+          },
+          "huella_m": {
+            "type": "number",
+            "title": "Huella M",
+            "description": "Huella (m): el fondo de cada peldaño (valor de referencia: 0.25). Si hay una línea del plano, manda el recorrido de la línea."
+          },
+          "ancho_m": {
+            "type": "number",
+            "title": "Ancho M",
+            "description": "Ancho de la escalera (m): el escalón del catálogo es de 1.20 m y la cantidad escala con ancho ÷ 1.20."
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M",
+            "description": "Espesor del concreto de la rampa y del descanso (m)."
+          },
+          "rampas": {
+            "type": "integer",
+            "title": "Rampas",
+            "description": "Número de rampas; entre ellas hay un descanso."
+          },
+          "largo_descanso_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo Descanso M",
+            "description": "Largo del descanso (m); `null` = igual al ancho."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "zona_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Zona Id"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "const": "ESC-FORJADA",
+            "title": "Elemento Clave"
+          },
+          "zona_llegada_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona Llegada Id"
+          },
+          "cota_arranque_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Arranque M"
+          },
+          "cota_llegada_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Llegada M"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peldanos",
+          "contrahuella_max_m",
+          "huella_m",
+          "ancho_m",
+          "espesor_m",
+          "rampas",
+          "largo_descanso_m",
+          "id",
+          "zona_id",
+          "elemento_clave",
+          "zona_llegada_id",
+          "cota_arranque_m",
+          "cota_llegada_m",
+          "trazo_id",
+          "espacio_id"
+        ],
+        "title": "EscaleraDeLaZona"
+      },
+      "EscaleraDeLaZonaCalculada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          },
+          "zona_llegada_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona Llegada Id"
+          },
+          "origen_de_cotas": {
+            "$ref": "#/components/schemas/OrigenDeLasCotas"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Si un dato de la escalera o de las zonas no vale (p. ej. la llegada quedó por debajo del arranque): el motivo; sin él no hay cálculo."
+          },
+          "calculo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EscaleraCalculada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conciliacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConciliacionDeLaLosa"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo si se pidió `conciliar`: lo que calcula por escalón contra la composición de EST-01510 del catálogo vigente."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trazo_id",
+          "espacio_id",
+          "zona_llegada_id",
+          "origen_de_cotas",
+          "error",
+          "calculo"
+        ],
+        "title": "EscaleraDeLaZonaCalculada"
+      },
+      "EscaleraDeLaZonaPeticion": {
+        "properties": {
+          "elemento_clave": {
+            "type": "string",
+            "const": "ESC-FORJADA",
+            "title": "Elemento Clave",
+            "default": "ESC-FORJADA"
+          },
+          "zona_llegada_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zona Llegada Id",
+            "description": "La zona cuyo piso es el de llegada (su cota de piso). Sin ella ni `cota_llegada_m`, la escalera llega a la cara alta de la losa de su zona."
+          },
+          "cota_arranque_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Arranque M",
+            "description": "Cota tecleada del arranque; sin ella vale el piso de la zona de arranque."
+          },
+          "cota_llegada_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Llegada M",
+            "description": "Cota tecleada de la llegada; no se combina con `zona_llegada_id`."
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id",
+            "description": "Una línea del plano: su longitud (con la escala) es el recorrido horizontal de las rampas y da la huella, derivada al calcular. Una línea no sirve a dos escaleras."
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde está la escalera (0143); `null` = sin espacio (no se escribe en ninguna partida)."
+          },
+          "peldanos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 120.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peldanos"
+          },
+          "contrahuella_max_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.3,
+                "minimum": 0.1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrahuella Max M"
+          },
+          "huella_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.6,
+                "minimum": 0.15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Huella M"
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.5,
+                "minimum": 0.05
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M"
+          },
+          "rampas": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rampas"
+          },
+          "largo_descanso_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 6.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo Descanso M"
+          }
+        },
+        "type": "object",
+        "title": "EscaleraDeLaZonaPeticion"
+      },
       "EscalonDeEstructura": {
         "properties": {
           "clave": {
@@ -45460,6 +46928,104 @@
         "title": "GenerarObraPeticion",
         "description": "Workflow A (§11.3 A.2)."
       },
+      "GeometriaDeLaEscalera": {
+        "properties": {
+          "peldanos": {
+            "type": "integer",
+            "title": "Peldanos"
+          },
+          "origen_de_peldanos": {
+            "type": "string",
+            "enum": [
+              "desnivel",
+              "tecleados"
+            ],
+            "title": "Origen De Peldanos"
+          },
+          "contrahuella_m": {
+            "type": "number",
+            "title": "Contrahuella M",
+            "description": "Desnivel ÷ peldaños."
+          },
+          "huella_m": {
+            "type": "number",
+            "title": "Huella M"
+          },
+          "origen_de_huella": {
+            "type": "string",
+            "enum": [
+              "tecleada",
+              "linea"
+            ],
+            "title": "Origen De Huella",
+            "description": "`linea`: salió del recorrido de una línea del plano (medición derivada)."
+          },
+          "longitud_inclinada_m": {
+            "type": "number",
+            "title": "Longitud Inclinada M",
+            "description": "Por peldaño: la hipotenusa de la huella y la contrahuella."
+          },
+          "recorrido_horizontal_m": {
+            "type": "number",
+            "title": "Recorrido Horizontal M"
+          },
+          "rampas": {
+            "items": {
+              "$ref": "#/components/schemas/RampaDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Rampas"
+          },
+          "descansos": {
+            "type": "integer",
+            "title": "Descansos"
+          },
+          "largo_del_descanso_m": {
+            "type": "number",
+            "title": "Largo Del Descanso M"
+          },
+          "area_de_descanso_m2": {
+            "type": "number",
+            "title": "Area De Descanso M2"
+          },
+          "superficie_de_rampa_m2": {
+            "type": "number",
+            "title": "Superficie De Rampa M2"
+          },
+          "volumen_de_rampa_m3": {
+            "type": "number",
+            "title": "Volumen De Rampa M3"
+          },
+          "volumen_de_descanso_m3": {
+            "type": "number",
+            "title": "Volumen De Descanso M3"
+          },
+          "escalones_de_catalogo": {
+            "type": "number",
+            "title": "Escalones De Catalogo",
+            "description": "Peldaños × ancho ÷ 1.20 m: las piezas de EST-01510."
+          }
+        },
+        "type": "object",
+        "required": [
+          "peldanos",
+          "origen_de_peldanos",
+          "contrahuella_m",
+          "huella_m",
+          "origen_de_huella",
+          "longitud_inclinada_m",
+          "recorrido_horizontal_m",
+          "rampas",
+          "descansos",
+          "largo_del_descanso_m",
+          "area_de_descanso_m2",
+          "superficie_de_rampa_m2",
+          "volumen_de_rampa_m3",
+          "volumen_de_descanso_m3",
+          "escalones_de_catalogo"
+        ],
+        "title": "GeometriaDeLaEscalera"
+      },
       "GeometriaDelTabique": {
         "properties": {
           "espesor_real_cm": {
@@ -45500,6 +47066,46 @@
           "hiladas"
         ],
         "title": "GeometriaDelTabique"
+      },
+      "GrupoDeLaEscaleraPorEspacio": {
+        "properties": {
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio; `null` = lo que no está asignado a ninguno."
+          },
+          "espacio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Nombre"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLaEscaleraPorEspacio"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espacio_id",
+          "conceptos"
+        ],
+        "title": "GrupoDeLaEscaleraPorEspacio"
       },
       "GrupoDelRellenoPorEspacio": {
         "properties": {
@@ -46363,6 +47969,90 @@
           "permitido"
         ],
         "title": "InsumoDeElementoRespuesta"
+      },
+      "InsumoDeLaEscalera": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "enum": [
+              "rampa",
+              "descanso"
+            ],
+            "title": "Parte"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "geometria",
+              "catalogo"
+            ],
+            "title": "Origen"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "origen",
+          "nota"
+        ],
+        "title": "InsumoDeLaEscalera"
+      },
+      "InsumoDeLaFichaDeLaEscalera": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_escalon": {
+            "type": "number",
+            "title": "Por Escalon"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_escalon",
+          "fuente"
+        ],
+        "title": "InsumoDeLaFichaDeLaEscalera"
       },
       "InsumoDeLaFichaDelRelleno": {
         "properties": {
@@ -51693,6 +53383,33 @@
         "title": "OrigenCantidadEnsamble",
         "description": "De dónde sale la cantidad de un renglón de ensamble (skill §2).\n\"Heredar es mejor que capturar\": heredada, el ensamble se entera si el\nvolumen de origen cambia; manual se desincroniza en silencio."
       },
+      "OrigenDeLasCotas": {
+        "properties": {
+          "arranque": {
+            "type": "string",
+            "enum": [
+              "explicita",
+              "zona"
+            ],
+            "title": "Arranque"
+          },
+          "llegada": {
+            "type": "string",
+            "enum": [
+              "explicita",
+              "zona_de_llegada",
+              "losa_de_la_zona"
+            ],
+            "title": "Llegada"
+          }
+        },
+        "type": "object",
+        "required": [
+          "arranque",
+          "llegada"
+        ],
+        "title": "OrigenDeLasCotas"
+      },
       "PaginaBitacora": {
         "properties": {
           "total": {
@@ -51753,6 +53470,70 @@
           "texto"
         ],
         "title": "PagoDelBaston"
+      },
+      "ParametrosDeLaEscalera": {
+        "properties": {
+          "peldanos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peldanos",
+            "description": "Número de peldaños; `null` = el que sale del desnivel y de la contrahuella máxima."
+          },
+          "contrahuella_max_m": {
+            "type": "number",
+            "title": "Contrahuella Max M",
+            "description": "Contrahuella máxima (m): con ella los peldaños salen del desnivel (valor de referencia: 0.18)."
+          },
+          "huella_m": {
+            "type": "number",
+            "title": "Huella M",
+            "description": "Huella (m): el fondo de cada peldaño (valor de referencia: 0.25). Si hay una línea del plano, manda el recorrido de la línea."
+          },
+          "ancho_m": {
+            "type": "number",
+            "title": "Ancho M",
+            "description": "Ancho de la escalera (m): el escalón del catálogo es de 1.20 m y la cantidad escala con ancho ÷ 1.20."
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M",
+            "description": "Espesor del concreto de la rampa y del descanso (m)."
+          },
+          "rampas": {
+            "type": "integer",
+            "title": "Rampas",
+            "description": "Número de rampas; entre ellas hay un descanso."
+          },
+          "largo_descanso_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo Descanso M",
+            "description": "Largo del descanso (m); `null` = igual al ancho."
+          }
+        },
+        "type": "object",
+        "required": [
+          "peldanos",
+          "contrahuella_max_m",
+          "huella_m",
+          "ancho_m",
+          "espesor_m",
+          "rampas",
+          "largo_descanso_m"
+        ],
+        "title": "ParametrosDeLaEscalera"
       },
       "ParametrosDelBaston": {
         "properties": {
@@ -52113,6 +53894,39 @@
           "separacion_cm"
         ],
         "title": "ParrillaCalculada"
+      },
+      "ParrillaDeLaFicha": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "por_m2": {
+            "type": "number",
+            "title": "Por M2"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "por_m2",
+          "fuente"
+        ],
+        "title": "ParrillaDeLaFicha"
       },
       "ParrillaDeLaLosa": {
         "properties": {
@@ -56696,6 +58510,34 @@
           "altura_m"
         ],
         "title": "PuntoDelPerfil"
+      },
+      "RampaDeLaEscalera": {
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "peldanos": {
+            "type": "integer",
+            "title": "Peldanos"
+          },
+          "recorrido_m": {
+            "type": "number",
+            "title": "Recorrido M"
+          },
+          "altura_m": {
+            "type": "number",
+            "title": "Altura M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero",
+          "peldanos",
+          "recorrido_m",
+          "altura_m"
+        ],
+        "title": "RampaDeLaEscalera"
       },
       "RanuraDePlantilla": {
         "properties": {
@@ -61564,6 +63406,37 @@
         ],
         "title": "TotalesDeLaMatriz"
       },
+      "TotalesDeLasEscaleras": {
+        "properties": {
+          "peldanos": {
+            "type": "integer",
+            "title": "Peldanos"
+          },
+          "escalones_de_catalogo": {
+            "type": "number",
+            "title": "Escalones De Catalogo"
+          },
+          "area_de_descanso_m2": {
+            "type": "number",
+            "title": "Area De Descanso M2"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLosTotalesDeEscaleras"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peldanos",
+          "escalones_de_catalogo",
+          "area_de_descanso_m2",
+          "conceptos"
+        ],
+        "title": "TotalesDeLasEscaleras"
+      },
       "TotalesDeLosRellenos": {
         "properties": {
           "area_m2": {
@@ -65637,6 +67510,55 @@
           "peso_kg_m"
         ],
         "title": "ZonaDeAnilloPeticion"
+      },
+      "ZonaDeLaEscalera": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "cota_piso_m": {
+            "type": "number",
+            "title": "Cota Piso M",
+            "description": "Cota del piso de la zona: el arranque por omisión."
+          },
+          "cota_de_la_losa_m": {
+            "type": "number",
+            "title": "Cota De La Losa M",
+            "description": "Cara alta de la losa de la zona (piso + altura libre + espesor): la llegada por omisión."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plano_id",
+          "nombre",
+          "nivel",
+          "cota_piso_m",
+          "cota_de_la_losa_m"
+        ],
+        "title": "ZonaDeLaEscalera"
       },
       "ZonaDeLaMatriz": {
         "properties": {

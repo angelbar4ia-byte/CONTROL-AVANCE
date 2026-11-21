@@ -41,9 +41,11 @@ El camino de lo que NO se construye aquí (para quien siga)
   estructurales distintos de la zona (las subzonas de ``losa_zona``/``trazo.losa_espesor_m``), no de la losa. Es una familia de la biblioteca (categoría «Rellenos»: REL-AZOTEA con el
   concepto existente ALB-03014 y REL-COMPACTADO con el concepto propuesto EJ-810, regla F7) con su propia tabla de zona (``relleno_zona``, 0144); le presta el área y el espesor de cada
   polígono que esta matriz ya calcula. La matriz de la losa no cambia ni lo cuenta.
-- **Fase 4, escaleras y cimentación**: la escalera sale de la diferencia de cotas entre zonas (``cota_inferior_m`` de cada zona) y la losa de cimentación
-  es otra zona con ``uso_de_losa`` propio (hoy solo entrepiso y azotea) y sus contratrabes CT (que esta matriz ya admite). Falta decidir el uso
-  «cimentación» (concreto CON-00001, TD 200) y el concepto de las 7 losas de cimentación del catálogo.
+- **Fase 4a, escaleras** (hecha, ver ``escalera``): la escalera sale de la diferencia de cotas entre zonas (``cota_piso_m`` de la zona de arranque y de llegada, o la cara alta de su
+  losa) y es un elemento SEPARADO de la losa (categoría «Escaleras»: ESC-FORJADA con el concepto existente EST-01510 por escalón de 1.20 m y el descanso con el concepto propuesto
+  EJ-820, regla F7) con su propia tabla de zona (``escalera_zona``, 0145). Esta matriz no la cuenta: el hueco de la escalera ya se resta del área de la losa.
+- **Fase 4b, cimentación**: la losa de cimentación es otra zona con ``uso_de_losa`` propio (hoy solo entrepiso y azotea) y sus contratrabes CT (que esta matriz ya admite). Falta
+  decidir el uso «cimentación» (concreto CON-00001, TD 200) y el concepto de las 7 losas de cimentación del catálogo.
 - **Capa «espacio»** (0143, ``espacios``): una zona de losa NO es un espacio (una zona puede cubrir varios cuartos), pero cada polígono de losa
   (``trazo.espacio_id``) y cada elemento (``losa_elemento.espacio_id``) puede decir en qué cuarto está. El cálculo de la zona NO cambia: ``por_espacio``
   solo reparte lo mismo por cuarto (cada polígono y cada elemento cae en **un** grupo, así que la suma de los grupos es el total de la zona: sin doble

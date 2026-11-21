@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({
   agregar: vi.fn(),
+  agregarEscalera: vi.fn(),
   zonas: { current: undefined as unknown },
 }));
 
@@ -28,6 +29,9 @@ vi.mock('@/api/generado/losas/losas', () => ({
   useDefinicionDeLaLosaApiV1BibliotecaDeElementosLosaClaveGet: () => ({
     data: { elementos_permitidos: [{ clave: 'T-1-15x25', tiene_concepto_de_colado: true }, { clave: 'CT1-15x25', tiene_concepto_de_colado: true }] },
   }),
+}));
+vi.mock('@/api/generado/escaleras/escaleras', () => ({
+  useAgregarEscaleraApiV1ZonasDeLosaZonaIdEscalerasPost: () => ({ mutateAsync: m.agregarEscalera, isPending: false }),
 }));
 vi.mock('@/app/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn() } }));
 
@@ -56,6 +60,8 @@ function pintar(puedeEditar: boolean, tipo = 'LineString') {
 beforeEach(() => {
   m.agregar.mockReset();
   m.agregar.mockResolvedValue({});
+  m.agregarEscalera.mockReset();
+  m.agregarEscalera.mockResolvedValue({});
   m.zonas.current = ZONAS;
 });
 
@@ -90,14 +96,32 @@ describe('Una línea como elemento de la losa', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith('La línea es de otro plano que la zona.'));
   });
 
+  it('la misma línea puede ser el recorrido de una escalera que arranca en una zona: manda la línea', async () => {
+    const { onCambio } = pintar(true);
+    expect(screen.getByTestId('escalera-de-la-linea')).toHaveTextContent('de ella sale la huella');
+    fireEvent.change(screen.getByLabelText('Zona de arranque de la escalera de la línea'), { target: { value: 'z2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Medir una escalera con esta línea' }));
+    await waitFor(() => expect(m.agregarEscalera).toHaveBeenCalledWith({ zonaId: 'z2', data: { trazo_id: 't1' } }));
+    await waitFor(() => expect(onCambio).toHaveBeenCalledWith(expect.stringContaining('Escalera agregada a «Entrepiso 4.20»')));
+  });
+
+  it('si la línea ya es el recorrido de otra escalera el error se avisa', async () => {
+    m.agregarEscalera.mockRejectedValue(new Error('Esa línea ya da el recorrido de otra escalera: se contaría dos veces.'));
+    const { onError } = pintar(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Medir una escalera con esta línea' }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('se contaría dos veces')));
+  });
+
   it('solo Control de obra la ve y solo con zonas en el plano', () => {
     pintar(false);
     expect(screen.queryByTestId('elemento-de-losa-de-la-linea')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('escalera-de-la-linea')).not.toBeInTheDocument();
   });
 
   it('sin zonas en el plano no hay nada que medir', () => {
     m.zonas.current = { ...ZONAS, zonas: [] };
     pintar(true);
     expect(screen.queryByTestId('elemento-de-losa-de-la-linea')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('escalera-de-la-linea')).not.toBeInTheDocument();
   });
 });
