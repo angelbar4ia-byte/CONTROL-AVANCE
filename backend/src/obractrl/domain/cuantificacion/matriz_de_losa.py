@@ -37,10 +37,10 @@ listan como candidatos; el destajo por ml de las trabes queda sin importe (D8). 
 
 El camino de lo que NO se construye aquí (para quien siga)
 ----------------------------------------------------------
-- **Fase 3, el relleno**: es un elemento SEPARADO de la losa (decisión del usuario, 2026-11-16): su volumen sale de la pendiente y de los espesores
-  estructurales distintos de la zona (las subzonas de ``losa_zona``/``trazo.losa_espesor_m``), no de la losa. Se construiría como una familia nueva de la
-  biblioteca (categoría «Rellenos»), con su concepto propuesto (regla F7) y su propia tabla de elementos de zona; esta matriz solo le prestaría el área
-  y los espesores por polígono que ya calcula (``losas``).
+- **Fase 3, el relleno** (hecha, ver ``relleno``): es un elemento SEPARADO de la losa (decisión del usuario, 2026-11-16): su volumen sale de la pendiente y de los espesores
+  estructurales distintos de la zona (las subzonas de ``losa_zona``/``trazo.losa_espesor_m``), no de la losa. Es una familia de la biblioteca (categoría «Rellenos»: REL-AZOTEA con el
+  concepto existente ALB-03014 y REL-COMPACTADO con el concepto propuesto EJ-810, regla F7) con su propia tabla de zona (``relleno_zona``, 0144); le presta el área y el espesor de cada
+  polígono que esta matriz ya calcula. La matriz de la losa no cambia ni lo cuenta.
 - **Fase 4, escaleras y cimentación**: la escalera sale de la diferencia de cotas entre zonas (``cota_inferior_m`` de cada zona) y la losa de cimentación
   es otra zona con ``uso_de_losa`` propio (hoy solo entrepiso y azotea) y sus contratrabes CT (que esta matriz ya admite). Falta decidir el uso
   «cimentación» (concreto CON-00001, TD 200) y el concepto de las 7 losas de cimentación del catálogo.

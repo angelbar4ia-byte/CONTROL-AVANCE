@@ -90,6 +90,7 @@ from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.propuestas import router as router_propuestas
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.receta_acero import router as router_receta_acero
+from obractrl.adapters.api.v1.rellenos import router as router_rellenos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
 from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogramaciones
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
@@ -142,6 +143,7 @@ api_v1.include_router(router_elementos_estructurales)
 api_v1.include_router(router_muros_de_tabique)
 api_v1.include_router(router_muros_de_sillar)
 api_v1.include_router(router_losas)
+api_v1.include_router(router_rellenos)
 api_v1.include_router(router_bastones)
 api_v1.include_router(router_plantillas_de_muro)
 api_v1.include_router(router_zonas_de_losa)
