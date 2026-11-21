@@ -29,6 +29,6 @@ export interface ZonaDeLosaPeticion {
   espesor_m: ZonaDeLosaPeticionEspesorM;
   /** Matriz de la losa (fase 2): maciza o nervada. Sin él, la zona conserva el suyo (al crearla, maciza). */
   tipo_de_losa?: ZonaDeLosaPeticionTipoDeLosa;
-  /** Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso). */
+  /** Matriz de la losa (fase 2): entrepiso, azotea o cimentación, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso). */
   uso_de_losa?: ZonaDeLosaPeticionUsoDeLosa;
 }

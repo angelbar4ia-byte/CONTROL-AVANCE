@@ -17214,6 +17214,245 @@
         }
       }
     },
+    "/api/v1/zonas-de-losa/{zona_id}/cimientos": {
+      "get": {
+        "tags": [
+          "cimientos"
+        ],
+        "summary": "Los cimientos (muros de cimentación con cotas de desplante) de una zona de losa",
+        "operationId": "cimientos_de_la_zona_api_v1_zonas_de_losa__zona_id__cimientos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CimientoDeLaZona"
+                  },
+                  "title": "Response Cimientos De La Zona Api V1 Zonas De Losa  Zona Id  Cimientos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cimientos"
+        ],
+        "summary": "Agregar un cimiento a la zona, medido con una línea del plano (solo Control de obra)",
+        "operationId": "agregar_cimiento_api_v1_zonas_de_losa__zona_id__cimientos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CimientoDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CimientoDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Una cota, la línea, el punto de nivel, el espacio o un parámetro no valen, o la línea ya mide otro cimiento."
+          }
+        }
+      }
+    },
+    "/api/v1/cimientos-de-zona/{cimiento_id}": {
+      "put": {
+        "tags": [
+          "cimientos"
+        ],
+        "summary": "Cambiar un cimiento (solo Control de obra); sin `espacio_id` conserva su espacio",
+        "operationId": "cambiar_cimiento_api_v1_cimientos_de_zona__cimiento_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cimiento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CimientoDeLaZonaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CimientoDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Una cota, la línea, el punto de nivel, el espacio o un parámetro no valen, o la línea ya mide otro cimiento."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cimientos"
+        ],
+        "summary": "Quitar un cimiento de la zona (solo Control de obra)",
+        "operationId": "quitar_cimiento_api_v1_cimientos_de_zona__cimiento_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cimiento Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/zonas-de-losa/{zona_id}/cimientos/calculo": {
+      "get": {
+        "tags": [
+          "cimientos"
+        ],
+        "summary": "El cálculo de los cimientos de una zona: altura de las cotas, volumen, insumos, concepto y lo que paga cada espacio",
+        "operationId": "calculo_de_los_cimientos_api_v1_zonas_de_losa__zona_id__cimientos_calculo_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "zona_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Zona Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculoDeLosCimientosDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/baston/{clave}": {
       "get": {
         "tags": [
@@ -28510,7 +28749,8 @@
             "type": "string",
             "enum": [
               "entrepiso",
-              "azotea"
+              "azotea",
+              "cimentacion"
             ],
             "title": "Uso",
             "default": "entrepiso"
@@ -28612,6 +28852,52 @@
           "advertencias"
         ],
         "title": "CalculoDeLasEscalerasDeLaZona"
+      },
+      "CalculoDeLosCimientosDeLaZona": {
+        "properties": {
+          "zona": {
+            "$ref": "#/components/schemas/ZonaDelCimiento"
+          },
+          "escala_definida": {
+            "type": "boolean",
+            "title": "Escala Definida",
+            "description": "Sin escala calibrada se toma 1 unidad de plano = 1 m y no se escribe nada en las partidas."
+          },
+          "cimientos": {
+            "items": {
+              "$ref": "#/components/schemas/CimientoDeLaZonaCalculado"
+            },
+            "type": "array",
+            "title": "Cimientos"
+          },
+          "totales": {
+            "$ref": "#/components/schemas/TotalesDeLosCimientos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDelCimientoPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zona",
+          "escala_definida",
+          "cimientos",
+          "totales",
+          "por_espacio",
+          "advertencias"
+        ],
+        "title": "CalculoDeLosCimientosDeLaZona"
       },
       "CalculoDeLosRellenosDeLaZona": {
         "properties": {
@@ -28897,7 +29183,7 @@
             "$ref": "#/components/schemas/SeccionDelCimiento"
           },
           "escarpio": {
-            "$ref": "#/components/schemas/EscarpioDelCimiento"
+            "$ref": "#/components/schemas/obractrl__adapters__api__v1__biblioteca_de_elementos__EscarpioDelCimiento"
           },
           "volumen": {
             "$ref": "#/components/schemas/VolumenDelMuro"
@@ -31730,6 +32016,361 @@
         ],
         "title": "CimbraDeLaReceta"
       },
+      "CimientoCalculado": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "cotas": {
+            "$ref": "#/components/schemas/CotasDelCimiento"
+          },
+          "longitud_m": {
+            "type": "number",
+            "title": "Longitud M"
+          },
+          "seccion": {
+            "$ref": "#/components/schemas/SeccionDelCimiento"
+          },
+          "escarpio": {
+            "$ref": "#/components/schemas/obractrl__adapters__api__v1__cimientos__EscarpioDelCimiento"
+          },
+          "dentellon": {
+            "$ref": "#/components/schemas/DentellonDelCimiento"
+          },
+          "volumen_m3_ml": {
+            "type": "number",
+            "title": "Volumen M3 Ml"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "insumos": {
+            "$ref": "#/components/schemas/InsumosDelCimiento"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelCimiento"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "por_espacio": {
+            "items": {
+              "$ref": "#/components/schemas/GrupoDelCimientoPorEspacio"
+            },
+            "type": "array",
+            "title": "Por Espacio"
+          },
+          "no_incluye": {
+            "items": {
+              "$ref": "#/components/schemas/NoIncluyeDelCimiento"
+            },
+            "type": "array",
+            "title": "No Incluye"
+          },
+          "mano_de_obra": {
+            "$ref": "#/components/schemas/ManoDeObraDelCimiento"
+          },
+          "advertencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Advertencias"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/PendienteDeLaLosa"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "cotas",
+          "longitud_m",
+          "seccion",
+          "escarpio",
+          "dentellon",
+          "volumen_m3_ml",
+          "volumen_m3",
+          "insumos",
+          "conceptos",
+          "por_espacio",
+          "no_incluye",
+          "mano_de_obra",
+          "advertencias",
+          "pendientes"
+        ],
+        "title": "CimientoCalculado"
+      },
+      "CimientoDeLaZona": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "zona_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Zona Id"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "const": "CIM-01010",
+            "title": "Elemento Clave"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "cota_desplante_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Desplante M"
+          },
+          "punto_nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto Nivel Id"
+          },
+          "cota_corona_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Corona M"
+          },
+          "caras": {
+            "type": "integer",
+            "title": "Caras"
+          },
+          "dentellon": {
+            "type": "boolean",
+            "title": "Dentellon"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "zona_id",
+          "elemento_clave",
+          "trazo_id",
+          "cota_desplante_m",
+          "punto_nivel_id",
+          "cota_corona_m",
+          "caras",
+          "dentellon",
+          "espacio_id"
+        ],
+        "title": "CimientoDeLaZona"
+      },
+      "CimientoDeLaZonaCalculado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "punto_nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto Nivel Id"
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          },
+          "origen_de_cotas": {
+            "$ref": "#/components/schemas/OrigenDeLasCotasDelCimiento"
+          },
+          "longitud_m": {
+            "type": "number",
+            "title": "Longitud M",
+            "description": "La de la línea del plano con la escala (derivada)."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Si un dato no vale (p. ej. la corona quedó por debajo del desplante): el motivo; sin él no hay cálculo."
+          },
+          "calculo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CimientoCalculado"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trazo_id",
+          "punto_nivel_id",
+          "espacio_id",
+          "origen_de_cotas",
+          "longitud_m",
+          "error",
+          "calculo"
+        ],
+        "title": "CimientoDeLaZonaCalculado"
+      },
+      "CimientoDeLaZonaPeticion": {
+        "properties": {
+          "elemento_clave": {
+            "type": "string",
+            "const": "CIM-01010",
+            "title": "Elemento Clave",
+            "default": "CIM-01010"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id",
+            "description": "La línea del plano que mide el cimiento: su longitud (con la escala) se deriva al calcular. Una línea mide un solo cimiento."
+          },
+          "cota_desplante_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Desplante M",
+            "description": "Cota del fondo del cimiento (relativa al piso terminado de PB = 0); manda sobre el punto de nivel."
+          },
+          "punto_nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto Nivel Id",
+            "description": "Un punto de nivel exterior del plano cuya cota es la del desplante (medición derivada)."
+          },
+          "cota_corona_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -30.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cota Corona M",
+            "description": "Cota de la corona; sin ella vale el piso de la zona."
+          },
+          "caras": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Caras",
+            "description": "Caras inclinadas del muro: 1 (cimiento de lindero) o 2 (simétrico).",
+            "default": 1
+          },
+          "dentellon": {
+            "type": "boolean",
+            "title": "Dentellon",
+            "description": "Dentellón opcional, desde 2.00 m de altura.",
+            "default": false
+          },
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id",
+            "description": "El espacio donde está el cimiento (0143); `null` = sin espacio (no se escribe en ninguna partida)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id"
+        ],
+        "title": "CimientoDeLaZonaPeticion"
+      },
       "ClaseDeInsumoRespuesta": {
         "properties": {
           "clase": {
@@ -33098,6 +33739,32 @@
         ],
         "title": "ConceptoDeLosTotales"
       },
+      "ConceptoDeLosTotalesDeCimientos": {
+        "properties": {
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "propuesta": {
+            "type": "null",
+            "title": "Propuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto",
+          "unidad",
+          "cantidad"
+        ],
+        "title": "ConceptoDeLosTotalesDeCimientos"
+      },
       "ConceptoDeLosTotalesDeEscaleras": {
         "properties": {
           "concepto": {
@@ -33252,6 +33919,134 @@
           "fuente"
         ],
         "title": "ConceptoDelCatalogoDelElemento"
+      },
+      "ConceptoDelCimiento": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "const": "cimiento",
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "m³ de mampostería, en la unidad del concepto."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDelCimiento"
+      },
+      "ConceptoDelCimientoPorEspacio": {
+        "properties": {
+          "parte": {
+            "type": "string",
+            "const": "cimiento",
+            "title": "Parte"
+          },
+          "elemento_clave": {
+            "type": "string",
+            "title": "Elemento Clave"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "concepto": {
+            "$ref": "#/components/schemas/ConceptoDeLaFicha"
+          },
+          "toma": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Toma"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "m³ de mampostería, en la unidad del concepto."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "resolucion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolucionDelConcepto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "parte",
+          "elemento_clave",
+          "ref",
+          "concepto",
+          "toma",
+          "cantidad",
+          "unidad",
+          "nota"
+        ],
+        "title": "ConceptoDelCimientoPorEspacio"
       },
       "ConceptoDelElemento": {
         "properties": {
@@ -34990,7 +35785,8 @@
             "type": "string",
             "enum": [
               "entrepiso",
-              "azotea"
+              "azotea",
+              "cimentacion"
             ],
             "title": "Uso"
           },
@@ -36412,6 +37208,30 @@
           "desnivel_m"
         ],
         "title": "CotasDeLaEscalera"
+      },
+      "CotasDelCimiento": {
+        "properties": {
+          "desplante_m": {
+            "type": "number",
+            "title": "Desplante M"
+          },
+          "corona_m": {
+            "type": "number",
+            "title": "Corona M"
+          },
+          "altura_m": {
+            "type": "number",
+            "title": "Altura M",
+            "description": "Corona − desplante."
+          }
+        },
+        "type": "object",
+        "required": [
+          "desplante_m",
+          "corona_m",
+          "altura_m"
+        ],
+        "title": "CotasDelCimiento"
       },
       "CotizacionPeticion": {
         "properties": {
@@ -39116,6 +39936,39 @@
           "pendientes"
         ],
         "title": "DefinicionDelTabique"
+      },
+      "DentellonDelCimiento": {
+        "properties": {
+          "aplica": {
+            "type": "boolean",
+            "title": "Aplica"
+          },
+          "opcion": {
+            "type": "boolean",
+            "title": "Opcion"
+          },
+          "b2_m": {
+            "type": "number",
+            "title": "B2 M"
+          },
+          "b1_m": {
+            "type": "number",
+            "title": "B1 M"
+          },
+          "h_m": {
+            "type": "number",
+            "title": "H M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aplica",
+          "opcion",
+          "b2_m",
+          "b1_m",
+          "h_m"
+        ],
+        "title": "DentellonDelCimiento"
       },
       "DentellonDelCuadro": {
         "properties": {
@@ -43531,58 +44384,6 @@
         ],
         "title": "EscalonDelCatalogo"
       },
-      "EscarpioDelCimiento": {
-        "properties": {
-          "minimo": {
-            "type": "number",
-            "title": "Minimo"
-          },
-          "angulo_minimo_grados": {
-            "type": "number",
-            "title": "Angulo Minimo Grados"
-          },
-          "real": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Real"
-          },
-          "angulo_real_grados": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Angulo Real Grados"
-          },
-          "cumple": {
-            "type": "boolean",
-            "title": "Cumple"
-          },
-          "fuente": {
-            "type": "string",
-            "title": "Fuente"
-          }
-        },
-        "type": "object",
-        "required": [
-          "minimo",
-          "angulo_minimo_grados",
-          "real",
-          "angulo_real_grados",
-          "cumple",
-          "fuente"
-        ],
-        "title": "EscarpioDelCimiento"
-      },
       "Espacio": {
         "properties": {
           "id": {
@@ -47107,6 +47908,45 @@
         ],
         "title": "GrupoDeLaEscaleraPorEspacio"
       },
+      "GrupoDelCimientoPorEspacio": {
+        "properties": {
+          "espacio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Id"
+          },
+          "espacio_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espacio Nombre"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelCimientoPorEspacio"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "espacio_id",
+          "conceptos"
+        ],
+        "title": "GrupoDelCimientoPorEspacio"
+      },
       "GrupoDelRellenoPorEspacio": {
         "properties": {
           "espacio_id": {
@@ -48747,6 +49587,34 @@
         ],
         "title": "InsumoRespuesta"
       },
+      "InsumosDelCimiento": {
+        "properties": {
+          "piedra_a_comprar_m3": {
+            "type": "number",
+            "title": "Piedra A Comprar M3"
+          },
+          "cemento_kg": {
+            "type": "number",
+            "title": "Cemento Kg"
+          },
+          "arena_m3": {
+            "type": "number",
+            "title": "Arena M3"
+          },
+          "agua_l": {
+            "type": "number",
+            "title": "Agua L"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piedra_a_comprar_m3",
+          "cemento_kg",
+          "arena_m3",
+          "agua_l"
+        ],
+        "title": "InsumosDelCimiento"
+      },
       "InsumosDelElementoRespuesta": {
         "properties": {
           "elemento_id": {
@@ -50206,6 +51074,25 @@
         ],
         "title": "ManoDeObraDelCatalogoDelTabique"
       },
+      "ManoDeObraDelCimiento": {
+        "properties": {
+          "estado": {
+            "type": "string",
+            "const": "sin_mano_de_obra",
+            "title": "Estado"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado",
+          "nota"
+        ],
+        "title": "ManoDeObraDelCimiento"
+      },
       "ManoDeObraDelContraste": {
         "properties": {
           "clave": {
@@ -50734,7 +51621,8 @@
             "type": "string",
             "enum": [
               "entrepiso",
-              "azotea"
+              "azotea",
+              "cimentacion"
             ],
             "title": "Uso"
           },
@@ -51866,6 +52754,24 @@
           "texto"
         ],
         "title": "NoIncluidoDelCimiento"
+      },
+      "NoIncluyeDelCimiento": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "texto"
+        ],
+        "title": "NoIncluyeDelCimiento"
       },
       "NodoCreadoRespuesta": {
         "properties": {
@@ -53409,6 +54315,33 @@
           "llegada"
         ],
         "title": "OrigenDeLasCotas"
+      },
+      "OrigenDeLasCotasDelCimiento": {
+        "properties": {
+          "desplante": {
+            "type": "string",
+            "enum": [
+              "explicita",
+              "punto_de_nivel",
+              "sin_cota"
+            ],
+            "title": "Desplante"
+          },
+          "corona": {
+            "type": "string",
+            "enum": [
+              "explicita",
+              "zona"
+            ],
+            "title": "Corona"
+          }
+        },
+        "type": "object",
+        "required": [
+          "desplante",
+          "corona"
+        ],
+        "title": "OrigenDeLasCotasDelCimiento"
       },
       "PaginaBitacora": {
         "properties": {
@@ -63437,6 +64370,32 @@
         ],
         "title": "TotalesDeLasEscaleras"
       },
+      "TotalesDeLosCimientos": {
+        "properties": {
+          "longitud_m": {
+            "type": "number",
+            "title": "Longitud M"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDeLosTotalesDeCimientos"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "longitud_m",
+          "volumen_m3",
+          "conceptos"
+        ],
+        "title": "TotalesDeLosCimientos"
+      },
       "TotalesDeLosRellenos": {
         "properties": {
           "area_m2": {
@@ -67661,7 +68620,8 @@
             "type": "string",
             "enum": [
               "entrepiso",
-              "azotea"
+              "azotea",
+              "cimentacion"
             ],
             "title": "Uso De Losa"
           },
@@ -67802,7 +68762,8 @@
                 "type": "string",
                 "enum": [
                   "entrepiso",
-                  "azotea"
+                  "azotea",
+                  "cimentacion"
                 ]
               },
               {
@@ -67810,7 +68771,7 @@
               }
             ],
             "title": "Uso De Losa",
-            "description": "Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso)."
+            "description": "Matriz de la losa (fase 2): entrepiso, azotea o cimentación, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso)."
           }
         },
         "type": "object",
@@ -67820,6 +68781,48 @@
           "espesor_m"
         ],
         "title": "ZonaDeLosaPeticion"
+      },
+      "ZonaDelCimiento": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "cota_piso_m": {
+            "type": "number",
+            "title": "Cota Piso M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plano_id",
+          "nombre",
+          "nivel",
+          "cota_piso_m"
+        ],
+        "title": "ZonaDelCimiento"
       },
       "ZonaDelRelleno": {
         "properties": {
@@ -68166,6 +69169,88 @@
           "marca"
         ],
         "title": "FilaDeConciliacion"
+      },
+      "obractrl__adapters__api__v1__biblioteca_de_elementos__EscarpioDelCimiento": {
+        "properties": {
+          "minimo": {
+            "type": "number",
+            "title": "Minimo"
+          },
+          "angulo_minimo_grados": {
+            "type": "number",
+            "title": "Angulo Minimo Grados"
+          },
+          "real": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real"
+          },
+          "angulo_real_grados": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Angulo Real Grados"
+          },
+          "cumple": {
+            "type": "boolean",
+            "title": "Cumple"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minimo",
+          "angulo_minimo_grados",
+          "real",
+          "angulo_real_grados",
+          "cumple",
+          "fuente"
+        ],
+        "title": "EscarpioDelCimiento"
+      },
+      "obractrl__adapters__api__v1__cimientos__EscarpioDelCimiento": {
+        "properties": {
+          "minimo": {
+            "type": "number",
+            "title": "Minimo"
+          },
+          "real": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real"
+          },
+          "cumple": {
+            "type": "boolean",
+            "title": "Cumple"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minimo",
+          "real",
+          "cumple"
+        ],
+        "title": "EscarpioDelCimiento"
       },
       "obractrl__adapters__api__v1__insumos__PeriodoRespuesta": {
         "properties": {

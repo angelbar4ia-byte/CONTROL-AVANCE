@@ -42,8 +42,8 @@ class ZonaDeLosaPeticion(BaseModel):
     tipo_de_losa: Literal["maciza", "nervada"] | None = Field(
         default=None, description="Matriz de la losa (fase 2): maciza o nervada. Sin él, la zona conserva el suyo (al crearla, maciza)."
     )
-    uso_de_losa: Literal["entrepiso", "azotea"] | None = Field(
-        default=None, description="Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso)."
+    uso_de_losa: Literal["entrepiso", "azotea", "cimentacion"] | None = Field(
+        default=None, description="Matriz de la losa (fase 2): entrepiso, azotea o cimentación, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso)."
     )
 
 
@@ -62,7 +62,7 @@ class ZonaDeLosa(BaseModel):
     altura_libre_m: Decimal
     espesor_m: Decimal
     tipo_de_losa: Literal["maciza", "nervada"]
-    uso_de_losa: Literal["entrepiso", "azotea"]
+    uso_de_losa: Literal["entrepiso", "azotea", "cimentacion"]
     cota_inferior_m: Decimal = Field(description="Cota del nivel bajo de la losa (cota del piso + altura libre).")
     cota_superior_m: Decimal = Field(description="Cota del nivel alto de la losa (nivel bajo + espesor).")
     losas: list[LosaDeZona]

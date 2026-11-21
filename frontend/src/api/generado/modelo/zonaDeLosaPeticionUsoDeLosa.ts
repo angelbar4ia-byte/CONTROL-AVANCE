@@ -7,6 +7,10 @@
  */
 
 /**
- * Matriz de la losa (fase 2): entrepiso o azotea, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso).
+ * Matriz de la losa (fase 2): entrepiso, azotea o cimentación, elige el concreto. Sin él, la zona conserva el suyo (al crearla, entrepiso).
  */
-export type ZonaDeLosaPeticionUsoDeLosa = "entrepiso" | "azotea" | null;
+export type ZonaDeLosaPeticionUsoDeLosa =
+  | "entrepiso"
+  | "azotea"
+  | "cimentacion"
+  | null;

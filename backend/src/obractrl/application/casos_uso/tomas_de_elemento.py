@@ -124,6 +124,7 @@ class SincronizarTomas:
         losas: Any | None = None,
         rellenos: Any | None = None,
         escaleras: Any | None = None,
+        cimientos: Any | None = None,
     ) -> None:
         # Con las zonas de losa (0143), lo que paga la matriz de cada espacio se escribe en la partida de ese espacio.
         self._losas = losas
@@ -131,6 +132,8 @@ class SincronizarTomas:
         self._rellenos = rellenos
         # Con las escaleras de las zonas (0145), lo que paga la escalera de cada espacio se escribe en la partida de ese espacio igual que la losa.
         self._escaleras = escaleras
+        # Con los cimientos de las zonas (0146), lo que paga el cimiento de cada espacio se escribe en la partida de ese espacio igual que la losa.
+        self._cimientos = cimientos
         # Con el repositorio del Paramétrico, los castillos colocados desde la plantilla de un muro también alimentan conceptos (Ola 4C).
         self._parametrico = parametrico
         # Con el de trazos, lo que trae la plantilla de un muro (cadenas y castillos estimados) alimenta conceptos sin colocarse en el plano.
@@ -181,7 +184,7 @@ class SincronizarTomas:
                 continue
             antes = suma.get(cid)
             suma[cid] = (cantidad + (antes[0] if antes and antes[1] == unidad else Decimal(0)), unidad)
-        for fuente in (self._losas, self._rellenos, self._escaleras):
+        for fuente in (self._losas, self._rellenos, self._escaleras, self._cimientos):
             if fuente is None:
                 continue
             for partida_id, cid, cantidad, unidad in await fuente.tomas_de_la_obra(obra_id):

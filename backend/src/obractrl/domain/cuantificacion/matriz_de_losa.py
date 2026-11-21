@@ -44,8 +44,8 @@ El camino de lo que NO se construye aquí (para quien siga)
 - **Fase 4a, escaleras** (hecha, ver ``escalera``): la escalera sale de la diferencia de cotas entre zonas (``cota_piso_m`` de la zona de arranque y de llegada, o la cara alta de su
   losa) y es un elemento SEPARADO de la losa (categoría «Escaleras»: ESC-FORJADA con el concepto existente EST-01510 por escalón de 1.20 m y el descanso con el concepto propuesto
   EJ-820, regla F7) con su propia tabla de zona (``escalera_zona``, 0145). Esta matriz no la cuenta: el hueco de la escalera ya se resta del área de la losa.
-- **Fase 4b, cimentación**: la losa de cimentación es otra zona con ``uso_de_losa`` propio (hoy solo entrepiso y azotea) y sus contratrabes CT (que esta matriz ya admite). Falta
-  decidir el uso «cimentación» (concreto CON-00001, TD 200) y el concepto de las 7 losas de cimentación del catálogo.
+- **Fase 4b, cimentación** (hecha, ver ``cimiento``): la losa gana el uso «cimentación» (concreto CON-00001, TD 200; malla AUX-00030 por m²; sin cimbra por m²; concepto nuevo propuesto
+  EJ-802, regla F7; solo maciza) y sus contratrabes CT siguen siendo elementos de la zona. Los muros de cimentación con cotas de desplante son otro elemento (``cimiento_zona``, 0146).
 - **Capa «espacio»** (0143, ``espacios``): una zona de losa NO es un espacio (una zona puede cubrir varios cuartos), pero cada polígono de losa
   (``trazo.espacio_id``) y cada elemento (``losa_elemento.espacio_id``) puede decir en qué cuarto está. El cálculo de la zona NO cambia: ``por_espacio``
   solo reparte lo mismo por cuarto (cada polígono y cada elemento cae en **un** grupo, así que la suma de los grupos es el total de la zona: sin doble
@@ -101,11 +101,11 @@ __all__ = [
 ]
 
 TipoDeLosa = Literal["maciza", "nervada"]
-UsoDeLosa = Literal["entrepiso", "azotea"]
+UsoDeLosa = Literal["entrepiso", "azotea", "cimentacion"]
 Pago = Literal["en_la_losa", "propio"]
 
 TIPOS_DE_LOSA: tuple[str, ...] = ("maciza", "nervada")
-USOS_DE_LOSA: tuple[str, ...] = ("entrepiso", "azotea")
+USOS_DE_LOSA: tuple[str, ...] = ("entrepiso", "azotea", "cimentacion")
 PAGOS: tuple[str, ...] = ("en_la_losa", "propio")
 
 CLAVES_DE_LOSA: dict[str, str] = {"maciza": "LOSA-MACIZA", "nervada": "LOSA-NERVADA"}
@@ -114,9 +114,10 @@ CLAVES_DE_LOSA: dict[str, str] = {"maciza": "LOSA-MACIZA", "nervada": "LOSA-NERV
 CAPA_DE_COMPRESION_CM = 5.0
 """La capa de compresión de la losa nervada: 5 cm en las descripciones del catálogo («con capa de compresión de 5 cm»). Editable."""
 
-CONCRETO_POR_USO: dict[str, str] = {"entrepiso": "CON-00003", "azotea": "CON-00004"}
+CONCRETO_POR_USO: dict[str, str] = {"entrepiso": "CON-00003", "azotea": "CON-00004", "cimentacion": "CON-00001"}
 """El concreto de la losa por su uso, según la descripción del catálogo: «CONCRETO BOMBEADO 250 … (LOSAS ENTREPISO)» y «… (LOSAS AZOTEA Y
-ROOF)». Las matrices del catálogo usan CON-00004 aun en entrepisos; se sigue la descripción (valor conservador, pregunta abierta)."""
+ROOF)». Las matrices del catálogo usan CON-00004 aun en entrepisos; se sigue la descripción (valor conservador, pregunta abierta). La cimentación (Fase 4b) usa
+CON-00001, «CONCRETO TD 200 28 DIAS 10 REV IMPERMEABILIZANTE 1% (LOSA CIMENTACION)», el de las 7 losas de cimentación del catálogo."""
 
 CIMBRA_DE_LOSA = "MAD-00001"
 """CIMBRA 3 MTS, en m²: el catálogo la cuenta con la misma cantidad que el área de la losa (EST-21011: 125 m² de cimbra para 125 m² de losa)."""
@@ -131,6 +132,18 @@ PARRILLA_DE_MACIZA: dict[str, Any] = {
     ),
 }
 """La parrilla de la losa maciza: un auxiliar del catálogo, por m². Es un dato del catálogo (no se recalcula)."""
+
+PARRILLA_DE_CIMENTACION: dict[str, Any] = {
+    "clave": "AUX-00030",
+    "descripcion": "Malla electrosoldada 66/66",
+    "unidad": "m²",
+    "insumos": (
+        ("ACE-00018", "ELECTROMALLA 66/66 ROLLO 2.5 X 40 MTS", "rll", 0.011494, "ANALISIS_DE_BASICOS_COMPUESTOS:34"),
+        ("ACE-00001", "ALAMBRE RECOCIDO", "kg", 0.050829, "ANALISIS_DE_BASICOS_COMPUESTOS:35"),
+    ),
+}
+"""El acero de la losa de cimentación maciza: la malla electrosoldada del catálogo (AUX-00030, por m²; las 7 matrices de losa de cimentación la cuentan 1 m² por m²).
+Los bastones y las contratrabes CT no son parte de este cálculo por m²: los bastones no se calculan y las CT son elementos de la zona."""
 
 DESTAJOS_DE_LOSA_DEL_CATALOGO: tuple[tuple[str, str], ...] = (
     ("MOE-02211", "MO ARMADO DE LOSA NERVADA"),
@@ -154,6 +167,12 @@ CONCEPTOS_DE_LOSA: dict[str, dict[str, Any]] = {
         "descripcion": "Losa nervada por m²: capa de compresión y cimbra; las trabes y nervaduras de la zona se miden aparte",
     },
 }
+CONCEPTO_DE_LOSA_DE_CIMENTACION: dict[str, Any] = {
+    "clave": "EJ-802",
+    "descripcion": "Losa de cimentación maciza por m²: concreto TD 200 con impermeabilizante y malla electrosoldada (zona de losa de cimentación)",
+}
+"""El concepto nuevo de la losa de cimentación por m² (Fase 4b, regla F7): el catálogo solo trae las 7 losas de cimentación por prototipo, con un lote fijo de m²
+(EST-01013, EST-01020…). Clave **provisional**, propuesto, sin precio ni destajo."""
 """El concepto nuevo de la losa por m² (regla F7: un elemento nuevo lleva su concepto). Clave **provisional**, propuesto, sin precio ni destajo."""
 
 PENDIENTES: tuple[dict[str, str], ...] = (
@@ -181,6 +200,12 @@ PENDIENTES: tuple[dict[str, str], ...] = (
         "clave": "L4",
         "texto": "Los destajos de losa por m² (MOE-02211 a MOE-02218) los usan las matrices del catálogo de forma desigual; no se elige ninguno. El destajo por ml de las trabes "
         "queda sin importe (D8) hasta que Costos lo defina.",
+    },
+    {
+        "clave": "L6",
+        "texto": "Losa de cimentación (uso «cimentación», Fase 4b): concreto CON-00001 (TD 200 con impermeabilizante) y malla electrosoldada AUX-00030 por m² (el catálogo la cuenta 1 m² "
+        "por m²). No se calcula cimbra por m²: el catálogo cimbra con tablas y clavos por lote y por ml de contratrabe. Bastones, tabique y cemento del lote no se calculan. Solo losa "
+        "maciza. El concepto es nuevo (EJ-802, propuesto, clave provisional). ¿Qué lleva realmente la losa de cimentación por m²?",
     },
     {
         "clave": "L5",
@@ -383,16 +408,21 @@ _CLAVES_DE_LINEALES: tuple[str, ...] = tuple(
 # --------------------------------------------------------------------------------------------------------------
 
 
-def concepto_nuevo_de_losa(tipo: str) -> dict[str, Any]:
+def concepto_nuevo_de_losa(tipo: str, uso: str = "entrepiso") -> dict[str, Any]:
     """La propuesta de concepto nuevo de la losa por m² (clase ``concepto_nuevo``): clave provisional, sin destajo ni precio. Los insumos son
     los de **un m² de referencia** (espesor de 12 cm la maciza, capa de 5 cm la nervada, concreto de entrepiso); el elemento los recalcula con el
     espesor y el uso de cada zona."""
     if tipo not in TIPOS_DE_LOSA:
         raise ErrorDeMatrizDeLosa("El tipo de losa es «maciza» o «nervada».")
-    c = CONCEPTOS_DE_LOSA[tipo]
+    if uso not in USOS_DE_LOSA:
+        raise ErrorDeMatrizDeLosa("El uso de la losa es «entrepiso», «azotea» o «cimentacion».")
+    cimentacion = uso == "cimentacion"
+    if cimentacion and tipo != "maciza":
+        raise ErrorDeMatrizDeLosa("La losa de cimentación es maciza.")
+    c = CONCEPTO_DE_LOSA_DE_CIMENTACION if cimentacion else CONCEPTOS_DE_LOSA[tipo]
     espesor = 0.12 if tipo == "maciza" else 0.20
     r = calcular_matriz_de_losa(
-        EntradaMatrizDeLosa(tipo=tipo, espesor_m=espesor, losas=(LosaDeEntrada(area_m2=1.0),))  # type: ignore[arg-type]
+        EntradaMatrizDeLosa(tipo=tipo, uso=uso, espesor_m=espesor, losas=(LosaDeEntrada(area_m2=1.0),))  # type: ignore[arg-type]
     )
     insumos = {f["clave"]: round(float(f["cantidad"]), 6) for f in r["insumos"] if f["origen"] != "elemento"}
     return {
@@ -404,7 +434,7 @@ def concepto_nuevo_de_losa(tipo: str) -> dict[str, Any]:
             "descripcion": c["descripcion"],
             "unidad": "m²",
             "clave_provisional": True,
-            "toma": {"concreto": True, "cimbra": True, "acero": tipo == "maciza"},
+            "toma": {"concreto": True, "cimbra": not cimentacion, "acero": tipo == "maciza"},
             "insumos": insumos,
             "motivos": [
                 "Fase 2 de la losa (regla F7): la losa es un elemento nuevo y lleva su concepto en el catálogo; el catálogo solo trae losas por prototipo, "
@@ -413,6 +443,11 @@ def concepto_nuevo_de_losa(tipo: str) -> dict[str, Any]:
                 "el espesor y el uso de cada zona.",
                 "Sin destajo: el catálogo trae destajos de losa por m² (MOE-02211 a MOE-02218) pero no se elige ninguno. Sin precio.",
                 "Clave provisional: pendiente de autorizar por Control de obra.",
+                *(
+                    ["Fase 4b (uso «cimentación»): concreto CON-00001 y malla electrosoldada AUX-00030 por m²; sin cimbra por m² (el catálogo cimbra con tablas y clavos por lote)."]
+                    if cimentacion
+                    else []
+                ),
             ],
             "cambios": [],
         },
@@ -457,13 +492,15 @@ def _validar(i: EntradaMatrizDeLosa) -> None:
     if i.tipo not in TIPOS_DE_LOSA:
         raise ErrorDeMatrizDeLosa("El tipo de losa es «maciza» o «nervada».")
     if i.uso not in USOS_DE_LOSA:
-        raise ErrorDeMatrizDeLosa("El uso de la losa es «entrepiso» o «azotea».")
+        raise ErrorDeMatrizDeLosa("El uso de la losa es «entrepiso», «azotea» o «cimentacion».")
+    if i.uso == "cimentacion" and i.tipo != "maciza":
+        raise ErrorDeMatrizDeLosa("La losa de cimentación es maciza: la nervada no lleva uso «cimentacion».")
     _numero(i.espesor_m, "El espesor de la losa", maximo=_ESPESOR_MAXIMO_M)
     _numero(i.desperdicio_concreto_pct, "El desperdicio de concreto", maximo=50, incluye_cero=True)
     if i.tipo == "nervada":
         _numero(i.capa_de_compresion_cm, "La capa de compresión", maximo=_ESPESOR_MAXIMO_M * 100)
     if i.concreto_clave is not None and i.concreto_clave not in CONCRETO_POR_USO.values():
-        raise ErrorDeMatrizDeLosa("El concreto de la losa es CON-00003 (entrepiso) o CON-00004 (azotea).")
+        raise ErrorDeMatrizDeLosa("El concreto de la losa es CON-00003 (entrepiso), CON-00004 (azotea) o CON-00001 (cimentación).")
     for lo in i.losas:
         _numero(lo.area_m2, "El área de una losa", maximo=_CANTIDAD_MAXIMA, incluye_cero=True)
         if lo.espesor_m is not None:
@@ -596,7 +633,12 @@ def _calcular(i: EntradaMatrizDeLosa) -> dict[str, Any]:  # noqa: PLR0912, PLR09
         advertencias.append("La capa de compresión es mayor que el espesor de la losa: se usa el espesor.")
     concreto_geometrico = sum(x["concreto_m3"] for x in losas)
     concreto_de_losa = concreto_geometrico * desperdicio
-    cimbra_m2 = area
+    cimentacion = i.uso == "cimentacion"
+    cimbra_m2 = 0.0 if cimentacion else area
+    if cimentacion and losas:
+        advertencias.append(
+            "Losa de cimentación: no se calcula cimbra por m² (el catálogo cimbra con tablas y clavos por lote y por ml de contratrabe) ni los bastones (L6)."
+        )
 
     # 2. Los elementos de la zona.
     elementos = [_elemento_de_la_zona(e, i) for e in i.elementos]
@@ -615,10 +657,11 @@ def _calcular(i: EntradaMatrizDeLosa) -> dict[str, Any]:  # noqa: PLR0912, PLR09
     filas: list[dict[str, Any]] = []
     if area > _EPS:
         filas.append(_fila_de_insumo("concreto", concreto_clave, "m³", concreto_de_losa, "zona", "losa"))
-        filas.append(_fila_de_insumo("cimbra", CIMBRA_DE_LOSA, "m²", cimbra_m2, "zona", "losa"))
+        if cimentacion is False:
+            filas.append(_fila_de_insumo("cimbra", CIMBRA_DE_LOSA, "m²", cimbra_m2, "zona", "losa"))
     parrilla: dict[str, Any] | None = None
     if tipo == "maciza":
-        p = PARRILLA_DE_MACIZA
+        p = PARRILLA_DE_CIMENTACION if cimentacion else PARRILLA_DE_MACIZA
         parrilla = {
             "clave": p["clave"], "descripcion": p["descripcion"], "unidad": "m²", "cantidad": area,
             "insumos": [
@@ -638,15 +681,19 @@ def _calcular(i: EntradaMatrizDeLosa) -> dict[str, Any]:  # noqa: PLR0912, PLR09
 
     # 4. Los conceptos que paga cada parte.
     conceptos: list[dict[str, Any]] = []
-    c_losa = CONCEPTOS_DE_LOSA[tipo]
-    pagados_por_la_losa = {"concreto": True, "cimbra": True, "acero": tipo == "maciza"}
+    c_losa = CONCEPTO_DE_LOSA_DE_CIMENTACION if cimentacion else CONCEPTOS_DE_LOSA[tipo]
+    pagados_por_la_losa = {"concreto": True, "cimbra": not cimentacion, "acero": tipo == "maciza"}
     conceptos.append(
         {
             "parte": "losa", "elemento_clave": CLAVES_DE_LOSA[tipo], "ref": None,
             "concepto": {"clave": c_losa["clave"], "descripcion": c_losa["descripcion"], "unidad": "m²", "estado": "propuesto", "provisional": True},
             "toma": [m for m, v in pagados_por_la_losa.items() if v],
             "cantidad": area, "unidad": "m²",
-            "nota": "Concepto nuevo por m² de losa (regla F7): paga el concreto y la cimbra de la losa y, según el pago, los de los elementos «en la losa».",
+            "nota": (
+                "Concepto nuevo por m² de losa de cimentación (regla F7): paga el concreto y la malla de la losa y el concreto de los elementos «en la losa»; no cuenta cimbra por m²."
+                if cimentacion
+                else "Concepto nuevo por m² de losa (regla F7): paga el concreto y la cimbra de la losa y, según el pago, los de los elementos «en la losa»."
+            ),
         }
     )
     for e in elementos:

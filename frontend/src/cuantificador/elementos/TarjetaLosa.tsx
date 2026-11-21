@@ -3,7 +3,7 @@
  * Simple a propósito: los parámetros arriba, lo que sale abajo. **No calcula nada**: cada cambio se manda al servidor
  * (`/biblioteca-de-elementos/losa/{clave}/calcular`) y se muestra lo que responde.
  *
- * Se capturan el espesor, el uso (entrepiso o azotea: elige el concreto del catálogo), las áreas de los polígonos de losa y los elementos de la
+ * Se capturan el espesor, el uso (entrepiso, azotea o cimentación: elige el concreto del catálogo), las áreas de los polígonos de losa y los elementos de la
  * zona (trabes, contratrabes y nervaduras, por ml o por pieza, con su pago). Sale el concreto y la cimbra de la losa, el acero y el concreto de
  * los elementos y los **conceptos que paga cada parte** con su cantidad medida. Los conceptos nuevos (el de la losa por m², regla F7; el de colado
  * y cimbra por ml de cada trabe con pago propio, D8) son **propuestos**: clave provisional, sin precio, el destajo por ml sin importe y
@@ -68,7 +68,7 @@ export function TarjetaLosa({ clave, rol, obraId = '' }: Props) {
   const proponer = useProponerConceptoDeLaLosaApiV1BibliotecaDeElementosLosaClavePropuestasConceptoPost<ErrorApi>();
   const d = definicion.data;
   const [espesor, setEspesor] = useState('0.12');
-  const [uso, setUso] = useState<'entrepiso' | 'azotea'>('entrepiso');
+  const [uso, setUso] = useState<'entrepiso' | 'azotea' | 'cimentacion'>('entrepiso');
   const [capa, setCapa] = useState('5');
   const [areas, setAreas] = useState('100');
   const [filas, setFilas] = useState<readonly Fila[]>([]);
@@ -171,6 +171,7 @@ export function TarjetaLosa({ clave, rol, obraId = '' }: Props) {
           <select className="select" aria-label="Uso de la losa" value={uso} onChange={(e) => setUso(e.target.value as 'entrepiso' | 'azotea')}>
             <option value="entrepiso">Entrepiso</option>
             <option value="azotea">Azotea</option>
+            <option value="cimentacion">Cimentación</option>
           </select>
         </label>
         {nervada && (

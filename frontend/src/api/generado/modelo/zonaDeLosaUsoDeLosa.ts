@@ -13,4 +13,5 @@ export type ZonaDeLosaUsoDeLosa =
 export const ZonaDeLosaUsoDeLosa = {
   entrepiso: "entrepiso",
   azotea: "azotea",
+  cimentacion: "cimentacion",
 } as const;

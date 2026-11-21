@@ -13,4 +13,5 @@ export type CalculoDeLaLosaPeticionUso =
 export const CalculoDeLaLosaPeticionUso = {
   entrepiso: "entrepiso",
   azotea: "azotea",
+  cimentacion: "cimentacion",
 } as const;

@@ -1,7 +1,7 @@
 /**
  * La matriz de conceptos de la losa de una zona (fase 2 de las zonas de losa), dentro del panel de zonas de la pestaña Trazos.
  *
- * - El **tipo** (maciza o nervada) y el **uso** (entrepiso o azotea) de la losa de la zona; solo Control de obra los cambia.
+ * - El **tipo** (maciza o nervada) y el **uso** (entrepiso, azotea o cimentación) de la losa de la zona; solo Control de obra los cambia.
  * - Los **elementos** de la zona (trabes, contratrabes, nervaduras): a mano (metros o piezas) o medidos de una **línea del plano** (la medida
  *   se deriva de la geometría y de la escala; se agregan desde el detalle de la línea elegida). Cada uno con su pago: «paga la losa» (como el
  *   catálogo) o «paga su concepto por ml» (colado y cimbra por ml, D8).
@@ -87,7 +87,7 @@ export function MatrizDeLaZona({ zona, puedeEditar, rol, espacios = [], onCambio
           {abierta ? 'Ocultar la matriz' : 'Matriz de conceptos'}
         </button>
         <span className="text-mute text-xs">
-          Losa {zona.tipo_de_losa === 'nervada' ? 'nervada' : 'maciza'} · {zona.uso_de_losa === 'azotea' ? 'azotea' : 'entrepiso'}
+          Losa {zona.tipo_de_losa === 'nervada' ? 'nervada' : 'maciza'} · {zona.uso_de_losa === 'azotea' ? 'azotea' : zona.uso_de_losa === 'cimentacion' ? 'cimentación' : 'entrepiso'}
         </span>
       </div>
       {abierta && <CuerpoDeLaMatriz zona={zona} puedeEditar={puedeEditar} rol={rol} espacios={espacios} onCambio={onCambio} onError={onError} />}
@@ -117,7 +117,7 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, espacios = [], onCambio, onE
   const permitidos = ficha.data?.elementos_permitidos ?? [];
   const elegida = clave || permitidos[0]?.clave || '';
 
-  async function guardarZona(cambio: { tipo_de_losa?: 'maciza' | 'nervada'; uso_de_losa?: 'entrepiso' | 'azotea' }) {
+  async function guardarZona(cambio: { tipo_de_losa?: 'maciza' | 'nervada'; uso_de_losa?: 'entrepiso' | 'azotea' | 'cimentacion' }) {
     try {
       await cambiarZona.mutateAsync({
         zonaId: zona.id,
@@ -126,6 +126,9 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, espacios = [], onCambio, onE
           tipo_de_losa: cambio.tipo_de_losa ?? zona.tipo_de_losa, uso_de_losa: cambio.uso_de_losa ?? zona.uso_de_losa,
         },
       });
+      // Si la matriz aún se estaba cargando por primera vez, invalidarla no la vuelve a pedir (TanStack reutiliza la petición en vuelo): se cancela antes
+      // para que la respuesta vieja, de antes del cambio, no se quede en pantalla.
+      await queryClient.cancelQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
       refrescar();
       onCambio('Losa de la zona actualizada.');
     } catch (err) {
@@ -238,10 +241,11 @@ function CuerpoDeLaMatriz({ zona, puedeEditar, rol, espacios = [], onCambio, onE
             aria-label="Uso de la losa de la zona"
             value={zona.uso_de_losa}
             disabled={!puedeEditar || cambiarZona.isPending}
-            onChange={(e) => void guardarZona({ uso_de_losa: e.target.value as 'entrepiso' | 'azotea' })}
+            onChange={(e) => void guardarZona({ uso_de_losa: e.target.value as 'entrepiso' | 'azotea' | 'cimentacion' })}
           >
             <option value="entrepiso">Entrepiso</option>
             <option value="azotea">Azotea</option>
+            <option value="cimentacion">Cimentación</option>
           </select>
         </label>
       </div>

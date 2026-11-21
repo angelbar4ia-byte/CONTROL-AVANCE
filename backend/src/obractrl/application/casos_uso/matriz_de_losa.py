@@ -349,7 +349,7 @@ class GestionarMatrizDeLosa:
                 continue
             vistas.add(concepto["clave"])
             if c["parte"] == "losa":
-                propuestas.append(concepto_nuevo_de_losa(r["tipo"]))
+                propuestas.append(concepto_nuevo_de_losa(r["tipo"], r["uso"]))
             elif c["parte"] == "colado":
                 p = concepto_nuevo_de_colado(c["elemento_clave"])
                 assert p is not None

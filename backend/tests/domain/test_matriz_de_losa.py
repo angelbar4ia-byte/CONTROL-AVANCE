@@ -228,7 +228,7 @@ def test_no_calcula_ni_elige_mano_de_obra_y_lista_los_destajos_de_losa_como_cand
         {"desperdicio_concreto_pct": 60.0},
         {"losas": [LosaDeEntrada(area_m2=-1.0)]},
         {"losas": [LosaDeEntrada(area_m2=10.0, espesor_m=0.0)]},
-        {"concreto_clave": "CON-00001"},
+        {"concreto_clave": "CON-00099"},
         {"elementos": [ElementoDeLosa("Z-1")]},
         {"elementos": [ElementoDeLosa("C-1")]},
         {"elementos": [ElementoDeLosa("XX-1")]},

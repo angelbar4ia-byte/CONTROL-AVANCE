@@ -39,6 +39,7 @@ from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.cierres_frente_sql import RepositorioCierresDeFrenteSQL
 from obractrl.adapters.repos.cierres_obra_sql import RepositorioCierresDeObraSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
+from obractrl.adapters.repos.cimiento_de_zona_sql import RepositorioCimientosDeZonaSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.comprobacion_sql import RepositorioComprobacionesSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
@@ -157,6 +158,7 @@ from obractrl.application.casos_uso.calcular_cpu import (
 )
 from obractrl.application.casos_uso.cambio_de_unidad import CambioDeUnidad
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.cimiento_de_zona import GestionarCimientos
 from obractrl.application.casos_uso.colocacion_de_muro import ColocarElementosDeMuro
 from obractrl.application.casos_uso.comprobar_excedente import (
     ConsultarComprobaciones,
@@ -405,6 +407,7 @@ from obractrl.application.casos_uso.relleno_de_zona import (
     GestionarPropuestasDeRelleno,
     GestionarRellenos,
 )
+from obractrl.application.casos_uso.tomas_de_cimientos import TomasDeCimientos
 from obractrl.application.casos_uso.tomas_de_elemento import SincronizarTomas
 from obractrl.application.casos_uso.tomas_de_escaleras import TomasDeEscaleras
 from obractrl.application.casos_uso.tomas_de_losas import TomasDeLosas
@@ -531,6 +534,7 @@ __all__ = [
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "GestionarCimientosDep",
     "GestionarConceptosDeElementoDep",
     "GestionarCorreccionesDeCatalogoDep",
     "GestionarDriversDep",
@@ -974,6 +978,7 @@ def _sincronizador_de_tomas(sesion: SesionRLS, elementos: RepositorioElementosPa
         losas=TomasDeLosas(zonas=RepositorioZonasDeLosaSQL(sesion), matriz=_matriz_de_losa(sesion)),
         rellenos=TomasDeRellenos(zonas=RepositorioZonasDeLosaSQL(sesion), rellenos=_relleno_de_zona(sesion)),
         escaleras=TomasDeEscaleras(zonas=RepositorioZonasDeLosaSQL(sesion), escaleras=_escalera_de_zona(sesion)),
+        cimientos=TomasDeCimientos(zonas=RepositorioZonasDeLosaSQL(sesion), cimientos=_cimiento_de_zona(sesion)),
     )
 
 
@@ -1213,6 +1218,21 @@ def _escalera_de_zona(sesion: SesionRLS, sincronizador: SincronizarTomas | None 
         parametrico=RepositorioParametricoSQL(sesion),
         sincronizador=sincronizador,
     )
+
+
+def _cimiento_de_zona(sesion: SesionRLS, sincronizador: SincronizarTomas | None = None) -> GestionarCimientos:
+    return GestionarCimientos(
+        zonas=RepositorioZonasDeLosaSQL(sesion),
+        cimientos=RepositorioCimientosDeZonaSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        parametrico=RepositorioParametricoSQL(sesion),
+        sincronizador=sincronizador,
+    )
+
+
+def obtener_gestionar_cimientos(sesion: SesionRLS) -> GestionarCimientos:
+    # La que escribe cimientos rehace las tomas de la obra (el cimiento se mide en la partida de su espacio) (0146).
+    return _cimiento_de_zona(sesion, _sincronizador_de_tomas(sesion))
 
 
 def obtener_gestionar_escaleras(sesion: SesionRLS) -> GestionarEscaleras:
@@ -1621,6 +1641,7 @@ GestionarMatrizDeLosaDep = Annotated[GestionarMatrizDeLosa, Depends(obtener_gest
 GestionarPropuestasDeRellenoDep = Annotated[GestionarPropuestasDeRelleno, Depends(obtener_gestionar_propuestas_de_relleno)]
 GestionarRellenosDep = Annotated[GestionarRellenos, Depends(obtener_gestionar_rellenos)]
 GestionarPropuestasDeEscaleraDep = Annotated[GestionarPropuestasDeEscalera, Depends(obtener_gestionar_propuestas_de_escalera)]
+GestionarCimientosDep = Annotated[GestionarCimientos, Depends(obtener_gestionar_cimientos)]
 GestionarEscalerasDep = Annotated[GestionarEscaleras, Depends(obtener_gestionar_escaleras)]
 GestionarEspaciosDep = Annotated[GestionarEspacios, Depends(obtener_gestionar_espacios)]
 ConsultarFachadaPorBandasDep = Annotated[ConsultarFachadaPorBandas, Depends(obtener_consultar_fachada_por_bandas)]

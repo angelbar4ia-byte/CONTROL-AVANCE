@@ -29,6 +29,7 @@ import {
   useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet,
 } from '@/api/generado/zonas-de-losa/zonas-de-losa';
 import type { ZonaDeLosa } from '@/api/generado/modelo';
+import { useAgregarCimientoApiV1ZonasDeLosaZonaIdCimientosPost } from '@/api/generado/cimientos/cimientos';
 import { useAgregarEscaleraApiV1ZonasDeLosaZonaIdEscalerasPost } from '@/api/generado/escaleras/escaleras';
 import {
   useAgregarElementoApiV1ZonasDeLosaZonaIdElementosPost,
@@ -36,6 +37,7 @@ import {
 } from '@/api/generado/losas/losas';
 import { EspacioDelTrazo, PanelDeEspacios, useEspaciosDeLaObra } from './EspaciosDeLaObra';
 import { MatrizDeLaZona } from './MatrizDeLaZona';
+import { CimientosDeLaZona, cotaOpcional, refrescarCimientos } from './CimientosDeLaZona';
 import { EscalerasDeLaZona } from './EscalerasDeLaZona';
 import { RellenosDeLaZona } from './RellenosDeLaZona';
 import { NOMBRE_DE_CARA, NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
@@ -184,6 +186,7 @@ export function PanelDeZonasDeLosa({ planoId, obraId = '', puedeEditar, rol = nu
           </div>
           <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           <RellenosDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
+          <CimientosDeLaZona zona={z} puntos={puntos} puedeEditar={puedeEditar} espacios={espacios} onCambio={onCambio} onError={onError} />
           <EscalerasDeLaZona zona={z} zonas={zonas} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           {puedeEditar && (
             <div className="row">
@@ -310,6 +313,7 @@ export function ZonaDeLosaDelTrazo(p: TrazoProps) {
         )}
         {p.puedeEditar && <ElementoDeLosaDeLaLinea {...p} zonas={zonas} />}
         {p.puedeEditar && <EscaleraDeLaLinea {...p} zonas={zonas} />}
+        {p.puedeEditar && <CimientoDeLaLinea {...p} zonas={zonas} puntos={zonasConsulta.data?.puntos_de_nivel ?? []} />}
       </>
     );
   }
@@ -615,6 +619,70 @@ function EscaleraDeLaLinea(p: TrazoProps & { readonly zonas: readonly ZonaDeLosa
       </label>
       <button type="button" className="btn btn--sm" disabled={agregar.isPending} onClick={() => void medir()}>
         Medir una escalera con esta línea
+      </button>
+    </div>
+  );
+}
+
+/** En el detalle de una línea: medirla como un muro de cimentación de piedra con su cota de desplante; su longitud deriva de la línea y su altura de las cotas. */
+function CimientoDeLaLinea(p: TrazoProps & { readonly zonas: readonly ZonaDeLosa[]; readonly puntos: readonly { readonly trazo_id: string; readonly cota_m: string; readonly rotulo?: string | null }[] }) {
+  const agregar = useAgregarCimientoApiV1ZonasDeLosaZonaIdCimientosPost<ErrorApi>();
+  const [zonaId, setZonaId] = useState('');
+  const [desplante, setDesplante] = useState('');
+  const [punto, setPunto] = useState('');
+  const zona = p.zonas.find((z) => z.id === zonaId) ?? p.zonas[0];
+  if (!zona) return null;
+  async function medir() {
+    if (!zona) return;
+    const d = cotaOpcional(desplante);
+    if (d === null || (d === undefined && punto === '')) {
+      p.onError('Teclea la cota de desplante (un número en metros, negativo bajo el piso de PB) o elige un punto de nivel exterior.');
+      return;
+    }
+    try {
+      await agregar.mutateAsync({
+        zonaId: zona.id,
+        data: { trazo_id: p.trazoId, ...(d === undefined ? {} : { cota_desplante_m: d }), ...(punto ? { punto_nivel_id: punto } : {}) },
+      });
+      refrescarCimientos();
+      p.onCambio(`Cimiento agregado a «${zona.nombre}» con la longitud de esta línea.`);
+    } catch (err) {
+      p.onError(mensaje(err, 'No se pudo tomar la línea como cimiento.'));
+    }
+  }
+  return (
+    <div className="zonas-losa__trazo" data-testid="cimiento-de-la-linea">
+      <div className="opciones__titulo">Usar como muro de cimentación</div>
+      <p className="text-mute text-xs">
+        La longitud de esta línea (con la escala del plano) es la del muro de cimentación de piedra; su altura es la cota de la corona (el piso de la zona) menos la cota de desplante. Una línea mide un solo cimiento.
+      </p>
+      <label className="mct__campo">
+        Zona
+        <select className="input" aria-label="Zona del cimiento de la línea" value={zona.id} onChange={(e) => setZonaId(e.target.value)}>
+          {p.zonas.map((z) => (
+            <option key={z.id} value={z.id}>
+              {z.nombre}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mct__campo">
+        Cota de desplante (m)
+        <input className="input" inputMode="decimal" aria-label="Cota de desplante del cimiento de la línea" placeholder="p. ej. -0.80" value={desplante} onChange={(e) => setDesplante(e.target.value)} />
+      </label>
+      <label className="mct__campo">
+        o un punto de nivel exterior
+        <select className="input" aria-label="Punto de nivel del cimiento de la línea" value={punto} onChange={(e) => setPunto(e.target.value)}>
+          <option value="">Ninguno</option>
+          {p.puntos.map((n) => (
+            <option key={n.trazo_id} value={n.trazo_id}>
+              {n.rotulo ?? 'Sin rótulo'} ({n.cota_m} m)
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" className="btn btn--sm" disabled={agregar.isPending} onClick={() => void medir()}>
+        Medir un cimiento con esta línea
       </button>
     </div>
   );
