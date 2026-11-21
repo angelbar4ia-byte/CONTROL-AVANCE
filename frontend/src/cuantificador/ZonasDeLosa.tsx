@@ -29,12 +29,14 @@ import {
   useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet,
 } from '@/api/generado/zonas-de-losa/zonas-de-losa';
 import type { ZonaDeLosa } from '@/api/generado/modelo';
+import { useAgregarEscaleraApiV1ZonasDeLosaZonaIdEscalerasPost } from '@/api/generado/escaleras/escaleras';
 import {
   useAgregarElementoApiV1ZonasDeLosaZonaIdElementosPost,
   useDefinicionDeLaLosaApiV1BibliotecaDeElementosLosaClaveGet,
 } from '@/api/generado/losas/losas';
 import { EspacioDelTrazo, PanelDeEspacios, useEspaciosDeLaObra } from './EspaciosDeLaObra';
 import { MatrizDeLaZona } from './MatrizDeLaZona';
+import { EscalerasDeLaZona } from './EscalerasDeLaZona';
 import { RellenosDeLaZona } from './RellenosDeLaZona';
 import { NOMBRE_DE_CARA, NOMBRE_DE_ORIGEN_DE_ALTURA, NOMBRE_DE_ORIGEN_DE_LADO, textoDeCota, textoDeMetros } from './zonasDeLosa';
 
@@ -182,6 +184,7 @@ export function PanelDeZonasDeLosa({ planoId, obraId = '', puedeEditar, rol = nu
           </div>
           <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           <RellenosDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
+          <EscalerasDeLaZona zona={z} zonas={zonas} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           {puedeEditar && (
             <div className="row">
               <button
@@ -306,6 +309,7 @@ export function ZonaDeLosaDelTrazo(p: TrazoProps) {
           <EspacioDelTrazo obraId={obraId} trazoId={p.trazoId} esMuro puedeEditar={p.puedeEditar} onCambio={p.onCambio} onError={p.onError} />
         )}
         {p.puedeEditar && <ElementoDeLosaDeLaLinea {...p} zonas={zonas} />}
+        {p.puedeEditar && <EscaleraDeLaLinea {...p} zonas={zonas} />}
       </>
     );
   }
@@ -572,6 +576,45 @@ function ElementoDeLosaDeLaLinea(p: TrazoProps & { readonly zonas: readonly Zona
       </label>
       <button type="button" className="btn btn--sm" disabled={agregar.isPending} onClick={() => void medir()}>
         Medir con esta línea
+      </button>
+    </div>
+  );
+}
+
+/** En el detalle de una línea: tomarla como el recorrido horizontal de una escalera que arranca en una zona; de su longitud (con la escala) sale la huella. */
+function EscaleraDeLaLinea(p: TrazoProps & { readonly zonas: readonly ZonaDeLosa[] }) {
+  const agregar = useAgregarEscaleraApiV1ZonasDeLosaZonaIdEscalerasPost<ErrorApi>();
+  const [zonaId, setZonaId] = useState('');
+  const zona = p.zonas.find((z) => z.id === zonaId) ?? p.zonas[0];
+  if (!zona) return null;
+  async function medir() {
+    if (!zona) return;
+    try {
+      await agregar.mutateAsync({ zonaId: zona.id, data: { trazo_id: p.trazoId } });
+      refrescarTodo();
+      p.onCambio(`Escalera agregada a «${zona.nombre}» con el recorrido de esta línea.`);
+    } catch (err) {
+      p.onError(mensaje(err, 'No se pudo tomar la línea como recorrido de una escalera.'));
+    }
+  }
+  return (
+    <div className="zonas-losa__trazo" data-testid="escalera-de-la-linea">
+      <div className="opciones__titulo">Usar como recorrido de una escalera</div>
+      <p className="text-mute text-xs">
+        La longitud de esta línea (con la escala del plano) es el recorrido horizontal de las rampas y de ella sale la huella: si la línea cambia, la escalera cambia. Una línea no sirve a dos escaleras.
+      </p>
+      <label className="mct__campo">
+        Arranca en
+        <select className="input" aria-label="Zona de arranque de la escalera de la línea" value={zona.id} onChange={(e) => setZonaId(e.target.value)}>
+          {p.zonas.map((z) => (
+            <option key={z.id} value={z.id}>
+              {z.nombre}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" className="btn btn--sm" disabled={agregar.isPending} onClick={() => void medir()}>
+        Medir una escalera con esta línea
       </button>
     </div>
   );
