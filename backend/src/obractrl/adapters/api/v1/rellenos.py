@@ -69,8 +69,16 @@ class ParametrosDelRelleno(BaseModel):
     pendiente_pct: float = Field(description="Pendiente del relleno (%): con el recorrido da el volumen en cuña (pendiente × recorrido / 2).")
     recorrido_m: float = Field(description="Recorrido (m) sobre el que corre la pendiente.")
     compensar_espesores: bool = Field(description="Las subzonas de losa más delgadas reciben la diferencia contra la más gruesa de la zona.")
-    abundamiento_pct: float = Field(description="Solo el compactado: % de material suelto de más (el catálogo no trae factor; por omisión 0).")
-    mortero_m3_por_m2: float = Field(description="Solo la azotea: m³ de mortero por m² (el del catálogo: 0.0735).")
+    abundamiento_pct: float = Field(description="Solo el compactado: % de material suelto de más; es (factor_abundamiento − 1) × 100 (el catálogo no trae factor; por omisión 0).")
+    mortero_m3_por_m2: float = Field(description="Solo la azotea sin bajadas: m³ de mortero por m² (el del catálogo: 0.0735).")
+    pendiente_zona_pct: float = Field(
+        default=2.0, description="Solo la azotea con bajadas: pendiente (%) de la zona; el espesor de la arenilla sube pendiente × distancia desde la bajada (2 % por omisión)."
+    )
+    espesor_bajada_m: float = Field(default=0.05, description="Solo la azotea con bajadas: espesor mínimo de arenilla en cada bajada (5 cm por omisión).")
+    mortero_espesor_m: float = Field(default=0.05, description="Solo la azotea con bajadas: espesor de la plantilla de mortero sobre la arenilla (5 cm por omisión).")
+    factor_abundamiento: float = Field(
+        default=1.0, description="Solo el compactado: la cantidad del concepto es el volumen compactado × este factor (1.00 por omisión; sin destajo)."
+    )
 
 
 class InsumoDeLaFichaDelRelleno(BaseModel):
@@ -91,6 +99,9 @@ class DefinicionDelRelleno(BaseModel):
     subcategoria: ClaveYNombreDeLosa
     concepto: ConceptoDeLaFicha
     parametros_por_defecto: ParametrosDelRelleno
+    concepto_arenilla: ConceptoDeLaFicha | None = Field(
+        default=None, description="Solo la azotea: el concepto nuevo propuesto (EJ-830, por m³) de la arenilla del relleno con bajadas."
+    )
     tezontle: InsumoDeLaFichaDelRelleno | None
     mortero: InsumoDeLaFichaDelRelleno | None
     destajos_candidatos: list[DestajoCandidato]
@@ -115,6 +126,10 @@ class CalculoDelRellenoPeticion(BaseModel):
     compensar_espesores: bool | None = None
     abundamiento_pct: float | None = Field(default=None, ge=0, le=60)
     mortero_m3_por_m2: float | None = Field(default=None, ge=0, le=0.5)
+    pendiente_zona_pct: float | None = Field(default=None, ge=0, le=30)
+    espesor_bajada_m: float | None = Field(default=None, ge=0.01, le=0.30)
+    mortero_espesor_m: float | None = Field(default=None, ge=0, le=0.20)
+    factor_abundamiento: float | None = Field(default=None, ge=1, le=1.6, description="Solo el compactado: el factor del abundamiento (1.00 por omisión).")
     espacio_id: str | None = Field(default=None, max_length=60, description="Una etiqueta de espacio para todo el relleno (0143).")
 
 
@@ -130,7 +145,7 @@ class PoligonoCalculadoDelRelleno(BaseModel):
 
 
 class InsumoDelRelleno(BaseModel):
-    parte: Literal["tezontle", "mortero"]
+    parte: Literal["tezontle", "mortero", "arenilla"]
     clave: str
     descripcion: str
     unidad: str
@@ -140,7 +155,7 @@ class InsumoDelRelleno(BaseModel):
 
 
 class ConceptoDelRelleno(BaseModel):
-    parte: Literal["relleno"]
+    parte: Literal["relleno", "arenilla"] = Field(description="`relleno`: el concepto del relleno; `arenilla`: la arenilla del relleno de azotea con bajadas (EJ-830, por m³).")
     elemento_clave: str
     ref: str | None
     concepto: ConceptoDeLaFicha
@@ -167,6 +182,46 @@ class GrupoDelRellenoPorEspacio(BaseModel):
     conceptos: list[ConceptoDelRellenoPorEspacio]
 
 
+class BajadaCalculada(BaseModel):
+    id: str
+    x: float = Field(description="Coordenadas de la bajada en unidades del plano.")
+    y: float
+    rotulo: str | None
+    linea_trazada: bool
+    area_m2: float | None = Field(default=None, description="Lo que esta bajada drena (m²); sin él, el cálculo no corrió (sin escala).")
+    distancia_maxima_m: float | None = None
+    espesor_maximo_m: float | None = Field(default=None, description="El espesor de arenilla en el punto más lejano que drena esta bajada.")
+    fuera_de_la_zona: bool | None = None
+
+
+class GuiaDelRelleno(BaseModel):
+    tipo: Literal["pendiente", "hilo"] = Field(
+        description="`pendiente`: la línea que marca hacia dónde van las pendientes; `hilo`: un hilo de nivel (maestra) punteado, donde el espesor es constante."
+    )
+    origen: Literal["trazada", "generada"]
+    bajada_id: str
+    puntos: list[list[float]] = Field(description="Vértices de la polilínea en unidades del plano; en una línea de pendiente, el último es la bajada.")
+    espesor_m: float | None = Field(default=None, description="De un hilo de nivel: el espesor de la arenilla sobre él.")
+
+
+class DinamicoDelRelleno(BaseModel):
+    estado: Literal["calculado", "sin_escala"] = Field(description="`sin_escala`: el plano no tiene escala calibrada y no hay cantidades.")
+    pendiente_pct: float | None = None
+    espesor_en_bajada_m: float | None = None
+    mortero_espesor_m: float | None = None
+    volumen_arenilla_m3: float | None = None
+    espesor_arenilla_medio_m: float | None = None
+    espesor_arenilla_maximo_m: float | None = None
+    volumen_mortero_m3: float | None = None
+    metodo: str | None = Field(default=None, description="Cómo se integró el espesor sobre el área (determinista).")
+    celda_m: float | None = Field(default=None, description="Paso de la retícula de integración.")
+    muestras: int | None = None
+    error_estimado_m3: float | None = Field(default=None, description="Diferencia contra la retícula gruesa: cota práctica del error del volumen.")
+    error_relativo: float | None = None
+    bajadas: list[BajadaCalculada]
+    guias: list[GuiaDelRelleno] = Field(default_factory=list)
+
+
 class RellenoCalculado(BaseModel):
     clave: str
     nombre: str
@@ -179,6 +234,8 @@ class RellenoCalculado(BaseModel):
     volumen_suelto_m3: float | None = Field(description="Solo el compactado: el volumen compactado con el abundamiento.")
     espesor_medio_m: float
     extra_de_pendiente_m: float
+    modo: Literal["uniforme", "bajadas"] = Field(description="`bajadas`: la azotea tiene bajadas pluviales y es dinámica (arenilla + mortero).")
+    dinamico: DinamicoDelRelleno | None = Field(default=None, description="Solo con bajadas: el espesor de la arenilla, el método, el error, las bajadas y las guías.")
     poligonos: list[PoligonoCalculadoDelRelleno]
     insumos: list[InsumoDelRelleno]
     conceptos: list[ConceptoDelRelleno]
@@ -205,6 +262,62 @@ class RellenoDeLaZonaPeticion(BaseModel):
     compensar_espesores: bool | None = None
     abundamiento_pct: float | None = Field(default=None, ge=0, le=60)
     mortero_m3_por_m2: float | None = Field(default=None, ge=0, le=0.5)
+    pendiente_zona_pct: float | None = Field(default=None, ge=0, le=30, description="Azotea con bajadas: la pendiente de la zona (%); sin él vale 2 %.")
+    espesor_bajada_m: float | None = Field(default=None, ge=0.01, le=0.30, description="Azotea con bajadas: el espesor mínimo de arenilla en la bajada; sin él, 5 cm.")
+    mortero_espesor_m: float | None = Field(default=None, ge=0, le=0.20, description="Azotea con bajadas: el espesor de la plantilla de mortero; sin él, 5 cm.")
+    factor_abundamiento: float | None = Field(default=None, ge=1, le=1.6, description="Compactado: cantidad = volumen compactado × factor; sin él, 1.00.")
+
+
+class BajadaDelRellenoPeticion(BaseModel):
+    trazo_id: UUID = Field(description="El PUNTO del plano que identifica la bajada (un punto sirve a una sola bajada).")
+    linea_trazo_id: UUID | None = Field(
+        default=None, description="Opcional: la LÍNEA del plano, dibujada hacia la bajada, que marca hacia dónde van las pendientes; sin ella el sistema la genera."
+    )
+    rotulo: str | None = Field(default=None, max_length=40)
+
+
+class BajadaDelRellenoCambio(BaseModel):
+    linea_trazo_id: UUID | None = Field(default=None, description="La línea de pendiente; `null` la quita y el sistema vuelve a generar la dirección.")
+    rotulo: str | None = Field(default=None, max_length=40)
+
+
+class BajadaDelRelleno(BaseModel):
+    id: UUID
+    relleno_id: UUID
+    trazo_id: UUID
+    linea_trazo_id: UUID | None
+    rotulo: str | None
+
+
+class BajadaDeLaZona(BaseModel):
+    id: UUID
+    trazo_id: UUID
+    linea_trazo_id: UUID | None
+    rotulo: str | None
+    x: float = Field(description="Coordenadas del punto en unidades del plano.")
+    y: float
+    linea: list[list[float]] | None = Field(default=None, description="La línea de pendiente trazada hacia la bajada (unidades del plano), si la hay.")
+
+
+class BajadaDelPlano(BaseModel):
+    id: UUID
+    relleno_id: UUID
+    zona_id: UUID
+    x: float
+    y: float
+    rotulo: str | None
+
+
+class GuiaDelPlano(GuiaDelRelleno):
+    relleno_id: UUID
+    zona_id: UUID
+
+
+class GuiasDeRellenoDelPlano(BaseModel):
+    plano_id: UUID
+    escala_definida: bool = Field(description="Sin escala calibrada no hay guías: el relleno con bajadas no da cantidades.")
+    bajadas: list[BajadaDelPlano]
+    guias: list[GuiaDelPlano]
 
 
 class RellenoDeLaZona(ParametrosDelRelleno):
@@ -229,6 +342,7 @@ class RellenoDeLaZonaCalculado(RellenoCalculado):
     id: UUID
     trazo_id: UUID | None
     espacio_id: UUID | None
+    bajadas: list[BajadaDeLaZona] = Field(default_factory=list, description="Las bajadas pluviales del relleno de azotea (puntos del plano).")
     origen: Literal["zona", "poligono"] = Field(description="`poligono`: cubre un polígono del plano (medición derivada); `zona`: todos los de la zona.")
     conciliacion: ConciliacionDeLaLosa | None = Field(
         default=None, description="Solo el de azotea y si se pidió `conciliar`: lo que calcula por m² contra la composición de ALB-03014 del catálogo vigente."
@@ -288,7 +402,11 @@ async def calcular_el_relleno(clave: str, peticion: CalculoDelRellenoPeticion) -
     try:
         parametros = {
             k: v for k, v in peticion.model_dump().items()
-            if k in ("espesor_m", "pendiente_pct", "recorrido_m", "compensar_espesores", "abundamiento_pct", "mortero_m3_por_m2") and v is not None
+            if k in (
+                "espesor_m", "pendiente_pct", "recorrido_m", "compensar_espesores", "abundamiento_pct", "mortero_m3_por_m2", "pendiente_zona_pct", "espesor_bajada_m",
+                "mortero_espesor_m", "factor_abundamiento",
+            )
+            and v is not None
         }
         p = validar_parametros(tipo, parametros)
         return calcular_relleno(
@@ -403,3 +521,53 @@ async def calculo_de_los_rellenos(
 )
 async def proponer_conceptos_de_los_rellenos(zona_id: UUID, ctx: ContextoActual, caso_uso: GestionarRellenosDep) -> ResultadoDeProponer:
     return ResultadoDeProponer(**await caso_uso.proponer_conceptos(zona_id, usuario_id=ctx.usuario_id, rol=ctx.rol))
+
+
+# ── Bajadas pluviales del relleno dinámico de azotea (0147) ──────────────────────────────────────────────
+
+_BAJADA_422 = {422: {"description": "El punto o la línea no valen (no son del plano, no son un punto o una línea, o ya sirven a otra bajada) o el relleno no es de azotea."}}
+
+
+@router.post(
+    "/rellenos-de-zona/{relleno_id}/bajadas",
+    response_model=BajadaDelRelleno,
+    status_code=status.HTTP_201_CREATED,
+    summary="Convertir un punto del plano en una bajada pluvial del relleno de azotea (solo Control de obra)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
+    responses=_BAJADA_422,
+)
+async def agregar_bajada(relleno_id: UUID, peticion: BajadaDelRellenoPeticion, ctx: ContextoActual, caso_uso: GestionarRellenosDep) -> dict[str, Any]:
+    return await caso_uso.agregar_bajada(
+        relleno_id, trazo_id=peticion.trazo_id, linea_trazo_id=peticion.linea_trazo_id, rotulo=peticion.rotulo, autor_id=ctx.usuario_id
+    )
+
+
+@router.put(
+    "/bajadas-de-relleno/{bajada_id}",
+    response_model=BajadaDelRelleno,
+    summary="Cambiar el rótulo o la línea de pendiente de una bajada (solo Control de obra); sin línea el sistema genera la dirección",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
+    responses=_BAJADA_422,
+)
+async def cambiar_bajada(bajada_id: UUID, peticion: BajadaDelRellenoCambio, caso_uso: GestionarRellenosDep) -> dict[str, Any]:
+    return await caso_uso.cambiar_bajada(bajada_id, linea_trazo_id=peticion.linea_trazo_id, rotulo=peticion.rotulo)
+
+
+@router.delete(
+    "/bajadas-de-relleno/{bajada_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Quitar una bajada del relleno (solo Control de obra); el punto queda en el plano como un trazo cualquiera",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
+)
+async def quitar_bajada(bajada_id: UUID, caso_uso: GestionarRellenosDep) -> None:
+    await caso_uso.quitar_bajada(bajada_id)
+
+
+@router.get(
+    "/planos/{plano_id}/guias-de-relleno",
+    response_model=GuiasDeRellenoDelPlano,
+    summary="Las bajadas y las guías del relleno dinámico del plano: líneas de pendiente e hilos de nivel punteados (en unidades del plano)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_LEEN))],
+)
+async def guias_de_relleno_del_plano(plano_id: UUID, caso_uso: GestionarRellenosDep) -> dict[str, Any]:
+    return await caso_uso.guias_del_plano(plano_id)

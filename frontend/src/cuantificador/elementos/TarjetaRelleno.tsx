@@ -4,7 +4,7 @@
  * (`/biblioteca-de-elementos/relleno/{clave}/calcular`) y se muestra lo que responde.
  *
  * Se capturan el espesor mínimo, la pendiente y su recorrido, si el relleno se adapta a los espesores de losa distintos de la zona (compensar), el
- * abundamiento (solo el compactado), el mortero por m² (solo la azotea) y los polígonos de losa que cubre (su área y, si es una subzona, su espesor propio).
+ * factor de abundamiento (solo el compactado), el mortero por m² (solo la azotea) y los polígonos de losa que cubre (su área y, si es una subzona, su espesor propio).
  * Sale el volumen, el espesor de cada polígono y el **concepto que paga**: el relleno de azotea usa el concepto que YA existe en el catálogo (ALB-03014);
  * el compactado, un concepto nuevo propuesto (clave provisional, sin precio, regla F7) que solo Control de obra autoriza. El relleno no calcula mano de
  * obra con importe ni lee drivers; los pendientes se muestran.
@@ -34,7 +34,7 @@ function num(n: number | null | undefined, dec = 2): string {
 }
 
 const unidadVisible = (u: string) => (u === 'm3' ? 'm³' : u === 'm2' ? 'm²' : u);
-export const NOMBRE_DE_INSUMO_DEL_RELLENO: Record<string, string> = { tezontle: 'Tezontle', mortero: 'Mortero' };
+export const NOMBRE_DE_INSUMO_DEL_RELLENO: Record<string, string> = { tezontle: 'Tezontle', mortero: 'Mortero', arenilla: 'Arenilla' };
 
 interface Props {
   readonly clave: string;
@@ -65,7 +65,7 @@ export function TarjetaRelleno({ clave, rol }: Props) {
   const [pendiente, setPendiente] = useState('');
   const [recorrido, setRecorrido] = useState('');
   const [compensar, setCompensar] = useState(true);
-  const [abundamiento, setAbundamiento] = useState('');
+  const [factor, setFactor] = useState('');
   const [mortero, setMortero] = useState('');
   const [poligonos, setPoligonos] = useState<readonly Poligono[]>([{ id: 1, area: '100', espesorDeLosa: '' }]);
   const siguiente = useRef(2);
@@ -79,7 +79,7 @@ export function TarjetaRelleno({ clave, rol }: Props) {
     setEspesor('');
     setPendiente('');
     setRecorrido('');
-    setAbundamiento('');
+    setFactor('');
     setMortero('');
     setCompensar(true);
     setPoligonos([{ id: 1, area: '100', espesorDeLosa: '' }]);
@@ -103,7 +103,7 @@ export function TarjetaRelleno({ clave, rol }: Props) {
     const e = opcional(espesor);
     const p = opcional(pendiente);
     const r = opcional(recorrido);
-    const a = compactado ? opcional(abundamiento) : undefined;
+    const a = compactado ? opcional(factor) : undefined;
     const m = compactado ? undefined : opcional(mortero);
     if ([e, p, r, a, m].includes(null)) return null;
     return {
@@ -113,10 +113,10 @@ export function TarjetaRelleno({ clave, rol }: Props) {
       ...(e === undefined ? {} : { espesor_m: e as number }),
       ...(p === undefined ? {} : { pendiente_pct: p as number }),
       ...(r === undefined ? {} : { recorrido_m: r as number }),
-      ...(a === undefined ? {} : { abundamiento_pct: a as number }),
+      ...(a === undefined ? {} : { factor_abundamiento: a as number }),
       ...(m === undefined ? {} : { mortero_m3_por_m2: m as number }),
     };
-  }, [d, espesorZona, espesor, pendiente, recorrido, compensar, abundamiento, mortero, poligonos, compactado]);
+  }, [d, espesorZona, espesor, pendiente, recorrido, compensar, factor, mortero, poligonos, compactado]);
 
   const { mutateAsync } = calcular;
   useEffect(() => {
@@ -188,9 +188,9 @@ export function TarjetaRelleno({ clave, rol }: Props) {
           <input className="input" inputMode="decimal" aria-label="Recorrido de la pendiente en metros" placeholder={String(defecto.recorrido_m)} value={recorrido} onChange={(e) => setRecorrido(e.target.value)} />
         </label>
         {compactado ? (
-          <label className="mct__campo" title="El catálogo no trae factor de abundamiento: por omisión 0.">
-            <span>Abundamiento (%)</span>
-            <input className="input" inputMode="decimal" aria-label="Abundamiento en por ciento" placeholder={String(defecto.abundamiento_pct)} value={abundamiento} onChange={(e) => setAbundamiento(e.target.value)} />
+          <label className="mct__campo" title="La cantidad es el volumen compactado por este factor; el catálogo no trae factor: por omisión 1.00.">
+            <span>Factor de abundamiento</span>
+            <input className="input" inputMode="decimal" aria-label="Factor de abundamiento" placeholder={String(defecto.factor_abundamiento)} value={factor} onChange={(e) => setFactor(e.target.value)} />
           </label>
         ) : (
           <label className="mct__campo" title="El mortero de la composición del catálogo ALB-03014, por m².">
@@ -249,7 +249,7 @@ export function TarjetaRelleno({ clave, rol }: Props) {
             </p>
             {calculo.volumen_suelto_m3 !== null && calculo.volumen_suelto_m3 !== undefined && (
               <p className="text-sm" data-testid="relleno-suelto">
-                Volumen suelto por comprar (con el abundamiento) {num(calculo.volumen_suelto_m3, 3)} m³
+                Volumen compactado por el factor de abundamiento {num(calculo.volumen_suelto_m3, 3)} m³
               </p>
             )}
             <table className="mct__tabla" aria-label="Espesor por polígono">
@@ -398,6 +398,32 @@ export function TarjetaRelleno({ clave, rol }: Props) {
               Destajo del catálogo, por m² (no se le pone importe): {d.destajos_candidatos.map((x) => `${x.clave} ${x.descripcion}`).join(' · ')}.
             </li>
           </ul>
+        </section>
+      )}
+
+      {d.concepto_arenilla && (
+        <section className="mct__bloque" aria-label="Arenilla del relleno con bajadas" data-concepto-del-relleno={d.concepto_arenilla.clave}>
+          <h3>Relleno dinámico con bajadas pluviales</h3>
+          <p className="text-xs">
+            Con bajadas pluviales (puntos del plano; el área marca la zona y una línea, trazada o generada, marca hacia dónde van las pendientes) el relleno lleva dos capas:
+            <strong> arenilla</strong> de espesor variable (5 cm en cada bajada + pendiente × distancia a la bajada que drena; por omisión 2 %) y una <strong>plantilla de mortero</strong> de
+            5 cm que se paga con <span className="mono">{d.concepto.clave}</span> por m². La arenilla se paga con el concepto nuevo{' '}
+            <span className="mono">{d.concepto_arenilla.clave}</span> por m³ ({d.concepto_arenilla.descripcion}), propuesto con clave provisional, sin precio, y solo Control de obra lo autoriza.
+            Precio y cantidades cambian al hacer el trazo en el plano (panel de zonas → Rellenos).
+          </p>
+          <PropuestaDeConceptoNuevo
+            conceptoClave={d.concepto_arenilla.clave}
+            lista={propuestas.data ?? []}
+            rol={rol}
+            textoDelBoton="Proponer el concepto de la arenilla"
+            proponiendo={proponer.isPending}
+            onProponer={() =>
+              void proponer.mutateAsync({ clave }).then(
+                () => queryClient.invalidateQueries(),
+                (e: unknown) => window.alert(e instanceof Error ? e.message : 'No se pudo proponer el concepto de la arenilla.'),
+              )
+            }
+          />
         </section>
       )}
 

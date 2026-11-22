@@ -18,6 +18,24 @@ def cliente() -> TestClient:
     return TestClient(app)
 
 
+def test_la_ficha_de_la_azotea_trae_la_arenilla_propuesta_y_los_parametros_dinamicos_por_omision(cliente: TestClient) -> None:
+    d = cliente.get(f"{RUTA}/REL-AZOTEA").json()
+    assert d["concepto_arenilla"] == {
+        "clave": "EJ-830", "descripcion": d["concepto_arenilla"]["descripcion"], "unidad": "m³", "estado": "propuesto", "provisional": True,
+    }
+    p = d["parametros_por_defecto"]
+    assert (p["pendiente_zona_pct"], p["espesor_bajada_m"], p["mortero_espesor_m"], p["factor_abundamiento"]) == (2.0, 0.05, 0.05, 1.0)
+    assert {x["clave"] for x in d["pendientes"]} >= {"R8", "R9", "R10", "R11", "R12"}
+    assert cliente.get(f"{RUTA}/REL-COMPACTADO").json()["concepto_arenilla"] is None
+
+
+def test_el_calculo_suelto_del_compactado_mide_el_volumen_por_el_factor_de_abundamiento(cliente: TestClient) -> None:
+    d = cliente.post(f"{RUTA}/REL-COMPACTADO/calcular", json={"poligonos": [{"area_m2": 50}], "espesor_m": 0.2, "factor_abundamiento": 1.3}).json()
+    assert d["volumen_m3"] == pytest.approx(10.0) and d["conceptos"][0]["cantidad"] == pytest.approx(13.0) and d["parametros"]["abundamiento_pct"] == pytest.approx(30.0)
+    assert cliente.post(f"{RUTA}/REL-COMPACTADO/calcular", json={"factor_abundamiento": 0.5}).status_code == 422
+    assert cliente.post(f"{RUTA}/REL-AZOTEA/calcular", json={"poligonos": [{"area_m2": 1}], "factor_abundamiento": 1.2}).status_code == 422
+
+
 def test_la_ficha_del_relleno_de_azotea_se_liga_a_un_concepto_del_catalogo(cliente: TestClient) -> None:
     r = cliente.get(f"{RUTA}/REL-AZOTEA")
     assert r.status_code == 200

@@ -16709,6 +16709,195 @@
         }
       }
     },
+    "/api/v1/rellenos-de-zona/{relleno_id}/bajadas": {
+      "post": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Convertir un punto del plano en una bajada pluvial del relleno de azotea (solo Control de obra)",
+        "operationId": "agregar_bajada_api_v1_rellenos_de_zona__relleno_id__bajadas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "relleno_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Relleno Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BajadaDelRellenoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BajadaDelRelleno"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El punto o la línea no valen (no son del plano, no son un punto o una línea, o ya sirven a otra bajada) o el relleno no es de azotea."
+          }
+        }
+      }
+    },
+    "/api/v1/bajadas-de-relleno/{bajada_id}": {
+      "put": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Cambiar el rótulo o la línea de pendiente de una bajada (solo Control de obra); sin línea el sistema genera la dirección",
+        "operationId": "cambiar_bajada_api_v1_bajadas_de_relleno__bajada_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bajada_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bajada Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BajadaDelRellenoCambio"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BajadaDelRelleno"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El punto o la línea no valen (no son del plano, no son un punto o una línea, o ya sirven a otra bajada) o el relleno no es de azotea."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Quitar una bajada del relleno (solo Control de obra); el punto queda en el plano como un trazo cualquiera",
+        "operationId": "quitar_bajada_api_v1_bajadas_de_relleno__bajada_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bajada_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Bajada Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/guias-de-relleno": {
+      "get": {
+        "tags": [
+          "rellenos"
+        ],
+        "summary": "Las bajadas y las guías del relleno dinámico del plano: líneas de pendiente e hilos de nivel punteados (en unidades del plano)",
+        "operationId": "guias_de_relleno_del_plano_api_v1_planos__plano_id__guias_de_relleno_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuiasDeRellenoDelPlano"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/biblioteca-de-elementos/escalera/{clave}": {
       "get": {
         "tags": [
@@ -28063,6 +28252,337 @@
         ],
         "title": "AvanceRespuesta"
       },
+      "BajadaCalculada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "x": {
+            "type": "number",
+            "title": "X",
+            "description": "Coordenadas de la bajada en unidades del plano."
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          },
+          "linea_trazada": {
+            "type": "boolean",
+            "title": "Linea Trazada"
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2",
+            "description": "Lo que esta bajada drena (m²); sin él, el cálculo no corrió (sin escala)."
+          },
+          "distancia_maxima_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia Maxima M"
+          },
+          "espesor_maximo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Maximo M",
+            "description": "El espesor de arenilla en el punto más lejano que drena esta bajada."
+          },
+          "fuera_de_la_zona": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuera De La Zona"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "y",
+          "rotulo",
+          "linea_trazada"
+        ],
+        "title": "BajadaCalculada"
+      },
+      "BajadaDeLaZona": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "linea_trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linea Trazo Id"
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          },
+          "x": {
+            "type": "number",
+            "title": "X",
+            "description": "Coordenadas del punto en unidades del plano."
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "linea": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linea",
+            "description": "La línea de pendiente trazada hacia la bajada (unidades del plano), si la hay."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trazo_id",
+          "linea_trazo_id",
+          "rotulo",
+          "x",
+          "y"
+        ],
+        "title": "BajadaDeLaZona"
+      },
+      "BajadaDelPlano": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "relleno_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Relleno Id"
+          },
+          "zona_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Zona Id"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "relleno_id",
+          "zona_id",
+          "x",
+          "y",
+          "rotulo"
+        ],
+        "title": "BajadaDelPlano"
+      },
+      "BajadaDelRelleno": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "relleno_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Relleno Id"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "linea_trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linea Trazo Id"
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "relleno_id",
+          "trazo_id",
+          "linea_trazo_id",
+          "rotulo"
+        ],
+        "title": "BajadaDelRelleno"
+      },
+      "BajadaDelRellenoCambio": {
+        "properties": {
+          "linea_trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linea Trazo Id",
+            "description": "La línea de pendiente; `null` la quita y el sistema vuelve a generar la dirección."
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          }
+        },
+        "type": "object",
+        "title": "BajadaDelRellenoCambio"
+      },
+      "BajadaDelRellenoPeticion": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id",
+            "description": "El PUNTO del plano que identifica la bajada (un punto sirve a una sola bajada)."
+          },
+          "linea_trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linea Trazo Id",
+            "description": "Opcional: la LÍNEA del plano, dibujada hacia la bajada, que marca hacia dónde van las pendientes; sin ella el sistema la genera."
+          },
+          "rotulo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotulo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id"
+        ],
+        "title": "BajadaDelRellenoPeticion"
+      },
       "BandaDeFachada": {
         "properties": {
           "banda": {
@@ -29798,6 +30318,59 @@
               }
             ],
             "title": "Mortero M3 Por M2"
+          },
+          "pendiente_zona_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Zona Pct"
+          },
+          "espesor_bajada_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.3,
+                "minimum": 0.01
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Bajada M"
+          },
+          "mortero_espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.2,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortero Espesor M"
+          },
+          "factor_abundamiento": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.6,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor Abundamiento",
+            "description": "Solo el compactado: el factor del abundamiento (1.00 por omisión)."
           },
           "espacio_id": {
             "anyOf": [
@@ -34208,8 +34781,12 @@
         "properties": {
           "parte": {
             "type": "string",
-            "const": "relleno",
-            "title": "Parte"
+            "enum": [
+              "relleno",
+              "arenilla"
+            ],
+            "title": "Parte",
+            "description": "`relleno`: el concepto del relleno; `arenilla`: la arenilla del relleno de azotea con bajadas (EJ-830, por m³)."
           },
           "elemento_clave": {
             "type": "string",
@@ -34278,8 +34855,12 @@
         "properties": {
           "parte": {
             "type": "string",
-            "const": "relleno",
-            "title": "Parte"
+            "enum": [
+              "relleno",
+              "arenilla"
+            ],
+            "title": "Parte",
+            "description": "`relleno`: el concepto del relleno; `arenilla`: la arenilla del relleno de azotea con bajadas (EJ-830, por m³)."
           },
           "elemento_clave": {
             "type": "string",
@@ -39601,6 +40182,17 @@
           "parametros_por_defecto": {
             "$ref": "#/components/schemas/ParametrosDelRelleno"
           },
+          "concepto_arenilla": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConceptoDeLaFicha"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo la azotea: el concepto nuevo propuesto (EJ-830, por m³) de la arenilla del relleno con bajadas."
+          },
           "tezontle": {
             "anyOf": [
               {
@@ -40664,6 +41256,174 @@
           "causas_posibles"
         ],
         "title": "DesviacionRespuesta"
+      },
+      "DinamicoDelRelleno": {
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "calculado",
+              "sin_escala"
+            ],
+            "title": "Estado",
+            "description": "`sin_escala`: el plano no tiene escala calibrada y no hay cantidades."
+          },
+          "pendiente_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Pct"
+          },
+          "espesor_en_bajada_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor En Bajada M"
+          },
+          "mortero_espesor_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortero Espesor M"
+          },
+          "volumen_arenilla_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumen Arenilla M3"
+          },
+          "espesor_arenilla_medio_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Arenilla Medio M"
+          },
+          "espesor_arenilla_maximo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Arenilla Maximo M"
+          },
+          "volumen_mortero_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumen Mortero M3"
+          },
+          "metodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metodo",
+            "description": "Cómo se integró el espesor sobre el área (determinista)."
+          },
+          "celda_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Celda M",
+            "description": "Paso de la retícula de integración."
+          },
+          "muestras": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Muestras"
+          },
+          "error_estimado_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Estimado M3",
+            "description": "Diferencia contra la retícula gruesa: cota práctica del error del volumen."
+          },
+          "error_relativo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Relativo"
+          },
+          "bajadas": {
+            "items": {
+              "$ref": "#/components/schemas/BajadaCalculada"
+            },
+            "type": "array",
+            "title": "Bajadas"
+          },
+          "guias": {
+            "items": {
+              "$ref": "#/components/schemas/GuiaDelRelleno"
+            },
+            "type": "array",
+            "title": "Guias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado",
+          "bajadas"
+        ],
+        "title": "DinamicoDelRelleno"
       },
       "DispositivoRespuesta": {
         "properties": {
@@ -48062,6 +48822,166 @@
         ],
         "title": "GrupoPorEspacio"
       },
+      "GuiaDelPlano": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "hilo"
+            ],
+            "title": "Tipo",
+            "description": "`pendiente`: la línea que marca hacia dónde van las pendientes; `hilo`: un hilo de nivel (maestra) punteado, donde el espesor es constante."
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "trazada",
+              "generada"
+            ],
+            "title": "Origen"
+          },
+          "bajada_id": {
+            "type": "string",
+            "title": "Bajada Id"
+          },
+          "puntos": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Puntos",
+            "description": "Vértices de la polilínea en unidades del plano; en una línea de pendiente, el último es la bajada."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "De un hilo de nivel: el espesor de la arenilla sobre él."
+          },
+          "relleno_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Relleno Id"
+          },
+          "zona_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Zona Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "origen",
+          "bajada_id",
+          "puntos",
+          "relleno_id",
+          "zona_id"
+        ],
+        "title": "GuiaDelPlano"
+      },
+      "GuiaDelRelleno": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "hilo"
+            ],
+            "title": "Tipo",
+            "description": "`pendiente`: la línea que marca hacia dónde van las pendientes; `hilo`: un hilo de nivel (maestra) punteado, donde el espesor es constante."
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "trazada",
+              "generada"
+            ],
+            "title": "Origen"
+          },
+          "bajada_id": {
+            "type": "string",
+            "title": "Bajada Id"
+          },
+          "puntos": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Puntos",
+            "description": "Vértices de la polilínea en unidades del plano; en una línea de pendiente, el último es la bajada."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "De un hilo de nivel: el espesor de la arenilla sobre él."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "origen",
+          "bajada_id",
+          "puntos"
+        ],
+        "title": "GuiaDelRelleno"
+      },
+      "GuiasDeRellenoDelPlano": {
+        "properties": {
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "escala_definida": {
+            "type": "boolean",
+            "title": "Escala Definida",
+            "description": "Sin escala calibrada no hay guías: el relleno con bajadas no da cantidades."
+          },
+          "bajadas": {
+            "items": {
+              "$ref": "#/components/schemas/BajadaDelPlano"
+            },
+            "type": "array",
+            "title": "Bajadas"
+          },
+          "guias": {
+            "items": {
+              "$ref": "#/components/schemas/GuiaDelPlano"
+            },
+            "type": "array",
+            "title": "Guias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plano_id",
+          "escala_definida",
+          "bajadas",
+          "guias"
+        ],
+        "title": "GuiasDeRellenoDelPlano"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -49120,7 +50040,8 @@
             "type": "string",
             "enum": [
               "tezontle",
-              "mortero"
+              "mortero",
+              "arenilla"
             ],
             "title": "Parte"
           },
@@ -54541,12 +55462,36 @@
           "abundamiento_pct": {
             "type": "number",
             "title": "Abundamiento Pct",
-            "description": "Solo el compactado: % de material suelto de más (el catálogo no trae factor; por omisión 0)."
+            "description": "Solo el compactado: % de material suelto de más; es (factor_abundamiento − 1) × 100 (el catálogo no trae factor; por omisión 0)."
           },
           "mortero_m3_por_m2": {
             "type": "number",
             "title": "Mortero M3 Por M2",
-            "description": "Solo la azotea: m³ de mortero por m² (el del catálogo: 0.0735)."
+            "description": "Solo la azotea sin bajadas: m³ de mortero por m² (el del catálogo: 0.0735)."
+          },
+          "pendiente_zona_pct": {
+            "type": "number",
+            "title": "Pendiente Zona Pct",
+            "description": "Solo la azotea con bajadas: pendiente (%) de la zona; el espesor de la arenilla sube pendiente × distancia desde la bajada (2 % por omisión).",
+            "default": 2.0
+          },
+          "espesor_bajada_m": {
+            "type": "number",
+            "title": "Espesor Bajada M",
+            "description": "Solo la azotea con bajadas: espesor mínimo de arenilla en cada bajada (5 cm por omisión).",
+            "default": 0.05
+          },
+          "mortero_espesor_m": {
+            "type": "number",
+            "title": "Mortero Espesor M",
+            "description": "Solo la azotea con bajadas: espesor de la plantilla de mortero sobre la arenilla (5 cm por omisión).",
+            "default": 0.05
+          },
+          "factor_abundamiento": {
+            "type": "number",
+            "title": "Factor Abundamiento",
+            "description": "Solo el compactado: la cantidad del concepto es el volumen compactado × este factor (1.00 por omisión; sin destajo).",
+            "default": 1.0
           }
         },
         "type": "object",
@@ -60489,6 +61434,26 @@
             "type": "number",
             "title": "Extra De Pendiente M"
           },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "uniforme",
+              "bajadas"
+            ],
+            "title": "Modo",
+            "description": "`bajadas`: la azotea tiene bajadas pluviales y es dinámica (arenilla + mortero)."
+          },
+          "dinamico": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DinamicoDelRelleno"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo con bajadas: el espesor de la arenilla, el método, el error, las bajadas y las guías."
+          },
           "poligonos": {
             "items": {
               "$ref": "#/components/schemas/PoligonoCalculadoDelRelleno"
@@ -60549,6 +61514,7 @@
           "volumen_suelto_m3",
           "espesor_medio_m",
           "extra_de_pendiente_m",
+          "modo",
           "poligonos",
           "insumos",
           "conceptos",
@@ -60584,12 +61550,36 @@
           "abundamiento_pct": {
             "type": "number",
             "title": "Abundamiento Pct",
-            "description": "Solo el compactado: % de material suelto de más (el catálogo no trae factor; por omisión 0)."
+            "description": "Solo el compactado: % de material suelto de más; es (factor_abundamiento − 1) × 100 (el catálogo no trae factor; por omisión 0)."
           },
           "mortero_m3_por_m2": {
             "type": "number",
             "title": "Mortero M3 Por M2",
-            "description": "Solo la azotea: m³ de mortero por m² (el del catálogo: 0.0735)."
+            "description": "Solo la azotea sin bajadas: m³ de mortero por m² (el del catálogo: 0.0735)."
+          },
+          "pendiente_zona_pct": {
+            "type": "number",
+            "title": "Pendiente Zona Pct",
+            "description": "Solo la azotea con bajadas: pendiente (%) de la zona; el espesor de la arenilla sube pendiente × distancia desde la bajada (2 % por omisión).",
+            "default": 2.0
+          },
+          "espesor_bajada_m": {
+            "type": "number",
+            "title": "Espesor Bajada M",
+            "description": "Solo la azotea con bajadas: espesor mínimo de arenilla en cada bajada (5 cm por omisión).",
+            "default": 0.05
+          },
+          "mortero_espesor_m": {
+            "type": "number",
+            "title": "Mortero Espesor M",
+            "description": "Solo la azotea con bajadas: espesor de la plantilla de mortero sobre la arenilla (5 cm por omisión).",
+            "default": 0.05
+          },
+          "factor_abundamiento": {
+            "type": "number",
+            "title": "Factor Abundamiento",
+            "description": "Solo el compactado: la cantidad del concepto es el volumen compactado × este factor (1.00 por omisión; sin destajo).",
+            "default": 1.0
           },
           "id": {
             "type": "string",
@@ -60723,6 +61713,26 @@
             "type": "number",
             "title": "Extra De Pendiente M"
           },
+          "modo": {
+            "type": "string",
+            "enum": [
+              "uniforme",
+              "bajadas"
+            ],
+            "title": "Modo",
+            "description": "`bajadas`: la azotea tiene bajadas pluviales y es dinámica (arenilla + mortero)."
+          },
+          "dinamico": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DinamicoDelRelleno"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo con bajadas: el espesor de la arenilla, el método, el error, las bajadas y las guías."
+          },
           "poligonos": {
             "items": {
               "$ref": "#/components/schemas/PoligonoCalculadoDelRelleno"
@@ -60798,6 +61808,14 @@
             ],
             "title": "Espacio Id"
           },
+          "bajadas": {
+            "items": {
+              "$ref": "#/components/schemas/BajadaDeLaZona"
+            },
+            "type": "array",
+            "title": "Bajadas",
+            "description": "Las bajadas pluviales del relleno de azotea (puntos del plano)."
+          },
           "origen": {
             "type": "string",
             "enum": [
@@ -60832,6 +61850,7 @@
           "volumen_suelto_m3",
           "espesor_medio_m",
           "extra_de_pendiente_m",
+          "modo",
           "poligonos",
           "insumos",
           "conceptos",
@@ -60958,6 +61977,62 @@
               }
             ],
             "title": "Mortero M3 Por M2"
+          },
+          "pendiente_zona_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Zona Pct",
+            "description": "Azotea con bajadas: la pendiente de la zona (%); sin él vale 2 %."
+          },
+          "espesor_bajada_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.3,
+                "minimum": 0.01
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor Bajada M",
+            "description": "Azotea con bajadas: el espesor mínimo de arenilla en la bajada; sin él, 5 cm."
+          },
+          "mortero_espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.2,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mortero Espesor M",
+            "description": "Azotea con bajadas: el espesor de la plantilla de mortero; sin él, 5 cm."
+          },
+          "factor_abundamiento": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.6,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor Abundamiento",
+            "description": "Compactado: cantidad = volumen compactado × factor; sin él, 1.00."
           }
         },
         "type": "object",

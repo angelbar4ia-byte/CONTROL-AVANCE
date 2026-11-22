@@ -8,6 +8,10 @@
  * - Cada relleno dice en qué **espacio** está (0143); si no, cada polígono cae en el suyo. Cada concepto dice en qué **partida** del árbol se mide o por qué no
  *   cuenta, y la suma de los espacios es el total del relleno (sin doble conteo).
  * - El relleno de azotea se **concilia** contra la composición vigente de ALB-03014 por m² (el catálogo no se edita).
+ * - **Relleno dinámico de azotea (0147):** con bajadas pluviales (un punto del plano cada una; la línea de pendiente es opcional y, si no se traza, el sistema la
+ *   genera) el relleno lleva dos capas: arenilla de espesor variable (5 cm en la bajada + pendiente × distancia, concepto nuevo propuesto EJ-830 por m³) y plantilla de
+ *   mortero de 5 cm (ALB-03014 por m²). Precio y cantidades cambian al hacer el trazo; las guías (líneas de pendiente e hilos de nivel punteados) salen en el visor.
+ * - REL-COMPACTADO: la cantidad es el volumen compactado × el factor de abundamiento (1.00 por omisión).
  *
  * No calcula nada: pinta lo que responde el servidor.
  */
@@ -20,13 +24,16 @@ import {
   getCalculoDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosCalculoGetQueryKey,
   useAgregarRellenoApiV1ZonasDeLosaZonaIdRellenosPost,
   useCalculoDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosCalculoGet,
+  useCambiarBajadaApiV1BajadasDeRellenoBajadaIdPut,
   useCambiarRellenoApiV1RellenosDeZonaRellenoIdPut,
   useProponerConceptosDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosPropuestasPost,
+  useQuitarBajadaApiV1BajadasDeRellenoBajadaIdDelete,
   useQuitarRellenoApiV1RellenosDeZonaRellenoIdDelete,
 } from '@/api/generado/rellenos/rellenos';
 import { queryClient } from '@/app/queryClient';
 
 import { NOMBRE_DEL_ESTADO_DE_PARTIDA } from './espacios';
+import type { PorColocar } from './ZonasDeLosa';
 
 function mensaje(err: unknown, defecto: string): string {
   return err instanceof Error ? err.message : defecto;
@@ -39,6 +46,8 @@ function num(n: number | null | undefined, dec = 2): string {
 }
 
 const unidadVisible = (u: string) => (u === 'm3' ? 'm³' : u === 'm2' ? 'm²' : u);
+/** Los m³ se muestran con tres decimales (la arenilla y el compactado); lo demás, con dos. */
+const decimalesDe = (u: string) => (u === 'm³' || u === 'm3' ? 3 : 2);
 const MARCA: Record<string, { texto: string; clase: string }> = {
   '=': { texto: '=', clase: 'badge badge--ok' },
   '≈': { texto: '≈', clase: 'badge badge--info' },
@@ -55,6 +64,8 @@ function refrescar() {
   void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/espacios') });
   void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/cuantificacion') });
   void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/biblioteca-de-elementos') });
+  // Las guías del relleno dinámico (líneas de pendiente, hilos de nivel y bajadas) las pinta el visor y cambian con cualquier parámetro.
+  void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('guias-de-relleno') });
 }
 
 /** Un campo numérico: vacío = el de omisión del elemento (`undefined`); lo que no es un número válido, `null`. */
@@ -71,11 +82,14 @@ interface Props {
   readonly rol: string | null;
   /** Los espacios de la obra (0143): cada relleno elige el suyo. */
   readonly espacios?: readonly Espacio[];
+  /** Lo que el plano está pidiendo colocar (una bajada o una línea de pendiente), para marcar el botón activo. */
+  readonly colocando?: PorColocar | null;
+  readonly onColocar?: (c: PorColocar | null) => void;
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
 }
 
-export function RellenosDeLaZona({ zona, puedeEditar, rol, espacios = [], onCambio, onError }: Props) {
+export function RellenosDeLaZona({ zona, puedeEditar, rol, espacios = [], colocando = null, onColocar, onCambio, onError }: Props) {
   const [abierta, setAbierta] = useState(false);
   return (
     <div className="zonas-losa__rellenos" data-testid="rellenos-de-la-zona" data-zona={zona.id}>
@@ -85,12 +99,14 @@ export function RellenosDeLaZona({ zona, puedeEditar, rol, espacios = [], onCamb
         </button>
         <span className="text-mute text-xs">Elemento separado de la losa</span>
       </div>
-      {abierta && <CuerpoDeLosRellenos zona={zona} puedeEditar={puedeEditar} rol={rol} espacios={espacios} onCambio={onCambio} onError={onError} />}
+      {abierta && (
+        <CuerpoDeLosRellenos zona={zona} puedeEditar={puedeEditar} rol={rol} espacios={espacios} colocando={colocando} onColocar={onColocar} onCambio={onCambio} onError={onError} />
+      )}
     </div>
   );
 }
 
-function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], onCambio, onError }: Props) {
+function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], colocando = null, onColocar, onCambio, onError }: Props) {
   const consulta = useCalculoDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosCalculoGet(zona.id, { conciliar: true }, { query: { retry: false } });
   const agregar = useAgregarRellenoApiV1ZonasDeLosaZonaIdRellenosPost<ErrorApi>();
   const proponer = useProponerConceptosDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosPropuestasPost<ErrorApi>();
@@ -100,6 +116,8 @@ function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], onCambio, 
   const c = consulta.data;
   const puedeProponer = rol === 'control_obra' || rol === 'costos';
   const sinProponer = (c?.rellenos ?? []).flatMap((r) => r.conceptos).filter((k) => k.concepto.provisional && !k.propuesta);
+  const faltaArenilla = sinProponer.some((k) => k.concepto.clave === 'EJ-830');
+  const faltaCompactado = sinProponer.some((k) => k.concepto.clave !== 'EJ-830');
 
   async function agregarRelleno() {
     try {
@@ -117,7 +135,7 @@ function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], onCambio, 
       const r = await proponer.mutateAsync({ zonaId: zona.id });
       refrescar();
       void queryClient.invalidateQueries({ queryKey: getCalculoDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosCalculoGetQueryKey(zona.id, { conciliar: true }) });
-      onCambio(r.creadas.length > 0 ? 'Se propuso el concepto nuevo del relleno compactado (clave provisional, sin precio).' : 'El concepto del relleno ya estaba propuesto.');
+      onCambio(r.creadas.length > 0 ? 'Se propuso el concepto nuevo del relleno (clave provisional, sin precio).' : 'El concepto del relleno ya estaba propuesto.');
     } catch (err) {
       onError(mensaje(err, 'No se pudo proponer el concepto.'));
     }
@@ -138,7 +156,9 @@ function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], onCambio, 
         </p>
       ))}
       {c?.rellenos.map((r, i) => (
-        <FilaDelRelleno key={r.id} r={r} numero={i + 1} zona={zona} puedeEditar={puedeEditar} espacios={espacios} onCambio={onCambio} onError={onError} />
+        <FilaDelRelleno
+          key={r.id} r={r} numero={i + 1} zona={zona} puedeEditar={puedeEditar} espacios={espacios} colocando={colocando} onColocar={onColocar} onCambio={onCambio} onError={onError}
+        />
       ))}
       {c && c.rellenos.length > 0 && (
         <p className="text-sm" data-testid="rellenos-resumen">
@@ -184,7 +204,11 @@ function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], onCambio, 
       )}
       {puedeProponer && sinProponer.length > 0 && (
         <button type="button" className="btn btn--sm" disabled={proponer.isPending} onClick={() => void proponerFaltantes()}>
-          Proponer el concepto del relleno compactado
+          {faltaArenilla && faltaCompactado
+            ? 'Proponer los conceptos nuevos de los rellenos'
+            : faltaArenilla
+              ? 'Proponer el concepto de la arenilla'
+              : 'Proponer el concepto del relleno compactado'}
         </button>
       )}
       {puedeEditar && (
@@ -232,13 +256,15 @@ function CuerpoDeLosRellenos({ zona, puedeEditar, rol, espacios = [], onCambio, 
 }
 
 function FilaDelRelleno({
-  r, numero, zona, puedeEditar, espacios = [], onCambio, onError,
+  r, numero, zona, puedeEditar, espacios = [], colocando = null, onColocar, onCambio, onError,
 }: {
   readonly r: RellenoDeLaZonaCalculado;
   readonly numero: number;
   readonly zona: ZonaDeLosa;
   readonly puedeEditar: boolean;
   readonly espacios?: readonly Espacio[];
+  readonly colocando?: PorColocar | null;
+  readonly onColocar?: (c: PorColocar | null) => void;
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
 }) {
@@ -249,22 +275,34 @@ function FilaDelRelleno({
   const [espesor, setEspesor] = useState(String(p.espesor_m));
   const [pendiente, setPendiente] = useState(String(p.pendiente_pct));
   const [recorrido, setRecorrido] = useState(String(p.recorrido_m));
-  const [abundamiento, setAbundamiento] = useState(String(p.abundamiento_pct));
+  const [factor, setFactor] = useState(String(p.factor_abundamiento));
   const [mortero, setMortero] = useState(String(p.mortero_m3_por_m2));
+  const [pendienteZona, setPendienteZona] = useState(String(p.pendiente_zona_pct));
+  const [espesorBajada, setEspesorBajada] = useState(String(p.espesor_bajada_m));
+  const [morteroEspesor, setMorteroEspesor] = useState(String(p.mortero_espesor_m));
   const [compensar, setCompensar] = useState(p.compensar_espesores);
   const poligono = r.trazo_id ? zona.losas.findIndex((lo) => lo.trazo_id === r.trazo_id) + 1 : 0;
 
   function datos(extra: { espacio_id?: string | null } = {}): RellenoDeLaZonaPeticion | null {
-    const valores = [opcional(espesor), opcional(pendiente), opcional(recorrido), opcional(abundamiento), opcional(mortero)];
+    const valores = [
+      opcional(espesor), opcional(pendiente), opcional(recorrido), opcional(factor), opcional(mortero), opcional(pendienteZona), opcional(espesorBajada), opcional(morteroEspesor),
+    ];
     if (valores.includes(null)) return null;
-    const [e, pe, re, ab, mo] = valores as (number | undefined)[];
+    const [e, pe, re, fa, mo, pz, eb, me] = valores as (number | undefined)[];
     return {
       elemento_clave: r.clave as RellenoDeLaZonaPeticion['elemento_clave'],
       ...(r.trazo_id ? { trazo_id: r.trazo_id } : {}),
       ...(e === undefined ? {} : { espesor_m: e }),
       ...(pe === undefined ? {} : { pendiente_pct: pe }),
       ...(re === undefined ? {} : { recorrido_m: re }),
-      ...(compactado ? (ab === undefined ? {} : { abundamiento_pct: ab }) : mo === undefined ? {} : { mortero_m3_por_m2: mo }),
+      ...(compactado
+        ? fa === undefined ? {} : { factor_abundamiento: fa }
+        : {
+            ...(mo === undefined ? {} : { mortero_m3_por_m2: mo }),
+            ...(pz === undefined ? {} : { pendiente_zona_pct: pz }),
+            ...(eb === undefined ? {} : { espesor_bajada_m: eb }),
+            ...(me === undefined ? {} : { mortero_espesor_m: me }),
+          }),
       compensar_espesores: compensar,
       ...extra,
     };
@@ -296,8 +334,9 @@ function FilaDelRelleno({
   }
 
   const cada = r.espacio_id ?? '';
+  const dinamico = r.modo === 'bajadas' ? r.dinamico : null;
   return (
-    <div className="mct__bloque" data-relleno-de-la-zona={r.clave} data-origen={r.origen} aria-label={`Relleno ${numero}: ${r.nombre}`}>
+    <div className="mct__bloque" data-relleno-de-la-zona={r.clave} data-origen={r.origen} data-modo={r.modo} aria-label={`Relleno ${numero}: ${r.nombre}`}>
       <div className="row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         <strong>
           <span className="mono">{r.clave}</span> · {r.nombre}
@@ -313,8 +352,9 @@ function FilaDelRelleno({
         Área {num(r.area_m2)} m² · volumen {num(r.volumen_m3, 3)} m³ · espesor medio {num(r.espesor_medio_m * 100, 1)} cm
         {r.volumen_suelto_m3 !== null && r.volumen_suelto_m3 !== undefined && ` · suelto ${num(r.volumen_suelto_m3, 3)} m³`}
         {' · '}
-        {r.conceptos.map((k) => `${num(k.cantidad)} ${unidadVisible(k.unidad)} de ${k.concepto.clave}`).join(' · ')}
+        {r.conceptos.map((k) => `${num(k.cantidad, decimalesDe(k.unidad))} ${unidadVisible(k.unidad)} de ${k.concepto.clave}`).join(' · ')}
       </p>
+      {dinamico && <ResumenDinamico d={dinamico} numero={numero} />}
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         <label className="mct__campo">
           Espesor mínimo (m)
@@ -330,14 +370,33 @@ function FilaDelRelleno({
         </label>
         {compactado ? (
           <label className="mct__campo">
-            Abundamiento (%)
-            <input className="input" inputMode="decimal" aria-label={`Abundamiento del relleno ${numero}`} disabled={!puedeEditar} value={abundamiento} onChange={(e) => setAbundamiento(e.target.value)} />
+            Factor de abundamiento
+            <input className="input" inputMode="decimal" aria-label={`Factor de abundamiento del relleno ${numero}`} disabled={!puedeEditar} value={factor} onChange={(e) => setFactor(e.target.value)} />
           </label>
         ) : (
           <label className="mct__campo">
             Mortero (m³ por m²)
             <input className="input" inputMode="decimal" aria-label={`Mortero del relleno ${numero}`} disabled={!puedeEditar} value={mortero} onChange={(e) => setMortero(e.target.value)} />
           </label>
+        )}
+        {!compactado && (
+          <fieldset className="mct__campo" aria-label={`Parámetros con bajadas pluviales del relleno ${numero}`} style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="text-mute text-xs">Con bajadas pluviales (arenilla + mortero)</legend>
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <label className="mct__campo">
+                Pendiente de la zona (%)
+                <input className="input" inputMode="decimal" aria-label={`Pendiente de la zona del relleno ${numero}`} disabled={!puedeEditar} value={pendienteZona} onChange={(e) => setPendienteZona(e.target.value)} />
+              </label>
+              <label className="mct__campo">
+                Espesor en la bajada (m)
+                <input className="input" inputMode="decimal" aria-label={`Espesor en la bajada del relleno ${numero}`} disabled={!puedeEditar} value={espesorBajada} onChange={(e) => setEspesorBajada(e.target.value)} />
+              </label>
+              <label className="mct__campo">
+                Mortero de la plantilla (m)
+                <input className="input" inputMode="decimal" aria-label={`Mortero de la plantilla del relleno ${numero}`} disabled={!puedeEditar} value={morteroEspesor} onChange={(e) => setMorteroEspesor(e.target.value)} />
+              </label>
+            </div>
+          </fieldset>
         )}
         <label className="mct__campo mct__campo--casilla">
           <input type="checkbox" aria-label={`Adaptarse a los espesores de losa en el relleno ${numero}`} disabled={!puedeEditar} checked={compensar} onChange={(e) => setCompensar(e.target.checked)} />
@@ -371,6 +430,7 @@ function FilaDelRelleno({
           </button>
         </div>
       )}
+      {!compactado && <BajadasDelRelleno r={r} numero={numero} puedeEditar={puedeEditar} colocando={colocando} onColocar={onColocar} onCambio={onCambio} onError={onError} />}
       <table className="table" aria-label={`Espesor por polígono del relleno ${numero}`}>
         <thead>
           <tr>
@@ -436,6 +496,138 @@ function FilaDelRelleno({
           {a}
         </p>
       ))}
+    </div>
+  );
+}
+
+type Dinamico = NonNullable<RellenoDeLaZonaCalculado['dinamico']>;
+
+/** Lo que el relleno con bajadas calcula: las dos capas, el espesor de la arenilla, el método numérico y su error. No calcula nada: pinta lo que responde el servidor. */
+function ResumenDinamico({ d, numero }: { readonly d: Dinamico; readonly numero: number }) {
+  if (d.estado === 'sin_escala') {
+    return (
+      <p className="text-xs" role="alert" data-testid="relleno-dinamico" data-estado="sin_escala">
+        El plano no tiene escala calibrada: el relleno con bajadas no da cantidades hasta calibrar la escala.
+      </p>
+    );
+  }
+  const cm = (m: number | null | undefined) => `${num((m ?? 0) * 100, 1)} cm`;
+  return (
+    <div className="text-xs" data-testid="relleno-dinamico" data-estado="calculado" aria-label={`Relleno dinámico ${numero}`}>
+      <p>
+        Dos capas: <strong>arenilla</strong> de espesor variable ({cm(d.espesor_en_bajada_m)} en cada bajada + {num(d.pendiente_pct, 2)} % por metro de distancia; medio{' '}
+        {cm(d.espesor_arenilla_medio_m)}, máximo {cm(d.espesor_arenilla_maximo_m)}) = {num(d.volumen_arenilla_m3, 3)} m³, y plantilla de <strong>mortero</strong> de{' '}
+        {cm(d.mortero_espesor_m)} = {num(d.volumen_mortero_m3, 3)} m³.
+      </p>
+      <p className="text-mute" data-testid="relleno-dinamico-metodo">
+        Método: {d.metodo} Retícula de {num((d.celda_m ?? 0) * 100, 1)} cm, {d.muestras} muestras; error estimado {num(d.error_estimado_m3, 4)} m³ (
+        {num((d.error_relativo ?? 0) * 100, 3)} %).
+      </p>
+    </div>
+  );
+}
+
+/** Las bajadas pluviales del relleno de azotea: cada una es un punto del plano; la línea de pendiente es opcional (sin ella el sistema genera la dirección). */
+function BajadasDelRelleno({
+  r, numero, puedeEditar, colocando, onColocar, onCambio, onError,
+}: {
+  readonly r: RellenoDeLaZonaCalculado;
+  readonly numero: number;
+  readonly puedeEditar: boolean;
+  readonly colocando: PorColocar | null;
+  readonly onColocar?: (c: PorColocar | null) => void;
+  readonly onCambio: (aviso: string) => void;
+  readonly onError: (mensaje: string) => void;
+}) {
+  const cambiar = useCambiarBajadaApiV1BajadasDeRellenoBajadaIdPut<ErrorApi>();
+  const quitar = useQuitarBajadaApiV1BajadasDeRellenoBajadaIdDelete<ErrorApi>();
+  const bajadas = r.bajadas ?? [];
+  const metricas = new Map((r.dinamico?.bajadas ?? []).map((b) => [b.id, b]));
+  const colocandoBajada = colocando?.tipo === 'bajada' && colocando.rellenoId === r.id;
+
+  async function guardar(id: string, lineaTrazoId: string | null, rotulo: string | null, aviso: string) {
+    try {
+      await cambiar.mutateAsync({ bajadaId: id, data: { linea_trazo_id: lineaTrazoId, rotulo } });
+      refrescar();
+      onCambio(aviso);
+    } catch (err) {
+      onError(mensaje(err, 'No se pudo cambiar la bajada.'));
+    }
+  }
+
+  async function quitarBajada(id: string) {
+    try {
+      await quitar.mutateAsync({ bajadaId: id });
+      refrescar();
+      onCambio('Bajada quitada del relleno.');
+    } catch (err) {
+      onError(mensaje(err, 'No se pudo quitar la bajada.'));
+    }
+  }
+
+  return (
+    <div className="mct__bloque" role="group" aria-label={`Bajadas pluviales del relleno ${numero}`} data-testid="bajadas-del-relleno">
+      <div className="row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong className="text-sm">Bajadas pluviales</strong>
+        <span className="text-mute text-xs">
+          {bajadas.length === 0
+            ? 'Sin bajadas: el relleno es parejo (espesor mínimo). Coloca un punto por cada bajada y el sistema calcula la arenilla.'
+            : 'El área marca la zona, cada punto es una bajada y la línea marca hacia dónde van las pendientes (si no la trazas, el sistema la genera).'}
+        </span>
+      </div>
+      {bajadas.map((b, i) => {
+        const m = metricas.get(b.id);
+        const enColocacion = colocando?.tipo === 'pendiente' && colocando.bajadaId === b.id;
+        return (
+          <div key={b.id} className="row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }} data-testid="bajada-del-relleno" data-bajada-id={b.id} data-linea={b.linea ? 'trazada' : 'generada'}>
+            <span className="badge badge--outline">{b.rotulo ?? `Bajada ${i + 1}`}</span>
+            <input
+              className="input" style={{ width: 110 }} aria-label={`Rótulo de la bajada ${i + 1} del relleno ${numero}`} placeholder="Rótulo" defaultValue={b.rotulo ?? ''}
+              disabled={!puedeEditar}
+              onBlur={(e) => {
+                const nuevo = e.target.value.trim();
+                if (nuevo !== (b.rotulo ?? '')) void guardar(b.id, b.linea_trazo_id ?? null, nuevo || null, 'Rótulo de la bajada guardado.');
+              }}
+            />
+            {m && m.area_m2 != null && (
+              <span className="text-xs mono" data-testid="bajada-del-relleno-drena">
+                drena {num(m.area_m2)} m² · arenilla hasta {num((m.espesor_maximo_m ?? 0) * 100, 1)} cm
+                {m.fuera_de_la_zona ? ' · fuera de la zona' : ''}
+              </span>
+            )}
+            <span className="badge badge--info">{b.linea ? 'línea trazada' : 'línea generada'}</span>
+            {puedeEditar && onColocar && (
+              <button
+                type="button" className={enColocacion ? 'btn btn--sm is-active' : 'btn btn--sm'} aria-pressed={enColocacion}
+                aria-label={`Trazar la línea de pendiente de la bajada ${i + 1} del relleno ${numero}`}
+                onClick={() => onColocar(enColocacion ? null : { tipo: 'pendiente', bajadaId: b.id, rotulo: b.rotulo ?? null })}
+              >
+                Trazar línea de pendiente
+              </button>
+            )}
+            {puedeEditar && b.linea && (
+              <button type="button" className="btn btn--sm" aria-label={`Quitar la línea de la bajada ${i + 1} del relleno ${numero}`} disabled={cambiar.isPending} onClick={() => void guardar(b.id, null, b.rotulo ?? null, 'Línea de pendiente quitada: el sistema genera la dirección.')}>
+                Quitar la línea
+              </button>
+            )}
+            {puedeEditar && (
+              <button type="button" className="btn btn--sm" aria-label={`Quitar la bajada ${i + 1} del relleno ${numero}`} disabled={quitar.isPending} onClick={() => void quitarBajada(b.id)}>
+                Quitar la bajada
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {puedeEditar && onColocar && (
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            type="button" className={colocandoBajada ? 'btn btn--sm is-active' : 'btn btn--sm'} aria-pressed={colocandoBajada} aria-label={`Colocar bajada pluvial del relleno ${numero}`}
+            onClick={() => onColocar(colocandoBajada ? null : { tipo: 'bajada', rellenoId: r.id })}
+          >
+            Colocar bajada pluvial
+          </button>
+        </div>
+      )}
     </div>
   );
 }

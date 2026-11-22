@@ -26,3 +26,26 @@ class RepositorioRellenosDeZona(Protocol):
     async def espacio_existe(self, obra_id: UUID, espacio_id: UUID) -> bool:
         """El espacio es de esa obra (0143)."""
         ...
+
+    # ── Bajadas pluviales del relleno dinámico de azotea (0147) ──────────────────────────────────────────
+
+    async def bajadas_de_la_zona(self, zona_id: UUID) -> list[dict[str, Any]]:
+        """Las bajadas de todos los rellenos de la zona en orden de alta: `{id, relleno_id, trazo_id, linea_trazo_id, rotulo, geojson, geojson_linea}` (la geometría
+        sale de los trazos: el punto y, si hay, la línea de pendiente)."""
+        ...
+
+    async def bajada(self, bajada_id: UUID) -> dict[str, Any] | None: ...
+
+    async def agregar_bajada(self, *, relleno_id: UUID, trazo_id: UUID, linea_trazo_id: UUID | None, rotulo: str | None, autor_id: UUID) -> UUID: ...
+
+    async def actualizar_bajada(self, bajada_id: UUID, *, linea_trazo_id: UUID | None, rotulo: str | None) -> None: ...
+
+    async def eliminar_bajada(self, bajada_id: UUID) -> None: ...
+
+    async def bajada_del_punto(self, trazo_id: UUID) -> UUID | None:
+        """La bajada que ya usa ese punto del plano (un punto sirve a una sola), o `None`."""
+        ...
+
+    async def bajada_de_la_linea(self, trazo_id: UUID) -> UUID | None:
+        """La bajada que ya usa esa línea del plano (una línea sirve a una sola), o `None`."""
+        ...

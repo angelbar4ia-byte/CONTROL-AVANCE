@@ -8,6 +8,8 @@
 import type { RellenoDeLaZonaCalculadoTipo } from "./rellenoDeLaZonaCalculadoTipo";
 import type { ParametrosDelRelleno } from "./parametrosDelRelleno";
 import type { RellenoDeLaZonaCalculadoVolumenSueltoM3 } from "./rellenoDeLaZonaCalculadoVolumenSueltoM3";
+import type { RellenoDeLaZonaCalculadoModo } from "./rellenoDeLaZonaCalculadoModo";
+import type { RellenoDeLaZonaCalculadoDinamico } from "./rellenoDeLaZonaCalculadoDinamico";
 import type { PoligonoCalculadoDelRelleno } from "./poligonoCalculadoDelRelleno";
 import type { InsumoDelRelleno } from "./insumoDelRelleno";
 import type { ConceptoDelRelleno } from "./conceptoDelRelleno";
@@ -16,6 +18,7 @@ import type { ManoDeObraDeLaLosa } from "./manoDeObraDeLaLosa";
 import type { PendienteDeLaLosa } from "./pendienteDeLaLosa";
 import type { RellenoDeLaZonaCalculadoTrazoId } from "./rellenoDeLaZonaCalculadoTrazoId";
 import type { RellenoDeLaZonaCalculadoEspacioId } from "./rellenoDeLaZonaCalculadoEspacioId";
+import type { BajadaDeLaZona } from "./bajadaDeLaZona";
 import type { RellenoDeLaZonaCalculadoOrigen } from "./rellenoDeLaZonaCalculadoOrigen";
 import type { RellenoDeLaZonaCalculadoConciliacion } from "./rellenoDeLaZonaCalculadoConciliacion";
 
@@ -32,6 +35,10 @@ export interface RellenoDeLaZonaCalculado {
   volumen_suelto_m3: RellenoDeLaZonaCalculadoVolumenSueltoM3;
   espesor_medio_m: number;
   extra_de_pendiente_m: number;
+  /** `bajadas`: la azotea tiene bajadas pluviales y es dinámica (arenilla + mortero). */
+  modo: RellenoDeLaZonaCalculadoModo;
+  /** Solo con bajadas: el espesor de la arenilla, el método, el error, las bajadas y las guías. */
+  dinamico?: RellenoDeLaZonaCalculadoDinamico;
   poligonos: PoligonoCalculadoDelRelleno[];
   insumos: InsumoDelRelleno[];
   conceptos: ConceptoDelRelleno[];
@@ -43,6 +50,8 @@ export interface RellenoDeLaZonaCalculado {
   id: string;
   trazo_id: RellenoDeLaZonaCalculadoTrazoId;
   espacio_id: RellenoDeLaZonaCalculadoEspacioId;
+  /** Las bajadas pluviales del relleno de azotea (puntos del plano). */
+  bajadas?: BajadaDeLaZona[];
   /** `poligono`: cubre un polígono del plano (medición derivada); `zona`: todos los de la zona. */
   origen: RellenoDeLaZonaCalculadoOrigen;
   /** Solo el de azotea y si se pidió `conciliar`: lo que calcula por m² contra la composición de ALB-03014 del catálogo vigente. */

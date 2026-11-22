@@ -101,7 +101,7 @@ def test_el_compactado_se_paga_por_m3_con_un_concepto_propuesto_y_el_abundamient
     assert c["concepto"] == {
         "clave": "EJ-810", "descripcion": CONCEPTOS_DE_RELLENO["compactado"]["descripcion"], "unidad": "m³", "estado": "propuesto", "provisional": True,
     }
-    assert (c["cantidad"], c["unidad"]) == (pytest.approx(5.0), "m³")
+    assert (c["cantidad"], c["unidad"]) == (pytest.approx(6.25), "m³")  # volumen compactado × factor de abundamiento (1.25)
     assert any("R4" in a for a in r["advertencias"])
 
 
