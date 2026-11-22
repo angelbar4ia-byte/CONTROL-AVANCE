@@ -6,6 +6,8 @@
  * - El escalón se paga con el concepto que ya existe en el catálogo (EST-01510, un escalón de 1.20 m); el descanso entre rampas, con el concepto nuevo propuesto
  *   EJ-820 (clave provisional, sin precio). Solo Control de obra edita; los demás roles leen.
  * - Una línea del plano puede dar el recorrido (medición derivada: se asigna desde el detalle de la línea) y de ella sale la huella.
+ * - **Descansos** propios (largo × ancho, espesor y giro de 0°, 90° o 180°, entre dos rampas) y **escalones de abanico** (peldaño trapezoidal con el fondo en el borde
+ *   interior y exterior; son parte de los peldaños del desnivel) viven en `DescansosYAbanicos` (Fase 4d).
  * - Cada escalera dice en qué **espacio** está (0143); su concepto dice en qué **partida** del árbol se mide o por qué no cuenta, y la suma de los espacios es el
  *   total (sin doble conteo). Se **concilia** contra la composición vigente de EST-01510 por escalón (el catálogo no se edita).
  *
@@ -26,6 +28,7 @@ import {
 import type { Espacio, EscaleraDeLaZonaCalculada, EscaleraDeLaZonaPeticion, ZonaDeLosa } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
+import { AbanicosDeLaEscalera, DescansosDeLaEscalera } from './DescansosYAbanicos';
 import { NOMBRE_DEL_ESTADO_DE_PARTIDA } from './espacios';
 
 function mensaje(err: unknown, defecto: string): string {
@@ -156,6 +159,7 @@ function CuerpoDeLasEscaleras({ zona, zonas = [], puedeEditar, rol, espacios = [
       {c && c.escaleras.length > 0 && (
         <p className="text-sm" data-testid="escaleras-resumen">
           Total: {c.totales.peldanos} peldaños · {num(c.totales.escalones_de_catalogo)} escalones de 1.20 m
+          {c.totales.peldanos_de_abanico > 0 && ` · ${c.totales.peldanos_de_abanico} de abanico`}
           {c.totales.area_de_descanso_m2 > 0 && ` · descanso ${num(c.totales.area_de_descanso_m2)} m²`}
           {c.totales.conceptos.length > 0 && ' · '}
           {c.totales.conceptos.map((k) => `${k.concepto.clave} ${num(k.cantidad)} ${unidadVisible(k.unidad)}`).join(' · ')}
@@ -331,6 +335,7 @@ function FilaDeLaEscalera({
           {NOMBRE_DEL_ORIGEN_DE_COTA[e.origen_de_cotas.llegada]}) · {r.geometria.peldanos} peldaños · contrahuella {num(r.geometria.contrahuella_m * 100, 1)} cm · huella{' '}
           {num(r.geometria.huella_m * 100, 1)} cm · {r.geometria.rampas.length} {r.geometria.rampas.length === 1 ? 'rampa' : 'rampas'}
           {r.geometria.descansos > 0 && ` · descanso ${num(r.geometria.area_de_descanso_m2)} m²`}
+          {r.geometria.peldanos_de_abanico > 0 && ` · ${r.geometria.peldanos_de_abanico} de abanico y ${r.geometria.peldanos_rectos} rectos`}
           {' · '}
           {r.conceptos.map((k) => `${num(k.cantidad)} ${unidadVisible(k.unidad)} de ${k.concepto.clave}`).join(' · ')}
         </p>
@@ -425,6 +430,8 @@ function FilaDeLaEscalera({
           </tbody>
         </table>
       )}
+      <DescansosDeLaEscalera e={e} numero={numero} puedeEditar={puedeEditar} onCambio={onCambio} onError={onError} />
+      <AbanicosDeLaEscalera e={e} numero={numero} puedeEditar={puedeEditar} onCambio={onCambio} onError={onError} />
       {e.conciliacion && (
         <div data-testid="conciliacion-de-la-escalera" data-concepto-conciliado={e.conciliacion.concepto.clave}>
           <p className="text-xs">

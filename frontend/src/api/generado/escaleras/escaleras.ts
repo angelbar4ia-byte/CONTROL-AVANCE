@@ -26,10 +26,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AbanicosDeLaEscaleraPeticion,
   CalculoDeLaEscaleraPeticion,
   CalculoDeLasEscalerasApiV1ZonasDeLosaZonaIdEscalerasCalculoGetParams,
   CalculoDeLasEscalerasDeLaZona,
   DefinicionDeLaEscalera,
+  DescansosDeLaEscaleraPeticion,
   EscaleraCalculada,
   EscaleraDeLaZona,
   EscaleraDeLaZonaPeticion,
@@ -2075,6 +2077,252 @@ export const useQuitarEscaleraApiV1EscalerasDeZonaEscaleraIdDelete = <
 > => {
   const mutationOptions =
     getQuitarEscaleraApiV1EscalerasDeZonaEscaleraIdDeleteMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Dejar como únicos descansos propios de la escalera los que vienen (solo Control de obra; vacío = vuelve al descanso implícito)
+ */
+export const cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut = (
+  escaleraId: string,
+  descansosDeLaEscaleraPeticion: DescansosDeLaEscaleraPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<EscaleraDeLaZona>(
+    {
+      url: `/api/v1/escaleras-de-zona/${escaleraId}/descansos`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: descansosDeLaEscaleraPeticion,
+    },
+    options,
+  );
+};
+
+export const getCambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut
+        >
+      >,
+      TError,
+      { escaleraId: string; data: DescansosDeLaEscaleraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut
+      >
+    >,
+    TError,
+    { escaleraId: string; data: DescansosDeLaEscaleraPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut
+        >
+      >,
+      { escaleraId: string; data: DescansosDeLaEscaleraPeticion }
+    > = (props) => {
+      const { escaleraId, data } = props ?? {};
+
+      return cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut(
+        escaleraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut
+      >
+    >
+  >;
+export type CambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPutMutationBody =
+  DescansosDeLaEscaleraPeticion;
+export type CambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPutMutationError =
+  void;
+
+/**
+ * @summary Dejar como únicos descansos propios de la escalera los que vienen (solo Control de obra; vacío = vuelve al descanso implícito)
+ */
+export const useCambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut
+        >
+      >,
+      TError,
+      { escaleraId: string; data: DescansosDeLaEscaleraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof cambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut
+    >
+  >,
+  TError,
+  { escaleraId: string; data: DescansosDeLaEscaleraPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Dejar como únicos grupos de escalones de abanico de la escalera los que vienen (solo Control de obra; vacío = quita todos)
+ */
+export const cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut = (
+  escaleraId: string,
+  abanicosDeLaEscaleraPeticion: AbanicosDeLaEscaleraPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<EscaleraDeLaZona>(
+    {
+      url: `/api/v1/escaleras-de-zona/${escaleraId}/abanicos`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: abanicosDeLaEscaleraPeticion,
+    },
+    options,
+  );
+};
+
+export const getCambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut
+        >
+      >,
+      TError,
+      { escaleraId: string; data: AbanicosDeLaEscaleraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut
+      >
+    >,
+    TError,
+    { escaleraId: string; data: AbanicosDeLaEscaleraPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut
+        >
+      >,
+      { escaleraId: string; data: AbanicosDeLaEscaleraPeticion }
+    > = (props) => {
+      const { escaleraId, data } = props ?? {};
+
+      return cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut(
+        escaleraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut
+      >
+    >
+  >;
+export type CambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPutMutationBody =
+  AbanicosDeLaEscaleraPeticion;
+export type CambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPutMutationError =
+  void;
+
+/**
+ * @summary Dejar como únicos grupos de escalones de abanico de la escalera los que vienen (solo Control de obra; vacío = quita todos)
+ */
+export const useCambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut
+        >
+      >,
+      TError,
+      { escaleraId: string; data: AbanicosDeLaEscaleraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof cambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut>
+  >,
+  TError,
+  { escaleraId: string; data: AbanicosDeLaEscaleraPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPutMutationOptions(
       options,
     );
 
