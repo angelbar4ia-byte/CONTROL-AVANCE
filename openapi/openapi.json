@@ -33247,7 +33247,7 @@
               }
             ],
             "title": "Cota Corona M",
-            "description": "Cota de la corona; sin ella vale el piso de la zona."
+            "description": "Cota de la corona; sin ella vale el arranque de la cadena de desplante (piso de la zona − peralte de la cadena, 20 cm). Una cota tecleada manda."
           },
           "caras": {
             "type": "integer",
@@ -56051,9 +56051,11 @@
             "type": "string",
             "enum": [
               "explicita",
+              "cadena_de_desplante",
               "zona"
             ],
-            "title": "Corona"
+            "title": "Corona",
+            "description": "`cadena_de_desplante` (defecto desde C1): piso de la zona − peralte de la cadena de desplante. `zona` (piso de la zona) ya no se emite; se conserva por compatibilidad del contrato."
           }
         },
         "type": "object",

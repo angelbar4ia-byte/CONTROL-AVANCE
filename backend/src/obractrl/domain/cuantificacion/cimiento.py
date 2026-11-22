@@ -9,7 +9,9 @@ ya existen). Este módulo no vuelve a calcular el muro: **reutiliza** `calcular_
 
 - **Cota de desplante**: la del fondo del cimiento (negativa bajo el piso de PB). Se teclea, o se toma de un **punto de nivel exterior** del plano (medición derivada: si el
   punto cambia, el cimiento cambia). La tecleada manda.
-- **Cota de la corona**: la tecleada o, sin ella, el piso de la zona (``cota_piso_m``).
+- **Cota de la corona** (decisión C1, 2026-11-22): la tecleada o, sin ella, el **arranque de la cadena de desplante**: la cadena de desplante se ahoga al piso terminado de la
+  zona, así que su arranque (la cara baja, donde se apoya sobre la mampostería) queda un peralte por debajo de ``cota_piso_m``. El peralte es el de la cadena de desplante de la
+  biblioteca (``BAP-03010``, 20 cm): ``corona = cota_piso_m − 0.20``. Una cota tecleada manda siempre (y teclear el piso de la zona reproduce el criterio anterior).
 - **Longitud**: la de la línea del plano (con la escala), derivada al calcular; no se guarda.
 - Se paga con el concepto **existente** MCT-01011 por m³ (regla F7: no hay concepto nuevo), el mismo del muro de contención. No lleva dren, filtro de grava ni carpeta (los de la
   contención no se tocan). Las dalas, castillos empotrados y cimientos perpendiculares de la norma 8.4 se miden aparte (D12).
@@ -23,6 +25,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from obractrl.domain.cuantificacion.estructura_de_catalogo import ELEMENTOS_DE_ESTRUCTURA
 from obractrl.domain.cuantificacion.muro_cimentacion import (
     CLAVE_ELEMENTO,
     EntradaMuroDeCimentacion,
@@ -37,16 +40,28 @@ from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
     "CLAVE_DE_CIMIENTO",
+    "CLAVE_DE_LA_CADENA_DE_DESPLANTE",
     "CONCEPTO_DE_CIMIENTO",
     "PENDIENTES",
+    "PERALTE_DE_LA_CADENA_DE_DESPLANTE_M",
     "EntradaCimiento",
     "ErrorDeCimiento",
     "calcular_cimiento",
+    "corona_por_defecto",
     "elemento_de_cimiento",
 ]
 
 CLAVE_DE_CIMIENTO = CLAVE_ELEMENTO
 """``CIM-01010``: el mismo elemento de la biblioteca (Muros de cimentación › Mampostería de piedra); aquí se coloca en el plano."""
+
+CLAVE_DE_LA_CADENA_DE_DESPLANTE = "BAP-03010"
+"""La cadena de desplante de la biblioteca de la que sale el peralte con que se arranca la corona del cimiento (C1)."""
+
+_PERALTE_CM = ELEMENTOS_DE_ESTRUCTURA[CLAVE_DE_LA_CADENA_DE_DESPLANTE].peralte_cm
+assert _PERALTE_CM is not None
+PERALTE_DE_LA_CADENA_DE_DESPLANTE_M = round(_PERALTE_CM / 100.0, 4)
+"""El peralte (m) de la cadena de desplante de la biblioteca: 0.20 m. Es dato de la biblioteca, no un driver ni una columna (aditivo, sin migración); `corona_cimiento_cm` es el ANCHO de la
+corona de la sección (40 cm, fijo) y no es una cota."""
 
 CONCEPTO_DE_CIMIENTO: dict[str, Any] = {
     "clave": CLAVE_CONCEPTO, "descripcion": DESCRIPCION_CONCEPTO, "unidad": "m3", "estado": "catalogo", "provisional": False,
@@ -55,9 +70,9 @@ CONCEPTO_DE_CIMIENTO: dict[str, Any] = {
 
 PENDIENTES: tuple[dict[str, str], ...] = (
     {
-        "clave": "C1",
-        "texto": "El material del usuario no da la cota de desplante ni la de la corona. Se teclean (o el desplante sale de un punto de nivel exterior); la corona vale el piso de "
-        "la zona si no se dice. ¿La corona es el piso terminado, el arranque de la cadena de desplante u otro nivel?",
+        "clave": "C1b",
+        "texto": "C1 resuelta (2026-11-22): la corona por defecto es el arranque de la cadena de desplante = piso de la zona − peralte de la cadena de desplante (BAP-03010, 20 cm). "
+        "Queda por confirmar que la cadena de desplante se ahoga al piso terminado (su cara alta a la cota del piso) y que su peralte en la obra es el de la biblioteca; si no, se teclea la corona.",
     },
     {
         "clave": "C2",
@@ -95,6 +110,11 @@ class EntradaCimiento:
     caras: int = 1
     dentellon: bool = False
     espacio_id: str | None = None
+
+
+def corona_por_defecto(cota_piso_m: float) -> float:
+    """La cota de la corona cuando no se teclea: el arranque de la cadena de desplante (piso de la zona − peralte de la cadena)."""
+    return round(cota_piso_m - PERALTE_DE_LA_CADENA_DE_DESPLANTE_M, 6)
 
 
 def elemento_de_cimiento(clave: str) -> bool:

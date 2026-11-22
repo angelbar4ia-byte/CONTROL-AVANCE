@@ -107,3 +107,17 @@ def test_la_losa_de_cimentacion_es_maciza_y_su_concepto_se_propone_con_clave_pro
     assert (p["elemento_clave"], p["concepto_clave"], p["clase"]) == ("LOSA-MACIZA", "EJ-802", "concepto_nuevo")
     assert p["detalle"]["toma"]["cimbra"] is False and "CON-00001" in p["detalle"]["insumos"] and "MAD-00001" not in p["detalle"]["insumos"]
     assert concepto_nuevo_de_losa("maciza")["concepto_clave"] == "EJ-800"
+
+
+def test_c1_la_corona_por_defecto_es_el_arranque_de_la_cadena_de_desplante() -> None:
+    from obractrl.domain.cuantificacion.cimiento import (
+        PERALTE_DE_LA_CADENA_DE_DESPLANTE_M,
+        corona_por_defecto,
+    )
+
+    assert pytest.approx(0.20) == PERALTE_DE_LA_CADENA_DE_DESPLANTE_M  # el peralte de BAP-03010
+    assert corona_por_defecto(0.0) == pytest.approx(-0.20) and corona_por_defecto(2.5) == pytest.approx(2.30)
+    # Una cota tecleada manda: teclear el piso reproduce el criterio anterior (altura 0.80), el defecto da 0.60.
+    assert _cimiento(-0.8, 0.0)["cotas"]["altura_m"] == pytest.approx(0.8)
+    assert _cimiento(-0.8, corona_por_defecto(0.0))["cotas"]["altura_m"] == pytest.approx(0.6)
+    assert not any(p["clave"] == "C1" for p in _cimiento()["pendientes"])

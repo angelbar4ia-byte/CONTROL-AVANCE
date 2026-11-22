@@ -7,6 +7,6 @@
  */
 
 /**
- * Cota de la corona; sin ella vale el piso de la zona.
+ * Cota de la corona; sin ella vale el arranque de la cadena de desplante (piso de la zona − peralte de la cadena, 20 cm). Una cota tecleada manda.
  */
 export type CimientoDeLaZonaPeticionCotaCoronaM = number | null;

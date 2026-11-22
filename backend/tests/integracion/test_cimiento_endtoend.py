@@ -10,6 +10,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from obractrl.domain.cuantificacion.muro_cimentacion import (
+    EntradaMuroDeCimentacion,
+    calcular_muro_de_cimentacion,
+)
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
 from tests.integracion.test_espacios_endtoend import (  # noqa: F401
     _espacio,
@@ -94,14 +98,16 @@ async def test_el_cimiento_toma_su_altura_de_las_cotas_y_su_longitud_de_la_linea
     c = await _calculo(control, z["id"])
     [e] = c["cimientos"]
     assert c["escala_definida"] is False and e["longitud_m"] == pytest.approx(10.0)
-    assert e["origen_de_cotas"] == {"desplante": "explicita", "corona": "zona"}
-    assert e["calculo"]["cotas"] == {"desplante_m": -0.8, "corona_m": 0.0, "altura_m": pytest.approx(0.8)}
-    assert e["calculo"]["volumen_m3"] == pytest.approx(0.532 * 10) and any("no tiene escala calibrada" in a for a in e["calculo"]["advertencias"])
-    assert c["totales"]["conceptos"][0]["concepto"]["clave"] == "MCT-01011" and c["totales"]["volumen_m3"] == pytest.approx(5.32)
+    assert e["origen_de_cotas"] == {"desplante": "explicita", "corona": "cadena_de_desplante"}
+    # C1: sin corona tecleada, la corona es el arranque de la cadena de desplante (piso 0 − peralte 0.20): altura 0.60, no 0.80.
+    assert e["calculo"]["cotas"] == {"desplante_m": -0.8, "corona_m": -0.2, "altura_m": pytest.approx(0.6)}
+    por_metro = calcular_muro_de_cimentacion(EntradaMuroDeCimentacion(alto_m=0.6))["volumen"]["total_m3_ml"]
+    assert e["calculo"]["volumen_m3"] == pytest.approx(por_metro * 10) and any("no tiene escala calibrada" in a for a in e["calculo"]["advertencias"])
+    assert c["totales"]["conceptos"][0]["concepto"]["clave"] == "MCT-01011" and c["totales"]["volumen_m3"] == pytest.approx(por_metro * 10)
     # Medición derivada: al calibrar la escala (2 m por unidad) la línea mide el doble y el cimiento con ella, sin tocar el cimiento.
     await _calibrar(control, plano, "8")
     [e] = (await _calculo(control, z["id"]))["cimientos"]
-    assert e["longitud_m"] == pytest.approx(20.0) and e["calculo"]["volumen_m3"] == pytest.approx(0.532 * 20)
+    assert e["longitud_m"] == pytest.approx(20.0) and e["calculo"]["volumen_m3"] == pytest.approx(por_metro * 20)
     # Cambiar: corona tecleada, dos caras y dentellón; sin `espacio_id` conserva su espacio.
     cambiado = await control.put(f"{API}/cimientos-de-zona/{nuevo['id']}", json={"trazo_id": linea, "cota_desplante_m": -2.5, "cota_corona_m": 0.0, "caras": 2, "dentellon": True})
     assert cambiado.status_code == 200, cambiado.text
@@ -124,7 +130,7 @@ async def test_el_desplante_puede_salir_de_un_punto_de_nivel_exterior_y_el_cimie
     # Si el punto cambia de cota el cimiento cambia solo; la cota tecleada manda sobre el punto.
     assert (await control.put(f"{API}/trazos/{punto}/nivel-exterior", json={"cota_m": "-1.00", "rotulo": "Desplante CIM-1"})).status_code == 200
     [e] = (await _calculo(control, z["id"]))["cimientos"]
-    assert e["calculo"]["cotas"]["altura_m"] == pytest.approx(1.0) and e["calculo"]["volumen_m3"] > 0
+    assert e["calculo"]["cotas"]["altura_m"] == pytest.approx(0.8) and e["calculo"]["volumen_m3"] > 0
     cimiento = r.json()
     r = await control.put(f"{API}/cimientos-de-zona/{cimiento['id']}", json={"trazo_id": linea, "punto_nivel_id": punto, "cota_desplante_m": -1.5})
     assert r.status_code == 200
@@ -144,7 +150,7 @@ async def test_una_corona_por_debajo_del_desplante_se_avisa_y_lo_que_no_vale_se_
     plano, z = await _zona_de_cimentacion(control, escenario)
     otro_plano = (await control.post(f"{API}/obras/{escenario.obra_id}/planos", json={"nombre": "Otro", "archivo_url": "e2e/o.pdf"})).json()["id"]
     linea, segunda = await _trazo(control, plano, "LINESTRING(0 0, 5 0)"), await _trazo(control, plano, "LINESTRING(0 2, 5 2)")
-    r = await control.post(_cimientos(z["id"]), json={"trazo_id": linea, "cota_desplante_m": 0.5})  # el piso de la zona (0) queda bajo el desplante
+    r = await control.post(_cimientos(z["id"]), json={"trazo_id": linea, "cota_desplante_m": 0.5})  # el arranque de la cadena (−0.20) queda bajo el desplante
     assert r.status_code == 201
     c = await _calculo(control, z["id"])
     assert "por encima" in c["cimientos"][0]["error"] and c["cimientos"][0]["calculo"] is None
@@ -220,7 +226,7 @@ async def test_el_cimiento_de_cada_espacio_se_escribe_en_la_partida_de_ese_espac
     a = (await control.post(_cimientos(z["id"]), json={"trazo_id": norte, "cota_desplante_m": -0.8})).json()
     assert await _medido(control, escenario, de_1["actividad"]) is None  # sin espacio no se escribe
     assert (await _calculo(control, z["id"]))["por_espacio"][0]["conceptos"][0]["resolucion"]["estado"] == "sin_espacio"
-    por_metro = 0.532
+    por_metro = calcular_muro_de_cimentacion(EntradaMuroDeCimentacion(alto_m=0.6))["volumen"]["total_m3_ml"]  # C1: corona −0.20
     assert (await control.put(f"{API}/cimientos-de-zona/{a['id']}", json={"trazo_id": norte, "cota_desplante_m": -0.8, "espacio_id": e1["id"]})).status_code == 200
     assert await _medido(control, escenario, de_1["actividad"]) == pytest.approx(por_metro * 4)
     b = await control.post(_cimientos(z["id"]), json={"trazo_id": sur, "cota_desplante_m": -0.8, "espacio_id": e2["id"]})
