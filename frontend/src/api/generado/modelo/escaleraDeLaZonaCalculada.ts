@@ -9,6 +9,8 @@ import type { EscaleraDeLaZonaCalculadaTrazoId } from "./escaleraDeLaZonaCalcula
 import type { EscaleraDeLaZonaCalculadaEspacioId } from "./escaleraDeLaZonaCalculadaEspacioId";
 import type { EscaleraDeLaZonaCalculadaZonaLlegadaId } from "./escaleraDeLaZonaCalculadaZonaLlegadaId";
 import type { OrigenDeLasCotas } from "./origenDeLasCotas";
+import type { DescansoDeLaEscalera } from "./descansoDeLaEscalera";
+import type { AbanicoDeLaEscalera } from "./abanicoDeLaEscalera";
 import type { EscaleraDeLaZonaCalculadaError } from "./escaleraDeLaZonaCalculadaError";
 import type { EscaleraDeLaZonaCalculadaCalculo } from "./escaleraDeLaZonaCalculadaCalculo";
 import type { EscaleraDeLaZonaCalculadaConciliacion } from "./escaleraDeLaZonaCalculadaConciliacion";
@@ -19,6 +21,10 @@ export interface EscaleraDeLaZonaCalculada {
   espacio_id: EscaleraDeLaZonaCalculadaEspacioId;
   zona_llegada_id: EscaleraDeLaZonaCalculadaZonaLlegadaId;
   origen_de_cotas: OrigenDeLasCotas;
+  /** Los descansos propios de la escalera (filas editables). */
+  descansos?: DescansoDeLaEscalera[];
+  /** Los grupos de abanico de la escalera (filas editables). */
+  abanicos?: AbanicoDeLaEscalera[];
   /** Si un dato de la escalera o de las zonas no vale (p. ej. la llegada quedó por debajo del arranque): el motivo; sin él no hay cálculo. */
   error: EscaleraDeLaZonaCalculadaError;
   calculo: EscaleraDeLaZonaCalculadaCalculo;

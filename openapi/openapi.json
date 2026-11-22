@@ -17100,6 +17100,114 @@
         }
       }
     },
+    "/api/v1/escaleras-de-zona/{escalera_id}/descansos": {
+      "put": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Dejar como únicos descansos propios de la escalera los que vienen (solo Control de obra; vacío = vuelve al descanso implícito)",
+        "operationId": "cambiar_descansos_api_v1_escaleras_de_zona__escalera_id__descansos_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "escalera_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Escalera Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescansosDeLaEscaleraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscaleraDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Una posición, un giro, una medida o un polígono no valen, o el cambio deja la escalera sin poder calcularse."
+          },
+          "404": {
+            "description": "No existe esa escalera."
+          }
+        }
+      }
+    },
+    "/api/v1/escaleras-de-zona/{escalera_id}/abanicos": {
+      "put": {
+        "tags": [
+          "escaleras"
+        ],
+        "summary": "Dejar como únicos grupos de escalones de abanico de la escalera los que vienen (solo Control de obra; vacío = quita todos)",
+        "operationId": "cambiar_abanicos_api_v1_escaleras_de_zona__escalera_id__abanicos_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "escalera_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Escalera Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbanicosDeLaEscaleraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscaleraDeLaZona"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Una posición, un fondo o un radio no valen, o los escalones de abanico no caben en los peldaños de la escalera."
+          },
+          "404": {
+            "description": "No existe esa escalera."
+          }
+        }
+      }
+    },
     "/api/v1/zonas-de-losa/{zona_id}/escaleras/calculo": {
       "get": {
         "tags": [
@@ -24962,6 +25070,221 @@
   },
   "components": {
     "schemas": {
+      "AbanicoCalculado": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "posicion": {
+            "type": "integer",
+            "title": "Posicion"
+          },
+          "escalones": {
+            "type": "integer",
+            "title": "Escalones"
+          },
+          "ancho_interior_m": {
+            "type": "number",
+            "title": "Ancho Interior M"
+          },
+          "ancho_exterior_m": {
+            "type": "number",
+            "title": "Ancho Exterior M"
+          },
+          "radio_huella_m": {
+            "type": "number",
+            "title": "Radio Huella M"
+          },
+          "huella_en_la_linea_m": {
+            "type": "number",
+            "title": "Huella En La Linea M",
+            "description": "El fondo del peldaño a `radio_huella_m` del borde interior: la huella que se compara con la de referencia."
+          },
+          "ancho_medio_m": {
+            "type": "number",
+            "title": "Ancho Medio M",
+            "description": "Promedio de los fondos del borde interior y del exterior."
+          },
+          "angulo_por_escalon_grados": {
+            "type": "number",
+            "title": "Angulo Por Escalon Grados"
+          },
+          "giro_total_grados": {
+            "type": "number",
+            "title": "Giro Total Grados",
+            "description": "Lo que gira el grupo: escalones × ángulo por escalón (debería cerrar 90° o 180°)."
+          },
+          "radio_interior_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radio Interior M",
+            "description": "Distancia del vértice del abanico al borde interior; `null` si los dos bordes miden igual (no gira)."
+          },
+          "area_en_planta_m2": {
+            "type": "number",
+            "title": "Area En Planta M2"
+          },
+          "superficie_m2": {
+            "type": "number",
+            "title": "Superficie M2",
+            "description": "Área en planta × la inclinación de la línea de huella."
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "escalones_de_catalogo": {
+            "type": "number",
+            "title": "Escalones De Catalogo",
+            "description": "Piezas de EST-01510 del grupo: ancho × fondo medio × escalones ÷ (1.20 × huella de referencia)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "posicion",
+          "escalones",
+          "ancho_interior_m",
+          "ancho_exterior_m",
+          "radio_huella_m",
+          "huella_en_la_linea_m",
+          "ancho_medio_m",
+          "angulo_por_escalon_grados",
+          "giro_total_grados",
+          "radio_interior_m",
+          "area_en_planta_m2",
+          "superficie_m2",
+          "volumen_m3",
+          "escalones_de_catalogo"
+        ],
+        "title": "AbanicoCalculado"
+      },
+      "AbanicoDeLaEscalera": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "posicion": {
+            "type": "integer",
+            "title": "Posicion"
+          },
+          "escalones": {
+            "type": "integer",
+            "title": "Escalones"
+          },
+          "ancho_interior_m": {
+            "type": "number",
+            "title": "Ancho Interior M"
+          },
+          "ancho_exterior_m": {
+            "type": "number",
+            "title": "Ancho Exterior M"
+          },
+          "radio_huella_m": {
+            "type": "number",
+            "title": "Radio Huella M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "posicion",
+          "escalones",
+          "ancho_interior_m",
+          "ancho_exterior_m",
+          "radio_huella_m"
+        ],
+        "title": "AbanicoDeLaEscalera"
+      },
+      "AbanicoDeLaPeticion": {
+        "properties": {
+          "posicion": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 0.0,
+            "title": "Posicion",
+            "description": "0 = antes de la 1.ª rampa; k = tras la rampa k."
+          },
+          "escalones": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Escalones",
+            "description": "Escalones de abanico del grupo: forman parte de los peldaños del desnivel."
+          },
+          "ancho_interior_m": {
+            "type": "number",
+            "maximum": 0.6,
+            "minimum": 0.02,
+            "title": "Ancho Interior M",
+            "description": "El fondo del peldaño en el borde interior (m)."
+          },
+          "ancho_exterior_m": {
+            "type": "number",
+            "maximum": 0.8,
+            "minimum": 0.1,
+            "title": "Ancho Exterior M",
+            "description": "El fondo del peldaño en el borde exterior (m); no menor que el interior. Su largo es el ancho de la escalera."
+          },
+          "radio_huella_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 0.1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radio Huella M",
+            "description": "Distancia del borde interior a la línea de huella; sin él, 0.35 m (supuesto editable: el material dice 30 a 40 cm)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicion",
+          "escalones",
+          "ancho_interior_m",
+          "ancho_exterior_m"
+        ],
+        "title": "AbanicoDeLaPeticion"
+      },
+      "AbanicosDeLaEscaleraPeticion": {
+        "properties": {
+          "abanicos": {
+            "items": {
+              "$ref": "#/components/schemas/AbanicoDeLaPeticion"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Abanicos",
+            "description": "Los únicos grupos de abanico; vacío = quita todos."
+          }
+        },
+        "type": "object",
+        "required": [
+          "abanicos"
+        ],
+        "title": "AbanicosDeLaEscaleraPeticion"
+      },
       "AbrirIncidenciaPeticion": {
         "properties": {
           "obra_id": {
@@ -28730,6 +29053,24 @@
             ],
             "title": "Espacio Id",
             "description": "Una etiqueta de espacio para toda la escalera (0143)."
+          },
+          "descansos": {
+            "items": {
+              "$ref": "#/components/schemas/DescansoSuelto"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Descansos",
+            "description": "Descansos propios (Fase 4d); una posición sin descanso conserva el implícito."
+          },
+          "abanicos": {
+            "items": {
+              "$ref": "#/components/schemas/AbanicoDeLaPeticion"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Abanicos",
+            "description": "Grupos de escalones de abanico (Fase 4d): forman parte de los peldaños del desnivel."
           }
         },
         "type": "object",
@@ -39081,6 +39422,19 @@
           "parametros_por_defecto": {
             "$ref": "#/components/schemas/ParametrosDeLaEscalera"
           },
+          "radio_de_huella_por_defecto_m": {
+            "type": "number",
+            "title": "Radio De Huella Por Defecto M",
+            "description": "Supuesto editable: la línea de huella de un escalón de abanico se mide a esta distancia del borde interior."
+          },
+          "giros_de_descanso": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Giros De Descanso",
+            "description": "Los giros que admite un descanso: 0, 90 y 180 grados."
+          },
           "composicion_del_escalon": {
             "items": {
               "$ref": "#/components/schemas/InsumoDeLaFichaDeLaEscalera"
@@ -39121,6 +39475,8 @@
           "concepto_del_descanso",
           "largo_base_del_escalon_m",
           "parametros_por_defecto",
+          "radio_de_huella_por_defecto_m",
+          "giros_de_descanso",
           "composicion_del_escalon",
           "parrilla_por_m2",
           "destajos_candidatos",
@@ -40058,6 +40414,363 @@
         ],
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
+      },
+      "DescansoCalculado": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "posicion": {
+            "type": "integer",
+            "title": "Posicion"
+          },
+          "giro_grados": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  0,
+                  90,
+                  180
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Giro Grados",
+            "description": "`null` = el descanso implícito (sin fila propia: no dice su giro)."
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M",
+            "description": "`null` si el área sale de un polígono del plano."
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M",
+            "description": "`null` si el área sale de un polígono del plano."
+          },
+          "espesor_m": {
+            "type": "number",
+            "title": "Espesor M"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2"
+          },
+          "volumen_m3": {
+            "type": "number",
+            "title": "Volumen M3"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "implicito",
+              "dimensiones",
+              "plano"
+            ],
+            "title": "Origen",
+            "description": "De dónde sale el área: el descanso implícito de 4a, sus dimensiones o un polígono del plano."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "posicion",
+          "giro_grados",
+          "largo_m",
+          "ancho_m",
+          "espesor_m",
+          "area_m2",
+          "volumen_m3",
+          "origen"
+        ],
+        "title": "DescansoCalculado"
+      },
+      "DescansoDeLaEscalera": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "posicion": {
+            "type": "integer",
+            "title": "Posicion"
+          },
+          "giro_grados": {
+            "type": "integer",
+            "enum": [
+              0,
+              90,
+              180
+            ],
+            "title": "Giro Grados"
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M"
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M"
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "posicion",
+          "giro_grados",
+          "largo_m",
+          "ancho_m",
+          "espesor_m",
+          "trazo_id"
+        ],
+        "title": "DescansoDeLaEscalera"
+      },
+      "DescansoDeLaPeticion": {
+        "properties": {
+          "posicion": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Posicion",
+            "description": "Entre la rampa k y la k+1 (1 = entre la 1.ª y la 2.ª)."
+          },
+          "giro_grados": {
+            "type": "integer",
+            "enum": [
+              0,
+              90,
+              180
+            ],
+            "title": "Giro Grados",
+            "description": "El giro del recorrido en el descanso: 0 recto, 90 cambio de dirección, 180 vuelta.",
+            "default": 90
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 6.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M",
+            "description": "En el sentido de la marcha; sin él, el largo del descanso de la escalera o su ancho."
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 6.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M",
+            "description": "Transversal; sin él, el ancho de la escalera (el doble si gira 180°)."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.5,
+                "minimum": 0.05
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Sin él, el espesor de la escalera."
+          },
+          "trazo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trazo Id",
+            "description": "Un polígono del plano: su área (con la escala, al calcular) manda sobre largo × ancho. Un polígono no sirve a dos descansos ni puede ser una losa."
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicion"
+        ],
+        "title": "DescansoDeLaPeticion"
+      },
+      "DescansoSuelto": {
+        "properties": {
+          "posicion": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Posicion",
+            "description": "Entre la rampa k y la k+1 (1 = entre la 1.ª y la 2.ª)."
+          },
+          "giro_grados": {
+            "type": "integer",
+            "enum": [
+              0,
+              90,
+              180
+            ],
+            "title": "Giro Grados",
+            "description": "El giro del recorrido en el descanso: 0 recto, 90 cambio de dirección, 180 vuelta.",
+            "default": 90
+          },
+          "largo_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 6.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largo M",
+            "description": "En el sentido de la marcha; sin él, el largo del descanso de la escalera o su ancho."
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 6.0,
+                "minimum": 0.4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M",
+            "description": "Transversal; sin él, el ancho de la escalera (el doble si gira 180°)."
+          },
+          "espesor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.5,
+                "minimum": 0.05
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Espesor M",
+            "description": "Sin él, el espesor de la escalera."
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2",
+            "description": "El área medida (lo que daría un polígono del plano): manda sobre largo × ancho."
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicion"
+        ],
+        "title": "DescansoSuelto"
+      },
+      "DescansosDeLaEscaleraPeticion": {
+        "properties": {
+          "descansos": {
+            "items": {
+              "$ref": "#/components/schemas/DescansoDeLaPeticion"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Descansos",
+            "description": "Los únicos descansos propios; vacío = quita todos y vuelve al descanso implícito."
+          }
+        },
+        "type": "object",
+        "required": [
+          "descansos"
+        ],
+        "title": "DescansosDeLaEscaleraPeticion"
       },
       "DescripcionDelConceptoPeticion": {
         "properties": {
@@ -44049,6 +44762,22 @@
               }
             ],
             "title": "Espacio Id"
+          },
+          "descansos": {
+            "items": {
+              "$ref": "#/components/schemas/DescansoDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Descansos",
+            "description": "Los descansos propios (Fase 4d); una posición sin fila conserva el descanso implícito."
+          },
+          "abanicos": {
+            "items": {
+              "$ref": "#/components/schemas/AbanicoDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Abanicos",
+            "description": "Los grupos de escalones de abanico (Fase 4d)."
           }
         },
         "type": "object",
@@ -44116,6 +44845,22 @@
           },
           "origen_de_cotas": {
             "$ref": "#/components/schemas/OrigenDeLasCotas"
+          },
+          "descansos": {
+            "items": {
+              "$ref": "#/components/schemas/DescansoDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Descansos",
+            "description": "Los descansos propios de la escalera (filas editables)."
+          },
+          "abanicos": {
+            "items": {
+              "$ref": "#/components/schemas/AbanicoDeLaEscalera"
+            },
+            "type": "array",
+            "title": "Abanicos",
+            "description": "Los grupos de abanico de la escalera (filas editables)."
           },
           "error": {
             "anyOf": [
@@ -47733,7 +48478,16 @@
         "properties": {
           "peldanos": {
             "type": "integer",
-            "title": "Peldanos"
+            "title": "Peldanos",
+            "description": "Los del desnivel: los rectos más los de abanico (no se cuentan dos veces)."
+          },
+          "peldanos_rectos": {
+            "type": "integer",
+            "title": "Peldanos Rectos"
+          },
+          "peldanos_de_abanico": {
+            "type": "integer",
+            "title": "Peldanos De Abanico"
           },
           "origen_de_peldanos": {
             "type": "string",
@@ -47801,15 +48555,52 @@
             "type": "number",
             "title": "Volumen De Descanso M3"
           },
+          "descansos_detalle": {
+            "items": {
+              "$ref": "#/components/schemas/DescansoCalculado"
+            },
+            "type": "array",
+            "title": "Descansos Detalle"
+          },
+          "abanicos": {
+            "items": {
+              "$ref": "#/components/schemas/AbanicoCalculado"
+            },
+            "type": "array",
+            "title": "Abanicos"
+          },
+          "area_de_abanico_m2": {
+            "type": "number",
+            "title": "Area De Abanico M2"
+          },
+          "superficie_de_abanico_m2": {
+            "type": "number",
+            "title": "Superficie De Abanico M2"
+          },
+          "volumen_de_abanico_m3": {
+            "type": "number",
+            "title": "Volumen De Abanico M3"
+          },
+          "escalones_rectos_de_catalogo": {
+            "type": "number",
+            "title": "Escalones Rectos De Catalogo",
+            "description": "Peldaños rectos × ancho ÷ 1.20 m."
+          },
+          "escalones_de_abanico_de_catalogo": {
+            "type": "number",
+            "title": "Escalones De Abanico De Catalogo"
+          },
           "escalones_de_catalogo": {
             "type": "number",
             "title": "Escalones De Catalogo",
-            "description": "Peldaños × ancho ÷ 1.20 m: las piezas de EST-01510."
+            "description": "Las piezas de EST-01510: peldaños rectos × ancho ÷ 1.20 m más las de los escalones de abanico."
           }
         },
         "type": "object",
         "required": [
           "peldanos",
+          "peldanos_rectos",
+          "peldanos_de_abanico",
           "origen_de_peldanos",
           "contrahuella_m",
           "huella_m",
@@ -47823,6 +48614,13 @@
           "superficie_de_rampa_m2",
           "volumen_de_rampa_m3",
           "volumen_de_descanso_m3",
+          "descansos_detalle",
+          "abanicos",
+          "area_de_abanico_m2",
+          "superficie_de_abanico_m2",
+          "volumen_de_abanico_m3",
+          "escalones_rectos_de_catalogo",
+          "escalones_de_abanico_de_catalogo",
           "escalones_de_catalogo"
         ],
         "title": "GeometriaDeLaEscalera"
@@ -48816,7 +49614,8 @@
             "type": "string",
             "enum": [
               "rampa",
-              "descanso"
+              "descanso",
+              "abanico"
             ],
             "title": "Parte"
           },
@@ -64353,6 +65152,14 @@
             "type": "number",
             "title": "Area De Descanso M2"
           },
+          "peldanos_de_abanico": {
+            "type": "integer",
+            "title": "Peldanos De Abanico"
+          },
+          "area_de_abanico_m2": {
+            "type": "number",
+            "title": "Area De Abanico M2"
+          },
           "conceptos": {
             "items": {
               "$ref": "#/components/schemas/ConceptoDeLosTotalesDeEscaleras"
@@ -64366,6 +65173,8 @@
           "peldanos",
           "escalones_de_catalogo",
           "area_de_descanso_m2",
+          "peldanos_de_abanico",
+          "area_de_abanico_m2",
           "conceptos"
         ],
         "title": "TotalesDeLasEscaleras"

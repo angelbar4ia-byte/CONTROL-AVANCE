@@ -12,6 +12,9 @@ Medición derivada: una escalera puede tomar el recorrido horizontal de **una l�
 **al calcular**, no se guarda. Sin escala calibrada se toma 1 unidad de plano = 1 m y el cálculo lo dice. Solo Control de obra escribe escaleras (lo exige la API y también
 RLS); Costos o Control de obra proponen el concepto.
 
+Descansos propios y escalones de abanico (Fase 4d, migración 0148): se reemplazan por lista (`cambiar_descansos`, `cambiar_abanicos`), se prueban contra el cálculo antes de
+guardarse y entran al mismo cálculo y a las mismas tomas. Un polígono del plano da el área de UN descanso (la base lo impide) y no puede ser además una losa de la zona.
+
 Sin doble conteo: una línea del plano no sirve a dos escaleras (la base lo impide y `solapes_de_escaleras` también lo dice antes de escribir); la escalera y la losa se
 pagan con conceptos distintos y el hueco de la escalera ya se resta del área de la losa; cada escalera cae en **un** espacio.
 """
@@ -34,7 +37,10 @@ from obractrl.application.casos_uso.matriz_de_losa import (
 from obractrl.application.casos_uso.propuestas_de_losa import (
     GestionarPropuestasDeLosa,
 )
-from obractrl.application.casos_uso.zonas_de_losa import ZonaDeLosaNoEncontrada
+from obractrl.application.casos_uso.zonas_de_losa import (
+    ZonaDeLosaNoEncontrada,
+    _poligonos,
+)
 from obractrl.application.puertos.escalera_de_zona import RepositorioEscalerasDeZona
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.application.puertos.zonas_de_losa import RepositorioZonasDeLosa
@@ -45,15 +51,20 @@ from obractrl.domain.cuantificacion.comparacion_con_catalogo import (
 from obractrl.domain.cuantificacion.enlaces_de_ranura import Partida
 from obractrl.domain.cuantificacion.escalera import (
     CONCEPTO_DE_ESCALON,
+    AbanicoDeEscalera,
+    DescansoDeEscalera,
     EntradaEscalera,
     ErrorDeEscalera,
     calcular_escalera,
     concepto_nuevo_de_descanso,
     elemento_de_escalera,
     solapes_de_escaleras,
+    validar_abanico,
+    validar_descanso,
     validar_parametros,
 )
 from obractrl.domain.cuantificacion.espacios import resolver_matriz_por_espacio
+from obractrl.domain.cuantificacion.matriz_de_losa import area_de_poligonos
 
 __all__ = ["EscaleraNoEncontrada", "GestionarEscaleras", "GestionarPropuestasDeEscalera"]
 
@@ -67,6 +78,18 @@ class EscaleraNoEncontrada(ElementoParametricoNoEncontrado):
 
 def _numero(valor: Any) -> Any:
     return float(valor) if isinstance(valor, Decimal) else valor
+
+
+_DESCANSO = ("posicion", "giro_grados", "largo_m", "ancho_m", "espesor_m")
+_ABANICO = ("posicion", "escalones", "ancho_interior_m", "ancho_exterior_m", "radio_huella_m")
+
+
+def _descanso_visible(f: dict[str, Any]) -> dict[str, Any]:
+    return {"id": f["id"], "trazo_id": f.get("trazo_id"), **{c: _numero(f[c]) for c in _DESCANSO}}
+
+
+def _abanico_visible(f: dict[str, Any]) -> dict[str, Any]:
+    return {"id": f["id"], **{c: _numero(f[c]) for c in _ABANICO}}
 
 
 class GestionarPropuestasDeEscalera(GestionarPropuestasDeLosa):
@@ -142,7 +165,15 @@ class GestionarEscaleras:
 
     async def escaleras(self, zona_id: UUID) -> list[dict[str, Any]]:
         await self._zona(zona_id)
-        return [self._fila(f) for f in await self._escaleras.de_la_zona(zona_id)]
+        descansos = await self._escaleras.descansos_de_la_zona(zona_id)
+        abanicos = await self._escaleras.abanicos_de_la_zona(zona_id)
+        return [self._con_hijas(f, descansos, abanicos) for f in await self._escaleras.de_la_zona(zona_id)]
+
+    def _con_hijas(self, f: dict[str, Any], descansos: dict[UUID, list[dict[str, Any]]], abanicos: dict[UUID, list[dict[str, Any]]]) -> dict[str, Any]:
+        clave = UUID(str(f["id"]))
+        return {
+            **self._fila(f), "descansos": [_descanso_visible(d) for d in descansos.get(clave, [])], "abanicos": [_abanico_visible(a) for a in abanicos.get(clave, [])],
+        }
 
     async def _datos(
         self, zona: dict[str, Any], *, elemento_clave: str, zona_llegada_id: UUID | None, cota_arranque_m: float | None, cota_llegada_m: float | None,
@@ -203,7 +234,7 @@ class GestionarEscaleras:
         f = await self._escaleras.uno(escalera_id)
         if f is None:
             raise EscaleraNoEncontrada(f"La escalera {escalera_id} no existe o no está en tu alcance.")
-        return self._fila(f)
+        return self._con_hijas(f, await self._escaleras.descansos_de_la_zona(f["zona_id"]), await self._escaleras.abanicos_de_la_zona(f["zona_id"]))
 
     async def cambiar(
         self, escalera_id: UUID, *, elemento_clave: str, zona_llegada_id: UUID | None, cota_arranque_m: float | None, cota_llegada_m: float | None,
@@ -219,6 +250,14 @@ class GestionarEscaleras:
             zona, elemento_clave=elemento_clave, zona_llegada_id=zona_llegada_id, cota_arranque_m=cota_arranque_m, cota_llegada_m=cota_llegada_m,
             trazo_id=trazo_id, espacio_id=espacio_id, parametros=parametros, propia=escalera_id,
         )
+        # Bajar las rampas deja sin lugar a los descansos y abanicos de las posiciones que ya no existen: se rechaza con el motivo, en vez de dejar la escalera sin cálculo.
+        nuevas = int(datos["rampas"])
+        sobran = [d["posicion"] for d in (await self._escaleras.descansos_de_la_zona(f["zona_id"])).get(UUID(str(f["id"])), []) if d["posicion"] > nuevas - 1]
+        sobran += [a["posicion"] for a in (await self._escaleras.abanicos_de_la_zona(f["zona_id"])).get(UUID(str(f["id"])), []) if a["posicion"] > nuevas]
+        if sobran:
+            raise ErrorDeEscalera(
+                f"Con {nuevas} {'rampa' if nuevas == 1 else 'rampas'} quedarían descansos o abanicos en las posiciones {sorted(set(sobran))}, que ya no existen: quítalos o muévelos antes."
+            )
         async with self._uow:
             await self._escaleras.actualizar(escalera_id, datos)
             await self._resincronizar(zona["plano_id"])
@@ -234,6 +273,114 @@ class GestionarEscaleras:
             await self._escaleras.eliminar(escalera_id)
             await self._resincronizar(zona["plano_id"])
             await self._uow.commit()
+
+    # ── Descansos propios y escalones de abanico (0148) ─────────────────────────────────────────────────
+
+    def _entrada_de(
+        self, f: dict[str, Any], arranque: float, llegada: float, descansos: list[dict[str, Any]], abanicos: list[dict[str, Any]],
+        recorrido: float | None = None, areas: dict[str, float] | None = None,
+    ) -> EntradaEscalera:
+        areas = areas or {}
+        return EntradaEscalera(
+            cota_arranque_m=arranque, cota_llegada_m=llegada, recorrido_m=recorrido, espacio_id=str(f["espacio_id"]) if f.get("espacio_id") else None,
+            descansos=tuple(
+                DescansoDeEscalera(
+                    id=str(d["id"]) if d.get("id") else None, area_m2=areas.get(str(d["trazo_id"])) if d.get("trazo_id") else None,
+                    **{c: _numero(d.get(c)) for c in _DESCANSO},
+                )
+                for d in descansos
+            ),
+            abanicos=tuple(AbanicoDeEscalera(id=str(a["id"]) if a.get("id") else None, **{c: _numero(a[c]) for c in _ABANICO}) for a in abanicos),
+            **{c: _numero(f[c]) for c in _CAMPOS},
+        )
+
+    async def _probar(
+        self, zona: dict[str, Any], f: dict[str, Any], descansos: list[dict[str, Any]], abanicos: list[dict[str, Any]], escala: float,
+    ) -> None:
+        """Si la escalera calcula sin las listas nuevas pero no con ellas, el cambio no vale: se rechaza con el motivo del cálculo."""
+        arranque, llegada, _ = await self._cotas(zona, f)
+        recorrido = _largo_de_linea_m(f["geojson"], escala) if f.get("geojson") else None
+        try:
+            calcular_escalera(self._entrada_de(f, arranque, llegada, [], [], recorrido))
+        except ErrorDeEscalera:
+            return  # la escalera ya no calculaba por otra causa (cotas, huella): no se puede probar el cambio
+        areas = await self._areas_de_poligonos(descansos, escala)
+        calcular_escalera(self._entrada_de(f, arranque, llegada, descansos, abanicos, recorrido, areas))
+
+    async def _areas_de_poligonos(self, descansos: list[dict[str, Any]], escala: float) -> dict[str, float]:
+        areas: dict[str, float] = {}
+        for d in descansos:
+            if d.get("trazo_id"):
+                trazo = await self._zonas.trazo(UUID(str(d["trazo_id"])))
+                if trazo is not None:
+                    areas[str(d["trazo_id"])] = area_de_poligonos(_poligonos(trazo["geojson"], escala))
+        return areas
+
+    async def cambiar_descansos(self, escalera_id: UUID, descansos: list[dict[str, Any]], autor_id: UUID) -> dict[str, Any]:
+        """Deja como únicos descansos propios de la escalera los que vienen (vacío = quita todos y vuelve al descanso implícito). Cada uno se valida; las posiciones no
+        se repiten; un polígono del plano da el área de UN descanso y no puede ser además una losa."""
+        f = await self._escaleras.uno(escalera_id)
+        if f is None:
+            raise EscaleraNoEncontrada(f"La escalera {escalera_id} no existe o no está en tu alcance.")
+        zona = await self._zona(f["zona_id"])
+        escala, _, _ = await self._escala(zona["plano_id"])
+        validados: list[dict[str, Any]] = []
+        for d in descansos:
+            v = validar_descanso(d)
+            trazo_id = d.get("trazo_id")
+            if v["posicion"] > int(f["rampas"]) - 1:
+                raise ErrorDeEscalera(
+                    f"El descanso de la posición {v['posicion']} va entre la rampa {v['posicion']} y la siguiente, pero la escalera tiene {f['rampas']} "
+                    f"{'rampa' if int(f['rampas']) == 1 else 'rampas'}: sube las rampas o cambia la posición."
+                )
+            if any(x["posicion"] == v["posicion"] for x in validados):
+                raise ErrorDeEscalera(f"Hay dos descansos en la posición {v['posicion']}: se contaría dos veces.")
+            if trazo_id is not None:
+                await self._validar_poligono(zona, UUID(str(trazo_id)), escalera_id, [x["trazo_id"] for x in validados], escala)
+            validados.append({**v, "trazo_id": UUID(str(trazo_id)) if trazo_id is not None else None})
+        await self._probar(zona, f, validados, [_abanico_visible(a) for a in (await self._escaleras.abanicos_de_la_zona(f["zona_id"])).get(UUID(str(f["id"])), [])], escala)
+        async with self._uow:
+            await self._escaleras.reemplazar_descansos(escalera_id, validados, autor_id)
+            await self._resincronizar(zona["plano_id"])
+            await self._uow.commit()
+        return await self._escalera(escalera_id)
+
+    async def _validar_poligono(self, zona: dict[str, Any], trazo_id: UUID, escalera_id: UUID, ya: list[Any], escala: float) -> None:
+        trazo = await self._zonas.trazo(trazo_id)
+        if trazo is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if trazo["tipo"] not in ("POLYGON", "MULTIPOLYGON") or trazo["hueco_de"] is not None:
+            raise ErrorDeEscalera("Solo un polígono del plano (no un hueco, una línea ni un punto) puede dar el área del descanso.")
+        if trazo["plano_id"] != zona["plano_id"]:
+            raise ErrorDeEscalera("El polígono es de otro plano que la zona.")
+        if await self._escaleras.trazo_es_de_losa(trazo_id):
+            raise ErrorDeEscalera("Ese polígono ya es una losa de una zona: contaría su área en la losa y en el descanso.")
+        if trazo_id in [UUID(str(x)) for x in ya if x is not None]:
+            raise ErrorDeEscalera("Ese polígono ya da el área de otro descanso de esta escalera: se contaría dos veces.")
+        otra = await self._escaleras.descanso_con_el_poligono(trazo_id)
+        if otra is not None and otra != escalera_id:
+            raise ErrorDeEscalera("Ese polígono ya da el área del descanso de otra escalera: se contaría dos veces.")
+        if area_de_poligonos(_poligonos(trazo["geojson"], escala)) < 0.001:
+            raise ErrorDeEscalera("El polígono no tiene área.")
+
+    async def cambiar_abanicos(self, escalera_id: UUID, abanicos: list[dict[str, Any]], autor_id: UUID) -> dict[str, Any]:
+        """Deja como únicos grupos de abanico de la escalera los que vienen (vacío = quita todos). Los escalones de abanico forman parte de los peldaños del desnivel:
+        si no caben, el cambio se rechaza con el motivo del cálculo."""
+        f = await self._escaleras.uno(escalera_id)
+        if f is None:
+            raise EscaleraNoEncontrada(f"La escalera {escalera_id} no existe o no está en tu alcance.")
+        zona = await self._zona(f["zona_id"])
+        escala, _, _ = await self._escala(zona["plano_id"])
+        validados = [validar_abanico(a) for a in abanicos]
+        if len({a["posicion"] for a in validados}) != len(validados):
+            raise ErrorDeEscalera("Hay dos grupos de abanico en la misma posición: junta sus escalones en uno.")
+        descansos = [_descanso_visible(d) for d in (await self._escaleras.descansos_de_la_zona(f["zona_id"])).get(UUID(str(f["id"])), [])]
+        await self._probar(zona, f, descansos, validados, escala)
+        async with self._uow:
+            await self._escaleras.reemplazar_abanicos(escalera_id, validados, autor_id)
+            await self._resincronizar(zona["plano_id"])
+            await self._uow.commit()
+        return await self._escalera(escalera_id)
 
     # ── El cálculo ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -260,29 +407,31 @@ class GestionarEscaleras:
         escala, escala_definida, obra_id = await self._escala(plano_id)
 
         filas = await self._escaleras.de_la_zona(zona_id)
+        descansos_por = await self._escaleras.descansos_de_la_zona(zona_id)
+        abanicos_por = await self._escaleras.abanicos_de_la_zona(zona_id)
         calculadas: list[dict[str, Any]] = []
         for f in filas:
             arranque, llegada, origen = await self._cotas(zona, f)
+            suyos = descansos_por.get(UUID(str(f["id"])), [])
             item: dict[str, Any] = {
                 "id": f["id"], "trazo_id": f["trazo_id"], "espacio_id": f.get("espacio_id"), "zona_llegada_id": f.get("zona_llegada_id"),
-                "origen_de_cotas": origen, "error": None, "calculo": None, "conciliacion": None,
+                "origen_de_cotas": origen, "descansos": [_descanso_visible(d) for d in suyos],
+                "abanicos": [_abanico_visible(a) for a in abanicos_por.get(UUID(str(f["id"])), [])], "error": None, "calculo": None, "conciliacion": None,
             }
             recorrido = _largo_de_linea_m(f["geojson"], escala) if f.get("geojson") else None
+            areas = {
+                str(d["trazo_id"]): area_de_poligonos(_poligonos(d["geojson"], escala)) for d in suyos if d.get("trazo_id") and d.get("geojson")
+            }
             try:
-                r = calcular_escalera(
-                    EntradaEscalera(
-                        cota_arranque_m=arranque, cota_llegada_m=llegada, recorrido_m=recorrido, espacio_id=str(f["espacio_id"]) if f.get("espacio_id") else None,
-                        **{c: _numero(f[c]) for c in _CAMPOS},
-                    )
-                )
+                r = calcular_escalera(self._entrada_de(f, arranque, llegada, item["descansos"], item["abanicos"], recorrido, areas))
             except ErrorDeEscalera as e:
                 item["error"] = str(e)
                 calculadas.append(item)
                 continue
             if f["trazo_id"] and not f.get("geojson"):
                 r["advertencias"].insert(0, "La línea del plano que daba el recorrido ya no existe: la huella vuelve a la tecleada.")
-            if not escala_definida and recorrido is not None:
-                r["advertencias"].insert(0, "El plano no tiene escala calibrada: se toma 1 unidad de plano = 1 m para el recorrido.")
+            if not escala_definida and (recorrido is not None or areas):
+                r["advertencias"].insert(0, "El plano no tiene escala calibrada: se toma 1 unidad de plano = 1 m para el recorrido y las áreas.")
             for c in r["conceptos"]:
                 c["propuesta"] = await self._propuestas.estado_de(c["concepto"]["clave"]) if c["concepto"]["provisional"] else None
             item["calculo"] = r
@@ -338,7 +487,7 @@ class GestionarEscaleras:
             }
         composicion = expandir_composicion(await self._conceptos.composicion_recursiva(concepto["id"]), clave)
         escalones = float(r["geometria"]["escalones_de_catalogo"])
-        de_la_rampa = [i for i in r["insumos"] if i["parte"] == "rampa"]
+        de_la_rampa = _insumos_de_peldanos(r["insumos"])
         conocidos = await self._insumos.por_claves(sorted({f.clave.upper() for f in composicion} | {i["clave"].upper() for i in de_la_rampa}))
         composicion = [
             replace(
@@ -348,7 +497,10 @@ class GestionarEscaleras:
             )
             for f in composicion
         ]
-        por_escalon = {i["clave"].upper(): float(i["cantidad"]) / escalones for i in de_la_rampa} if escalones > 0 else {}
+        por_escalon: dict[str, float] = {}
+        if escalones > 0:
+            for i in de_la_rampa:  # la rampa y el abanico llevan el mismo concreto y el mismo acero: se suman
+                por_escalon[i["clave"].upper()] = por_escalon.get(i["clave"].upper(), 0.0) + float(i["cantidad"]) / escalones
         comparado = comparar_con_concepto(por_escalon, composicion, descripciones={k: v[1].descripcion for k, v in conocidos.items()})
         return {
             "concepto": {"clave": clave, "descripcion": str(concepto.get("descripcion") or ""), "unidad": str(concepto.get("unidad") or "")},
@@ -391,6 +543,11 @@ def _juntar_por_espacio(calculadas: list[dict[str, Any]]) -> list[dict[str, Any]
     return [{**grupos[e], "conceptos": list(grupos[e]["conceptos"].values())} for e in orden]
 
 
+def _insumos_de_peldanos(insumos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Lo que la composición de EST-01510 lleva por escalón: el concreto y el acero de las rampas y de los escalones de abanico (el descanso se paga aparte, con EJ-820)."""
+    return [i for i in insumos if i["parte"] in ("rampa", "abanico")]
+
+
 def _totales(calculadas: list[dict[str, Any]]) -> dict[str, Any]:
     conceptos: dict[str, dict[str, Any]] = {}
     for r in calculadas:
@@ -405,6 +562,8 @@ def _totales(calculadas: list[dict[str, Any]]) -> dict[str, Any]:
         "peldanos": sum(r["geometria"]["peldanos"] for r in calculadas),
         "escalones_de_catalogo": sum(r["geometria"]["escalones_de_catalogo"] for r in calculadas),
         "area_de_descanso_m2": sum(r["geometria"]["area_de_descanso_m2"] for r in calculadas),
+        "peldanos_de_abanico": sum(r["geometria"]["peldanos_de_abanico"] for r in calculadas),
+        "area_de_abanico_m2": sum(r["geometria"]["area_de_abanico_m2"] for r in calculadas),
         "conceptos": list(conceptos.values()),
     }
 

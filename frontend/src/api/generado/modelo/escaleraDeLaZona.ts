@@ -12,6 +12,8 @@ import type { EscaleraDeLaZonaCotaArranqueM } from "./escaleraDeLaZonaCotaArranq
 import type { EscaleraDeLaZonaCotaLlegadaM } from "./escaleraDeLaZonaCotaLlegadaM";
 import type { EscaleraDeLaZonaTrazoId } from "./escaleraDeLaZonaTrazoId";
 import type { EscaleraDeLaZonaEspacioId } from "./escaleraDeLaZonaEspacioId";
+import type { DescansoDeLaEscalera } from "./descansoDeLaEscalera";
+import type { AbanicoDeLaEscalera } from "./abanicoDeLaEscalera";
 
 export interface EscaleraDeLaZona {
   /** Número de peldaños; `null` = el que sale del desnivel y de la contrahuella máxima. */
@@ -36,4 +38,8 @@ export interface EscaleraDeLaZona {
   cota_llegada_m: EscaleraDeLaZonaCotaLlegadaM;
   trazo_id: EscaleraDeLaZonaTrazoId;
   espacio_id: EscaleraDeLaZonaEspacioId;
+  /** Los descansos propios (Fase 4d); una posición sin fila conserva el descanso implícito. */
+  descansos?: DescansoDeLaEscalera[];
+  /** Los grupos de escalones de abanico (Fase 4d). */
+  abanicos?: AbanicoDeLaEscalera[];
 }

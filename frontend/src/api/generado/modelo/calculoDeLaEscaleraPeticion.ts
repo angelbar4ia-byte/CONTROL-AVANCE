@@ -14,6 +14,8 @@ import type { CalculoDeLaEscaleraPeticionEspesorM } from "./calculoDeLaEscaleraP
 import type { CalculoDeLaEscaleraPeticionRampas } from "./calculoDeLaEscaleraPeticionRampas";
 import type { CalculoDeLaEscaleraPeticionLargoDescansoM } from "./calculoDeLaEscaleraPeticionLargoDescansoM";
 import type { CalculoDeLaEscaleraPeticionEspacioId } from "./calculoDeLaEscaleraPeticionEspacioId";
+import type { DescansoSuelto } from "./descansoSuelto";
+import type { AbanicoDeLaPeticion } from "./abanicoDeLaPeticion";
 
 export interface CalculoDeLaEscaleraPeticion {
   /**
@@ -40,4 +42,14 @@ export interface CalculoDeLaEscaleraPeticion {
   largo_descanso_m?: CalculoDeLaEscaleraPeticionLargoDescansoM;
   /** Una etiqueta de espacio para toda la escalera (0143). */
   espacio_id?: CalculoDeLaEscaleraPeticionEspacioId;
+  /**
+   * Descansos propios (Fase 4d); una posición sin descanso conserva el implícito.
+   * @maxItems 3
+   */
+  descansos?: DescansoSuelto[];
+  /**
+   * Grupos de escalones de abanico (Fase 4d): forman parte de los peldaños del desnivel.
+   * @maxItems 5
+   */
+  abanicos?: AbanicoDeLaPeticion[];
 }

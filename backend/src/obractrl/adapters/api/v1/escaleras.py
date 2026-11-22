@@ -7,6 +7,9 @@
   línea del plano; con espacio), su **cálculo** con lo que hay en el plano y la base (con la conciliación contra EST-01510 si se pide) y la propuesta de su concepto.
   Todos los roles que ven el plano leen; **solo Control de obra escribe** (lo exige también RLS).
 
+- **Descansos y abanicos** (Fase 4d, migración 0148): `PUT /escaleras-de-zona/{id}/descansos` y `…/abanicos` dejan como únicos los que vienen (lista vacía = quita todos; los
+  descansos sin fila propia conservan el implícito de 4a). Los leen las escaleras de la zona y su cálculo; escribe solo Control de obra.
+
 El cálculo vive en el dominio (`escalera`); controladores delgados.
 """
 
@@ -41,6 +44,8 @@ from obractrl.adapters.api.v1.losas import (
     ResolucionDelConcepto,
 )
 from obractrl.domain.cuantificacion.escalera import (
+    AbanicoDeEscalera,
+    DescansoDeEscalera,
     EntradaEscalera,
     ErrorDeEscalera,
     calcular_escalera,
@@ -74,6 +79,66 @@ class ParametrosDeLaEscalera(BaseModel):
     largo_descanso_m: float | None = Field(description="Largo del descanso (m); `null` = igual al ancho.")
 
 
+GiroDeDescanso = Literal[0, 90, 180]
+
+
+class DescansoSuelto(BaseModel):
+    posicion: int = Field(ge=1, le=3, description="Entre la rampa k y la k+1 (1 = entre la 1.ª y la 2.ª).")
+    giro_grados: GiroDeDescanso = Field(default=90, description="El giro del recorrido en el descanso: 0 recto, 90 cambio de dirección, 180 vuelta.")
+    largo_m: float | None = Field(default=None, ge=0.40, le=6.0, description="En el sentido de la marcha; sin él, el largo del descanso de la escalera o su ancho.")
+    ancho_m: float | None = Field(default=None, ge=0.40, le=6.0, description="Transversal; sin él, el ancho de la escalera (el doble si gira 180°).")
+    espesor_m: float | None = Field(default=None, ge=0.05, le=0.50, description="Sin él, el espesor de la escalera.")
+    area_m2: float | None = Field(default=None, gt=0, le=100, description="El área medida (lo que daría un polígono del plano): manda sobre largo × ancho.")
+
+
+class AbanicoDeLaPeticion(BaseModel):
+    posicion: int = Field(ge=0, le=4, description="0 = antes de la 1.ª rampa; k = tras la rampa k.")
+    escalones: int = Field(ge=1, le=12, description="Escalones de abanico del grupo: forman parte de los peldaños del desnivel.")
+    ancho_interior_m: float = Field(ge=0.02, le=0.60, description="El fondo del peldaño en el borde interior (m).")
+    ancho_exterior_m: float = Field(ge=0.10, le=0.80, description="El fondo del peldaño en el borde exterior (m); no menor que el interior. Su largo es el ancho de la escalera.")
+    radio_huella_m: float | None = Field(
+        default=None, ge=0.10, le=5.0, description="Distancia del borde interior a la línea de huella; sin él, 0.35 m (supuesto editable: el material dice 30 a 40 cm)."
+    )
+
+
+class DescansoDeLaPeticion(BaseModel):
+    posicion: int = Field(ge=1, le=3, description="Entre la rampa k y la k+1 (1 = entre la 1.ª y la 2.ª).")
+    giro_grados: GiroDeDescanso = Field(default=90, description="El giro del recorrido en el descanso: 0 recto, 90 cambio de dirección, 180 vuelta.")
+    largo_m: float | None = Field(default=None, ge=0.40, le=6.0, description="En el sentido de la marcha; sin él, el largo del descanso de la escalera o su ancho.")
+    ancho_m: float | None = Field(default=None, ge=0.40, le=6.0, description="Transversal; sin él, el ancho de la escalera (el doble si gira 180°).")
+    espesor_m: float | None = Field(default=None, ge=0.05, le=0.50, description="Sin él, el espesor de la escalera.")
+    trazo_id: UUID | None = Field(
+        default=None, description="Un polígono del plano: su área (con la escala, al calcular) manda sobre largo × ancho. Un polígono no sirve a dos descansos ni puede ser una losa."
+    )
+
+
+class DescansosDeLaEscaleraPeticion(BaseModel):
+    descansos: list[DescansoDeLaPeticion] = Field(max_length=3, description="Los únicos descansos propios; vacío = quita todos y vuelve al descanso implícito.")
+
+
+class AbanicosDeLaEscaleraPeticion(BaseModel):
+    abanicos: list[AbanicoDeLaPeticion] = Field(max_length=5, description="Los únicos grupos de abanico; vacío = quita todos.")
+
+
+class DescansoDeLaEscalera(BaseModel):
+    id: UUID
+    posicion: int
+    giro_grados: GiroDeDescanso
+    largo_m: float | None
+    ancho_m: float | None
+    espesor_m: float | None
+    trazo_id: UUID | None
+
+
+class AbanicoDeLaEscalera(BaseModel):
+    id: UUID
+    posicion: int
+    escalones: int
+    ancho_interior_m: float
+    ancho_exterior_m: float
+    radio_huella_m: float
+
+
 class InsumoDeLaFichaDeLaEscalera(BaseModel):
     clave: str
     descripcion: str
@@ -100,6 +165,8 @@ class DefinicionDeLaEscalera(BaseModel):
     concepto_del_descanso: ConceptoDeLaFicha
     largo_base_del_escalon_m: float
     parametros_por_defecto: ParametrosDeLaEscalera
+    radio_de_huella_por_defecto_m: float = Field(description="Supuesto editable: la línea de huella de un escalón de abanico se mide a esta distancia del borde interior.")
+    giros_de_descanso: list[int] = Field(description="Los giros que admite un descanso: 0, 90 y 180 grados.")
     composicion_del_escalon: list[InsumoDeLaFichaDeLaEscalera]
     parrilla_por_m2: list[ParrillaDeLaFicha]
     destajos_candidatos: list[DestajoCandidato]
@@ -118,6 +185,8 @@ class CalculoDeLaEscaleraPeticion(BaseModel):
     rampas: int | None = Field(default=None, ge=1, le=4)
     largo_descanso_m: float | None = Field(default=None, ge=0.40, le=6.0)
     espacio_id: str | None = Field(default=None, max_length=60, description="Una etiqueta de espacio para toda la escalera (0143).")
+    descansos: list[DescansoSuelto] = Field(default_factory=list, max_length=3, description="Descansos propios (Fase 4d); una posición sin descanso conserva el implícito.")
+    abanicos: list[AbanicoDeLaPeticion] = Field(default_factory=list, max_length=5, description="Grupos de escalones de abanico (Fase 4d): forman parte de los peldaños del desnivel.")
 
 
 class CotasDeLaEscalera(BaseModel):
@@ -133,8 +202,40 @@ class RampaDeLaEscalera(BaseModel):
     altura_m: float
 
 
+class DescansoCalculado(BaseModel):
+    id: UUID | None
+    posicion: int
+    giro_grados: GiroDeDescanso | None = Field(description="`null` = el descanso implícito (sin fila propia: no dice su giro).")
+    largo_m: float | None = Field(description="`null` si el área sale de un polígono del plano.")
+    ancho_m: float | None = Field(description="`null` si el área sale de un polígono del plano.")
+    espesor_m: float
+    area_m2: float
+    volumen_m3: float
+    origen: Literal["implicito", "dimensiones", "plano"] = Field(description="De dónde sale el área: el descanso implícito de 4a, sus dimensiones o un polígono del plano.")
+
+
+class AbanicoCalculado(BaseModel):
+    id: UUID | None
+    posicion: int
+    escalones: int
+    ancho_interior_m: float
+    ancho_exterior_m: float
+    radio_huella_m: float
+    huella_en_la_linea_m: float = Field(description="El fondo del peldaño a `radio_huella_m` del borde interior: la huella que se compara con la de referencia.")
+    ancho_medio_m: float = Field(description="Promedio de los fondos del borde interior y del exterior.")
+    angulo_por_escalon_grados: float
+    giro_total_grados: float = Field(description="Lo que gira el grupo: escalones × ángulo por escalón (debería cerrar 90° o 180°).")
+    radio_interior_m: float | None = Field(description="Distancia del vértice del abanico al borde interior; `null` si los dos bordes miden igual (no gira).")
+    area_en_planta_m2: float
+    superficie_m2: float = Field(description="Área en planta × la inclinación de la línea de huella.")
+    volumen_m3: float
+    escalones_de_catalogo: float = Field(description="Piezas de EST-01510 del grupo: ancho × fondo medio × escalones ÷ (1.20 × huella de referencia).")
+
+
 class GeometriaDeLaEscalera(BaseModel):
-    peldanos: int
+    peldanos: int = Field(description="Los del desnivel: los rectos más los de abanico (no se cuentan dos veces).")
+    peldanos_rectos: int
+    peldanos_de_abanico: int
     origen_de_peldanos: Literal["desnivel", "tecleados"]
     contrahuella_m: float = Field(description="Desnivel ÷ peldaños.")
     huella_m: float
@@ -148,11 +249,18 @@ class GeometriaDeLaEscalera(BaseModel):
     superficie_de_rampa_m2: float
     volumen_de_rampa_m3: float
     volumen_de_descanso_m3: float
-    escalones_de_catalogo: float = Field(description="Peldaños × ancho ÷ 1.20 m: las piezas de EST-01510.")
+    descansos_detalle: list[DescansoCalculado]
+    abanicos: list[AbanicoCalculado]
+    area_de_abanico_m2: float
+    superficie_de_abanico_m2: float
+    volumen_de_abanico_m3: float
+    escalones_rectos_de_catalogo: float = Field(description="Peldaños rectos × ancho ÷ 1.20 m.")
+    escalones_de_abanico_de_catalogo: float
+    escalones_de_catalogo: float = Field(description="Las piezas de EST-01510: peldaños rectos × ancho ÷ 1.20 m más las de los escalones de abanico.")
 
 
 class InsumoDeLaEscalera(BaseModel):
-    parte: Literal["rampa", "descanso"]
+    parte: Literal["rampa", "descanso", "abanico"]
     clave: str
     descripcion: str
     unidad: str
@@ -235,6 +343,8 @@ class EscaleraDeLaZona(ParametrosDeLaEscalera):
     cota_llegada_m: float | None
     trazo_id: UUID | None
     espacio_id: UUID | None
+    descansos: list[DescansoDeLaEscalera] = Field(default_factory=list, description="Los descansos propios (Fase 4d); una posición sin fila conserva el descanso implícito.")
+    abanicos: list[AbanicoDeLaEscalera] = Field(default_factory=list, description="Los grupos de escalones de abanico (Fase 4d).")
 
 
 class ZonaDeLaEscalera(BaseModel):
@@ -257,6 +367,8 @@ class EscaleraDeLaZonaCalculada(BaseModel):
     espacio_id: UUID | None
     zona_llegada_id: UUID | None
     origen_de_cotas: OrigenDeLasCotas
+    descansos: list[DescansoDeLaEscalera] = Field(default_factory=list, description="Los descansos propios de la escalera (filas editables).")
+    abanicos: list[AbanicoDeLaEscalera] = Field(default_factory=list, description="Los grupos de abanico de la escalera (filas editables).")
     error: str | None = Field(description="Si un dato de la escalera o de las zonas no vale (p. ej. la llegada quedó por debajo del arranque): el motivo; sin él no hay cálculo.")
     calculo: EscaleraCalculada | None
     conciliacion: ConciliacionDeLaLosa | None = Field(
@@ -275,6 +387,8 @@ class TotalesDeLasEscaleras(BaseModel):
     peldanos: int
     escalones_de_catalogo: float
     area_de_descanso_m2: float
+    peldanos_de_abanico: int
+    area_de_abanico_m2: float
     conceptos: list[ConceptoDeLosTotalesDeEscaleras]
 
 
@@ -318,7 +432,11 @@ async def calcular_la_escalera(clave: str, peticion: CalculoDeLaEscaleraPeticion
         p = validar_parametros({k: getattr(peticion, k) for k in _CAMPOS})
         return calcular_escalera(
             EntradaEscalera(
-                cota_arranque_m=peticion.cota_arranque_m, cota_llegada_m=peticion.cota_llegada_m, recorrido_m=peticion.recorrido_m, espacio_id=peticion.espacio_id, **p
+                cota_arranque_m=peticion.cota_arranque_m, cota_llegada_m=peticion.cota_llegada_m, recorrido_m=peticion.recorrido_m, espacio_id=peticion.espacio_id, **p,
+                descansos=tuple(DescansoDeEscalera(**d.model_dump()) for d in peticion.descansos),
+                abanicos=tuple(
+                    AbanicoDeEscalera(**{k: v for k, v in a.model_dump().items() if v is not None}) for a in peticion.abanicos
+                ),
             )
         )
     except ErrorDeEscalera as e:
@@ -400,6 +518,28 @@ async def cambiar_escalera(escalera_id: UUID, peticion: EscaleraDeLaZonaPeticion
 )
 async def quitar_escalera(escalera_id: UUID, caso_uso: GestionarEscalerasDep) -> None:
     await caso_uso.quitar(escalera_id)
+
+
+@router.put(
+    "/escaleras-de-zona/{escalera_id}/descansos",
+    response_model=EscaleraDeLaZona,
+    summary="Dejar como únicos descansos propios de la escalera los que vienen (solo Control de obra; vacío = vuelve al descanso implícito)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
+    responses={422: {"description": "Una posición, un giro, una medida o un polígono no valen, o el cambio deja la escalera sin poder calcularse."}, 404: {"description": "No existe esa escalera."}},
+)
+async def cambiar_descansos(escalera_id: UUID, peticion: DescansosDeLaEscaleraPeticion, ctx: ContextoActual, caso_uso: GestionarEscalerasDep) -> dict[str, Any]:
+    return await caso_uso.cambiar_descansos(escalera_id, [d.model_dump() for d in peticion.descansos], ctx.usuario_id)
+
+
+@router.put(
+    "/escaleras-de-zona/{escalera_id}/abanicos",
+    response_model=EscaleraDeLaZona,
+    summary="Dejar como únicos grupos de escalones de abanico de la escalera los que vienen (solo Control de obra; vacío = quita todos)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_EDITAN))],
+    responses={422: {"description": "Una posición, un fondo o un radio no valen, o los escalones de abanico no caben en los peldaños de la escalera."}, 404: {"description": "No existe esa escalera."}},
+)
+async def cambiar_abanicos(escalera_id: UUID, peticion: AbanicosDeLaEscaleraPeticion, ctx: ContextoActual, caso_uso: GestionarEscalerasDep) -> dict[str, Any]:
+    return await caso_uso.cambiar_abanicos(escalera_id, [a.model_dump() for a in peticion.abanicos], ctx.usuario_id)
 
 
 @router.get(

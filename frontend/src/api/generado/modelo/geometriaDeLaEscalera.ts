@@ -8,9 +8,14 @@
 import type { GeometriaDeLaEscaleraOrigenDePeldanos } from "./geometriaDeLaEscaleraOrigenDePeldanos";
 import type { GeometriaDeLaEscaleraOrigenDeHuella } from "./geometriaDeLaEscaleraOrigenDeHuella";
 import type { RampaDeLaEscalera } from "./rampaDeLaEscalera";
+import type { DescansoCalculado } from "./descansoCalculado";
+import type { AbanicoCalculado } from "./abanicoCalculado";
 
 export interface GeometriaDeLaEscalera {
+  /** Los del desnivel: los rectos más los de abanico (no se cuentan dos veces). */
   peldanos: number;
+  peldanos_rectos: number;
+  peldanos_de_abanico: number;
   origen_de_peldanos: GeometriaDeLaEscaleraOrigenDePeldanos;
   /** Desnivel ÷ peldaños. */
   contrahuella_m: number;
@@ -27,6 +32,14 @@ export interface GeometriaDeLaEscalera {
   superficie_de_rampa_m2: number;
   volumen_de_rampa_m3: number;
   volumen_de_descanso_m3: number;
-  /** Peldaños × ancho ÷ 1.20 m: las piezas de EST-01510. */
+  descansos_detalle: DescansoCalculado[];
+  abanicos: AbanicoCalculado[];
+  area_de_abanico_m2: number;
+  superficie_de_abanico_m2: number;
+  volumen_de_abanico_m3: number;
+  /** Peldaños rectos × ancho ÷ 1.20 m. */
+  escalones_rectos_de_catalogo: number;
+  escalones_de_abanico_de_catalogo: number;
+  /** Las piezas de EST-01510: peldaños rectos × ancho ÷ 1.20 m más las de los escalones de abanico. */
   escalones_de_catalogo: number;
 }

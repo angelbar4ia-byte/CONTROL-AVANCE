@@ -6,6 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export type * from "./abanicoCalculado";
+export type * from "./abanicoCalculadoId";
+export type * from "./abanicoCalculadoRadioInteriorM";
+export type * from "./abanicoDeLaEscalera";
+export type * from "./abanicoDeLaPeticion";
+export type * from "./abanicoDeLaPeticionRadioHuellaM";
+export type * from "./abanicosDeLaEscaleraPeticion";
 export type * from "./abrirIncidenciaPeticion";
 export type * from "./abrirIncidenciaPeticionDescripcion";
 export type * from "./abrirIncidenciaPeticionEtapaId";
@@ -794,6 +801,31 @@ export type * from "./dentellonDelCimiento";
 export type * from "./dentellonDelCuadro";
 export type * from "./dentellonDelMuro";
 export type * from "./dependenciaDTO";
+export type * from "./descansoCalculado";
+export type * from "./descansoCalculadoAnchoM";
+export type * from "./descansoCalculadoGiroGrados";
+export type * from "./descansoCalculadoId";
+export type * from "./descansoCalculadoLargoM";
+export * from "./descansoCalculadoOrigen";
+export type * from "./descansoDeLaEscalera";
+export type * from "./descansoDeLaEscaleraAnchoM";
+export type * from "./descansoDeLaEscaleraEspesorM";
+export * from "./descansoDeLaEscaleraGiroGrados";
+export type * from "./descansoDeLaEscaleraLargoM";
+export type * from "./descansoDeLaEscaleraTrazoId";
+export type * from "./descansoDeLaPeticion";
+export type * from "./descansoDeLaPeticionAnchoM";
+export type * from "./descansoDeLaPeticionEspesorM";
+export * from "./descansoDeLaPeticionGiroGrados";
+export type * from "./descansoDeLaPeticionLargoM";
+export type * from "./descansoDeLaPeticionTrazoId";
+export type * from "./descansoSuelto";
+export type * from "./descansoSueltoAnchoM";
+export type * from "./descansoSueltoAreaM2";
+export type * from "./descansoSueltoEspesorM";
+export * from "./descansoSueltoGiroGrados";
+export type * from "./descansoSueltoLargoM";
+export type * from "./descansosDeLaEscaleraPeticion";
 export type * from "./descripcionDelConceptoPeticion";
 export type * from "./desfaseDePartesPeticion";
 export type * from "./desfaseDePartesRespuesta";

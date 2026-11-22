@@ -23,6 +23,10 @@ export interface DefinicionDeLaEscalera {
   concepto_del_descanso: ConceptoDeLaFicha;
   largo_base_del_escalon_m: number;
   parametros_por_defecto: ParametrosDeLaEscalera;
+  /** Supuesto editable: la línea de huella de un escalón de abanico se mide a esta distancia del borde interior. */
+  radio_de_huella_por_defecto_m: number;
+  /** Los giros que admite un descanso: 0, 90 y 180 grados. */
+  giros_de_descanso: number[];
   composicion_del_escalon: InsumoDeLaFichaDeLaEscalera[];
   parrilla_por_m2: ParrillaDeLaFicha[];
   destajos_candidatos: DestajoCandidato[];

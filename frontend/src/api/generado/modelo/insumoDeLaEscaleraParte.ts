@@ -13,4 +13,5 @@ export type InsumoDeLaEscaleraParte =
 export const InsumoDeLaEscaleraParte = {
   rampa: "rampa",
   descanso: "descanso",
+  abanico: "abanico",
 } as const;

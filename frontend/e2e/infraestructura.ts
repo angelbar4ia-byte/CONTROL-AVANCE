@@ -179,7 +179,7 @@ export async function tokenDe(request: APIRequestContext, rol: Rol): Promise<str
 export async function solicitarApi(
   request: APIRequestContext,
   rol: Rol,
-  metodo: 'GET' | 'POST' | 'PATCH',
+  metodo: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   ruta: string,
   cuerpo?: unknown,
 ) {
@@ -195,7 +195,7 @@ export async function solicitarApi(
 export async function llamarApi<T = unknown>(
   request: APIRequestContext,
   rol: Rol,
-  metodo: 'GET' | 'POST' | 'PATCH',
+  metodo: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   ruta: string,
   cuerpo?: unknown,
 ): Promise<T> {
@@ -359,7 +359,8 @@ export async function cajaEstable(
  *   11.0 zz-espacios (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(11.0)`) ·
  *   12.0 zz-relleno (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(12.0)`) ·
  *   13.0 zz-escalera (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(13.0)`) ·
- *   14.0 zz-cimentacion (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(14.0)`).
+ *   14.0 zz-cimentacion (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(14.0)`) ·
+ *   16.0 zz-escalera-descansos-abanico (reservado: el spec no crea castillos hoy; si coloca uno lo hace con `altoPropio(16.0)`).
  * Un spec nuevo que cree castillos con alto aleatorio toma un rango libre (p. ej. 7.0, 8.0) y lo anota aquí. Los castillos con `largo` propio
  * (0.15 + n/1e4 en zz-artefacto y zz-drivers; 0.40 a 0.41 en los de prototipos) tienen su propio espacio.
  */

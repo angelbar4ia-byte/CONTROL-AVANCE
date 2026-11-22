@@ -420,3 +420,231 @@ async def test_la_escalera_y_la_losa_no_cuentan_lo_mismo_dos_veces(control: http
     despues = (await control.get(f"{API}/zonas-de-losa/{z['id']}/matriz")).json()
     assert despues["area_m2"] == pytest.approx(antes["area_m2"]) and despues["conceptos"] == antes["conceptos"]
     assert not {c["concepto"]["clave"] for c in despues["conceptos"]} & {"EST-01510", "EJ-820"}
+
+
+# ── Descansos propios y escalones de abanico (Fase 4d, migración 0148) ──────────────────────────────
+
+
+def _descansos(escalera: str) -> str:
+    return f"{API}/escaleras-de-zona/{escalera}/descansos"
+
+
+def _abanicos(escalera: str) -> str:
+    return f"{API}/escaleras-de-zona/{escalera}/abanicos"
+
+
+async def test_un_descanso_propio_lleva_sus_medidas_giro_y_espesor_y_las_demas_posiciones_conservan_el_implicito(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    _, z = await _vacia(control, escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 3})).json()
+    assert e["descansos"] == [] and e["abanicos"] == []  # sin filas propias: el descanso implícito de siempre
+    antes = (await _calculo(control, z["id"]))["escaleras"][0]["calculo"]["geometria"]
+    assert antes["descansos"] == 2 and antes["area_de_descanso_m2"] == pytest.approx(2 * 1.44)
+
+    r = await control.put(_descansos(e["id"]), json={"descansos": [{"posicion": 2, "giro_grados": 180, "largo_m": 1.4, "ancho_m": 2.6, "espesor_m": 0.15}]})
+    assert r.status_code == 200, r.text
+    [d] = r.json()["descansos"]
+    assert (d["posicion"], d["giro_grados"], d["largo_m"], d["ancho_m"], d["espesor_m"], d["trazo_id"]) == (2, 180, 1.4, 2.6, 0.15, None)
+    assert (await control.get(_escaleras(z["id"]))).json()[0]["id"] == e["id"]
+    assert (await control.get(_escaleras(z["id"]))).json()[0]["descansos"][0]["posicion"] == 2
+    c = await _calculo(control, z["id"])
+    [item] = c["escaleras"]
+    assert [x["posicion"] for x in item["descansos"]] == [2]
+    g = item["calculo"]["geometria"]
+    assert [(x["posicion"], x["origen"]) for x in g["descansos_detalle"]] == [(1, "implicito"), (2, "dimensiones")]
+    assert g["area_de_descanso_m2"] == pytest.approx(1.44 + 1.4 * 2.6) and c["totales"]["area_de_descanso_m2"] == pytest.approx(g["area_de_descanso_m2"])
+    descanso = next(k for k in item["calculo"]["conceptos"] if k["parte"] == "descanso")
+    assert descanso["concepto"]["clave"] == "EJ-820" and descanso["concepto"]["estado"] == "propuesto" and descanso["cantidad"] == pytest.approx(g["area_de_descanso_m2"])
+
+    # Reemplazar deja SOLO los que vienen; vacío vuelve al implícito.
+    assert len((await control.put(_descansos(e["id"]), json={"descansos": [{"posicion": 1}, {"posicion": 2, "giro_grados": 0}]})).json()["descansos"]) == 2
+    assert (await control.put(_descansos(e["id"]), json={"descansos": []})).json()["descansos"] == []
+    despues = (await _calculo(control, z["id"]))["escaleras"][0]["calculo"]["geometria"]
+    assert despues["area_de_descanso_m2"] == pytest.approx(antes["area_de_descanso_m2"]) and all(x["origen"] == "implicito" for x in despues["descansos_detalle"])
+
+
+async def test_un_descanso_mal_puesto_se_rechaza_con_su_motivo_y_no_se_guarda(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    _, z = await _vacia(control, escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    url = _descansos(e["id"])
+    r = await control.put(url, json={"descansos": [{"posicion": 2}]})
+    assert r.status_code == 422 and "tiene 2 rampas" in r.text
+    r = await control.put(url, json={"descansos": [{"posicion": 1}, {"posicion": 1}]})
+    assert r.status_code == 422 and "dos descansos" in r.text
+    for mal in ({"posicion": 0}, {"posicion": 1, "giro_grados": 45}, {"posicion": 1, "largo_m": 9}, {"posicion": 1, "espesor_m": 0.9}):
+        assert (await control.put(url, json={"descansos": [mal]})).status_code == 422, mal
+    assert (await control.put(url, json={"descansos": [{"posicion": 1}, {"posicion": 2}, {"posicion": 3}, {"posicion": 3}]})).status_code == 422
+    assert (await control.get(_escaleras(z["id"]))).json()[0]["descansos"] == []  # nada se guardó
+    assert (await control.put(_descansos(str(uuid.uuid4())), json={"descansos": []})).status_code == 404
+    # Bajar las rampas con un descanso en una posición que ya no existe se rechaza, en vez de dejar la escalera sin cálculo.
+    assert (await control.put(url, json={"descansos": [{"posicion": 1}]})).status_code == 200
+    r = await control.put(f"{API}/escaleras-de-zona/{e['id']}", json={"rampas": 1})
+    assert r.status_code == 422 and "ya no existen" in r.text
+    assert (await control.get(_escaleras(z["id"]))).json()[0]["rampas"] == 2
+
+
+async def test_el_area_de_un_descanso_sale_de_un_poligono_del_plano_con_la_escala_sin_guardarla(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    plano, z = await _vacia(control, escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    poligono = await _trazo(control, plano, "POLYGON((10 10, 11.2 10, 11.2 12.4, 10 12.4, 10 10))")  # 1.2 × 2.4 = 2.88 unidades²
+    r = await control.put(_descansos(e["id"]), json={"descansos": [{"posicion": 1, "giro_grados": 180, "largo_m": 1.0, "ancho_m": 1.0, "trazo_id": poligono}]})
+    assert r.status_code == 200 and r.json()["descansos"][0]["trazo_id"] == poligono, r.text
+    c = await _calculo(control, z["id"])
+    [d] = c["escaleras"][0]["calculo"]["geometria"]["descansos_detalle"]
+    # Sin escala se toma 1 unidad = 1 m y el cálculo lo dice; el área del polígono manda sobre largo × ancho.
+    assert (d["origen"], d["area_m2"], d["largo_m"]) == ("plano", pytest.approx(2.88), None) and c["escala_definida"] is False
+    assert any("sin escala" in a.lower() or "no tiene escala calibrada" in a for a in c["escaleras"][0]["calculo"]["advertencias"])
+    # Medición derivada: al calibrar (el doble) el polígono mide cuatro veces; el descanso no se tocó.
+    await _calibrar(control, plano, "8")
+    [d] = (await _calculo(control, z["id"]))["escaleras"][0]["calculo"]["geometria"]["descansos_detalle"]
+    assert d["area_m2"] == pytest.approx(2.88 * 4)
+    # Si el polígono se borra, el descanso vuelve a sus dimensiones.
+    assert (await control.delete(f"{API}/trazos/{poligono}")).status_code in (200, 204)
+    [fila] = (await control.get(_escaleras(z["id"]))).json()[0]["descansos"]
+    assert fila["trazo_id"] is None
+    [d] = (await _calculo(control, z["id"]))["escaleras"][0]["calculo"]["geometria"]["descansos_detalle"]
+    assert d["origen"] == "dimensiones" and d["area_m2"] == pytest.approx(1.0)
+
+
+async def test_un_poligono_no_sirve_a_dos_descansos_ni_puede_ser_una_losa_ni_una_linea(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    plano, z = await _vacia(control, escenario)
+    a = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    b = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    libre = await _trazo(control, plano, "POLYGON((10 10, 11.2 10, 11.2 12.4, 10 12.4, 10 10))")
+    losa = await _trazo(control, plano, "POLYGON((30 30, 34 30, 34 34, 30 34, 30 30))")
+    assert (await control.put(f"{API}/trazos/{losa}/losa", json={"zona_id": z["id"]})).status_code == 200
+    linea = await _trazo(control, plano, "LINESTRING(0 -1, 4 -1)")
+    otro_plano = (await control.post(f"{API}/obras/{escenario.obra_id}/planos", json={"nombre": "PA", "archivo_url": "e2e/pa.pdf"})).json()["id"]
+    ajeno = await _trazo(control, otro_plano, "POLYGON((0 0, 2 0, 2 2, 0 2, 0 0))")
+    assert (await control.put(_descansos(a["id"]), json={"descansos": [{"posicion": 1, "trazo_id": libre}]})).status_code == 200
+    casos = [
+        (b["id"], libre, "ya da el área"),
+        (a["id"], losa, "ya es una losa"),
+        (a["id"], linea, "Solo un polígono"),
+        (a["id"], ajeno, "otro plano"),
+        (a["id"], str(uuid.uuid4()), ""),
+    ]
+    for escalera, trazo, texto in casos[1:]:
+        r = await control.put(_descansos(escalera), json={"descansos": [{"posicion": 1, "trazo_id": trazo}]})
+        assert r.status_code in (404, 422) and texto in r.text, (trazo, r.text)
+    r = await control.put(_descansos(casos[0][0]), json={"descansos": [{"posicion": 1, "trazo_id": libre}]})
+    assert r.status_code == 422 and casos[0][2] in r.text
+    # La propia escalera puede reafirmar su polígono (no choca consigo misma).
+    assert (await control.put(_descansos(a["id"]), json={"descansos": [{"posicion": 1, "trazo_id": libre}]})).status_code == 200
+    # La losa de la zona no se enteró de la escalera.
+    assert not {c["concepto"]["clave"] for c in (await control.get(f"{API}/zonas-de-losa/{z['id']}/matriz")).json()["conceptos"]} & {"EJ-820", "EST-01510"}
+
+
+async def test_los_escalones_de_abanico_forman_parte_de_los_peldanos_y_suman_piezas_sin_doble_conteo(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    _, z = await _vacia(control, escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    r = await control.put(_abanicos(e["id"]), json={"abanicos": [{"posicion": 1, "escalones": 3, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75}]})
+    assert r.status_code == 200, r.text
+    [a] = r.json()["abanicos"]
+    assert (a["posicion"], a["escalones"], a["ancho_interior_m"], a["ancho_exterior_m"], a["radio_huella_m"]) == (1, 3, 0.15, 0.75, 0.35)  # radio por omisión: 35 cm
+    c = await _calculo(control, z["id"])
+    [item] = c["escaleras"]
+    g = item["calculo"]["geometria"]
+    # Los 18 peldaños del desnivel no cambian: 3 de abanico y 15 rectos. Piezas: 15 + 5.4 = 20.4 (y no 18 + 5.4).
+    assert (g["peldanos"], g["peldanos_rectos"], g["peldanos_de_abanico"]) == (18, 15, 3) and c["totales"]["peldanos"] == 18 and c["totales"]["peldanos_de_abanico"] == 3
+    assert g["escalones_rectos_de_catalogo"] == pytest.approx(15.0) and g["escalones_de_abanico_de_catalogo"] == pytest.approx(5.4)
+    assert c["totales"]["escalones_de_catalogo"] == pytest.approx(20.4) and c["totales"]["area_de_abanico_m2"] == pytest.approx(1.62)
+    [escalon] = [k for k in item["calculo"]["conceptos"] if k["parte"] == "escalon"]
+    assert escalon["cantidad"] == pytest.approx(20.4) and c["totales"]["conceptos"][0]["cantidad"] == pytest.approx(20.4)
+    [ab] = g["abanicos"]
+    assert ab["huella_en_la_linea_m"] == pytest.approx(0.325) and ab["giro_total_grados"] == pytest.approx(85.94, abs=0.01)
+    # Concreto y acero por geometría, una sola vez: la rampa de los 15 rectos y el abanico.
+    insumos = item["calculo"]["insumos"]
+    concreto = {i["parte"]: i["cantidad"] for i in insumos if i["clave"] == "CON-00004"}
+    assert concreto["rampa"] == pytest.approx(g["superficie_de_rampa_m2"] * 0.12) and concreto["abanico"] == pytest.approx(g["superficie_de_abanico_m2"] * 0.12)
+    # El radio es editable.
+    r = await control.put(_abanicos(e["id"]), json={"abanicos": [{"posicion": 1, "escalones": 3, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75, "radio_huella_m": 0.40}]})
+    assert r.json()["abanicos"][0]["radio_huella_m"] == 0.40
+    [ab] = (await _calculo(control, z["id"]))["escaleras"][0]["calculo"]["geometria"]["abanicos"]
+    assert ab["huella_en_la_linea_m"] == pytest.approx(0.15 + 0.6 * 0.40 / 1.2)
+    # Quitarlos devuelve la escalera recta de siempre.
+    assert (await control.put(_abanicos(e["id"]), json={"abanicos": []})).json()["abanicos"] == []
+    g = (await _calculo(control, z["id"]))["escaleras"][0]["calculo"]["geometria"]
+    assert (g["peldanos_rectos"], g["peldanos_de_abanico"], g["escalones_de_catalogo"]) == (18, 0, pytest.approx(18.0))
+
+
+async def test_un_abanico_que_no_cabe_o_esta_mal_puesto_se_rechaza_y_no_se_guarda(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    _, z = await _vacia(control, escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 4})).json()
+    url = _abanicos(e["id"])
+    base = {"posicion": 1, "escalones": 3, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75}
+    r = await control.put(url, json={"abanicos": [{**base, "escalones": 12}]})  # quedarían 6 peldaños rectos y 4 rampas piden 8
+    assert r.status_code == 422 and "no caben" in r.text
+    r = await control.put(url, json={"abanicos": [{**base, "posicion": 5}]})
+    assert r.status_code == 422
+    r = await control.put(url, json={"abanicos": [base, {**base, "escalones": 2}]})
+    assert r.status_code == 422 and "misma posición" in r.text
+    r = await control.put(url, json={"abanicos": [{**base, "ancho_interior_m": 0.5, "ancho_exterior_m": 0.3}]})
+    assert r.status_code == 422
+    r = await control.put(url, json={"abanicos": [{**base, "radio_huella_m": 1.5}]})  # pasa del ancho de la escalera (1.20 m)
+    assert r.status_code == 422 and "pasa del ancho" in r.text
+    r = await control.put(url, json={"abanicos": [{**base, "ancho_interior_m": 0.05, "ancho_exterior_m": 0.15}]})  # 9 cm en la línea de huella
+    assert r.status_code == 422 and "línea de huella" in r.text
+    assert (await control.get(_escaleras(z["id"]))).json()[0]["abanicos"] == []
+    # Con un abanico en la posición 4 (tras la última rampa), bajar las rampas se rechaza.
+    assert (await control.put(url, json={"abanicos": [{**base, "posicion": 4}]})).status_code == 200
+    r = await control.put(f"{API}/escaleras-de-zona/{e['id']}", json={"rampas": 3})
+    assert r.status_code == 422 and "ya no existen" in r.text
+    # Subir los peldaños deja sitio a más escalones de abanico.
+    assert (await control.put(f"{API}/escaleras-de-zona/{e['id']}", json={"rampas": 4, "peldanos": 40})).status_code == 200
+    assert (await control.put(url, json={"abanicos": [{**base, "posicion": 4, "escalones": 12}]})).status_code == 200
+
+
+async def test_solo_control_de_obra_escribe_descansos_y_abanicos_y_los_demas_los_leen(
+    control: httpx.AsyncClient, costos: httpx.AsyncClient, residente: httpx.AsyncClient, escenario: Escenario
+) -> None:
+    _, z = await _vacia(control, escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    assert (await control.put(_descansos(e["id"]), json={"descansos": [{"posicion": 1}]})).status_code == 200
+    assert (await control.put(_abanicos(e["id"]), json={"abanicos": [{"posicion": 1, "escalones": 2, "ancho_interior_m": 0.2, "ancho_exterior_m": 0.5}]})).status_code == 200
+    for otro in (costos, residente):
+        assert (await otro.put(_descansos(e["id"]), json={"descansos": []})).status_code == 403
+        assert (await otro.put(_abanicos(e["id"]), json={"abanicos": []})).status_code == 403
+        [vista] = (await otro.get(_escaleras(z["id"]))).json()
+        assert len(vista["descansos"]) == 1 and len(vista["abanicos"]) == 1
+        [item] = (await _calculo(otro, z["id"]))["escaleras"]
+        assert len(item["descansos"]) == 1 and len(item["abanicos"]) == 1
+    # Nadie cambió nada.
+    assert len((await control.get(_escaleras(z["id"]))).json()[0]["descansos"]) == 1
+
+
+async def test_la_conciliacion_incluye_el_concreto_y_el_acero_de_los_escalones_de_abanico_por_escalon(control: httpx.AsyncClient, escenario: Escenario) -> None:
+    _, z = await _vacia(control, escenario)
+    await _catalogo_de_la_escalera(escenario)
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 2})).json()
+    assert (await control.put(_abanicos(e["id"]), json={"abanicos": [{"posicion": 1, "escalones": 3, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75}]})).status_code == 200
+    [item] = (await _calculo(control, z["id"], conciliar="true"))["escaleras"]
+    g = item["calculo"]["geometria"]
+    por_escalon = (g["superficie_de_rampa_m2"] + g["superficie_de_abanico_m2"]) / g["escalones_de_catalogo"]
+    filas = {f["clave"]: f for f in item["conciliacion"]["filas"]}
+    assert filas["CON-00004"]["elemento"] == pytest.approx(por_escalon * 0.12, rel=1e-3) and filas["ACR-00001"]["elemento"] == pytest.approx(por_escalon * 0.9, rel=1e-3)
+
+
+async def test_los_escalones_de_abanico_se_escriben_en_la_partida_del_espacio_sin_doble_conteo(
+    control: httpx.AsyncClient, escenario: Escenario, arbol: dict[str, str]
+) -> None:
+    plano, z = await _vacia(control, escenario)
+    await _calibrar(control, plano)
+    est = await _catalogo_de_la_escalera(escenario)
+    esc = await _espacio(control, escenario.obra_id, "Escalera con abanico")
+    de = await _rama_de_espacio(escenario, arbol, "Escalera con abanico", est, "pza")
+    assert (await control.put(f"{API}/espacios/{esc['id']}/nodos", json={"nodo_ids": [de["rama"]]})).status_code == 200
+    e = (await control.post(_escaleras(z["id"]), json={"rampas": 2, "espacio_id": esc["id"]})).json()
+    assert await _medido(control, escenario, de["actividad"]) == pytest.approx(18.0)
+    # Al agregar el abanico la partida se rehace con las piezas de los 15 rectos más las del abanico: 20.4, no 18 + 5.4.
+    assert (await control.put(_abanicos(e["id"]), json={"abanicos": [{"posicion": 1, "escalones": 3, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75}]})).status_code == 200
+    assert await _medido(control, escenario, de["actividad"]) == pytest.approx(20.4)
+    c = await _calculo(control, z["id"])
+    assert sum(k["cantidad"] for g in c["por_espacio"] for k in g["conceptos"] if k["concepto"]["clave"] == "EST-01510") == pytest.approx(c["totales"]["conceptos"][0]["cantidad"])
+    # Un descanso propio en el mismo espacio informa su cantidad (EJ-820 sigue propuesto: no se escribe en ninguna partida) y no mueve las piezas del escalón.
+    assert (await control.put(_descansos(e["id"]), json={"descansos": [{"posicion": 1, "giro_grados": 180}]})).status_code == 200
+    c = await _calculo(control, z["id"])
+    estados = {x["concepto"]["clave"]: x["resolucion"]["estado"] for g in c["por_espacio"] for x in g["conceptos"]}
+    assert estados == {"EST-01510": "cuenta", "EJ-820": "propuesto"} and await _medido(control, escenario, de["actividad"]) == pytest.approx(20.4)
+    # Quitar el abanico devuelve la partida a los 18 escalones.
+    assert (await control.put(_abanicos(e["id"]), json={"abanicos": []})).status_code == 200
+    assert await _medido(control, escenario, de["actividad"]) == pytest.approx(18.0)

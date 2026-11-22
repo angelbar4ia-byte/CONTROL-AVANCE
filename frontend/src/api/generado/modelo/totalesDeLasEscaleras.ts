@@ -11,5 +11,7 @@ export interface TotalesDeLasEscaleras {
   peldanos: number;
   escalones_de_catalogo: number;
   area_de_descanso_m2: number;
+  peldanos_de_abanico: number;
+  area_de_abanico_m2: number;
   conceptos: ConceptoDeLosTotalesDeEscaleras[];
 }

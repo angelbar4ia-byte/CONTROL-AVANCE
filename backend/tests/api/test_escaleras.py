@@ -56,3 +56,37 @@ def test_un_dato_que_no_vale_es_422_y_una_clave_que_no_existe_404(cliente: TestC
     r = cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json={"cota_arranque_m": 3, "cota_llegada_m": 2})
     assert r.status_code == 422 and "sube" in r.text
     assert cliente.post(f"{RUTA}/ESC-OTRA/calcular", json={}).status_code == 404
+
+
+def test_el_calculo_suelto_acepta_descansos_propios_y_escalones_de_abanico(cliente: TestClient) -> None:
+    cuerpo = {
+        "cota_llegada_m": 3.12, "rampas": 2,
+        "descansos": [{"posicion": 1, "giro_grados": 180, "largo_m": 1.2, "ancho_m": 2.4, "espesor_m": 0.15}],
+        "abanicos": [{"posicion": 1, "escalones": 3, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75}],
+    }
+    r = cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json=cuerpo)
+    assert r.status_code == 200, r.text
+    g = r.json()["geometria"]
+    assert (g["peldanos"], g["peldanos_rectos"], g["peldanos_de_abanico"]) == (18, 15, 3) and g["escalones_de_catalogo"] == pytest.approx(20.4)
+    assert g["descansos_detalle"][0]["origen"] == "dimensiones" and g["descansos_detalle"][0]["area_m2"] == pytest.approx(2.88)
+    assert g["abanicos"][0]["radio_huella_m"] == 0.35 and g["abanicos"][0]["huella_en_la_linea_m"] == pytest.approx(0.325)
+    assert {i["parte"] for i in r.json()["insumos"]} == {"rampa", "abanico", "descanso"}
+    # Sin ellos, el cálculo es el de siempre.
+    base = cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json={"cota_llegada_m": 3.12, "rampas": 2}).json()["geometria"]
+    assert base["descansos_detalle"][0]["origen"] == "implicito" and base["abanicos"] == [] and base["escalones_de_catalogo"] == pytest.approx(18.0)
+
+
+def test_un_descanso_o_un_abanico_que_no_valen_son_422(cliente: TestClient) -> None:
+    for mal in (
+        {"descansos": [{"posicion": 4}]}, {"descansos": [{"posicion": 1, "giro_grados": 45}]}, {"descansos": [{"posicion": 1, "largo_m": 9}]},
+        {"abanicos": [{"posicion": 1, "escalones": 0, "ancho_interior_m": 0.1, "ancho_exterior_m": 0.3}]},
+        {"abanicos": [{"posicion": 1, "escalones": 3, "ancho_interior_m": 0.1}]},
+    ):
+        assert cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json=mal).status_code == 422, mal
+    # Valores que el contrato acepta pero el dominio rechaza también son 422, con su motivo.
+    r = cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json={"rampas": 2, "descansos": [{"posicion": 2}]})
+    assert r.status_code == 422 and "tiene 2 rampas" in r.text
+    r = cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json={"abanicos": [{"posicion": 0, "escalones": 3, "ancho_interior_m": 0.4, "ancho_exterior_m": 0.2}]})
+    assert r.status_code == 422
+    r = cliente.post(f"{RUTA}/ESC-FORJADA/calcular", json={"rampas": 4, "abanicos": [{"posicion": 1, "escalones": 12, "ancho_interior_m": 0.15, "ancho_exterior_m": 0.75}]})
+    assert r.status_code == 422 and "no caben" in r.text

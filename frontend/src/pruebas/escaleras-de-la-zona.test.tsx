@@ -12,6 +12,8 @@ const m = vi.hoisted(() => ({
   cambiar: vi.fn(),
   quitar: vi.fn(),
   proponer: vi.fn(),
+  descansos: vi.fn(),
+  abanicos: vi.fn(),
 }));
 
 vi.mock('@/api/generado/escaleras/escaleras', () => ({
@@ -24,6 +26,8 @@ vi.mock('@/api/generado/escaleras/escaleras', () => ({
   useCambiarEscaleraApiV1EscalerasDeZonaEscaleraIdPut: () => ({ mutateAsync: m.cambiar, isPending: false }),
   useQuitarEscaleraApiV1EscalerasDeZonaEscaleraIdDelete: () => ({ mutateAsync: m.quitar, isPending: false }),
   useProponerConceptosDeLasEscalerasApiV1ZonasDeLosaZonaIdEscalerasPropuestasPost: () => ({ mutateAsync: m.proponer, isPending: false }),
+  useCambiarDescansosApiV1EscalerasDeZonaEscaleraIdDescansosPut: () => ({ mutateAsync: m.descansos, isPending: false }),
+  useCambiarAbanicosApiV1EscalerasDeZonaEscaleraIdAbanicosPut: () => ({ mutateAsync: m.abanicos, isPending: false }),
 }));
 vi.mock('@/app/queryClient', () => ({ queryClient: { invalidateQueries: vi.fn() } }));
 
@@ -45,10 +49,12 @@ const GEOMETRIA = {
   peldanos: 18, origen_de_peldanos: 'desnivel', contrahuella_m: 0.1733, huella_m: 0.25, origen_de_huella: 'tecleada', longitud_inclinada_m: 0.304, recorrido_horizontal_m: 4.25,
   rampas: [{ numero: 1, peldanos: 18, recorrido_m: 4.25, altura_m: 3.12 }], descansos: 0, largo_del_descanso_m: 1.2, area_de_descanso_m2: 0, superficie_de_rampa_m2: 6.57,
   volumen_de_rampa_m3: 0.788, volumen_de_descanso_m3: 0, escalones_de_catalogo: 18,
+  peldanos_rectos: 18, peldanos_de_abanico: 0, descansos_detalle: [], abanicos: [], area_de_abanico_m2: 0, superficie_de_abanico_m2: 0, volumen_de_abanico_m3: 0,
+  escalones_rectos_de_catalogo: 18, escalones_de_abanico_de_catalogo: 0,
 };
 
 const ESCALERA = (extra: Record<string, unknown> = {}, calculo: Record<string, unknown> = {}) => ({
-  id: 'e1', trazo_id: null, espacio_id: null, zona_llegada_id: null, origen_de_cotas: { arranque: 'zona', llegada: 'losa_de_la_zona' }, error: null,
+  id: 'e1', trazo_id: null, espacio_id: null, zona_llegada_id: null, origen_de_cotas: { arranque: 'zona', llegada: 'losa_de_la_zona' }, descansos: [], abanicos: [], error: null,
   calculo: {
     clave: 'ESC-FORJADA', nombre: 'Escalera forjada', parametros: PARAMETROS, cotas: { arranque_m: 0, llegada_m: 3.12, desnivel_m: 3.12 }, geometria: GEOMETRIA, insumos: [],
     conceptos: [{ parte: 'escalon', elemento_clave: 'ESC-FORJADA', ref: null, concepto: ESCALON, toma: ['peldaños', 'ancho'], cantidad: 18, unidad: 'pza', nota: '', propuesta: null }],
@@ -69,7 +75,7 @@ const CALCULO = (extra: Record<string, unknown> = {}) => ({
   zona: { id: 'z1', plano_id: 'p1', nombre: 'Planta baja', nivel: 'PB', cota_piso_m: 0, cota_de_la_losa_m: 3.12 },
   escala_definida: true,
   escaleras: [ESCALERA()],
-  totales: { peldanos: 18, escalones_de_catalogo: 18, area_de_descanso_m2: 0, conceptos: [{ concepto: ESCALON, unidad: 'pza', cantidad: 18, propuesta: null }] },
+  totales: { peldanos: 18, escalones_de_catalogo: 18, area_de_descanso_m2: 0, peldanos_de_abanico: 0, area_de_abanico_m2: 0, conceptos: [{ concepto: ESCALON, unidad: 'pza', cantidad: 18, propuesta: null }] },
   por_espacio: [
     {
       espacio_id: 'esp1', espacio_nombre: 'Escalera 1',
@@ -103,7 +109,9 @@ function pintar(rol: string | null, puedeEditar: boolean) {
 }
 
 beforeEach(() => {
-  for (const f of [m.agregar, m.cambiar, m.quitar, m.proponer]) f.mockReset();
+  for (const f of [m.agregar, m.cambiar, m.quitar, m.proponer, m.descansos, m.abanicos]) f.mockReset();
+  m.descansos.mockResolvedValue({});
+  m.abanicos.mockResolvedValue({});
   m.agregar.mockResolvedValue({});
   m.cambiar.mockResolvedValue({});
   m.quitar.mockResolvedValue(undefined);
@@ -253,5 +261,128 @@ describe('EscalerasDeLaZona', () => {
     m.calculo.current = CALCULO({ escaleras: [], por_espacio: [], totales: { peldanos: 0, escalones_de_catalogo: 0, area_de_descanso_m2: 0, conceptos: [] } });
     pintar('control_obra', true);
     expect(screen.getByText(/La zona no tiene escaleras/)).toBeInTheDocument();
+  });
+
+  describe('descansos y escalones de abanico (Fase 4d)', () => {
+    const DESCANSO_PROPIO = { id: 'd1', posicion: 1, giro_grados: 180, largo_m: 1.2, ancho_m: 2.4, espesor_m: 0.15, trazo_id: null };
+    const ABANICO = { id: 'f1', posicion: 1, escalones: 3, ancho_interior_m: 0.15, ancho_exterior_m: 0.75, radio_huella_m: 0.35 };
+    const CON_DOS_RAMPAS = (extra: Record<string, unknown> = {}, geometria: Record<string, unknown> = {}) =>
+      CALCULO({
+        escaleras: [
+          ESCALERA(
+            { descansos: [DESCANSO_PROPIO], abanicos: [ABANICO], ...extra },
+            {
+              parametros: { ...PARAMETROS, rampas: 2 },
+              geometria: {
+                ...GEOMETRIA, rampas: [{ numero: 1, peldanos: 8, recorrido_m: 1.75, altura_m: 1.4 }, { numero: 2, peldanos: 7, recorrido_m: 1.5, altura_m: 1.2 }], descansos: 1,
+                area_de_descanso_m2: 2.88, peldanos_rectos: 15, peldanos_de_abanico: 3, area_de_abanico_m2: 1.62, escalones_rectos_de_catalogo: 15, escalones_de_abanico_de_catalogo: 5.4,
+                escalones_de_catalogo: 20.4,
+                descansos_detalle: [{ id: 'd1', posicion: 1, giro_grados: 180, largo_m: 1.2, ancho_m: 2.4, espesor_m: 0.15, area_m2: 2.88, volumen_m3: 0.432, origen: 'dimensiones' }],
+                abanicos: [
+                  {
+                    id: 'f1', posicion: 1, escalones: 3, ancho_interior_m: 0.15, ancho_exterior_m: 0.75, radio_huella_m: 0.35, huella_en_la_linea_m: 0.325, ancho_medio_m: 0.45,
+                    angulo_por_escalon_grados: 28.65, giro_total_grados: 85.94, radio_interior_m: 0.3, area_en_planta_m2: 1.62, superficie_m2: 1.9, volumen_m3: 0.228, escalones_de_catalogo: 5.4,
+                  },
+                ],
+                ...geometria,
+              },
+            },
+          ),
+        ],
+        totales: { peldanos: 18, escalones_de_catalogo: 20.4, area_de_descanso_m2: 2.88, peldanos_de_abanico: 3, area_de_abanico_m2: 1.62, conceptos: [] },
+      });
+
+    it('pinta el descanso propio con su origen y el abanico con la huella en la línea, sin sumar peldaños', () => {
+      m.calculo.current = CON_DOS_RAMPAS();
+      pintar('control_obra', true);
+      const detalle = screen.getByRole('table', { name: 'Detalle de los descansos (escalera 1)' });
+      expect(detalle.querySelector('[data-posicion="1"]')).toHaveAttribute('data-origen', 'dimensiones');
+      expect(detalle).toHaveTextContent('180°');
+      expect(detalle).toHaveTextContent('2.88 m²');
+      expect(screen.getByLabelText('Giro del descanso 1 de la escalera 1')).toHaveValue('180');
+      expect(screen.getByLabelText('Espesor del descanso 1 de la escalera 1')).toHaveValue('0.15');
+      expect(screen.getByTestId('abanico-resumen-1')).toHaveTextContent('3 de abanico + 15 rectos = 18 peldaños');
+      expect(screen.getByTestId('abanico-resumen-1')).toHaveTextContent('5.40 pza de EST-01510');
+      const tabla = screen.getByRole('table', { name: 'Detalle de los abanicos (escalera 1)' });
+      expect(tabla).toHaveTextContent('32.5 cm (a 35 cm del borde interior)');
+      expect(tabla).toHaveTextContent('85.9°');
+      expect(screen.getByTestId('escalera-de-la-zona-resumen')).toHaveTextContent('3 de abanico y 15 rectos');
+      expect(screen.getByTestId('escaleras-resumen')).toHaveTextContent('3 de abanico');
+    });
+
+    it('con una sola rampa no hay descanso que poner', () => {
+      pintar('control_obra', true);
+      expect(screen.getByTestId('descansos-de-la-escalera-1')).toHaveTextContent('Con una sola rampa no hay descanso');
+      expect(screen.queryByRole('button', { name: 'Agregar un descanso a la escalera 1' })).not.toBeInTheDocument();
+    });
+
+    it('Control de obra agrega un descanso y lo guarda con lo que tecleó; lo vacío toma la omisión', async () => {
+      m.calculo.current = CON_DOS_RAMPAS({ descansos: [] });
+      const { onCambio } = pintar('control_obra', true);
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar un descanso a la escalera 1' }));
+      fireEvent.change(screen.getByLabelText('Giro del descanso 1 de la escalera 1'), { target: { value: '180' } });
+      fireEvent.change(screen.getByLabelText('Largo del descanso 1 de la escalera 1'), { target: { value: '1.4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los descansos de la escalera 1' }));
+      await waitFor(() => expect(m.descansos).toHaveBeenCalledWith({ escaleraId: 'e1', data: { descansos: [{ posicion: 1, giro_grados: 180, largo_m: 1.4 }] } }));
+      await waitFor(() => expect(onCambio).toHaveBeenCalledWith('Descansos de la escalera 1 guardados.'));
+    });
+
+    it('quitar todos los descansos manda la lista vacía (vuelve al implícito) y una medida inválida no se manda', async () => {
+      m.calculo.current = CON_DOS_RAMPAS();
+      const { onError, onCambio } = pintar('control_obra', true);
+      fireEvent.change(screen.getByLabelText('Largo del descanso 1 de la escalera 1'), { target: { value: 'mucho' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los descansos de la escalera 1' }));
+      await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('no es un número válido')));
+      expect(m.descansos).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Quitar el descanso 1 de la escalera 1' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los descansos de la escalera 1' }));
+      await waitFor(() => expect(m.descansos).toHaveBeenCalledWith({ escaleraId: 'e1', data: { descansos: [] } }));
+      await waitFor(() => expect(onCambio).toHaveBeenCalledWith('Escalera 1: vuelve al descanso implícito.'));
+    });
+
+    it('un descanso con el área de un polígono del plano lo conserva al guardar y no deja teclear su largo ni su ancho', async () => {
+      m.calculo.current = CON_DOS_RAMPAS({ descansos: [{ ...DESCANSO_PROPIO, largo_m: null, ancho_m: null, trazo_id: 't1' }] });
+      pintar('control_obra', true);
+      expect(screen.getByText('área de un polígono del plano')).toBeInTheDocument();
+      expect(screen.getByLabelText('Largo del descanso 1 de la escalera 1')).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los descansos de la escalera 1' }));
+      await waitFor(() => expect(m.descansos).toHaveBeenCalledWith({ escaleraId: 'e1', data: { descansos: [{ posicion: 1, giro_grados: 180, espesor_m: 0.15, trazo_id: 't1' }] } }));
+    });
+
+    it('guarda un abanico nuevo con el radio por omisión vacío y el servidor pone 0.35', async () => {
+      m.calculo.current = CON_DOS_RAMPAS({ abanicos: [] });
+      const { onCambio } = pintar('control_obra', true);
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar un abanico a la escalera 1' }));
+      fireEvent.change(screen.getByLabelText('Escalones del abanico 1 de la escalera 1'), { target: { value: '4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los abanicos de la escalera 1' }));
+      await waitFor(() =>
+        expect(m.abanicos).toHaveBeenCalledWith({ escaleraId: 'e1', data: { abanicos: [{ posicion: 0, escalones: 4, ancho_interior_m: 0.15, ancho_exterior_m: 0.75 }] } }),
+      );
+      await waitFor(() => expect(onCambio).toHaveBeenCalledWith('Escalones de abanico de la escalera 1 guardados.'));
+    });
+
+    it('el radio de la línea de huella es editable y un abanico sin fondos válidos no se manda', async () => {
+      const { onError } = pintar('control_obra', true);
+      fireEvent.click(screen.getByRole('button', { name: 'Agregar un abanico a la escalera 1' }));
+      expect(screen.getByLabelText('Radio de la línea de huella del abanico 1 de la escalera 1')).toHaveAttribute('placeholder', '0.35');
+      fireEvent.change(screen.getByLabelText('Radio de la línea de huella del abanico 1 de la escalera 1'), { target: { value: '0.4' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los abanicos de la escalera 1' }));
+      await waitFor(() => expect(m.abanicos).toHaveBeenCalledWith({ escaleraId: 'e1', data: { abanicos: [expect.objectContaining({ radio_huella_m: 0.4 })] } }));
+      m.abanicos.mockClear();
+      fireEvent.change(screen.getByLabelText('Fondo en el borde interior del abanico 1 de la escalera 1'), { target: { value: 'poco' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar los abanicos de la escalera 1' }));
+      await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('Revisa el abanico')));
+      expect(m.abanicos).not.toHaveBeenCalled();
+    });
+
+    it('los demás roles leen descansos y abanicos sin poder cambiarlos', () => {
+      m.calculo.current = CON_DOS_RAMPAS();
+      pintar('costos', false);
+      expect(screen.getByLabelText('Giro del descanso 1 de la escalera 1')).toBeDisabled();
+      expect(screen.getByLabelText('Escalones del abanico 1 de la escalera 1')).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /^Guardar los descansos/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Agregar un abanico/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Quitar el abanico/ })).not.toBeInTheDocument();
+    });
   });
 });
