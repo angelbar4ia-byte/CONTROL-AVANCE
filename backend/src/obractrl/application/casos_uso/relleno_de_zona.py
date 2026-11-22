@@ -34,6 +34,7 @@ from obractrl.application.casos_uso.zonas_de_losa import (
 from obractrl.application.puertos.relleno_de_zona import RepositorioRellenosDeZona
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.application.puertos.zonas_de_losa import RepositorioZonasDeLosa
+from obractrl.domain.cuantificacion.azotea_con_bajadas import Bajada
 from obractrl.domain.cuantificacion.comparacion_con_catalogo import (
     comparar_con_concepto,
     expandir_composicion,
@@ -41,6 +42,7 @@ from obractrl.domain.cuantificacion.comparacion_con_catalogo import (
 from obractrl.domain.cuantificacion.enlaces_de_ranura import Partida
 from obractrl.domain.cuantificacion.espacios import resolver_matriz_por_espacio
 from obractrl.domain.cuantificacion.matriz_de_losa import area_de_poligonos
+from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 from obractrl.domain.cuantificacion.relleno import (
     CLAVES_DE_RELLENO,
     CONCEPTO_AZOTEA,
@@ -48,19 +50,47 @@ from obractrl.domain.cuantificacion.relleno import (
     ErrorDeRelleno,
     PoligonoDeRelleno,
     calcular_relleno,
+    concepto_nuevo_de_arenilla,
     concepto_nuevo_de_relleno,
     elemento_de_relleno,
     solapes_de_rellenos,
     validar_parametros,
 )
 
-__all__ = ["GestionarPropuestasDeRelleno", "GestionarRellenos", "RellenoNoEncontrado"]
+__all__ = ["BajadaNoEncontrada", "GestionarPropuestasDeRelleno", "GestionarRellenos", "RellenoNoEncontrado"]
 
-_CAMPOS = ("espesor_m", "pendiente_pct", "recorrido_m", "compensar_espesores", "abundamiento_pct", "mortero_m3_por_m2")
+_CAMPOS = (
+    "espesor_m", "pendiente_pct", "recorrido_m", "compensar_espesores", "abundamiento_pct", "mortero_m3_por_m2", "pendiente_zona_pct", "espesor_bajada_m",
+    "mortero_espesor_m", "factor_abundamiento",
+)
 
 
 class RellenoNoEncontrado(ElementoParametricoNoEncontrado):
     """El relleno no existe o salió del alcance (RLS): indistinguibles a propósito (§12.4)."""
+
+
+class BajadaNoEncontrada(ElementoParametricoNoEncontrado):
+    """La bajada no existe o salió del alcance (RLS): indistinguibles a propósito (§12.4)."""
+
+
+def _punto_de(geojson: dict[str, Any] | None) -> tuple[float, float] | None:
+    if not geojson or geojson.get("type") != "Point":
+        return None
+    return float(geojson["coordinates"][0]), float(geojson["coordinates"][1])
+
+
+def _linea_de(geojson: dict[str, Any] | None) -> list[tuple[float, float]] | None:
+    if not geojson or geojson.get("type") != "LineString":
+        return None
+    return [(float(p[0]), float(p[1])) for p in geojson["coordinates"]]
+
+
+def _a_plano(dinamico: dict[str, Any], escala: float) -> None:
+    """Las guías y las bajadas del cálculo salen en metros; el visor las pinta en unidades del plano (`/ escala`)."""
+    for g in dinamico.get("guias", []):
+        g["puntos"] = [[x / escala, y / escala] for x, y in g["puntos"]]
+    for b in dinamico.get("bajadas", []):
+        b["x"], b["y"] = b["x"] / escala, b["y"] / escala
 
 
 def _numero(valor: Any) -> Any:
@@ -76,14 +106,12 @@ class GestionarPropuestasDeRelleno(GestionarPropuestasDeLosa):
         return list(await self._propuestas.del_elemento(elemento_clave))
 
     async def proponer_concepto_de_relleno(self, elemento_clave: str, *, usuario_id: UUID, rol: str) -> dict[str, Any]:
-        """El concepto nuevo del relleno compactado por m³ (regla F7), con clave provisional, sin insumos, destajo ni precio. El relleno de azotea usa
-        ALB-03014 del catálogo y no se propone nada."""
+        """El concepto nuevo del relleno (regla F7), con clave provisional, sin insumos, destajo ni precio: el compactado por m³ (EJ-810) o la arenilla del relleno
+        dinámico de azotea por m³ (EJ-830). El mortero de la azotea usa ALB-03014 del catálogo."""
         tipo = elemento_de_relleno(elemento_clave)
         if tipo is None:
             raise ElementoParametricoNoEncontrado(f"No hay un elemento de relleno «{elemento_clave}» en la biblioteca.")
-        if tipo != "compactado":
-            raise ErrorDeRelleno("El relleno de azotea usa el concepto ALB-03014 del catálogo: no necesita un concepto nuevo.")
-        return await self.proponer([concepto_nuevo_de_relleno(tipo)], usuario_id=usuario_id, rol=rol)
+        return await self.proponer([concepto_nuevo_de_arenilla() if tipo == "azotea" else concepto_nuevo_de_relleno(tipo)], usuario_id=usuario_id, rol=rol)
 
 
 class GestionarRellenos:
@@ -217,6 +245,118 @@ class GestionarRellenos:
             await self._resincronizar(zona["plano_id"])
             await self._uow.commit()
 
+    # ── Bajadas pluviales (0147) ────────────────────────────────────────────────────────────────────────
+
+    async def _relleno_de_azotea(self, relleno_id: UUID) -> tuple[dict[str, Any], dict[str, Any]]:
+        f = await self._rellenos.uno(relleno_id)
+        if f is None:
+            raise RellenoNoEncontrado(f"El relleno {relleno_id} no existe o no está en tu alcance.")
+        if elemento_de_relleno(f["elemento_clave"]) != "azotea":
+            raise ErrorDeRelleno("Solo el relleno de azotea lleva bajadas pluviales: el compactado no tiene espesor variable.")
+        return f, await self._zona(f["zona_id"])
+
+    async def _validar_trazos_de_bajada(
+        self, zona: dict[str, Any], *, trazo_id: UUID | None, linea_trazo_id: UUID | None, propia: UUID | None
+    ) -> None:
+        if trazo_id is not None:
+            punto = await self._zonas.trazo(trazo_id)
+            if punto is None:
+                raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+            if punto["tipo"] != "POINT" or punto["hueco_de"] is not None:
+                raise ErrorDeRelleno("Una bajada pluvial se identifica con un PUNTO del plano (herramienta Punto).")
+            if punto["plano_id"] != zona["plano_id"]:
+                raise ErrorDeRelleno("El punto de la bajada es de otro plano: la bajada debe estar en el plano de la zona.")
+            ya = await self._rellenos.bajada_del_punto(trazo_id)
+            if ya is not None and ya != propia:
+                raise ErrorDeRelleno("Ese punto ya es una bajada pluvial: un punto no sirve a dos bajadas (se contaría dos veces).")
+        if linea_trazo_id is not None:
+            linea = await self._zonas.trazo(linea_trazo_id)
+            if linea is None:
+                raise TrazoNoEncontrado(f"El trazo {linea_trazo_id} no existe o no está en tu alcance.")
+            if linea["tipo"] != "LINESTRING" or linea["hueco_de"] is not None:
+                raise ErrorDeRelleno("La línea de pendiente es una LÍNEA del plano (herramienta Línea), dibujada hacia la bajada.")
+            if linea["plano_id"] != zona["plano_id"]:
+                raise ErrorDeRelleno("La línea de pendiente es de otro plano.")
+            if len(_linea_de(linea["geojson"]) or []) < 2:
+                raise ErrorDeRelleno("La línea de pendiente necesita al menos dos puntos.")
+            ya_linea = await self._rellenos.bajada_de_la_linea(linea_trazo_id)
+            if ya_linea is not None and ya_linea != propia:
+                raise ErrorDeRelleno("Esa línea ya marca la pendiente de otra bajada: una línea no sirve a dos bajadas.")
+
+    @staticmethod
+    def _rotulo(rotulo: str | None) -> str | None:
+        limpio = (rotulo or "").strip()
+        if len(limpio) > 40:
+            raise ErrorDeRelleno("El rótulo de la bajada tiene hasta 40 caracteres.")
+        return limpio or None
+
+    async def agregar_bajada(
+        self, relleno_id: UUID, *, trazo_id: UUID, linea_trazo_id: UUID | None, rotulo: str | None, autor_id: UUID
+    ) -> dict[str, Any]:
+        """Convierte un PUNTO del plano en una bajada pluvial del relleno de azotea (con su línea de pendiente opcional)."""
+        _, zona = await self._relleno_de_azotea(relleno_id)
+        await self._validar_trazos_de_bajada(zona, trazo_id=trazo_id, linea_trazo_id=linea_trazo_id, propia=None)
+        async with self._uow:
+            nueva = await self._rellenos.agregar_bajada(
+                relleno_id=relleno_id, trazo_id=trazo_id, linea_trazo_id=linea_trazo_id, rotulo=self._rotulo(rotulo), autor_id=autor_id
+            )
+            await self._resincronizar(zona["plano_id"])
+            await self._uow.commit()
+        return await self._bajada(nueva)
+
+    async def _bajada(self, bajada_id: UUID) -> dict[str, Any]:
+        b = await self._rellenos.bajada(bajada_id)
+        if b is None:
+            raise BajadaNoEncontrada(f"La bajada {bajada_id} no existe o no está en tu alcance.")
+        return {k: b[k] for k in ("id", "relleno_id", "trazo_id", "linea_trazo_id", "rotulo")}
+
+    async def cambiar_bajada(self, bajada_id: UUID, *, linea_trazo_id: UUID | None, rotulo: str | None) -> dict[str, Any]:
+        """Cambia el rótulo o la línea de pendiente de una bajada (sin línea, el sistema genera la dirección de la pendiente)."""
+        b = await self._rellenos.bajada(bajada_id)
+        if b is None:
+            raise BajadaNoEncontrada(f"La bajada {bajada_id} no existe o no está en tu alcance.")
+        _, zona = await self._relleno_de_azotea(b["relleno_id"])
+        await self._validar_trazos_de_bajada(zona, trazo_id=None, linea_trazo_id=linea_trazo_id, propia=bajada_id)
+        async with self._uow:
+            await self._rellenos.actualizar_bajada(bajada_id, linea_trazo_id=linea_trazo_id, rotulo=self._rotulo(rotulo))
+            await self._resincronizar(zona["plano_id"])
+            await self._uow.commit()
+        return await self._bajada(bajada_id)
+
+    async def quitar_bajada(self, bajada_id: UUID) -> None:
+        """Quita la bajada del relleno (el punto del plano queda como un trazo cualquiera)."""
+        b = await self._rellenos.bajada(bajada_id)
+        if b is None:
+            raise BajadaNoEncontrada(f"La bajada {bajada_id} no existe o no está en tu alcance.")
+        _, zona = await self._relleno_de_azotea(b["relleno_id"])
+        async with self._uow:
+            await self._rellenos.eliminar_bajada(bajada_id)
+            await self._resincronizar(zona["plano_id"])
+            await self._uow.commit()
+
+    async def guias_del_plano(self, plano_id: UUID) -> dict[str, Any]:
+        """Lo que el visor pinta del relleno dinámico de todo el plano: las bajadas y las guías (líneas de pendiente y hilos de nivel punteados), en unidades del
+        plano. Solo las zonas con bajadas se calculan; sin escala calibrada no hay guías (no hay metros)."""
+        plano = await self._zonas.plano(plano_id)
+        if plano is None:
+            raise ZonaDeLosaNoEncontrada(f"El plano {plano_id} no existe o no está en tu alcance.")
+        bajadas: list[dict[str, Any]] = []
+        guias: list[dict[str, Any]] = []
+        for z in await self._zonas.zonas(plano_id):
+            if not await self._rellenos.bajadas_de_la_zona(z["id"]):
+                continue
+            try:
+                c = await self.calculo(UUID(str(z["id"])))
+            except ErrorDeCuantificacion:
+                continue
+            for r in c["rellenos"]:
+                for b in r.get("bajadas", []):
+                    bajadas.append({"id": b["id"], "relleno_id": r["id"], "zona_id": z["id"], "x": b["x"], "y": b["y"], "rotulo": b["rotulo"]})
+                d = r.get("dinamico") or {}
+                for g in d.get("guias", []):
+                    guias.append({**g, "relleno_id": r["id"], "zona_id": z["id"]})
+        return {"plano_id": plano_id, "escala_definida": plano["escala_m_por_unidad"] is not None, "bajadas": bajadas, "guias": guias}
+
     # ── El cálculo ──────────────────────────────────────────────────────────────────────────────────────
 
     async def calculo(self, zona_id: UUID, *, conciliar: bool = False) -> dict[str, Any]:
@@ -234,26 +374,50 @@ class GestionarRellenos:
                 area_m2=area_de_poligonos(_poligonos(lo["geojson"], escala)),
                 espesor_de_losa_m=float(lo["espesor_propio_m"]) if lo["espesor_propio_m"] is not None else None,
                 espacio_id=str(lo["espacio_id"]) if lo.get("espacio_id") else None,
+                piezas=_poligonos(lo["geojson"], escala),
             )
             for lo in losas_de_la_zona
         }
         maximo = max([p.espesor_de_losa_m if p.espesor_de_losa_m is not None else espesor_de_la_zona for p in poligonos.values()], default=espesor_de_la_zona)
 
         filas = await self._rellenos.de_la_zona(zona_id)
+        bajadas_por_relleno: dict[str, list[dict[str, Any]]] = {}
+        for b in await self._rellenos.bajadas_de_la_zona(zona_id):
+            bajadas_por_relleno.setdefault(str(b["relleno_id"]), []).append(b)
         calculados: list[dict[str, Any]] = []
         for f in filas:
             tipo = elemento_de_relleno(f["elemento_clave"])
             assert tipo is not None  # la base solo guarda las dos claves
             cubre = [poligonos[str(f["trazo_id"])]] if f["trazo_id"] and str(f["trazo_id"]) in poligonos else (list(poligonos.values()) if not f["trazo_id"] else [])
+            suyas = bajadas_por_relleno.get(str(f["id"]), []) if tipo == "azotea" else []
+            bajadas = [
+                Bajada(
+                    id=str(b["id"]), x=punto[0] * escala, y=punto[1] * escala, rotulo=b["rotulo"],
+                    linea=tuple((x * escala, y * escala) for x, y in linea) if (linea := _linea_de(b["geojson_linea"])) and len(linea) >= 2 else None,
+                )
+                for b in suyas
+                if (punto := _punto_de(b["geojson"])) is not None
+            ]
             r = calcular_relleno(
                 EntradaRelleno(
                     tipo=tipo, espesor_de_la_zona_m=espesor_de_la_zona, poligonos=cubre, espesor_maximo_de_la_zona_m=maximo,
                     **{c: _numero(f[c]) for c in _CAMPOS}, espacio_id=str(f["espacio_id"]) if f.get("espacio_id") else None,
+                    bajadas=bajadas, escala_definida=escala_definida,
                 )
             )
+            r["bajadas"] = [
+                {
+                    "id": b["id"], "trazo_id": b["trazo_id"], "linea_trazo_id": b["linea_trazo_id"], "rotulo": b["rotulo"],
+                    "x": (_punto_de(b["geojson"]) or (0.0, 0.0))[0], "y": (_punto_de(b["geojson"]) or (0.0, 0.0))[1],
+                    "linea": [[x, y] for x, y in (_linea_de(b["geojson_linea"]) or [])] or None,
+                }
+                for b in suyas
+            ]
+            if r["dinamico"] is not None:
+                _a_plano(r["dinamico"], escala)
             if f["trazo_id"] and str(f["trazo_id"]) not in poligonos:
                 r["advertencias"].insert(0, "El polígono que cubre este relleno ya no es de la losa de la zona: el relleno no cubre nada. Cámbialo o quítalo.")
-            if not escala_definida and cubre:
+            if not escala_definida and cubre and r["modo"] != "bajadas":
                 r["advertencias"].insert(0, "El plano no tiene escala calibrada: se toma 1 unidad de plano = 1 m para las áreas.")
             r["id"] = f["id"]
             r["trazo_id"] = f["trazo_id"]
@@ -341,13 +505,19 @@ class GestionarRellenos:
     # ── Propuestas ──────────────────────────────────────────────────────────────────────────────────────
 
     async def proponer_conceptos(self, zona_id: UUID, *, usuario_id: UUID, rol: str) -> dict[str, Any]:
-        """Propone el concepto nuevo que los rellenos de la zona necesitan (el del relleno compactado). Idempotente: lo que ya está propuesto o autorizado
-        se omite. El relleno de azotea usa ALB-03014 del catálogo y no propone nada."""
+        """Propone los conceptos nuevos que los rellenos de la zona necesitan: el del relleno compactado (EJ-810) y la arenilla del relleno de azotea con bajadas
+        (EJ-830). Idempotente: lo que ya está propuesto o autorizado se omite. El mortero de la azotea usa ALB-03014 del catálogo y no propone nada."""
         await self._zona(zona_id)
-        necesita = any(f["elemento_clave"] == CLAVES_DE_RELLENO["compactado"] for f in await self._rellenos.de_la_zona(zona_id))
-        if not necesita:
+        filas = await self._rellenos.de_la_zona(zona_id)
+        con_bajadas = {str(b["relleno_id"]) for b in await self._rellenos.bajadas_de_la_zona(zona_id)}
+        pedidas: list[dict[str, Any]] = []
+        if any(f["elemento_clave"] == CLAVES_DE_RELLENO["compactado"] for f in filas):
+            pedidas.append(concepto_nuevo_de_relleno("compactado"))
+        if any(f["elemento_clave"] == CLAVES_DE_RELLENO["azotea"] and str(f["id"]) in con_bajadas for f in filas):
+            pedidas.append(concepto_nuevo_de_arenilla())
+        if not pedidas:
             return {"creadas": [], "omitidas": []}
-        return await self._propuestas.proponer([concepto_nuevo_de_relleno("compactado")], usuario_id=usuario_id, rol=rol)
+        return await self._propuestas.proponer(pedidas, usuario_id=usuario_id, rol=rol)
 
 
 def _juntar_por_espacio(calculados: list[dict[str, Any]]) -> list[dict[str, Any]]:

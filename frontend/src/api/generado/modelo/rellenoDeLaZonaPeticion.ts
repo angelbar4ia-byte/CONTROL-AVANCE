@@ -14,6 +14,10 @@ import type { RellenoDeLaZonaPeticionRecorridoM } from "./rellenoDeLaZonaPeticio
 import type { RellenoDeLaZonaPeticionCompensarEspesores } from "./rellenoDeLaZonaPeticionCompensarEspesores";
 import type { RellenoDeLaZonaPeticionAbundamientoPct } from "./rellenoDeLaZonaPeticionAbundamientoPct";
 import type { RellenoDeLaZonaPeticionMorteroM3PorM2 } from "./rellenoDeLaZonaPeticionMorteroM3PorM2";
+import type { RellenoDeLaZonaPeticionPendienteZonaPct } from "./rellenoDeLaZonaPeticionPendienteZonaPct";
+import type { RellenoDeLaZonaPeticionEspesorBajadaM } from "./rellenoDeLaZonaPeticionEspesorBajadaM";
+import type { RellenoDeLaZonaPeticionMorteroEspesorM } from "./rellenoDeLaZonaPeticionMorteroEspesorM";
+import type { RellenoDeLaZonaPeticionFactorAbundamiento } from "./rellenoDeLaZonaPeticionFactorAbundamiento";
 
 export interface RellenoDeLaZonaPeticion {
   elemento_clave: RellenoDeLaZonaPeticionElementoClave;
@@ -28,4 +32,12 @@ export interface RellenoDeLaZonaPeticion {
   compensar_espesores?: RellenoDeLaZonaPeticionCompensarEspesores;
   abundamiento_pct?: RellenoDeLaZonaPeticionAbundamientoPct;
   mortero_m3_por_m2?: RellenoDeLaZonaPeticionMorteroM3PorM2;
+  /** Azotea con bajadas: la pendiente de la zona (%); sin él vale 2 %. */
+  pendiente_zona_pct?: RellenoDeLaZonaPeticionPendienteZonaPct;
+  /** Azotea con bajadas: el espesor mínimo de arenilla en la bajada; sin él, 5 cm. */
+  espesor_bajada_m?: RellenoDeLaZonaPeticionEspesorBajadaM;
+  /** Azotea con bajadas: el espesor de la plantilla de mortero; sin él, 5 cm. */
+  mortero_espesor_m?: RellenoDeLaZonaPeticionMorteroEspesorM;
+  /** Compactado: cantidad = volumen compactado × factor; sin él, 1.00. */
+  factor_abundamiento?: RellenoDeLaZonaPeticionFactorAbundamiento;
 }

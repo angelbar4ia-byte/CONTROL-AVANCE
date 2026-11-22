@@ -269,8 +269,10 @@ async def test_el_concepto_del_compactado_se_propone_una_vez_y_solo_control_de_o
             assert (await cn.execute(text("select count(*) from concepto where clave = 'EJ-810'"))).scalar_one() == 0
     finally:
         await motor.dispose()
-    # El relleno de azotea no necesita concepto nuevo; una clave que no es de relleno no existe.
-    assert (await costos.post(f"{API}/biblioteca-de-elementos/relleno/REL-AZOTEA/propuestas/concepto")).status_code == 422
+    # El mortero de la azotea usa ALB-03014 del catálogo; su arenilla (relleno con bajadas) propone EJ-830, una sola vez. Una clave que no es de relleno no existe.
+    primera_arenilla = await costos.post(f"{API}/biblioteca-de-elementos/relleno/REL-AZOTEA/propuestas/concepto")
+    assert primera_arenilla.status_code == 201 and len(primera_arenilla.json()["creadas"]) == 1
+    assert (await costos.post(f"{API}/biblioteca-de-elementos/relleno/REL-AZOTEA/propuestas/concepto")).json() == {"creadas": [], "omitidas": ["EJ-830"]}
     for mala in ("LOSA-MACIZA", "REL-OTRO"):
         assert (await costos.post(f"{API}/biblioteca-de-elementos/relleno/{mala}/propuestas/concepto")).status_code == 404
         assert (await costos.get(f"{API}/biblioteca-de-elementos/relleno/{mala}/propuestas")).status_code == 404

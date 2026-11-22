@@ -226,6 +226,27 @@ interface Props {
   /** Trazos propuestos por una herramienta automática. Un clic (con Seleccionar) los descarta o los elige. */
   readonly propuestas?: readonly PropuestaVisible[];
   readonly onAlternarPropuesta?: (id: string) => void;
+  /** Las líneas de pendiente y los hilos de nivel punteados del relleno dinámico de azotea (los genera el servidor). */
+  readonly guiasDeRelleno?: readonly GuiaDeRellenoVisible[];
+  /** Las bajadas pluviales de esos rellenos, marcadas sobre su punto. */
+  readonly bajadasDeRelleno?: readonly BajadaDeRellenoVisible[];
+}
+
+/** Una guía del relleno dinámico de azotea: la línea de pendiente (hacia la bajada) o un hilo de nivel (maestra punteada, espesor constante). Unidades del plano. */
+export interface GuiaDeRellenoVisible {
+  readonly id: string;
+  readonly tipo: 'pendiente' | 'hilo';
+  readonly origen: 'trazada' | 'generada';
+  readonly puntos: readonly Punto[];
+  /** De un hilo de nivel: el espesor de la arenilla sobre él (m). */
+  readonly espesorM?: number | null;
+}
+
+/** Una bajada pluvial del relleno dinámico de azotea. */
+export interface BajadaDeRellenoVisible {
+  readonly id: string;
+  readonly punto: Punto;
+  readonly rotulo: string | null;
 }
 
 /** El trazo de una flecha de `desde` a `hasta`: el cuerpo y la cabeza (de `cabeza` unidades de largo). */
@@ -288,6 +309,8 @@ export function Visor({
   marcas = [],
   claveDePlano,
   vistaDelPlano = VISTA_NORMAL,
+  guiasDeRelleno = [],
+  bajadasDeRelleno = [],
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const gesto = useRef<Gesto | null>(null);
@@ -956,6 +979,47 @@ export function Visor({
           points={fantasma.map((q) => `${q[0]},${q[1]}`).join(' ')}
           vectorEffect="non-scaling-stroke"
         />
+      )}
+
+      {(guiasDeRelleno.length > 0 || bajadasDeRelleno.length > 0) && (
+        <g className="visor__guias-de-relleno" data-testid="guias-de-relleno" fontSize={10 * px}>
+          {guiasDeRelleno.map((g) => {
+            const puntos = g.puntos.map((q) => `${q[0]},${q[1]}`).join(' ');
+            if (g.tipo === 'hilo') {
+              const medio = g.puntos[Math.floor(g.puntos.length / 2)]!;
+              const cm = g.espesorM == null ? null : (g.espesorM * 100).toFixed(1);
+              return (
+                <g key={g.id} data-testid="hilo-de-nivel" data-origen={g.origen} data-espesor-cm={cm ?? undefined}>
+                  <polyline className="visor__hilo-de-nivel" points={puntos} vectorEffect="non-scaling-stroke" />
+                  {cm !== null && (
+                    <text x={medio[0]} y={medio[1]} textAnchor="middle" className="visor__hilo-rotulo" transform={T.contragiro(medio[0], medio[1])}>
+                      {cm} cm
+                    </text>
+                  )}
+                </g>
+              );
+            }
+            const fin = g.puntos[g.puntos.length - 1]!;
+            const antes = g.puntos[g.puntos.length - 2]!;
+            return (
+              <g key={g.id} data-testid="linea-de-pendiente" data-origen={g.origen}>
+                <polyline className={g.origen === 'trazada' ? 'visor__linea-de-pendiente is-trazada' : 'visor__linea-de-pendiente'} points={puntos} vectorEffect="non-scaling-stroke" />
+                <path className="visor__linea-de-pendiente" d={flechaHacia(antes, fin, 10 * px)} vectorEffect="non-scaling-stroke" />
+              </g>
+            );
+          })}
+          {bajadasDeRelleno.map((b) => (
+            <g key={b.id} data-testid="bajada-de-relleno" data-bajada-id={b.id}>
+              <circle className="visor__bajada" cx={b.punto[0]} cy={b.punto[1]} r={8 * px} vectorEffect="non-scaling-stroke" />
+              <circle className="visor__bajada-centro" cx={b.punto[0]} cy={b.punto[1]} r={3 * px} />
+              {b.rotulo && (
+                <text x={b.punto[0]} y={b.punto[1]} dy={-12 * px} textAnchor="middle" className="visor__bajada-rotulo" transform={T.contragiro(b.punto[0], b.punto[1])}>
+                  {b.rotulo}
+                </text>
+              )}
+            </g>
+          ))}
+        </g>
       )}
 
       {cotas.length > 0 && (

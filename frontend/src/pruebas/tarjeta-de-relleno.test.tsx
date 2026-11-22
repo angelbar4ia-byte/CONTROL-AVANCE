@@ -34,7 +34,7 @@ import { PantallaDeElementos } from '@/cuantificador/elementos/PantallaDeElement
 import { TarjetaRelleno } from '@/cuantificador/elementos/TarjetaRelleno';
 
 const PENDIENTES = [{ clave: 'R1', texto: 'El material del usuario no define cómo se mide el relleno.' }];
-const DEFECTOS_AZOTEA = { espesor_m: 0.09, pendiente_pct: 0, recorrido_m: 0, compensar_espesores: true, abundamiento_pct: 0, mortero_m3_por_m2: 0.0735 };
+const DEFECTOS_AZOTEA = { espesor_m: 0.09, pendiente_pct: 0, recorrido_m: 0, compensar_espesores: true, abundamiento_pct: 0, mortero_m3_por_m2: 0.0735, pendiente_zona_pct: 2, espesor_bajada_m: 0.05, mortero_espesor_m: 0.05, factor_abundamiento: 1 };
 const AZOTEA = {
   clave: 'REL-AZOTEA', nombre: 'Relleno de azotea', tipo: 'azotea', se_mide_por: 'm² de relleno de una zona del plano',
   categoria: { clave: 'rellenos', nombre: 'Rellenos' }, subcategoria: { clave: 'azotea', nombre: 'Rellenos de azotea' },
@@ -156,7 +156,7 @@ describe('TarjetaRelleno', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('El espesor no vale.');
   });
 
-  it('el compactado pide el abundamiento (no el mortero), muestra el volumen suelto y su concepto es propuesto con clave provisional', async () => {
+  it('el compactado pide el factor de abundamiento (no el mortero), muestra el volumen suelto y su concepto es propuesto con clave provisional', async () => {
     m.definicion.current = COMPACTADO;
     m.calcular.mockResolvedValue({
       ...CALCULO, clave: 'REL-COMPACTADO', tipo: 'compactado', volumen_m3: 5, volumen_suelto_m3: 6.25, insumos: [],
@@ -164,8 +164,8 @@ describe('TarjetaRelleno', () => {
     });
     render(<TarjetaRelleno clave="REL-COMPACTADO" rol="costos" />);
     expect(screen.queryByLabelText('Mortero en metros cúbicos por metro cuadrado')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Abundamiento en por ciento'), { target: { value: '25' } });
-    await waitFor(() => expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'REL-COMPACTADO', data: expect.objectContaining({ abundamiento_pct: 25 }) }));
+    fireEvent.change(screen.getByLabelText('Factor de abundamiento'), { target: { value: '1.25' } });
+    await waitFor(() => expect(m.calcular).toHaveBeenLastCalledWith({ clave: 'REL-COMPACTADO', data: expect.objectContaining({ factor_abundamiento: 1.25 }) }));
     expect(await screen.findByTestId('relleno-suelto')).toHaveTextContent('6.250 m³');
     const fila = screen.getByRole('region', { name: 'Concepto del relleno' }).querySelector('[data-concepto="EJ-810"]') as HTMLElement;
     expect(fila).toHaveAttribute('data-estado', 'propuesto');
