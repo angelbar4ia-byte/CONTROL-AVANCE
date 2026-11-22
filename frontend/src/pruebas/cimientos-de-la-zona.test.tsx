@@ -27,7 +27,7 @@ const PUNTOS = [{ trazo_id: 'pn1', cota_m: '-0.600', rotulo: 'Desplante CIM-1' }
 const MCT = { clave: 'MCT-01011', descripcion: 'MURO DE MAMPOSTERÍA DE PIEDRA DE CERRO', unidad: 'm3', estado: 'catalogo', provisional: false };
 
 const CIMIENTO = (extra: Record<string, unknown> = {}, calculo: Record<string, unknown> | null = {}) => ({
-  id: 'c1', trazo_id: 'l1', punto_nivel_id: null, espacio_id: null, origen_de_cotas: { desplante: 'explicita', corona: 'zona' }, longitud_m: 10, error: null,
+  id: 'c1', trazo_id: 'l1', punto_nivel_id: null, espacio_id: null, origen_de_cotas: { desplante: 'explicita', corona: 'cadena_de_desplante' }, longitud_m: 10, error: null,
   calculo:
     calculo === null
       ? null
@@ -96,7 +96,7 @@ describe('CimientosDeLaZona', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cimientos de Cimentación' }));
     const resumen = screen.getByTestId('cimiento-de-la-zona-resumen');
     expect(resumen).toHaveTextContent('Desplante -0.80 m (tecleada)');
-    expect(resumen).toHaveTextContent('corona 0.00 m (del piso de la zona)');
+    expect(resumen).toHaveTextContent('corona 0.00 m (del arranque de la cadena de desplante)');
     expect(resumen).toHaveTextContent('altura 0.80 m');
     expect(resumen).toHaveTextContent('5.320 m³ de MCT-01011');
     expect(screen.getByTestId('cimientos-resumen')).toHaveTextContent('10.00 m');
@@ -152,7 +152,7 @@ describe('CimientosDeLaZona', () => {
   });
 
   it('con el desplante de un punto de nivel lo dice; quien no es Control de obra solo lee', () => {
-    m.calculo.current = CALCULO({ cimientos: [CIMIENTO({ punto_nivel_id: 'pn1', origen_de_cotas: { desplante: 'punto_de_nivel', corona: 'zona' } })] });
+    m.calculo.current = CALCULO({ cimientos: [CIMIENTO({ punto_nivel_id: 'pn1', origen_de_cotas: { desplante: 'punto_de_nivel', corona: 'cadena_de_desplante' } })] });
     pintar(false);
     expect(screen.getByTestId('cimiento-de-la-zona-resumen')).toHaveTextContent('(de un punto de nivel exterior)');
     expect(screen.getByLabelText('Cota de desplante del cimiento 1')).toBeDisabled();

@@ -3,7 +3,7 @@
  * con **cotas de desplante** (relativas al piso terminado de PB = 0).
  *
  * - La altura sale de la corona menos el desplante; la longitud, de la línea del plano y de la escala del plano (medición derivada). El desplante se teclea o sale de un punto de
- *   nivel exterior del plano (si el punto cambia, el cimiento cambia). La corona vale el piso de la zona si no se teclea.
+ *   nivel exterior del plano (si el punto cambia, el cimiento cambia). La corona vale el arranque de la cadena de desplante (piso de la zona − 20 cm) si no se teclea.
  * - Se paga con el concepto que ya existe en el catálogo (MCT-01011, por m³). Cada cimiento dice en qué **espacio** está (0143) y su concepto en qué **partida** del árbol se mide o
  *   por qué no cuenta; la suma de los espacios es el total (sin doble conteo). Solo Control de obra edita. Los cimientos se agregan desde el detalle de una línea del plano.
  *
@@ -41,6 +41,7 @@ function num(n: number | null | undefined, dec = 2): string {
 
 const NOMBRE_DEL_ORIGEN_DE_COTA: Record<string, string> = {
   explicita: 'tecleada',
+  cadena_de_desplante: 'del arranque de la cadena de desplante',
   zona: 'del piso de la zona',
   punto_de_nivel: 'de un punto de nivel exterior',
   sin_cota: 'sin cota',
@@ -252,7 +253,7 @@ function FilaDelCimiento({
         </label>
         <label className="mct__campo">
           Cota de la corona (m)
-          <input className="input" inputMode="decimal" aria-label={`Cota de la corona del cimiento ${numero}`} disabled={!puedeEditar} placeholder="el piso de la zona" value={corona} onChange={(x) => setCorona(x.target.value)} />
+          <input className="input" inputMode="decimal" aria-label={`Cota de la corona del cimiento ${numero}`} disabled={!puedeEditar} placeholder="arranque de la cadena de desplante" value={corona} onChange={(x) => setCorona(x.target.value)} />
         </label>
         <label className="mct__campo">
           Caras inclinadas

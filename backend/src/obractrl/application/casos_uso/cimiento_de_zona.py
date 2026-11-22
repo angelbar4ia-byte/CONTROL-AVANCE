@@ -27,6 +27,7 @@ from obractrl.domain.cuantificacion.cimiento import (
     EntradaCimiento,
     ErrorDeCimiento,
     calcular_cimiento,
+    corona_por_defecto,
     elemento_de_cimiento,
 )
 from obractrl.domain.cuantificacion.enlaces_de_ranura import Partida
@@ -179,7 +180,7 @@ class GestionarCimientos:
                 desplante, origen_d = puntos[UUID(str(f["punto_nivel_id"]))], "punto_de_nivel"
             else:
                 desplante, origen_d = None, "sin_cota"
-            corona, origen_c = (float(f["cota_corona_m"]), "explicita") if f.get("cota_corona_m") is not None else (float(zona["cota_piso_m"]), "zona")
+            corona, origen_c = (float(f["cota_corona_m"]), "explicita") if f.get("cota_corona_m") is not None else (corona_por_defecto(float(zona["cota_piso_m"])), "cadena_de_desplante")
             longitud = _largo_de_linea_m(f["geojson"], escala) if f.get("geojson") else 0.0
             item: dict[str, Any] = {
                 "id": f["id"], "trazo_id": f["trazo_id"], "punto_nivel_id": f.get("punto_nivel_id"), "espacio_id": f.get("espacio_id"),

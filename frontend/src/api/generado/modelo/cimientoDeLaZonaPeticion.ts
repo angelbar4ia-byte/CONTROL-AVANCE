@@ -19,7 +19,7 @@ export interface CimientoDeLaZonaPeticion {
   cota_desplante_m?: CimientoDeLaZonaPeticionCotaDesplanteM;
   /** Un punto de nivel exterior del plano cuya cota es la del desplante (medición derivada). */
   punto_nivel_id?: CimientoDeLaZonaPeticionPuntoNivelId;
-  /** Cota de la corona; sin ella vale el piso de la zona. */
+  /** Cota de la corona; sin ella vale el arranque de la cadena de desplante (piso de la zona − peralte de la cadena, 20 cm). Una cota tecleada manda. */
   cota_corona_m?: CimientoDeLaZonaPeticionCotaCoronaM;
   /** Caras inclinadas del muro: 1 (cimiento de lindero) o 2 (simétrico). */
   caras?: CimientoDeLaZonaPeticionCaras;

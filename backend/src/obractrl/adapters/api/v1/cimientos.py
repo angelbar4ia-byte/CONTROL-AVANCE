@@ -1,7 +1,7 @@
 """El muro de cimentación con cotas de desplante (Fase 4b): cimientos de la zona y su cálculo.
 
 - **Zona** (`/zonas-de-losa/{zona_id}/cimientos`): los muros de cimentación de piedra (CIM-01010) medidos sobre una línea del plano con su cota de desplante (tecleada o de un
-  punto de nivel exterior), su corona (tecleada o el piso de la zona) y su espacio; su **cálculo** con lo que hay en el plano y la base. Todos los roles que ven el plano leen;
+  punto de nivel exterior), su corona (tecleada o, sin ella, el arranque de la cadena de desplante: piso de la zona − 20 cm) y su espacio; su **cálculo** con lo que hay en el plano y la base. Todos los roles que ven el plano leen;
   **solo Control de obra escribe** (lo exige también RLS). Se pagan con el concepto existente MCT-01011 (m³): no hay propuesta de concepto nuevo.
 
 El cálculo vive en el dominio (`cimiento`, que reutiliza el muro de cimentación); controladores delgados.
@@ -36,7 +36,7 @@ class CimientoDeLaZonaPeticion(BaseModel):
     trazo_id: UUID = Field(description="La línea del plano que mide el cimiento: su longitud (con la escala) se deriva al calcular. Una línea mide un solo cimiento.")
     cota_desplante_m: float | None = Field(default=None, ge=-30, le=100, description="Cota del fondo del cimiento (relativa al piso terminado de PB = 0); manda sobre el punto de nivel.")
     punto_nivel_id: UUID | None = Field(default=None, description="Un punto de nivel exterior del plano cuya cota es la del desplante (medición derivada).")
-    cota_corona_m: float | None = Field(default=None, ge=-30, le=100, description="Cota de la corona; sin ella vale el piso de la zona.")
+    cota_corona_m: float | None = Field(default=None, ge=-30, le=100, description="Cota de la corona; sin ella vale el arranque de la cadena de desplante (piso de la zona − peralte de la cadena, 20 cm). Una cota tecleada manda.")
     caras: Literal[1, 2] = Field(default=1, description="Caras inclinadas del muro: 1 (cimiento de lindero) o 2 (simétrico).")
     dentellon: bool = Field(default=False, description="Dentellón opcional, desde 2.00 m de altura.")
     espacio_id: UUID | None = Field(default=None, description="El espacio donde está el cimiento (0143); `null` = sin espacio (no se escribe en ninguna partida).")
@@ -142,7 +142,9 @@ class CimientoCalculado(BaseModel):
 
 class OrigenDeLasCotasDelCimiento(BaseModel):
     desplante: Literal["explicita", "punto_de_nivel", "sin_cota"]
-    corona: Literal["explicita", "zona"]
+    corona: Literal["explicita", "cadena_de_desplante", "zona"] = Field(
+        description="`cadena_de_desplante` (defecto desde C1): piso de la zona − peralte de la cadena de desplante. `zona` (piso de la zona) ya no se emite; se conserva por compatibilidad del contrato."
+    )
 
 
 class CimientoDeLaZonaCalculado(BaseModel):

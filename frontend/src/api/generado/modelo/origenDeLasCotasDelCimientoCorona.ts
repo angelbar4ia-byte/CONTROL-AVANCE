@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * `cadena_de_desplante` (defecto desde C1): piso de la zona − peralte de la cadena de desplante. `zona` (piso de la zona) ya no se emite; se conserva por compatibilidad del contrato.
+ */
 export type OrigenDeLasCotasDelCimientoCorona =
   (typeof OrigenDeLasCotasDelCimientoCorona)[keyof typeof OrigenDeLasCotasDelCimientoCorona];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const OrigenDeLasCotasDelCimientoCorona = {
   explicita: "explicita",
+  cadena_de_desplante: "cadena_de_desplante",
   zona: "zona",
 } as const;

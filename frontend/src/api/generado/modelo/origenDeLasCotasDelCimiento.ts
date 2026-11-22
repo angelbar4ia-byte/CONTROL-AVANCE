@@ -10,5 +10,6 @@ import type { OrigenDeLasCotasDelCimientoCorona } from "./origenDeLasCotasDelCim
 
 export interface OrigenDeLasCotasDelCimiento {
   desplante: OrigenDeLasCotasDelCimientoDesplante;
+  /** `cadena_de_desplante` (defecto desde C1): piso de la zona − peralte de la cadena de desplante. `zona` (piso de la zona) ya no se emite; se conserva por compatibilidad del contrato. */
   corona: OrigenDeLasCotasDelCimientoCorona;
 }
