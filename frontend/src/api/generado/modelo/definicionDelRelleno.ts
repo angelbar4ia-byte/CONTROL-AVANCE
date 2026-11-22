@@ -9,6 +9,7 @@ import type { DefinicionDelRellenoTipo } from "./definicionDelRellenoTipo";
 import type { ClaveYNombreDeLosa } from "./claveYNombreDeLosa";
 import type { ConceptoDeLaFicha } from "./conceptoDeLaFicha";
 import type { ParametrosDelRelleno } from "./parametrosDelRelleno";
+import type { DefinicionDelRellenoConceptoArenilla } from "./definicionDelRellenoConceptoArenilla";
 import type { DefinicionDelRellenoTezontle } from "./definicionDelRellenoTezontle";
 import type { DefinicionDelRellenoMortero } from "./definicionDelRellenoMortero";
 import type { DestajoCandidato } from "./destajoCandidato";
@@ -23,6 +24,8 @@ export interface DefinicionDelRelleno {
   subcategoria: ClaveYNombreDeLosa;
   concepto: ConceptoDeLaFicha;
   parametros_por_defecto: ParametrosDelRelleno;
+  /** Solo la azotea: el concepto nuevo propuesto (EJ-830, por m³) de la arenilla del relleno con bajadas. */
+  concepto_arenilla?: DefinicionDelRellenoConceptoArenilla;
   tezontle: DefinicionDelRellenoTezontle;
   mortero: DefinicionDelRellenoMortero;
   destajos_candidatos: DestajoCandidato[];

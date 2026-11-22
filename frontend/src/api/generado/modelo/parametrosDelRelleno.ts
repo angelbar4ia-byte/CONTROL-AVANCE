@@ -15,8 +15,16 @@ export interface ParametrosDelRelleno {
   recorrido_m: number;
   /** Las subzonas de losa más delgadas reciben la diferencia contra la más gruesa de la zona. */
   compensar_espesores: boolean;
-  /** Solo el compactado: % de material suelto de más (el catálogo no trae factor; por omisión 0). */
+  /** Solo el compactado: % de material suelto de más; es (factor_abundamiento − 1) × 100 (el catálogo no trae factor; por omisión 0). */
   abundamiento_pct: number;
-  /** Solo la azotea: m³ de mortero por m² (el del catálogo: 0.0735). */
+  /** Solo la azotea sin bajadas: m³ de mortero por m² (el del catálogo: 0.0735). */
   mortero_m3_por_m2: number;
+  /** Solo la azotea con bajadas: pendiente (%) de la zona; el espesor de la arenilla sube pendiente × distancia desde la bajada (2 % por omisión). */
+  pendiente_zona_pct?: number;
+  /** Solo la azotea con bajadas: espesor mínimo de arenilla en cada bajada (5 cm por omisión). */
+  espesor_bajada_m?: number;
+  /** Solo la azotea con bajadas: espesor de la plantilla de mortero sobre la arenilla (5 cm por omisión). */
+  mortero_espesor_m?: number;
+  /** Solo el compactado: la cantidad del concepto es el volumen compactado × este factor (1.00 por omisión; sin destajo). */
+  factor_abundamiento?: number;
 }

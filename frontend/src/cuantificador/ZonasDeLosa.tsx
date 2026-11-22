@@ -49,7 +49,11 @@ function mensaje(err: unknown, defecto: string): string {
 /** Lo que el plano pide cuando se está colocando algo: una losa de una zona o un punto de nivel. */
 export type PorColocar =
   | { readonly tipo: 'losa'; readonly zonaId: string; readonly nombre: string }
-  | { readonly tipo: 'nivel'; readonly cotaM: string; readonly rotulo: string };
+  | { readonly tipo: 'nivel'; readonly cotaM: string; readonly rotulo: string }
+  /** Relleno dinámico de azotea: un punto del plano por cada bajada pluvial del relleno. */
+  | { readonly tipo: 'bajada'; readonly rellenoId: string }
+  /** Relleno dinámico de azotea: la línea (hacia la bajada) que marca hacia dónde van las pendientes. */
+  | { readonly tipo: 'pendiente'; readonly bajadaId: string; readonly rotulo: string | null };
 
 interface PanelProps {
   readonly planoId: string;
@@ -185,7 +189,7 @@ export function PanelDeZonasDeLosa({ planoId, obraId = '', puedeEditar, rol = nu
             {z.losas.some((l) => l.espesor_propio_m != null) && ` · subzonas: ${z.losas.filter((l) => l.espesor_propio_m != null).length}`}
           </div>
           <MatrizDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
-          <RellenosDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
+          <RellenosDeLaZona zona={z} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} colocando={colocando} onColocar={onColocar} onCambio={onCambio} onError={onError} />
           <CimientosDeLaZona zona={z} puntos={puntos} puedeEditar={puedeEditar} espacios={espacios} onCambio={onCambio} onError={onError} />
           <EscalerasDeLaZona zona={z} zonas={zonas} puedeEditar={puedeEditar} rol={rol ?? (puedeEditar ? 'control_obra' : null)} espacios={espacios} onCambio={onCambio} onError={onError} />
           {puedeEditar && (
@@ -258,7 +262,11 @@ export function PanelDeZonasDeLosa({ planoId, obraId = '', puedeEditar, rol = nu
         <p className="text-xs" role="status">
           {colocando.tipo === 'losa'
             ? `Traza el área de la losa de «${colocando.nombre}» (polígono o rectángulo). Esc termina.`
-            : 'Haz clic en el plano para poner el punto (herramienta Punto). Esc termina.'}
+            : colocando.tipo === 'pendiente'
+              ? 'Traza la línea de pendiente hacia la bajada (herramienta Línea). Esc termina.'
+              : colocando.tipo === 'bajada'
+                ? 'Haz clic en el plano por cada bajada pluvial del relleno (herramienta Punto). Esc termina.'
+                : 'Haz clic en el plano para poner el punto (herramienta Punto). Esc termina.'}
         </p>
       )}
     </section>

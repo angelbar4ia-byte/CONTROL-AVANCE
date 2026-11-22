@@ -13,4 +13,5 @@ export type InsumoDelRellenoParte =
 export const InsumoDelRellenoParte = {
   tezontle: "tezontle",
   mortero: "mortero",
+  arenilla: "arenilla",
 } as const;

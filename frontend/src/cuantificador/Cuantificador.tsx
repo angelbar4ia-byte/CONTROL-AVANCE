@@ -205,6 +205,11 @@ import { PanelDeFachadaPorBandas } from './FachadaPorBandas';
 import { PanelDeZonasDeLosa, ZonaDeLosaDelTrazo, type PorColocar } from './ZonasDeLosa';
 import { etiquetasDeZonas } from './zonasDeLosa';
 import { useFijarLosaApiV1TrazosTrazoIdLosaPut, useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut, useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet } from '@/api/generado/zonas-de-losa/zonas-de-losa';
+import {
+  useAgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost,
+  useCambiarBajadaApiV1BajadasDeRellenoBajadaIdPut,
+  useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet,
+} from '@/api/generado/rellenos/rellenos';
 import { PanelDePlantillas } from './elementos/PanelDePlantillas';
 import { PanelDeBiblioteca } from './elementos/PanelDeBiblioteca';
 import { PantallaDeElementos } from './elementos/PantallaDeElementos';
@@ -988,6 +993,22 @@ export function EspacioDeTrazo({
   const fijarLosa = useFijarLosaApiV1TrazosTrazoIdLosaPut<ErrorApi>();
   const fijarNivelExterior = useFijarNivelExteriorApiV1TrazosTrazoIdNivelExteriorPut<ErrorApi>();
   const zonasDelPlano = useZonasDelPlanoApiV1PlanosPlanoIdZonasDeLosaGet(planoElegido, { query: { enabled: planoElegido !== '' } });
+  // Relleno dinámico de azotea (0147): una bajada es un punto del plano y la línea de pendiente, una línea; las guías (líneas de pendiente e hilos de nivel
+  // punteados) las genera el servidor y el visor las muestra.
+  const agregarBajada = useAgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost<ErrorApi>();
+  const cambiarBajada = useCambiarBajadaApiV1BajadasDeRellenoBajadaIdPut<ErrorApi>();
+  const guiasDeRelleno = useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet(planoElegido, { query: { enabled: planoElegido !== '' } });
+  const guiasVisibles = useMemo(
+    () =>
+      (guiasDeRelleno.data?.guias ?? []).map((g, i) => ({
+        id: `${g.relleno_id}-${i}`, tipo: g.tipo, origen: g.origen, puntos: g.puntos as unknown as Punto[], espesorM: g.espesor_m ?? null,
+      })),
+    [guiasDeRelleno.data],
+  );
+  const bajadasVisibles = useMemo(
+    () => (guiasDeRelleno.data?.bajadas ?? []).map((b) => ({ id: b.id, punto: [b.x, b.y] as unknown as Punto, rotulo: b.rotulo ?? null })),
+    [guiasDeRelleno.data],
+  );
   // Elementos, Artefacto y Paramétrico reemplazan el área de trabajo (la derecha) por su pantalla.
   // Mientras se coloca un elemento (D-604) se ve el plano: Esc termina y vuelve la pantalla.
   const pantallaPropia =
@@ -1781,14 +1802,23 @@ export function EspacioDeTrazo({
     }
     if (zonaPorColocar) {
       const pedida = zonaPorColocar;
-      const geometriaPedida = pedida.tipo === 'losa' ? 'poligono' : 'punto';
+      const geometriaPedida = pedida.tipo === 'losa' ? 'poligono' : pedida.tipo === 'pendiente' ? 'linea' : 'punto';
       if (geometriaPedida !== tipo) {
-        setAviso(pedida.tipo === 'losa' ? `La losa de «${pedida.nombre}» se traza con un área (Rectángulo o Polígono). Esc termina.` : 'El punto de nivel exterior se coloca con Punto. Esc termina.');
+        setAviso(
+          pedida.tipo === 'losa'
+            ? `La losa de «${pedida.nombre}» se traza con un área (Rectángulo o Polígono). Esc termina.`
+            : pedida.tipo === 'bajada'
+              ? 'La bajada pluvial se coloca con Punto. Esc termina.'
+              : pedida.tipo === 'pendiente'
+                ? 'La línea de pendiente se traza con Línea, hacia la bajada. Esc termina.'
+                : 'El punto de nivel exterior se coloca con Punto. Esc termina.',
+        );
         limpiarDibujo();
         return;
       }
       const planoId = plano.id;
-      const cuerpo = trazoPeticion({ ...base, enlaces: [] });
+      // La línea de pendiente es una línea del plano sin grosor (no es un muro) y sin pendiente propia: solo marca la dirección.
+      const cuerpo = trazoPeticion({ ...base, ...(pedida.tipo === 'pendiente' ? { grosorM: null, alineacion: null, muroPlantillaId: null, pendientePct: null } : {}), enlaces: [] });
       registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
         async (r) => {
           alGuardar(r, { planoId, data: cuerpo });
@@ -1796,12 +1826,20 @@ export function EspacioDeTrazo({
             if (pedida.tipo === 'losa') {
               await fijarLosa.mutateAsync({ trazoId: r.trazo_id, data: { zona_id: pedida.zonaId, espesor_m: null } });
               setAviso(`Losa de «${pedida.nombre}» dibujada. Sigue trazando; Esc termina.`);
+            } else if (pedida.tipo === 'bajada') {
+              await agregarBajada.mutateAsync({ rellenoId: pedida.rellenoId, data: { trazo_id: r.trazo_id } });
+              setAviso('Bajada pluvial colocada: el relleno calcula la arenilla con ella. Sigue colocando; Esc termina.');
+            } else if (pedida.tipo === 'pendiente') {
+              await cambiarBajada.mutateAsync({ bajadaId: pedida.bajadaId, data: { linea_trazo_id: r.trazo_id, rotulo: pedida.rotulo } });
+              setAviso('Línea de pendiente trazada hacia la bajada.');
+              setZonaPorColocar(null);
             } else {
               await fijarNivelExterior.mutateAsync({ trazoId: r.trazo_id, data: { cota_m: pedida.cotaM, rotulo: pedida.rotulo.trim() || null } });
               setAviso('Punto de nivel exterior colocado. Sigue colocando; Esc termina.');
             }
             invalidarTrazos();
             void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('zonas-de-losa') });
+            void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('guias-de-relleno') });
           } catch (err) {
             setAviso(`Trazo guardado, pero no se pudo marcar su rol: ${err instanceof Error ? err.message : 'error'}`);
           }
@@ -2960,8 +2998,16 @@ export function EspacioDeTrazo({
               setZonaPorColocar(c);
               if (c) {
                 setElementoPorColocar(null);
-                cambiarHerramienta(c.tipo === 'losa' ? 'rectangulo' : 'punto');
-                setAviso(c.tipo === 'losa' ? `Traza el área de la losa de «${c.nombre}». Esc termina.` : 'Un clic en el plano por cada punto de nivel exterior. Esc termina.');
+                cambiarHerramienta(c.tipo === 'losa' ? 'rectangulo' : c.tipo === 'pendiente' ? 'linea' : 'punto');
+                setAviso(
+                  c.tipo === 'losa'
+                    ? `Traza el área de la losa de «${c.nombre}». Esc termina.`
+                    : c.tipo === 'bajada'
+                      ? 'Un clic en el plano por cada bajada pluvial del relleno. Esc termina.'
+                      : c.tipo === 'pendiente'
+                        ? 'Traza la línea de pendiente hacia la bajada (de lo alto a la bajada). Esc termina.'
+                        : 'Un clic en el plano por cada punto de nivel exterior. Esc termina.',
+                );
               }
             }}
             onCambio={(a) => {
@@ -3567,6 +3613,8 @@ export function EspacioDeTrazo({
                 fantasma={fantasma}
                 etiquetas={etiquetasConZonas}
                 cotas={cotas}
+                guiasDeRelleno={guiasVisibles}
+                bajadasDeRelleno={bajadasVisibles}
                 onMover={asistida ? setCursor : undefined}
                 onCoordenadas={ponerCoordenadas}
                 onMenu={abrirMenuDelTrazo}

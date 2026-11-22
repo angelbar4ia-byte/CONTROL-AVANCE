@@ -100,9 +100,9 @@ test.describe('Cuantificador · relleno de la zona de losa', () => {
     await expect(compactado.getByTestId('relleno-de-la-zona-resumen')).toContainText('Área 8.00 m²');
     await expect(compactado.getByTestId('relleno-de-la-zona-resumen')).toContainText('EJ-810');
     await expect(compactado.getByText(/EJ-810 · propuesto/)).toBeVisible();
-    await compactado.getByLabel('Abundamiento del relleno 2').fill('25');
+    await compactado.getByLabel('Factor de abundamiento del relleno 2').fill('1.25');
     await compactado.getByRole('button', { name: 'Guardar los parámetros del relleno 2' }).click();
-    // Solo con el abundamiento guardado el suelto cambia (8 m² × 10 cm = 0.800 m³ compactado; con 25 % son 1.000 m³): así el spec espera a que el cambio
+    // Solo con el factor guardado la cantidad cambia (8 m² × 10 cm = 0.800 m³ compactado; con el factor 1.25 son 1.000 m³): así el spec espera a que el cambio
     // termine y su aviso no pise el del rechazo que sigue.
     await expect(compactado.getByTestId('relleno-de-la-zona-resumen')).toContainText('suelto 1.000 m³');
     await expect.poll(async () => (await rellenos()).length).toBe(2);
@@ -210,13 +210,15 @@ test.describe('Cuantificador · relleno de la zona de losa', () => {
     await expect(azotea.getByTestId('relleno-volumen')).toContainText('14.000 m³');
     await expect(azotea.getByRole('region', { name: 'Pendientes por confirmar' })).toContainText('R2');
     await expect(azotea.getByRole('region', { name: 'Qué toma del catálogo' })).toContainText('ya existe en el catálogo');
-    await expect(azotea.getByRole('button', { name: /Proponer/ })).toHaveCount(0);
+    // El mortero usa el concepto del catálogo; solo la arenilla del relleno con bajadas (EJ-830) se propone, y es un bloque aparte.
+    await expect(azotea.getByRole('region', { name: 'Concepto del relleno' }).getByRole('button', { name: /Proponer/ })).toHaveCount(0);
+    await expect(azotea.getByRole('region', { name: 'Arenilla del relleno con bajadas' })).toContainText('EJ-830');
 
     // El compactado: su concepto es propuesto con clave provisional; el volumen suelto sale del abundamiento. Nada de precios.
     await biblioteca.getByRole('button', { name: /^REL-COMPACTADO\b/ }).click();
     const compactado = area.getByRole('article', { name: /REL-COMPACTADO/ });
     await expect(compactado.getByTestId('relleno-volumen')).toContainText('10.000 m³'); // 100 m² × 10 cm
-    await compactado.getByLabel('Abundamiento en por ciento').fill('20');
+    await compactado.getByLabel('Factor de abundamiento', { exact: true }).fill('1.2');
     await expect(compactado.getByTestId('relleno-suelto')).toContainText('12.000 m³');
     await expect(compactado.getByRole('region', { name: 'Concepto del relleno' }).locator('[data-concepto="EJ-810"]')).toHaveAttribute('data-estado', 'propuesto');
     const bloque = compactado.getByRole('region', { name: 'Concepto nuevo del relleno' });

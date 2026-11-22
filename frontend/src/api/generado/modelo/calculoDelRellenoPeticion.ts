@@ -13,6 +13,10 @@ import type { CalculoDelRellenoPeticionRecorridoM } from "./calculoDelRellenoPet
 import type { CalculoDelRellenoPeticionCompensarEspesores } from "./calculoDelRellenoPeticionCompensarEspesores";
 import type { CalculoDelRellenoPeticionAbundamientoPct } from "./calculoDelRellenoPeticionAbundamientoPct";
 import type { CalculoDelRellenoPeticionMorteroM3PorM2 } from "./calculoDelRellenoPeticionMorteroM3PorM2";
+import type { CalculoDelRellenoPeticionPendienteZonaPct } from "./calculoDelRellenoPeticionPendienteZonaPct";
+import type { CalculoDelRellenoPeticionEspesorBajadaM } from "./calculoDelRellenoPeticionEspesorBajadaM";
+import type { CalculoDelRellenoPeticionMorteroEspesorM } from "./calculoDelRellenoPeticionMorteroEspesorM";
+import type { CalculoDelRellenoPeticionFactorAbundamiento } from "./calculoDelRellenoPeticionFactorAbundamiento";
 import type { CalculoDelRellenoPeticionEspacioId } from "./calculoDelRellenoPeticionEspacioId";
 
 export interface CalculoDelRellenoPeticion {
@@ -32,6 +36,11 @@ export interface CalculoDelRellenoPeticion {
   compensar_espesores?: CalculoDelRellenoPeticionCompensarEspesores;
   abundamiento_pct?: CalculoDelRellenoPeticionAbundamientoPct;
   mortero_m3_por_m2?: CalculoDelRellenoPeticionMorteroM3PorM2;
+  pendiente_zona_pct?: CalculoDelRellenoPeticionPendienteZonaPct;
+  espesor_bajada_m?: CalculoDelRellenoPeticionEspesorBajadaM;
+  mortero_espesor_m?: CalculoDelRellenoPeticionMorteroEspesorM;
+  /** Solo el compactado: el factor del abundamiento (1.00 por omisión). */
+  factor_abundamiento?: CalculoDelRellenoPeticionFactorAbundamiento;
   /** Una etiqueta de espacio para todo el relleno (0143). */
   espacio_id?: CalculoDelRellenoPeticionEspacioId;
 }

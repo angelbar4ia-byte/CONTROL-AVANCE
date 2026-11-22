@@ -8,6 +8,8 @@
 import type { RellenoCalculadoTipo } from "./rellenoCalculadoTipo";
 import type { ParametrosDelRelleno } from "./parametrosDelRelleno";
 import type { RellenoCalculadoVolumenSueltoM3 } from "./rellenoCalculadoVolumenSueltoM3";
+import type { RellenoCalculadoModo } from "./rellenoCalculadoModo";
+import type { RellenoCalculadoDinamico } from "./rellenoCalculadoDinamico";
 import type { PoligonoCalculadoDelRelleno } from "./poligonoCalculadoDelRelleno";
 import type { InsumoDelRelleno } from "./insumoDelRelleno";
 import type { ConceptoDelRelleno } from "./conceptoDelRelleno";
@@ -28,6 +30,10 @@ export interface RellenoCalculado {
   volumen_suelto_m3: RellenoCalculadoVolumenSueltoM3;
   espesor_medio_m: number;
   extra_de_pendiente_m: number;
+  /** `bajadas`: la azotea tiene bajadas pluviales y es dinámica (arenilla + mortero). */
+  modo: RellenoCalculadoModo;
+  /** Solo con bajadas: el espesor de la arenilla, el método, el error, las bajadas y las guías. */
+  dinamico?: RellenoCalculadoDinamico;
   poligonos: PoligonoCalculadoDelRelleno[];
   insumos: InsumoDelRelleno[];
   conceptos: ConceptoDelRelleno[];

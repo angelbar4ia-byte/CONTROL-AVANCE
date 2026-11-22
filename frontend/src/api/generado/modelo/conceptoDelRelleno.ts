@@ -5,12 +5,14 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { ConceptoDelRellenoParte } from "./conceptoDelRellenoParte";
 import type { ConceptoDelRellenoRef } from "./conceptoDelRellenoRef";
 import type { ConceptoDeLaFicha } from "./conceptoDeLaFicha";
 import type { ConceptoDelRellenoPropuesta } from "./conceptoDelRellenoPropuesta";
 
 export interface ConceptoDelRelleno {
-  parte: "relleno";
+  /** `relleno`: el concepto del relleno; `arenilla`: la arenilla del relleno de azotea con bajadas (EJ-830, por m³). */
+  parte: ConceptoDelRellenoParte;
   elemento_clave: string;
   ref: ConceptoDelRellenoRef;
   concepto: ConceptoDeLaFicha;

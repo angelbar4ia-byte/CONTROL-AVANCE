@@ -26,10 +26,14 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  BajadaDelRelleno,
+  BajadaDelRellenoCambio,
+  BajadaDelRellenoPeticion,
   CalculoDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosCalculoGetParams,
   CalculoDeLosRellenosDeLaZona,
   CalculoDelRellenoPeticion,
   DefinicionDelRelleno,
+  GuiasDeRellenoDelPlano,
   HTTPValidationError,
   PropuestaDeEstructura,
   RellenoCalculado,
@@ -2699,3 +2703,805 @@ export const useProponerConceptosDeLosRellenosApiV1ZonasDeLosaZonaIdRellenosProp
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * @summary Convertir un punto del plano en una bajada pluvial del relleno de azotea (solo Control de obra)
+ */
+export const agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost = (
+  rellenoId: string,
+  bajadaDelRellenoPeticion: BajadaDelRellenoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<BajadaDelRelleno>(
+    {
+      url: `/api/v1/rellenos-de-zona/${rellenoId}/bajadas`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: bajadaDelRellenoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost>
+      >,
+      TError,
+      { rellenoId: string; data: BajadaDelRellenoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost>
+    >,
+    TError,
+    { rellenoId: string; data: BajadaDelRellenoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost>
+      >,
+      { rellenoId: string; data: BajadaDelRellenoPeticion }
+    > = (props) => {
+      const { rellenoId, data } = props ?? {};
+
+      return agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost(
+        rellenoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost>
+    >
+  >;
+export type AgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPostMutationBody =
+  BajadaDelRellenoPeticion;
+export type AgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPostMutationError =
+  void;
+
+/**
+ * @summary Convertir un punto del plano en una bajada pluvial del relleno de azotea (solo Control de obra)
+ */
+export const useAgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost>
+      >,
+      TError,
+      { rellenoId: string; data: BajadaDelRellenoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof agregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPost>
+  >,
+  TError,
+  { rellenoId: string; data: BajadaDelRellenoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAgregarBajadaApiV1RellenosDeZonaRellenoIdBajadasPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Cambiar el rótulo o la línea de pendiente de una bajada (solo Control de obra); sin línea el sistema genera la dirección
+ */
+export const cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut = (
+  bajadaId: string,
+  bajadaDelRellenoCambio: BajadaDelRellenoCambio,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<BajadaDelRelleno>(
+    {
+      url: `/api/v1/bajadas-de-relleno/${bajadaId}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: bajadaDelRellenoCambio,
+    },
+    options,
+  );
+};
+
+export const getCambiarBajadaApiV1BajadasDeRellenoBajadaIdPutMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut>>,
+    TError,
+    { bajadaId: string; data: BajadaDelRellenoCambio },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut>>,
+  TError,
+  { bajadaId: string; data: BajadaDelRellenoCambio },
+  TContext
+> => {
+  const mutationKey = ["cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut>>,
+    { bajadaId: string; data: BajadaDelRellenoCambio }
+  > = (props) => {
+    const { bajadaId, data } = props ?? {};
+
+    return cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut(
+      bajadaId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CambiarBajadaApiV1BajadasDeRellenoBajadaIdPutMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut>>
+  >;
+export type CambiarBajadaApiV1BajadasDeRellenoBajadaIdPutMutationBody =
+  BajadaDelRellenoCambio;
+export type CambiarBajadaApiV1BajadasDeRellenoBajadaIdPutMutationError = void;
+
+/**
+ * @summary Cambiar el rótulo o la línea de pendiente de una bajada (solo Control de obra); sin línea el sistema genera la dirección
+ */
+export const useCambiarBajadaApiV1BajadasDeRellenoBajadaIdPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut>>,
+      TError,
+      { bajadaId: string; data: BajadaDelRellenoCambio },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarBajadaApiV1BajadasDeRellenoBajadaIdPut>>,
+  TError,
+  { bajadaId: string; data: BajadaDelRellenoCambio },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarBajadaApiV1BajadasDeRellenoBajadaIdPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Quitar una bajada del relleno (solo Control de obra); el punto queda en el plano como un trazo cualquiera
+ */
+export const quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete = (
+  bajadaId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    { url: `/api/v1/bajadas-de-relleno/${bajadaId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getQuitarBajadaApiV1BajadasDeRellenoBajadaIdDeleteMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete>
+      >,
+      TError,
+      { bajadaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete>>,
+    TError,
+    { bajadaId: string },
+    TContext
+  > => {
+    const mutationKey = ["quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete>
+      >,
+      { bajadaId: string }
+    > = (props) => {
+      const { bajadaId } = props ?? {};
+
+      return quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete(
+        bajadaId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarBajadaApiV1BajadasDeRellenoBajadaIdDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete>>
+  >;
+
+export type QuitarBajadaApiV1BajadasDeRellenoBajadaIdDeleteMutationError =
+  HTTPValidationError;
+
+/**
+ * @summary Quitar una bajada del relleno (solo Control de obra); el punto queda en el plano como un trazo cualquiera
+ */
+export const useQuitarBajadaApiV1BajadasDeRellenoBajadaIdDelete = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete>
+      >,
+      TError,
+      { bajadaId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof quitarBajadaApiV1BajadasDeRellenoBajadaIdDelete>>,
+  TError,
+  { bajadaId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getQuitarBajadaApiV1BajadasDeRellenoBajadaIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Las bajadas y las guías del relleno dinámico del plano: líneas de pendiente e hilos de nivel punteados (en unidades del plano)
+ */
+export const guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet = (
+  planoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<GuiasDeRellenoDelPlano>(
+    {
+      url: `/api/v1/planos/${planoId}/guias-de-relleno`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfiniteQueryKey =
+  (planoId?: string) => {
+    return ["infinite", `/api/v1/planos/${planoId}/guias-de-relleno`] as const;
+  };
+
+export const getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetQueryKey =
+  (planoId?: string) => {
+    return [`/api/v1/planos/${planoId}/guias-de-relleno`] as const;
+  };
+
+export const getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+        >
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfiniteQueryKey(
+        planoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+        >
+      >
+    > = ({ signal }) =>
+      guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type GuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >
+  >;
+export type GuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las bajadas y las guías del relleno dinámico del plano: líneas de pendiente e hilos de nivel punteados (en unidades del plano)
+ */
+
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetQueryKey(
+        planoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+        >
+      >
+    > = ({ signal }) =>
+      guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type GuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+      >
+    >
+  >;
+export type GuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetQueryError =
+  HTTPValidationError;
+
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet<
+  TData = Awaited<
+    ReturnType<typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet<
+  TData = Awaited<
+    ReturnType<typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet<
+  TData = Awaited<
+    ReturnType<typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las bajadas y las guías del relleno dinámico del plano: líneas de pendiente e hilos de nivel punteados (en unidades del plano)
+ */
+
+export function useGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet<
+  TData = Awaited<
+    ReturnType<typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof guiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getGuiasDeRellenoDelPlanoApiV1PlanosPlanoIdGuiasDeRellenoGetQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
